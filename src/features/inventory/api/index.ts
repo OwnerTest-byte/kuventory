@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { InventoryStock, StockMovement } from '../types';
+import type { InventoryStock, StockMovement, StockBatch } from '../types';
 
 /**
  * Fetch all inventory items and their aggregated physical stock.
@@ -11,7 +11,25 @@ export async function getInventory(): Promise<InventoryStock[]> {
     .order('name');
 
   if (error) throw error;
+  if (error) throw error;
   return data as InventoryStock[];
+}
+
+/**
+ * Fetch all stock batches for a specific inventory item.
+ * Results are ordered by FEFO priority (earliest expiry first, received date tie-break).
+ */
+export async function getBatches(itemId: string): Promise<StockBatch[]> {
+  const { data, error } = await supabase
+    .from('stock_batches')
+    .select('*')
+    .eq('item_id', itemId)
+    .order('expiry_date', { ascending: true, nullsFirst: false })
+    .order('received_date', { ascending: true })
+    .order('id', { ascending: true });
+
+  if (error) throw error;
+  return data as StockBatch[];
 }
 
 /**

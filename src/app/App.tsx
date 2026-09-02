@@ -1,24 +1,23 @@
-import React from 'react';
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/features/auth/context/AuthContext';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { RequireAuth, RequireAdmin } from '@/features/auth/components/RequireAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { InventoryLandingPage } from '@/features/inventory/pages/InventoryLandingPage';
+import { Loader2 } from 'lucide-react';
 
-// Placeholder Pages
-const Dashboard = () => (
-  <div>
-    <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
-    <p>Welcome to Kuventory. Select an option from the sidebar.</p>
-  </div>
-);
+// Code Splitting for heavy or secondary routes
+const DailyInventoryPage = lazy(() => import('@/features/daily-inventory/components/DailyInventoryPage').then(module => ({ default: module.DailyInventoryPage })));
+const StockManagementPage = lazy(() => import('@/features/inventory/pages/StockManagementPage').then(module => ({ default: module.StockManagementPage })));
+const ReportViewPage = lazy(() => import('@/features/reports/pages/ReportViewPage').then(module => ({ default: module.ReportViewPage })));
+const ReportsLibraryPage = lazy(() => import('@/features/reports/pages/ReportsLibraryPage').then(module => ({ default: module.ReportsLibraryPage })));
+const CategoriesPage = lazy(() => import('@/features/categories/pages/CategoriesPage').then(module => ({ default: module.CategoriesPage })));
+const AdminPage = lazy(() => import('@/features/admin/pages/AdminPage').then(module => ({ default: module.AdminPage })));
 
-import { InventoryTestBed } from '@/features/inventory/components/InventoryTestBed';
-
-const AdminPanel = () => (
-  <div>
-    <h1 className="text-2xl font-bold mb-4">Admin Panel</h1>
-    <p>Protected area. Only ADMIN roles can see this.</p>
+const FallbackLoader = () => (
+  <div className="flex h-full w-full items-center justify-center p-8">
+    <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
   </div>
 );
 
@@ -32,16 +31,33 @@ export function App() {
         {/* Protected Routes (USER + ADMIN) */}
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/inventory" element={<InventoryTestBed />} />
+            <Route path="/inventory" element={<InventoryLandingPage />} />
+            
+            <Route path="/daily-inventory" element={
+              <Suspense fallback={<FallbackLoader />}><DailyInventoryPage /></Suspense>
+            } />
+            <Route path="/reports" element={
+              <Suspense fallback={<FallbackLoader />}><ReportsLibraryPage /></Suspense>
+            } />
+            <Route path="/reports/:id" element={
+              <Suspense fallback={<FallbackLoader />}><ReportViewPage /></Suspense>
+            } />
             
             {/* Admin-only Routes */}
             <Route element={<RequireAdmin />}>
-              <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/categories" element={
+                <Suspense fallback={<FallbackLoader />}><CategoriesPage /></Suspense>
+              } />
+              <Route path="/stock" element={
+                <Suspense fallback={<FallbackLoader />}><StockManagementPage /></Suspense>
+              } />
+              <Route path="/admin" element={
+                <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
+              } />
             </Route>
 
             {/* Fallback for authenticated users */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/inventory" replace />} />
           </Route>
         </Route>
 

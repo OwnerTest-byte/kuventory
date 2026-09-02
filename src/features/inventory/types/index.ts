@@ -30,3 +30,24 @@ export type StockMovement = {
   actor_id: string | null;
   actor_name: string | null;
 };
+
+export type StockBatch = {
+  id: string;
+  item_id: string;
+  quantity: number;
+  expiry_date: string | null;
+  received_date: string;
+};
+
+export type AppNotification = {
+  id: string;
+  user_id: string | null;
+  type: 'LOW_STOCK' | 'OUT_OF_STOCK' | 'EXPIRING_SOON' | 'EXPIRED' | 'SYSTEM';
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+  dedup_key: string | null;
+  item_id: string | null;
+  batch_id: string | null;
+};

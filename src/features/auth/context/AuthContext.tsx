@@ -38,6 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('AUTH STATE CHANGE:', _event, session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       if (!session) {
