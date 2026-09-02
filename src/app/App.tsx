@@ -13,12 +13,7 @@ const Dashboard = () => (
   </div>
 );
 
-const Inventory = () => (
-  <div>
-    <h1 className="text-2xl font-bold mb-4">Inventory Management</h1>
-    <p>Placeholder for inventory operations.</p>
-  </div>
-);
+import { InventoryTestBed } from '@/features/inventory/components/InventoryTestBed';
 
 const AdminPanel = () => (
   <div>
@@ -38,7 +33,7 @@ export function App() {
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/inventory" element={<Inventory />} />
+            <Route path="/inventory" element={<InventoryTestBed />} />
             
             {/* Admin-only Routes */}
             <Route element={<RequireAdmin />}>
