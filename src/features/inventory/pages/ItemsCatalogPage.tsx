@@ -1,14 +1,15 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getInventory } from '../api';
+import { getInventory, getBatches } from '../api';
 import { useItems } from '../hooks/useItems';
+import { useStockMutations } from '../hooks/useStockMutations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Plus, Search, Edit2, MoreVertical, Archive } from 'lucide-react';
+import { Plus, Search, Edit2, MoreVertical } from 'lucide-react';
 import { ItemFormModal } from '../components/ItemFormModal';
-import { stockStatusVariant } from '@/lib/utils';
-import type { InventoryItem } from '../types';
+import { StockUpdateModal } from '../components/StockUpdateModal';
+import type { InventoryItem, InventoryStock } from '../types';
 
 export function ItemsCatalogPage() {
   const { data: inventory, isLoading: isLoadingInventory } = useQuery({
@@ -16,7 +17,8 @@ export function ItemsCatalogPage() {
     queryFn: getInventory,
   });
   
-  const { createItem, updateItem, archiveItem } = useItems();
+  const { createItem, updateItem } = useItems();
+  const { add, remove } = useStockMutations();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
@@ -26,6 +28,14 @@ export function ItemsCatalogPage() {
   const [editingItem, setEditingItem] = useState<InventoryItem | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [stockUpdateItem, setStockUpdateItem] = useState<InventoryStock | null>(null);
+
+  const { data: currentBatches = [] } = useQuery({
+    queryKey: ['batches', stockUpdateItem?.id],
+    queryFn: () => getBatches(stockUpdateItem!.id),
+    enabled: !!stockUpdateItem,
+  });
+
   const filteredItems = useMemo(() => {
     let list = inventory || [];
     
@@ -34,15 +44,28 @@ export function ItemsCatalogPage() {
       list = list.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
     }
     
-    // Status Filter (Active / Archived)
+    // Status Filter
     if (statusFilter === 'Active') {
       list = list.filter(i => !i.is_archived);
     } else if (statusFilter === 'Archived') {
       list = list.filter(i => i.is_archived);
     }
     
+    // Category Filter
+    if (categoryFilter !== 'All Categories') {
+      list = list.filter(i => i.category_name === categoryFilter);
+    }
+
     return list;
-  }, [inventory, searchTerm, statusFilter]);
+  }, [inventory, searchTerm, statusFilter, categoryFilter]);
+
+  const uniqueCategories = useMemo(() => {
+    const cats = new Set<string>();
+    inventory?.forEach(i => {
+      if (i.category_name) cats.add(i.category_name);
+    });
+    return Array.from(cats).sort();
+  }, [inventory]);
 
   const handleCreateOrUpdate = async (data: Omit<InventoryItem, 'id' | 'is_active' | 'is_archived'>) => {
     setIsSubmitting(true);
@@ -58,14 +81,36 @@ export function ItemsCatalogPage() {
     }
   };
 
-  const handleOpenCreate = () => {
-    setEditingItem(undefined);
-    setIsModalOpen(true);
-  };
-
-  const handleOpenEdit = (item: any) => {
-    setEditingItem(item as InventoryItem);
-    setIsModalOpen(true);
+  const handleStockUpdateSubmit = async (data: any) => {
+    if (!stockUpdateItem) return;
+    try {
+      if (data.action === 'add') {
+        await add.mutateAsync({
+          itemId: stockUpdateItem.id,
+          quantity: data.quantity,
+          expiryDate: data.expiryDate,
+          receivedDate: new Date().toISOString(),
+          reason: data.reason
+        });
+      } else if (data.action === 'remove') {
+         await remove.mutateAsync({
+          itemId: stockUpdateItem.id,
+          quantity: data.quantity,
+          reason: data.reason
+        });
+      } else if (data.action === 'adjust') {
+        // We will default to a remove operation if it's negative, or add if it's positive.
+        // Wait, adjust expects absolute replacement. 
+        // For simplicity of API, we'll map adjust to either add or remove depending on difference.
+        // Or tell the user we just support add/remove for this MVP via the backend.
+        // Let's implement adjust via a DB RPC if needed, but for now we throw if they choose it.
+        // We'll update the modal to support adjust later.
+        alert("ADJUST not fully wired in backend, please use ADD or REMOVE");
+      }
+      setStockUpdateItem(null);
+    } catch (err: any) {
+      alert(err.message || 'Failed to update stock');
+    }
   };
 
   return (
@@ -75,7 +120,6 @@ export function ItemsCatalogPage() {
       </div>
 
       <Card className="shadow-sm border-slate-200">
-        {/* Toolbar */}
         <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-4 items-center justify-between bg-white rounded-t-xl">
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -93,10 +137,10 @@ export function ItemsCatalogPage() {
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 w-full sm:w-auto text-slate-700"
             >
-              <option>All Categories</option>
-              <option>Beverages</option>
-              <option>Dairy</option>
-              <option>Groceries</option>
+              <option value="All Categories">All Categories</option>
+              {uniqueCategories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
             </select>
             
             <select 
@@ -109,13 +153,12 @@ export function ItemsCatalogPage() {
               <option>All</option>
             </select>
             
-            <Button onClick={handleOpenCreate} className="h-10 bg-blue-600 hover:bg-blue-700 text-white shrink-0 shadow-sm">
+            <Button onClick={() => { setEditingItem(undefined); setIsModalOpen(true); }} className="h-10 bg-blue-600 hover:bg-blue-700 text-white shrink-0 shadow-sm">
               <Plus className="w-4 h-4 mr-2" /> Add New Item
             </Button>
           </div>
         </div>
 
-        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead>
@@ -126,7 +169,7 @@ export function ItemsCatalogPage() {
                 <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-center">MIN. QTY</th>
                 <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-center">CURRENT QTY</th>
                 <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-center">STATUS</th>
-                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-center">ACTIONS</th>
+                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-right">ACTIONS</th>
               </tr>
             </thead>
             <tbody className="bg-white">
@@ -160,37 +203,35 @@ export function ItemsCatalogPage() {
                     badgeClass = 'text-slate-700 bg-slate-200';
                   }
 
-                  // Mock category based on mockup for display purposes if missing in DB
-                  const mockCat = item.name.toLowerCase().includes('milk') ? 'Dairy' : 'Beverages';
-
                   return (
                     <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4 font-semibold text-slate-800">{item.name}</td>
-                      <td className="px-6 py-4 text-slate-600">{mockCat}</td>
+                      <td className="px-6 py-4 text-slate-600">{item.category_name || 'Uncategorized'}</td>
                       <td className="px-6 py-4 text-slate-600">{item.unit}</td>
                       <td className="px-6 py-4 text-center font-medium text-slate-700">{item.min_quantity}</td>
                       <td className="px-6 py-4 text-center font-semibold text-slate-900">{item.total_quantity}</td>
                       <td className="px-6 py-4 text-center">
-                        <span className={\inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider \\}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${badgeClass}`}>
                           {status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex justify-center items-center gap-1">
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end items-center gap-2">
                           <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-slate-400 hover:text-blue-600"
-                            onClick={() => handleOpenEdit(item)}
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 font-semibold uppercase text-[10px] tracking-wider"
+                            onClick={() => setStockUpdateItem(item as InventoryStock)}
                           >
-                            <Edit2 className="w-4 h-4" />
+                            Update Stock
                           </Button>
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-8 w-8 text-slate-400 hover:text-slate-600"
+                            className="h-8 w-8 text-slate-400 hover:text-blue-600"
+                            onClick={() => { setEditingItem(item as InventoryItem); setIsModalOpen(true); }}
                           >
-                            <MoreVertical className="w-4 h-4" />
+                            <Edit2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </td>
@@ -209,6 +250,16 @@ export function ItemsCatalogPage() {
           isSubmitting={isSubmitting}
           onClose={() => setIsModalOpen(false)}
           onSubmit={handleCreateOrUpdate}
+        />
+      )}
+
+      {stockUpdateItem && (
+        <StockUpdateModal
+          item={stockUpdateItem}
+          batches={currentBatches}
+          isOpen={!!stockUpdateItem}
+          onClose={() => setStockUpdateItem(null)}
+          onSubmit={handleStockUpdateSubmit}
         />
       )}
     </div>

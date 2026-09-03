@@ -10,7 +10,7 @@ export function StockBatchesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stock_batches')
-        .select(\
+        .select(`
           id,
           quantity,
           expiry_date,
@@ -19,7 +19,7 @@ export function StockBatchesPage() {
             name,
             unit
           )
-        \)
+        `)
         .order('expiry_date', { ascending: true, nullsFirst: false });
       
       if (error) throw error;

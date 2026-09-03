@@ -10,7 +10,7 @@ export function StockHistoryPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stock_movements')
-        .select(\
+        .select(`
           id,
           type,
           quantity_change,
@@ -20,7 +20,7 @@ export function StockHistoryPage() {
             name,
             unit
           )
-        \)
+        `)
         .order('created_at', { ascending: false })
         .limit(200);
       
@@ -78,7 +78,7 @@ export function StockHistoryPage() {
                         {move.inventory_items?.name}
                       </td>
                       <td className="px-6 py-4 text-center">
-                         <span className={\inline-flex px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider \\}>
+                         <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${badgeClass}`}>
                            {move.type}
                          </span>
                       </td>

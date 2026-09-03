@@ -27,12 +27,12 @@ export function InventorySheet({ items, isReadOnly }: InventorySheetProps) {
     
     // Calculate totals
     const totals = tableItems.reduce((acc, item) => ({
-      beg: acc.beg + (item.beginning_qty || 0),
-      add: acc.add + (item.added_qty || 0),
-      total: acc.total + ((item.beginning_qty || 0) + (item.added_qty || 0)),
-      am: acc.am + (item.sales_am || 0),
-      pm: acc.pm + (item.sales_pm || 0),
-      end: acc.end + (item.ending_qty || 0)
+      beg: acc.beg + (item.beg || 0),
+      add: acc.add + (item.add || 0),
+      total: acc.total + ((item.beg || 0) + (item.add || 0)),
+      am: acc.am + (item.am || 0),
+      pm: acc.pm + (item.pm || 0),
+      end: acc.end + (item.ending || 0)
     }), { beg: 0, add: 0, total: 0, am: 0, pm: 0, end: 0 });
 
     return (
@@ -55,18 +55,18 @@ export function InventorySheet({ items, isReadOnly }: InventorySheetProps) {
               </TableHeader>
               <TableBody>
                 {tableItems.map((item, index) => {
-                  const totalStock = (item.beginning_qty || 0) + (item.added_qty || 0);
+                  const totalStock = (item.beg || 0) + (item.add || 0);
                   
                   return (
                     <TableRow key={item.id} className="hover:bg-slate-50/50">
                       <TableCell className="text-center text-slate-500 font-medium">{index + 1}</TableCell>
                       <TableCell className="font-semibold text-slate-800 uppercase text-sm">{item.inventory_items?.name}</TableCell>
-                      <TableCell className="text-center font-medium text-slate-700">{item.beginning_qty || 0}</TableCell>
-                      <TableCell className="text-center font-medium text-slate-700">{item.added_qty || 0}</TableCell>
+                      <TableCell className="text-center font-medium text-slate-700">{item.beg || 0}</TableCell>
+                      <TableCell className="text-center font-medium text-slate-700">{item.add || 0}</TableCell>
                       <TableCell className="text-center font-medium text-slate-700">{totalStock}</TableCell>
-                      <TableCell className="text-center font-medium text-slate-700">{item.sales_am || 0}</TableCell>
-                      <TableCell className="text-center font-medium text-slate-700">{item.sales_pm || 0}</TableCell>
-                      <TableCell className="text-center font-medium text-slate-700">{item.ending_qty || 0}</TableCell>
+                      <TableCell className="text-center font-medium text-slate-700">{item.am || 0}</TableCell>
+                      <TableCell className="text-center font-medium text-slate-700">{item.pm || 0}</TableCell>
+                      <TableCell className="text-center font-medium text-slate-700">{item.ending || 0}</TableCell>
                     </TableRow>
                   );
                 })}

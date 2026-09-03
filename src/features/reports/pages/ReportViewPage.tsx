@@ -46,16 +46,16 @@ export function ReportViewPage() {
           </thead>
           <tbody>
             {tableItems.map((item, idx) => {
-              const totalStock = (item.beginning_qty || 0) + (item.added_qty || 0);
+              const totalStock = (item.beg || 0) + (item.add || 0);
               return (
                 <tr key={idx} className="border-b border-slate-200">
                   <td className="py-2 px-3 border-r border-slate-200">{item.item_name}</td>
-                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.beginning_qty}</td>
-                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.added_qty}</td>
+                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.beg}</td>
+                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.add}</td>
                   <td className="py-2 px-3 text-center border-r border-slate-200 font-medium">{totalStock}</td>
-                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.sales_am}</td>
-                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.sales_pm}</td>
-                  <td className="py-2 px-3 text-center font-medium">{item.ending_qty}</td>
+                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.am}</td>
+                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.pm}</td>
+                  <td className="py-2 px-3 text-center font-medium">{item.ending}</td>
                 </tr>
               );
             })}
@@ -109,16 +109,16 @@ export function ReportViewPage() {
 
         <div className="flex justify-between items-start mb-8 text-sm text-slate-700 font-medium">
           <div>
-            <p>Date: {format(new Date(report.date), 'MMMM dd, yyyy')}</p>
+            <p>Date: {format(new Date(report.report_date), 'MMMM dd, yyyy')}</p>
           </div>
           <div className="text-right space-y-4">
             <div className="flex justify-end gap-2 items-end">
               <span className="w-24 text-right">Prepared by:</span>
-              <div className="border-b border-slate-400 w-48 text-center pb-1 text-slate-900">{report.generated_by_user?.full_name}</div>
+              <div className="border-b border-slate-400 w-48 text-center pb-1 text-slate-900">{report.generated_by || 'System'}</div>
             </div>
             <div className="flex justify-end gap-2 items-end">
               <span className="w-24 text-right">Finalized by:</span>
-              <div className="border-b border-slate-400 w-48 text-center pb-1 text-slate-900">{report.state === 'FINALIZED' ? report.generated_by_user?.full_name : ''}</div>
+              <div className="border-b border-slate-400 w-48 text-center pb-1 text-slate-900">{report.status === 'ACTIVE' || report.status === 'CORRECTED' ? (report.generated_by || 'System') : ''}</div>
             </div>
           </div>
         </div>

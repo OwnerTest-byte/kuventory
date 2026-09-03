@@ -38,12 +38,12 @@ export function AdminPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select(
+        .select(`
           id,
           first_name,
           last_name,
           user_roles ( role )
-        );
+        `);
       
       if (error) throw error;
       return data as unknown as UserProfile[];
@@ -55,13 +55,13 @@ export function AdminPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('visitor_logs')
-        .select(
+        .select(`
           id,
           user_id,
           user_email,
           visited_at,
           profiles ( first_name, last_name )
-        )
+        `)
         .order('visited_at', { ascending: false })
         .limit(100);
       
@@ -135,14 +135,14 @@ export function AdminPage() {
         <div className="flex border-b border-slate-200">
           <button
             onClick={() => setActiveTab('users')}
-            className={lex items-center px-6 py-4 font-semibold text-sm transition-colors \}
+            className={`flex items-center px-6 py-4 font-semibold text-sm transition-colors ${activeTab === 'users' ? 'border-b-2 border-blue-600 text-blue-600 bg-blue-50/50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}
           >
             <Users className="w-4 h-4 mr-2" />
             Manage Users
           </button>
           <button
             onClick={() => setActiveTab('visitors')}
-            className={lex items-center px-6 py-4 font-semibold text-sm transition-colors \}
+            className={`flex items-center px-6 py-4 font-semibold text-sm transition-colors ${activeTab === 'visitors' ? 'border-b-2 border-blue-600 text-blue-600 bg-blue-50/50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'}`}
           >
             <Shield className="w-4 h-4 mr-2" />
             Visitor Logs
@@ -175,7 +175,7 @@ export function AdminPage() {
                           {user.first_name} {user.last_name}
                         </td>
                         <td className="px-6 py-4">
-                           <span className={\inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider \\}>
+                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-700'}`}>
                              {role}
                            </span>
                         </td>

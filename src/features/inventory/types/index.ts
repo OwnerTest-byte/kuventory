@@ -1,6 +1,7 @@
 export type InventoryItem = {
   id: string;
   category_id: string;
+  category_name?: string;
   name: string;
   description: string | null;
   supplier_a: string | null;
