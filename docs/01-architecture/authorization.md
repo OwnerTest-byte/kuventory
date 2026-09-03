@@ -9,20 +9,20 @@ When a user signs up or is invited, their entry in `auth.users` triggers a Postg
 
 ## Permission Matrix
 
-| Module | Action | USER | ADMIN | Rationale |
-| --- | --- | --- | --- | --- |
-| **Inventory Master** | View | Yes | Yes | Users need to see items for daily counts. |
-| **Inventory Master** | Create/Edit | No | Yes | Prevents operational users from messing up standard items. |
-| **Categories** | View | Yes | Yes | Needed for filtering. |
-| **Categories** | Create/Edit | No | Yes | Master data control. |
-| **Daily Inventory** | Create Draft | Yes | Yes | Core operational duty. |
-| **Daily Inventory** | Edit AM/PM | Yes | Yes | Core operational duty. |
-| **Daily Inventory** | Finalize | Yes | Yes | Users lock their shift counts. |
-| **Daily Inventory** | Correct Finalized | No | Yes | Only admins can make historical corrections. |
-| **Reports** | View Current | Yes | Yes | Users need their daily output. |
-| **Reports** | View Archives | No | Yes | Operational users don't need historical visibility. |
-| **Users** | View/Manage | No | Yes | Strictly administrative. |
-| **Stock Adjust** | Manual Adj. | No | Yes | Only admins can manually override stock quantities outside of the Daily Inventory workflow. |
+| Module               | Action            | USER | ADMIN | Rationale                                                                                   |
+| -------------------- | ----------------- | ---- | ----- | ------------------------------------------------------------------------------------------- |
+| **Inventory Master** | View              | Yes  | Yes   | Users need to see items for daily counts.                                                   |
+| **Inventory Master** | Create/Edit       | No   | Yes   | Prevents operational users from messing up standard items.                                  |
+| **Categories**       | View              | Yes  | Yes   | Needed for filtering.                                                                       |
+| **Categories**       | Create/Edit       | No   | Yes   | Master data control.                                                                        |
+| **Daily Inventory**  | Create Draft      | Yes  | Yes   | Core operational duty.                                                                      |
+| **Daily Inventory**  | Edit AM/PM        | Yes  | Yes   | Core operational duty.                                                                      |
+| **Daily Inventory**  | Finalize          | Yes  | Yes   | Users lock their shift counts.                                                              |
+| **Daily Inventory**  | Correct Finalized | No   | Yes   | Only admins can make historical corrections.                                                |
+| **Reports**          | View Current      | Yes  | Yes   | Users need their daily output.                                                              |
+| **Reports**          | View Archives     | No   | Yes   | Operational users don't need historical visibility.                                         |
+| **Users**            | View/Manage       | No   | Yes   | Strictly administrative.                                                                    |
+| **Stock Adjust**     | Manual Adj.       | No   | Yes   | Only admins can manually override stock quantities outside of the Daily Inventory workflow. |
 
 ## RLS Implementation Pattern
 

@@ -1,9 +1,11 @@
 # /plan
 
 ## Objective
+
 Convert an approved requirement into a minimal implementation plan.
 
 ## Procedure
+
 1. Restate the requirement and its acceptance criteria.
 2. Inspect existing relevant code before proposing new code.
 3. Identify database, frontend, security, testing, performance, and documentation impacts.
@@ -14,4 +16,5 @@ Convert an approved requirement into a minimal implementation plan.
 8. Do not implement.
 
 ## Exit criteria
+
 The plan must identify exact affected areas, tests, documentation updates, and rollback considerations.

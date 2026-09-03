@@ -1,9 +1,11 @@
 # /performance
 
 ## Objective
+
 Measure and improve verified KUVENTORY bottlenecks.
 
 ## Procedure
+
 1. Build production mode.
 2. Measure bundle/chunk sizes.
 3. Inspect network requests and duplicates.

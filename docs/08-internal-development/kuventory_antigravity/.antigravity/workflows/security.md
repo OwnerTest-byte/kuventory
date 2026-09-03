@@ -1,9 +1,11 @@
 # /security
 
 ## Objective
+
 Validate authentication, authorization, RLS, secrets, and business-integrity boundaries.
 
 ## Procedure
+
 1. Inspect auth/session handling.
 2. Verify role resolution.
 3. Attempt unauthorized UI operations.

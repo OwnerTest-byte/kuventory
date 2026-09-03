@@ -55,7 +55,7 @@ We use a feature-sliced design. Each directory inside `src/features/` acts as an
 ### Dependency Rules
 
 1. `features/*` can import from `components/`, `lib/`, `hooks/`, and `types/`.
-2. `features/*` should generally *not* import from other features to prevent tangled coupling, except for explicit shared domains (e.g., reports utilizing daily-inventory types).
+2. `features/*` should generally _not_ import from other features to prevent tangled coupling, except for explicit shared domains (e.g., reports utilizing daily-inventory types).
 3. `components/ui/` contains only dumb, presentational components.
 
 ### Form Architecture

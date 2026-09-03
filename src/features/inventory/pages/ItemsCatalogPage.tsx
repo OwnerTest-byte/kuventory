@@ -6,7 +6,7 @@ import { useStockMutations } from '../hooks/useStockMutations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Plus, Search, Edit2, MoreVertical } from 'lucide-react';
+import { Plus, Search, Edit2 } from 'lucide-react';
 import { ItemFormModal } from '../components/ItemFormModal';
 import { StockUpdateModal } from '../components/StockUpdateModal';
 import type { InventoryItem, InventoryStock } from '../types';

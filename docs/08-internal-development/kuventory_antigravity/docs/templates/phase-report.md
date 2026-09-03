@@ -16,7 +16,7 @@
 ## Tests executed
 
 | Command/Test | Result | Evidence |
-|---|---|---|
+| ------------ | ------ | -------- |
 
 ## Security impact
 

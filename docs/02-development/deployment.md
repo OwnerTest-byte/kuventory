@@ -18,7 +18,7 @@ This document outlines the deployment strategy for the KUVENTORY web application
 3. Environment Variables:
    - `VITE_SUPABASE_URL`: The hosted Supabase API URL.
    - `VITE_SUPABASE_ANON_KEY`: The hosted Supabase Anon Key.
-   *(Note: The build process requires these keys to bake them into the SPA client bundle. They are strictly public)*
+     _(Note: The build process requires these keys to bake them into the SPA client bundle. They are strictly public)_
 
 ## 3. SPA Routing
 

@@ -13,17 +13,17 @@ We use a strictly typed query key factory pattern to prevent typos and ensure pr
 ```typescript
 export const queryKeys = {
   categories: {
-    all: ['categories'] as const,
-    detail: (id: string) => ['categories', id] as const,
+    all: ["categories"] as const,
+    detail: (id: string) => ["categories", id] as const,
   },
   inventory: {
-    all: ['inventory'] as const,
-    batches: (itemId: string) => ['inventory', 'batches', itemId] as const,
+    all: ["inventory"] as const,
+    batches: (itemId: string) => ["inventory", "batches", itemId] as const,
   },
   daily: {
-    draft: ['daily', 'draft'] as const,
-    byDate: (date: string) => ['daily', date] as const,
-  }
+    draft: ["daily", "draft"] as const,
+    byDate: (date: string) => ["daily", date] as const,
+  },
 };
 ```
 
@@ -35,10 +35,10 @@ When a mutation occurs (e.g., updating a category), the relevant query keys are 
 const useUpdateCategory = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data) => supabase.from('categories').update(data),
+    mutationFn: (data) => supabase.from("categories").update(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
-    }
+    },
   });
 };
 ```
@@ -53,7 +53,7 @@ Supabase Realtime is **NOT** used universally. It is expensive in terms of activ
 
 - Live Notifications (e.g., Low Stock alerts pushed from the backend).
 - If specifically required by the client for multi-user concurrent draft editing (if implemented).
-For standard list views, background refetching on window focus is sufficient.
+  For standard list views, background refetching on window focus is sufficient.
 
 ## Pagination and Filtering
 

@@ -9,7 +9,7 @@ Initial production build measured before optimizations:
 - **Vendor Code (`index.es.js`)**: ~151.43 kB (gzip: 48.91 kB)
 - **Export Libraries (Code Split)**: PDF (`431 kB`), XLSX (`281 kB`), html2canvas (`199 kB`) successfully deferred until needed.
 
-*Observation*: The export libraries are properly split. The main bundle size is acceptable for a business web application, though `lucide-react` is pulling in a large chunk of icons.
+_Observation_: The export libraries are properly split. The main bundle size is acceptable for a business web application, though `lucide-react` is pulling in a large chunk of icons.
 
 ## 2. Rendering & Interaction Performance
 

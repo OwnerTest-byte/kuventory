@@ -39,7 +39,7 @@ When stock movements occur, this trigger calculates the aggregate stock for the 
 
 - If stock hits 0, it upserts an `OUT_OF_STOCK` notification using a unique `dedup_key`.
 - If stock is low, it upserts a `LOW_STOCK` notification.
-- If stock normalizes, it *releases* the notification by setting `dedup_key = NULL` on previous active warnings, allowing future warnings to trigger normally when stock drops again.
+- If stock normalizes, it _releases_ the notification by setting `dedup_key = NULL` on previous active warnings, allowing future warnings to trigger normally when stock drops again.
 
 ### Scheduled Monitoring (Expiry)
 

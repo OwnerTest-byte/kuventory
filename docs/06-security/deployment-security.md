@@ -32,4 +32,4 @@ During the CI process, the frontend is vetted for:
 - Static type integrity (TypeScript check)
 - Security vulnerability dependencies (`npm audit` if enabled)
 - Linter validation
-If any check fails, the deployment is aborted, ensuring a compromised build cannot replace the live application.
+  If any check fails, the deployment is aborted, ensuring a compromised build cannot replace the live application.

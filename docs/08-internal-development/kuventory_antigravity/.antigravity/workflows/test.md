@@ -1,10 +1,13 @@
 # /test
 
 ## Objective
+
 Validate the current KUVENTORY state.
 
 ## Procedure
+
 Run the smallest relevant tests first, then progressively broader tests:
+
 1. Typecheck
 2. Lint
 3. Unit/component tests

@@ -3,6 +3,7 @@
 The application must be optimized for older and low-end devices.
 
 Before adding a package, ask:
+
 1. Is it actually required?
 2. Can an existing dependency solve it?
 3. Can platform/browser functionality solve it?

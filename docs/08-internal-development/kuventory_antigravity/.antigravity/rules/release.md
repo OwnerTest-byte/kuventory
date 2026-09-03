@@ -1,6 +1,7 @@
 # KUVENTORY RELEASE RULE
 
 A release is not complete until:
+
 - tests pass
 - build passes
 - no secrets are present

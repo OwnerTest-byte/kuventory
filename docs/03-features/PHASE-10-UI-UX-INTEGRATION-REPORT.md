@@ -10,7 +10,7 @@
 ## User Experience
 
 - **Main Workflows**:
-  - Login -> `InventoryLandingPage` -> *Click 'Open Today's Inventory'* -> `DailyInventoryPage`.
+  - Login -> `InventoryLandingPage` -> _Click 'Open Today's Inventory'_ -> `DailyInventoryPage`.
   - Admin users can seamlessly access user management and category CRUD without cluttering the UI for generic users.
 - **Inventory Sheet Polish**: Separated Daily Inventory strictly into "PORTION STOCK" and "PER CASES" identical to the paper sheets and report views. Boxed out the `BEG`, `ADD`, `AM`, and `PM` inputs while displaying `TOTAL` and `END` as flat calculated text to prevent erroneous clicking.
 - **Save State UX**: Integrated a top-level debounce autosave indicator ("Saving...", "Saved").

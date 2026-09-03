@@ -11,7 +11,7 @@ The `DailyInventoryPage` previously executed a full cache invalidation and datab
 **Mitigations Implemented:**
 
 - **Optimistic Cache Updates:** The `useUpsertDailyItem` mutation was refactored to use `queryClient.setQueryData()` rather than `queryClient.invalidateQueries()`. Now, when a cell is updated, the database returns only the modified row, and React Query performs a surgical, client-side update of the exact record in the cached list. This completely eliminates the 100+ row database refetch on every keystroke.
-- **`React.memo` for Row Isolation:** `InventoryRow` was wrapped in `React.memo()`. Combined with the optimistic update strategy (which preserves the memory references of unmodified items), this ensures that when a single cell is edited, *only* that specific row re-renders in the DOM, rather than the entire table of 100+ items.
+- **`React.memo` for Row Isolation:** `InventoryRow` was wrapped in `React.memo()`. Combined with the optimistic update strategy (which preserves the memory references of unmodified items), this ensures that when a single cell is edited, _only_ that specific row re-renders in the DOM, rather than the entire table of 100+ items.
 - **Controlled/Uncontrolled Sync Fix:** The internal local state of each `InventoryRow` now only syncs from server state if the actual value fundamentally changes, preventing race conditions during rapid typing.
 
 ## 2. API Data Fetching Limitations

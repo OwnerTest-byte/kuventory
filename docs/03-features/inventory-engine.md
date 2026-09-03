@@ -6,7 +6,7 @@ The KUVENTORY Inventory Engine relies completely on PostgreSQL RPC functions to 
 
 ### 1. Master Data (`inventory_items`)
 
-Stores the catalog definition of an item (name, category, min thresholds). It does *not* hold the live stock counter.
+Stores the catalog definition of an item (name, category, min thresholds). It does _not_ hold the live stock counter.
 
 ### 2. Live Stock (`stock_batches`)
 
@@ -34,12 +34,12 @@ The unalterable, append-only historical log. Every time stock changes (addition,
   2. Sorts them by `expiry_date ASC, received_date ASC`.
   3. Uses `FOR UPDATE` to exclusively lock the rows against parallel requests.
   4. Deducts the required quantity sequentially until the request is fulfilled.
-- **History**: Generates a `REMOVE` movement for *each* batch affected.
+- **History**: Generates a `REMOVE` movement for _each_ batch affected.
 
 ### Adjust Stock (`adjust_stock`)
 
 - **Action**: Audit corrections, registering damaged goods, or direct batch modifications.
-- **Process**: Targets a *specific* batch ID (unlike `consume_stock`).
+- **Process**: Targets a _specific_ batch ID (unlike `consume_stock`).
 - **Algorithm**:
   1. Locks the specific batch `FOR UPDATE`.
   2. Updates its quantity to the newly declared absolute amount.

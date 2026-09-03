@@ -1,9 +1,11 @@
 # /clean
 
 ## Objective
+
 Remove confirmed dead code and unnecessary complexity without changing behavior.
 
 ## Procedure
+
 1. Run typecheck/lint/build.
 2. Identify unused files/imports/functions/components/hooks/types/dependencies.
 3. Trace usage before deletion.

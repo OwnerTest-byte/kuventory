@@ -24,6 +24,6 @@ Phase 08 successfully implemented the KUVENTORY automatic daily report snapshot 
 
 ## Verification
 
-- Reports generated post-finalization precisely match the state of the inventory and master data *at the time of creation*.
+- Reports generated post-finalization precisely match the state of the inventory and master data _at the time of creation_.
 - Changes to live categories or items do not alter established snapshots, maintaining the historical integrity required by the Daily Inventory workflow.
 - E2E tests have passed and all constraints are sound.

@@ -1,9 +1,11 @@
 # /implement
 
 ## Objective
+
 Implement one approved plan without scope expansion.
 
 ## Procedure
+
 1. Confirm the approved plan exists.
 2. Inspect affected code one more time.
 3. Implement the smallest coherent change.
@@ -16,4 +18,5 @@ Implement one approved plan without scope expansion.
 10. Produce a phase report.
 
 ## Exit criteria
+
 Targeted tests, typecheck, lint, and build are clean, or failures are documented with causes.

@@ -22,7 +22,7 @@
 - `lucide-react`: Icons.
 - `tailwindcss`, `@tailwindcss/vite`, `postcss`, `autoprefixer`, `clsx`, `tailwind-merge`: UI and styling framework (Tailwind v4 with shadcn/ui structural initialization).
 - `vitest`, `@testing-library/react`, `jsdom`, `@testing-library/jest-dom`, `@playwright/test`: Testing stack.
-(Detailed reasoning available in `docs/02-development/dependencies.md`)
+  (Detailed reasoning available in `docs/02-development/dependencies.md`)
 
 ## Supabase
 
@@ -38,12 +38,13 @@
 - Run results: Passed.
 
 ## Performance Baseline
+
 - Measured after `npm run build` on production bundle:
 
 - **HTML (`index.html`)**: 0.45 kB (gzip: 0.28 kB)
 - **CSS (`index.css`)**: 2.14 kB (gzip: 0.62 kB)
 - **JavaScript (`index.js`)**: 253.12 kB (gzip: 80.11 kB)
-(Documented in `docs/05-performance/baseline.md`)
+  (Documented in `docs/05-performance/baseline.md`)
 
 ## Git
 

@@ -1,9 +1,11 @@
 # /release
 
 ## Objective
+
 Prepare a reproducible KUVENTORY release.
 
 ## Procedure
+
 1. Determine the semantic version change from the actual diff.
 2. Run typecheck, lint, unit/component tests, DB/RLS tests, build, and critical E2E tests.
 3. Run security and performance checks.
