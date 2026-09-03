@@ -3,8 +3,10 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/lib/supabase';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -42,71 +44,67 @@ export function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-xl shadow-xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+    <Card className="w-full max-w-md shadow-lg border-border">
+      <CardHeader className="text-center space-y-2">
+        <CardTitle className="text-2xl font-bold tracking-tight">
           Sign in to your account
-        </h2>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+        </CardTitle>
+        <CardDescription>
           Welcome to KUVENTORY
-        </p>
-      </div>
+        </CardDescription>
+      </CardHeader>
+      
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {authError && (
+            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+              {authError}
+            </div>
+          )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {authError && (
-          <div className="p-3 text-sm text-red-700 bg-red-100 rounded-md dark:bg-red-900/30 dark:text-red-400">
-            {authError}
+          <div className="space-y-4">
+            <div className="space-y-2 text-left">
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                {...register('email')}
+                aria-invalid={!!errors.email}
+              />
+              {errors.email && (
+                <p className="text-sm text-destructive" id="email-error">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2 text-left">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                {...register('password')}
+                aria-invalid={!!errors.password}
+              />
+              {errors.password && (
+                <p className="text-sm text-destructive" id="password-error">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
           </div>
-        )}
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" htmlFor="email">
-              Email Address
-            </label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              {...register('email')}
-              aria-invalid={!!errors.email}
-              aria-describedby={errors.email ? "email-error" : undefined}
-            />
-            {errors.email && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400" id="email-error">
-                {errors.email.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" htmlFor="password">
-              Password
-            </label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              {...register('password')}
-              aria-invalid={!!errors.password}
-              aria-describedby={errors.password ? "password-error" : undefined}
-            />
-            {errors.password && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400" id="password-error">
-                {errors.password.message}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={isLoading}
-        >
-          {isLoading ? "Signing in..." : "Sign In"}
-        </Button>
-      </form>
-    </div>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isLoading}
+          >
+            {isLoading ? "Signing in..." : "Sign In"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

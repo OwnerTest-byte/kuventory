@@ -1,9 +1,10 @@
-BEGIN;
+﻿BEGIN;
 
 -- Include pgTap
 SELECT plan(10);
 
 -- 1. Create Mock Environment
+SET request.jwt.claim.sub = '00000000-0000-0000-0000-000000000002';
 INSERT INTO public.categories (id, name, description) VALUES ('c0000000-0000-0000-0000-000000000010', 'FEFO Category', 'Desc') ON CONFLICT DO NOTHING;
 INSERT INTO public.inventory_items (id, category_id, name, unit) VALUES ('10000000-0000-0000-0000-000000000010', 'c0000000-0000-0000-0000-000000000010', 'FEFO Item', 'Box') ON CONFLICT DO NOTHING;
 INSERT INTO auth.users (id, email) VALUES ('00000000-0000-0000-0000-000000000002', 'testuser2@kuventory.com') ON CONFLICT DO NOTHING;
@@ -44,7 +45,7 @@ SELECT results_eq(
 -- 4. Consume Stock (Partial Consumption of Earliest Valid Batch)
 -- Request 5. Should consume from Batch B.
 SELECT lives_ok(
-  $$ SELECT public.consume_stock('10000000-0000-0000-0000-000000000010', 5, '00000000-0000-0000-0000-000000000002'::uuid, 'Test') $$,
+  $$ SELECT public.consume_stock('10000000-0000-0000-0000-000000000010', 5, 'Test') $$,
   'consume_stock 5 should succeed'
 );
 
@@ -66,7 +67,7 @@ SELECT results_eq(
 -- Available Valid: Batch B (15) + Batch C (30) + Batch E (10) + Batch D (15) = 70.
 -- It should consume: 15 from B, then 30 from C, then 5 from E.
 SELECT lives_ok(
-  $$ SELECT public.consume_stock('10000000-0000-0000-0000-000000000010', 50, '00000000-0000-0000-0000-000000000002'::uuid, 'Test 2') $$,
+  $$ SELECT public.consume_stock('10000000-0000-0000-0000-000000000010', 50, 'Test 2') $$,
   'consume_stock 50 should succeed'
 );
 
@@ -100,7 +101,7 @@ SELECT results_eq(
 -- Batch A (10) is expired, so it doesn't count.
 -- Total valid is 20, but we request 30.
 SELECT throws_ok(
-  $$ SELECT public.consume_stock('10000000-0000-0000-0000-000000000010', 30, '00000000-0000-0000-0000-000000000002'::uuid, 'Fail') $$,
+  $$ SELECT public.consume_stock('10000000-0000-0000-0000-000000000010', 30, 'Fail') $$,
   'Insufficient valid stock for item 10000000-0000-0000-0000-000000000010 to consume 30',
   'consume_stock should throw error if insufficient VALID stock, completely ignoring expired batches'
 );
@@ -108,3 +109,5 @@ SELECT throws_ok(
 
 SELECT * FROM finish();
 ROLLBACK;
+
+

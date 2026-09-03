@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { removeStock } from '../api';
 import type { InventoryStock } from '../types';
 import { useAuth } from '@/features/auth/context/AuthContext';
@@ -35,7 +35,6 @@ export function ConsumeStockModal({ item, onClose, onSuccess }: Props) {
       await removeStock({
         itemId: item.id,
         quantity: qty,
-        userId: profile.id,
         reason
       });
       onSuccess();

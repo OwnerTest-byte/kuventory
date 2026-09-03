@@ -4,6 +4,7 @@ UPDATE public.notifications SET title = type WHERE title IS NULL;
 ALTER TABLE public.notifications ALTER COLUMN title SET NOT NULL;
 
 ALTER TABLE public.notifications ADD COLUMN dedup_key TEXT UNIQUE;
+ALTER TABLE public.notifications ADD COLUMN read_at TIMESTAMPTZ;
 ALTER TABLE public.notifications ADD COLUMN item_id UUID REFERENCES public.inventory_items(id) ON DELETE CASCADE;
 ALTER TABLE public.notifications ADD COLUMN batch_id UUID REFERENCES public.stock_batches(id) ON DELETE CASCADE;
 

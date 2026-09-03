@@ -11,7 +11,6 @@ export async function getInventory(): Promise<InventoryStock[]> {
     .order('name');
 
   if (error) throw error;
-  if (error) throw error;
   return data as InventoryStock[];
 }
 
@@ -40,7 +39,6 @@ export async function addStock(params: {
   quantity: number;
   expiryDate: string | null;
   receivedDate: string;
-  userId: string;
   reason: string;
 }): Promise<void> {
   const { error } = await supabase.rpc('add_stock', {
@@ -48,7 +46,6 @@ export async function addStock(params: {
     p_quantity: params.quantity,
     p_expiry_date: params.expiryDate,
     p_received_date: params.receivedDate,
-    p_user_id: params.userId,
     p_reason: params.reason,
   });
 
@@ -61,13 +58,11 @@ export async function addStock(params: {
 export async function removeStock(params: {
   itemId: string;
   quantity: number;
-  userId: string;
   reason: string;
 }): Promise<void> {
   const { error } = await supabase.rpc('consume_stock', {
     p_item_id: params.itemId,
     p_quantity: params.quantity,
-    p_user_id: params.userId,
     p_reason: params.reason,
   });
 
@@ -80,13 +75,11 @@ export async function removeStock(params: {
 export async function adjustStock(params: {
   batchId: string;
   newQuantity: number;
-  userId: string;
   reason: string;
 }): Promise<void> {
   const { error } = await supabase.rpc('adjust_stock', {
     p_batch_id: params.batchId,
     p_new_quantity: params.newQuantity,
-    p_user_id: params.userId,
     p_reason: params.reason,
   });
 

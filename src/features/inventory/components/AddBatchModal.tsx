@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { addStock } from '../api';
 import type { InventoryStock } from '../types';
 import { useAuth } from '@/features/auth/context/AuthContext';
@@ -39,7 +39,6 @@ export function AddBatchModal({ item, onClose, onSuccess }: Props) {
         quantity: qty,
         expiryDate: expiryDate ? expiryDate : null,
         receivedDate,
-        userId: profile.id,
         reason
       });
       onSuccess();

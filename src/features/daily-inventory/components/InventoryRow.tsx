@@ -3,6 +3,7 @@ import type { DailyInventoryItem } from '../types';
 import { useUpsertDailyItem } from '../hooks/useDailyInventory';
 import { CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { AddStockModal } from './AddStockModal';
+import { TableRow, TableCell } from '@/components/ui/table';
 
 interface InventoryRowProps {
   item: DailyInventoryItem;
@@ -23,12 +24,13 @@ export const InventoryRow = memo(function InventoryRow({ item, isReadOnly, date 
   // To prevent debouncing the initial load
   const isInitialMount = useRef(true);
 
-  // Sync internal state if server state changes significantly (e.g. after a refresh)
-  useEffect(() => {
+  const [prevItem, setPrevItem] = useState(item);
+  if (item !== prevItem) {
+    setPrevItem(item);
     if (parseFloat(beg) !== item.beg) setBeg(item.beg.toString());
     if (parseFloat(am) !== item.am) setAm(item.am.toString());
     if (parseFloat(pm) !== item.pm) setPm(item.pm.toString());
-  }, [item.beg, item.am, item.pm]);
+  }
 
   // Debounced auto-save effect
   useEffect(() => {
@@ -48,8 +50,8 @@ export const InventoryRow = memo(function InventoryRow({ item, isReadOnly, date 
       return;
     }
 
-    setSaveStatus('saving');
     const timer = setTimeout(async () => {
+      setSaveStatus('saving');
       try {
         await mutation.mutateAsync({
           id: item.id,
@@ -59,7 +61,7 @@ export const InventoryRow = memo(function InventoryRow({ item, isReadOnly, date 
         });
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2000);
-      } catch (e) {
+      } catch {
         setSaveStatus('error');
       }
     }, 500);
@@ -76,12 +78,12 @@ export const InventoryRow = memo(function InventoryRow({ item, isReadOnly, date 
   return (
     <>
       {/* DESKTOP VIEW */}
-      <tr className="hidden md:table-row hover:bg-slate-50 group border-b border-slate-100 last:border-0">
-        <td className="p-3 align-middle">
+      <TableRow className="hidden md:table-row hover:bg-slate-50 group border-b border-slate-100 last:border-0">
+        <TableCell className="p-3 align-middle">
           <div className="font-medium text-slate-800">{item.inventory_items?.name}</div>
           <div className="text-xs text-slate-500">{item.inventory_items?.unit}</div>
-        </td>
-        <td className="p-2">
+        </TableCell>
+        <TableCell className="p-2">
           <input 
             type="number" 
             min="0"
@@ -91,8 +93,8 @@ export const InventoryRow = memo(function InventoryRow({ item, isReadOnly, date 
             disabled={isReadOnly}
             className={inputClass}
           />
-        </td>
-        <td className="p-2 relative">
+        </TableCell>
+        <TableCell className="p-2 relative">
           <div 
             onClick={() => !isReadOnly && setIsModalOpen(true)}
             className={`w-full text-center p-2 border rounded flex items-center justify-center ${
@@ -102,11 +104,11 @@ export const InventoryRow = memo(function InventoryRow({ item, isReadOnly, date 
           >
             {item.add}
           </div>
-        </td>
-        <td className="p-2 bg-slate-100 font-bold text-center text-slate-700">
+        </TableCell>
+        <TableCell className="p-2 bg-slate-100 font-bold text-center text-slate-700">
           {optTotal}
-        </td>
-        <td className="p-2">
+        </TableCell>
+        <TableCell className="p-2">
           <input 
             type="number" 
             min="0"
@@ -116,8 +118,8 @@ export const InventoryRow = memo(function InventoryRow({ item, isReadOnly, date 
             disabled={isReadOnly}
             className={inputClass}
           />
-        </td>
-        <td className="p-2">
+        </TableCell>
+        <TableCell className="p-2">
           <input 
             type="number" 
             min="0"
@@ -127,20 +129,20 @@ export const InventoryRow = memo(function InventoryRow({ item, isReadOnly, date 
             disabled={isReadOnly}
             className={inputClass}
           />
-        </td>
-        <td className={`p-2 bg-slate-100 font-bold text-center ${optEnding < 0 ? 'text-red-600' : 'text-slate-700'}`}>
+        </TableCell>
+        <TableCell className={`p-2 bg-slate-100 font-bold text-center ${optEnding < 0 ? 'text-red-600' : 'text-slate-700'}`}>
           {optEnding}
-        </td>
-        <td className="p-2 text-center align-middle">
+        </TableCell>
+        <TableCell className="p-2 text-center align-middle">
           {saveStatus === 'saving' && <Loader2 className="w-4 h-4 animate-spin text-slate-400 inline" />}
           {saveStatus === 'saved' && <CheckCircle2 className="w-4 h-4 text-green-500 inline" />}
           {saveStatus === 'error' && <div title="Failed to save" className="inline-block"><AlertCircle className="w-4 h-4 text-red-500 inline" /></div>}
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
 
       {/* MOBILE VIEW */}
-      <tr className="md:hidden border-b border-slate-200 last:border-0">
-        <td colSpan={8} className="p-4 bg-white">
+      <TableRow className="md:hidden border-b border-slate-200 last:border-0">
+        <TableCell colSpan={8} className="p-4 bg-white">
           <div className="flex justify-between items-start mb-4">
             <div>
               <div className="font-bold text-slate-800 text-lg">{item.inventory_items?.name}</div>
@@ -215,8 +217,8 @@ export const InventoryRow = memo(function InventoryRow({ item, isReadOnly, date 
             <span className="text-xs font-bold tracking-wider">ENDING INVENTORY</span>
             <span className="font-bold text-xl">{optEnding}</span>
           </div>
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
 
       <AddStockModal 
         isOpen={isModalOpen}

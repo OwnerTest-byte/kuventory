@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useReport } from '../api/reports';
 import { Download, FileSpreadsheet, FileText, ArrowLeft, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { ReportItem } from '../types';
 
 export function ReportViewPage() {
@@ -65,38 +68,38 @@ export function ReportViewPage() {
     return (
       <div className="space-y-4">
         <h2 className="text-xl font-bold tracking-tight">{title}</h2>
-        <div className="rounded-md border overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-muted-foreground">
-              <tr className="border-b">
-                <th className="h-10 px-4 text-left font-medium">Item</th>
-                <th className="h-10 px-4 text-right font-medium w-24">BEG</th>
-                <th className="h-10 px-4 text-right font-medium w-24">ADD</th>
-                <th className="h-10 px-4 text-right font-bold text-foreground w-24">TOTAL</th>
-                <th className="h-10 px-4 text-right font-medium w-24">AM</th>
-                <th className="h-10 px-4 text-right font-medium w-24">PM</th>
-                <th className="h-10 px-4 text-right font-bold text-foreground w-24">END</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item</TableHead>
+                <TableHead className="text-right w-24">BEG</TableHead>
+                <TableHead className="text-right w-24">ADD</TableHead>
+                <TableHead className="text-right w-24 font-bold text-foreground">TOTAL</TableHead>
+                <TableHead className="text-right w-24">AM</TableHead>
+                <TableHead className="text-right w-24">PM</TableHead>
+                <TableHead className="text-right w-24 font-bold text-foreground">END</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {tableItems.map((item) => (
-                <tr key={item.id} className="border-b last:border-0 hover:bg-muted/25 transition-colors">
-                  <td className="p-4 font-medium" data-testid={`report-item-name-${item.item_name}`}>
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium" data-testid={`report-item-name-${item.item_name}`}>
                     {item.item_name}
                     <div className="text-xs text-muted-foreground font-normal">
                       {item.category_name} &bull; {item.unit}
                     </div>
-                  </td>
-                  <td className="p-4 text-right">{item.beg}</td>
-                  <td className="p-4 text-right">{item.add}</td>
-                  <td className="p-4 text-right font-bold">{item.total}</td>
-                  <td className="p-4 text-right">{item.am}</td>
-                  <td className="p-4 text-right">{item.pm}</td>
-                  <td className="p-4 text-right font-bold text-primary">{item.ending}</td>
-                </tr>
+                  </TableCell>
+                  <TableCell className="text-right">{item.beg}</TableCell>
+                  <TableCell className="text-right">{item.add}</TableCell>
+                  <TableCell className="text-right font-bold">{item.total}</TableCell>
+                  <TableCell className="text-right">{item.am}</TableCell>
+                  <TableCell className="text-right">{item.pm}</TableCell>
+                  <TableCell className="text-right font-bold text-primary">{item.ending}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
     );
@@ -114,9 +117,9 @@ export function ReportViewPage() {
 
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b pb-6">
         <div className="space-y-2">
-          <div className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-primary/10 text-primary mb-2">
+          <Badge variant={report.status === 'ACTIVE' ? 'default' : report.status === 'CORRECTED' ? 'outline' : 'secondary'} className="mb-2">
             {report.status}
-          </div>
+          </Badge>
           <h1 className="text-3xl font-bold tracking-tight">Daily Inventory Report</h1>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <p><span className="font-medium text-foreground">Date:</span> {report.report_date}</p>
@@ -126,30 +129,30 @@ export function ReportViewPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button 
+          <Button 
+            variant="outline"
             onClick={handleExportPdf}
             disabled={isExportingPdf}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 disabled:opacity-50"
           >
             {isExportingPdf ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2 text-red-500" />}
             PDF
-          </button>
-          <button 
+          </Button>
+          <Button 
+            variant="outline"
             onClick={handleExportXlsx}
             disabled={isExportingXlsx}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 disabled:opacity-50"
           >
             {isExportingXlsx ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 mr-2 text-green-600" />}
             XLSX
-          </button>
-          <button 
+          </Button>
+          <Button 
+            variant="outline"
             onClick={handleExportCsv}
             disabled={isExportingCsv}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 disabled:opacity-50"
           >
             {isExportingCsv ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2 text-blue-500" />}
             CSV
-          </button>
+          </Button>
         </div>
       </header>
 

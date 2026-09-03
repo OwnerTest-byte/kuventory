@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { DailyInventoryItem } from '../types';
 import { InventoryRow } from './InventoryRow';
+import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface InventorySheetProps {
   items: DailyInventoryItem[];
@@ -32,20 +33,20 @@ export function InventorySheet({ items, isReadOnly, date }: InventorySheetProps)
         </div>
         
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead className="hidden md:table-header-group">
-              <tr className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-sm">
-                <th className="p-3 font-semibold border-b border-slate-200 dark:border-slate-700 w-1/4">ITEM</th>
-                <th className="p-3 font-semibold border-b border-slate-200 dark:border-slate-700 text-center w-24">BEG</th>
-                <th className="p-3 font-semibold border-b border-slate-200 dark:border-slate-700 text-center w-24">ADD</th>
-                <th className="p-3 font-semibold border-b border-slate-200 dark:border-slate-700 text-center w-24 bg-slate-200/50 dark:bg-slate-700/50">TOTAL</th>
-                <th className="p-3 font-semibold border-b border-slate-200 dark:border-slate-700 text-center w-24">AM</th>
-                <th className="p-3 font-semibold border-b border-slate-200 dark:border-slate-700 text-center w-24">PM</th>
-                <th className="p-3 font-semibold border-b border-slate-200 dark:border-slate-700 text-center w-24 bg-slate-200/50 dark:bg-slate-700/50">END</th>
-                <th className="p-3 font-semibold border-b border-slate-200 dark:border-slate-700 w-10"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          <Table className="w-full text-left">
+            <TableHeader className="hidden md:table-header-group">
+              <TableRow className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <TableHead className="w-1/4">ITEM</TableHead>
+                <TableHead className="text-center w-24">BEG</TableHead>
+                <TableHead className="text-center w-24">ADD</TableHead>
+                <TableHead className="text-center w-24 bg-slate-200/50 dark:bg-slate-700/50">TOTAL</TableHead>
+                <TableHead className="text-center w-24">AM</TableHead>
+                <TableHead className="text-center w-24">PM</TableHead>
+                <TableHead className="text-center w-24 bg-slate-200/50 dark:bg-slate-700/50">END</TableHead>
+                <TableHead className="w-10"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {tableItems.map(item => (
                 <InventoryRow 
                   key={item.id} 
@@ -54,8 +55,8 @@ export function InventorySheet({ items, isReadOnly, date }: InventorySheetProps)
                   date={date}
                 />
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
     );

@@ -1,32 +1,58 @@
-# React + TypeScript + Vite
+# KUVENTORY
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+KUVENTORY is a comprehensive, real-time restaurant inventory management system built with React, Vite, and Supabase.
 
-Currently, two official plugins are available:
+## Architecture
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+* **Frontend**: React 19, TypeScript, Vite, Tailwind CSS v4, `shadcn/ui` components
+* **Backend**: Supabase (PostgreSQL, Auth, RLS, Edge Functions)
+* **Testing**: Vitest, Playwright
 
-## React Compiler
+## Setup and Installation
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+### 1. Install Dependencies
+```bash
+npm install
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+### 2. Environment Configuration
+Create a `.env.local` file based on `.env.example`:
+```bash
+cp .env.example .env.local
+```
+Fill in the `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for your development environment.
+
+### 3. Database Setup (Supabase)
+Ensure the Supabase CLI is installed and running locally, or connected to your remote project.
+```bash
+npx supabase start
+npx supabase db push
+```
+
+### 4. Run the Development Server
+```bash
+npm run dev
+```
+
+## Available Commands
+
+- `npm run dev`: Starts the local development server.
+- `npm run build`: Compiles TypeScript and builds the production artifact via Vite.
+- `npm run lint`: Runs Oxlint.
+- `npm run typecheck`: Runs TypeScript compiler in no-emit mode.
+- `npm run test`: Runs unit and integration tests using Vitest.
+- `npm run e2e`: Runs Playwright end-to-end tests.
+
+## Deployment
+
+The application is configured to be deployed as a static Single Page Application (SPA).
+Ensure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are provided to your deployment provider (e.g. Netlify).
+The build output will be located in the `dist/` directory.
+
+## Security Considerations
+
+- **RLS**: Row Level Security is enforced in the Supabase database. Ensure all table policies are correctly migrated.
+- **Client Variables**: Never expose `service_role` keys or database passwords in the `.env.local` or `.env` files, as these will be bundled into the client build.
+
+## Documentation
+Additional architectural and operational documentation can be found in the `docs/` directory.

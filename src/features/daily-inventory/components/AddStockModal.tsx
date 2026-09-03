@@ -2,8 +2,8 @@ import { useState } from 'react';
 import type { DailyInventoryItem } from '../types';
 import { useStockMutations } from '../../inventory/hooks/useStockMutations';
 import { useUpsertDailyItem } from '../hooks/useDailyInventory';
-import { useAuth } from '../../auth/context/AuthContext';
-import { Button } from '@/components/ui/Button';
+// import { useAuth } from '../../auth/context/AuthContext';
+import { Button } from '@/components/ui/button';
 
 interface AddStockModalProps {
   isOpen: boolean;
@@ -13,7 +13,7 @@ interface AddStockModalProps {
 }
 
 export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProps) {
-  const { user } = useAuth();
+  // const { user } = useAuth();
   const [qty, setQty] = useState('');
   const [expiry, setExpiry] = useState(() => {
     // Default expiry 30 days from now
@@ -45,7 +45,6 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
         quantity: numQty,
         expiryDate: expiry,
         receivedDate: new Date().toISOString().split('T')[0],
-        userId: user!.id,
         reason: 'Daily Inventory Receiving'
       });
 

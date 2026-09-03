@@ -1,7 +1,9 @@
-BEGIN;
-SELECT plan(7);
+﻿BEGIN;
+SELECT plan(6);
 
 -- Removed invalid profiles insert
+
+SET request.jwt.claim.sub = '00000000-0000-0000-0000-000000000001';
 
 -- Insert categories and inventory with unique names to avoid seed.sql collision
 INSERT INTO public.categories (id, name, description) VALUES 
@@ -10,9 +12,10 @@ INSERT INTO public.categories (id, name, description) VALUES
 INSERT INTO public.inventory_items (id, category_id, name, unit, unit_cost, supplier_a) VALUES 
 ('22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', 'TEST_PALE_PILSEN', 'Bottle', 50.00, 'SMB');
 
--- Insert stock so consumption doesn't fail
+-- Insert stock so consumption doesn't fail.
+-- finalize consumes (total - pm) = (15 - 3) = 12, so the valid batch needs >= 12.
 INSERT INTO public.stock_batches (id, item_id, quantity, received_date) VALUES 
-('44444444-4444-4444-4444-444444444444', '22222222-2222-2222-2222-222222222222', 10, CURRENT_DATE);
+('44444444-4444-4444-4444-444444444444', '22222222-2222-2222-2222-222222222222', 20, CURRENT_DATE);
 
 -- Insert a daily inventory draft (created_by NULL)
 INSERT INTO public.daily_inventory (id, inventory_date, state, created_by) VALUES
@@ -21,9 +24,9 @@ INSERT INTO public.daily_inventory (id, inventory_date, state, created_by) VALUE
 INSERT INTO public.daily_inventory_items (daily_inventory_id, item_id, beg, add, am, pm) VALUES
 ('33333333-3333-3333-3333-333333333333', '22222222-2222-2222-2222-222222222222', 10, 5, 2, 3);
 
--- Test 1: Finalize Daily Inventory
+-- Test 1: Finalize Daily Inventory (hardened signature: no user_id)
 SELECT lives_ok(
-  $$ SELECT public.finalize_daily_inventory('33333333-3333-3333-3333-333333333333'::uuid, NULL); $$,
+  $$ SELECT public.finalize_daily_inventory('33333333-3333-3333-3333-333333333333'::uuid); $$,
   'finalize_daily_inventory should succeed'
 );
 
@@ -61,7 +64,7 @@ SELECT results_eq(
 
 -- Test 6: Verify duplicate finalization fails via RPC state check
 SELECT throws_ok(
-  $$ SELECT public.finalize_daily_inventory('33333333-3333-3333-3333-333333333333'::uuid, NULL); $$,
+  $$ SELECT public.finalize_daily_inventory('33333333-3333-3333-3333-333333333333'::uuid); $$,
   'Daily inventory is not in DRAFT state',
   'RPC should prevent double finalization'
 );
@@ -77,3 +80,4 @@ SELECT throws_ok(
 
 SELECT * FROM finish();
 ROLLBACK;
+

@@ -1,24 +1,24 @@
 import { useState } from 'react';
 import { Outlet, NavLink, Link } from 'react-router-dom';
-import { LogOut, Package, FileText, Menu, X, Users, Tags, ArrowLeftRight } from 'lucide-react';
+import { LogOut, Package, FileText, Menu, X, Users, Tags, ArrowLeftRight, Bell } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { NotificationBell } from '@/features/inventory/components/NotificationBell';
 
-export function AppLayout() {
-  const { role, profile } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+const primaryNav = [
+  { name: 'Inventory', to: '/inventory', icon: Package },
+  { name: 'Notifications', to: '/notifications', icon: Bell },
+  { name: 'Reports', to: '/reports', icon: FileText },
+];
 
+function SidebarContent({ closeMobileMenu }: { closeMobileMenu?: () => void }) {
+  const { role, profile } = useAuth();
+  
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
-
-  const primaryNav = [
-    { name: 'Inventory', to: '/inventory', icon: Package },
-    { name: 'Reports', to: '/reports', icon: FileText },
-  ];
 
   const adminNav = role === 'ADMIN' ? [
     { name: 'Categories', to: '/categories', icon: Tags },
@@ -26,16 +26,12 @@ export function AppLayout() {
     { name: 'Users', to: '/admin', icon: Users },
   ] : [];
 
-  const closeMobileMenu = () => setMobileMenuOpen(false);
-
-  const SidebarContent = () => (
+  return (
     <>
       <div className="h-16 flex items-center px-6 border-b border-slate-200 dark:border-slate-800">
         <Link to="/inventory" onClick={closeMobileMenu} className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded bg-blue-600 flex items-center justify-center">
-            <span className="text-white font-bold">K</span>
-          </div>
-          <span className="font-bold text-lg text-slate-900 dark:text-white">KUVENTORY</span>
+          <img src="/logo-transparent.png" alt="KUVENTORY Logo" className="h-8 w-auto object-contain" />
+          <span className="font-bold text-lg text-slate-900 dark:text-white tracking-tight">KUVENTORY</span>
         </Link>
       </div>
       
@@ -108,6 +104,11 @@ export function AppLayout() {
       </div>
     </>
   );
+}
+
+export function AppLayout() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
@@ -138,7 +139,8 @@ export function AppLayout() {
              <Button variant="ghost" className="p-2 h-9 w-9" onClick={() => setMobileMenuOpen(true)}>
                <Menu className="h-6 w-6 text-slate-700 dark:text-slate-300" />
              </Button>
-             <span className="font-bold text-lg text-slate-900 dark:text-white">KUVENTORY</span>
+             <img src="/logo-transparent.png" alt="KUVENTORY Logo" className="h-7 w-auto object-contain" />
+             <span className="font-bold text-lg text-slate-900 dark:text-white tracking-tight">KUVENTORY</span>
            </div>
            <div className="flex items-center gap-2">
              <NotificationBell />

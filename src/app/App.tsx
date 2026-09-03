@@ -14,7 +14,7 @@ const ReportViewPage = lazy(() => import('@/features/reports/pages/ReportViewPag
 const ReportsLibraryPage = lazy(() => import('@/features/reports/pages/ReportsLibraryPage').then(module => ({ default: module.ReportsLibraryPage })));
 const CategoriesPage = lazy(() => import('@/features/categories/pages/CategoriesPage').then(module => ({ default: module.CategoriesPage })));
 const AdminPage = lazy(() => import('@/features/admin/pages/AdminPage').then(module => ({ default: module.AdminPage })));
-
+const NotificationCenter = lazy(() => import('@/features/inventory/pages/NotificationCenter').then(module => ({ default: module.NotificationCenter })));
 const FallbackLoader = () => (
   <div className="flex h-full w-full items-center justify-center p-8">
     <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
@@ -38,6 +38,9 @@ export function App() {
             } />
             <Route path="/reports" element={
               <Suspense fallback={<FallbackLoader />}><ReportsLibraryPage /></Suspense>
+            } />
+            <Route path="/notifications" element={
+              <Suspense fallback={<FallbackLoader />}><NotificationCenter /></Suspense>
             } />
             <Route path="/reports/:id" element={
               <Suspense fallback={<FallbackLoader />}><ReportViewPage /></Suspense>

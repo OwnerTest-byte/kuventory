@@ -1,12 +1,16 @@
 BEGIN;
 SELECT plan(2);
 
+-- Authenticate as the seeded admin so SECURITY DEFINER RPCs (which call auth.uid()) work.
+SET ROLE authenticated;
+SET request.jwt.claim.sub = '00000000-0000-0000-0000-000000000001';
+
 -- Mock function to consume stock directly (normally called via finalizer, but we test the function itself)
 -- Pale Pilsen item_id: '10000000-0000-0000-0000-000000000001'
 -- It has 2 batches: batch 1 (expires in 10 days, qty 50), batch 2 (expires in 30 days, qty 100)
 
 SELECT lives_ok(
-    $$SELECT public.consume_stock('10000000-0000-0000-0000-000000000001'::uuid, 60, '00000000-0000-0000-0000-000000000001'::uuid, 'Test Consumption')$$,
+    $$SELECT public.consume_stock('10000000-0000-0000-0000-000000000001'::uuid, 60, 'Test Consumption')$$,
     'Consume stock successfully'
 );
 
@@ -15,7 +19,7 @@ SELECT lives_ok(
 -- we'll just test that it throws if we consume too much.
 
 SELECT throws_ok(
-    $$SELECT public.consume_stock('10000000-0000-0000-0000-000000000001'::uuid, 100, '00000000-0000-0000-0000-000000000001'::uuid, 'Test Consumption')$$,
+    $$SELECT public.consume_stock('10000000-0000-0000-0000-000000000001'::uuid, 100, 'Test Consumption')$$,
     'P0001', -- RAISE EXCEPTION
     NULL,
     'Cannot consume more than available stock'

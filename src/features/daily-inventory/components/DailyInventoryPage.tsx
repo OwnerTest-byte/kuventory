@@ -1,23 +1,21 @@
 import { useState } from 'react';
 import { useDailyInventory, useFinalizeDailyInventory } from '../hooks/useDailyInventory';
 import { InventorySheet } from './InventorySheet';
-import { Button } from '@/components/ui/Button';
-import { Lock, Edit3, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Lock, Edit3, Loader2, AlertTriangle } from 'lucide-react';
 
 export function DailyInventoryPage() {
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
   
   const { data: record, isLoading, error } = useDailyInventory(date);
   const finalizeMutation = useFinalizeDailyInventory(date);
 
   const handleFinalize = async () => {
     if (!record) return;
-    const confirmed = window.confirm(
-      "Are you sure you want to finalize this inventory?\n\nThis will physically consume the AM and PM stock amounts and permanently lock this record."
-    );
-    if (confirmed) {
-      await finalizeMutation.mutateAsync(record.id);
-    }
+    await finalizeMutation.mutateAsync(record.id);
+    setShowFinalizeDialog(false);
   };
 
   return (
@@ -78,15 +76,11 @@ export function DailyInventoryPage() {
             
             {record.state === 'DRAFT' && (
               <Button 
-                onClick={handleFinalize} 
-                disabled={finalizeMutation.isPending}
+                onClick={() => setShowFinalizeDialog(true)}
                 className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white shadow"
+                data-testid="finalize-day-button"
               >
-                {finalizeMutation.isPending ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Finalizing...</>
-                ) : (
-                  <><Lock className="w-4 h-4 mr-2" /> Finalize Day</>
-                )}
+                <Lock className="w-4 h-4 mr-2" /> Finalize Day
               </Button>
             )}
           </div>
@@ -98,6 +92,35 @@ export function DailyInventoryPage() {
           />
         </>
       )}
+
+      <Dialog open={showFinalizeDialog} onOpenChange={setShowFinalizeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Finalize Daily Inventory?</DialogTitle>
+            <DialogDescription>
+              Finalizing will physically consume the AM and PM stock amounts and permanently lock this day's record.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg my-2">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-amber-900 dark:text-amber-200">
+              This action cannot be undone. Review all counts before finalizing.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowFinalizeDialog(false)} disabled={finalizeMutation.isPending}>
+              Cancel
+            </Button>
+            <Button onClick={handleFinalize} disabled={finalizeMutation.isPending} data-testid="confirm-finalize">
+              {finalizeMutation.isPending ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Finalizing...</>
+              ) : (
+                <><Lock className="w-4 h-4 mr-2" /> Finalize Day</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

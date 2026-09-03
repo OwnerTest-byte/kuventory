@@ -1,61 +1,40 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getInventory, getBatches } from '../api';
-import type { InventoryStock, StockBatch } from '../types';
-import { Button } from '@/components/ui/Button';
+import type { InventoryStock } from '../types';
+import { Button } from '@/components/ui/button';
 import { Plus, LogOut, ArrowRight, AlertTriangle, Package, Loader2 } from 'lucide-react';
 import { AddBatchModal } from '../components/AddBatchModal';
 import { ConsumeStockModal } from '../components/ConsumeStockModal';
 
 export function StockManagementPage() {
-  const [items, setItems] = useState<InventoryStock[]>([]);
   const [selectedItem, setSelectedItem] = useState<InventoryStock | null>(null);
-  const [batches, setBatches] = useState<StockBatch[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  const { data: items = [], isLoading, refetch: refetchItems } = useQuery({
+    queryKey: ['inventory'],
+    queryFn: getInventory,
+  });
+
+  const { data: batches = [], refetch: refetchBatches } = useQuery({
+    queryKey: ['batches', selectedItem?.id],
+    queryFn: () => getBatches(selectedItem!.id),
+    enabled: !!selectedItem,
+  });
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isConsumeModalOpen, setIsConsumeModalOpen] = useState(false);
 
-  const fetchItems = async () => {
-    try {
-      const data = await getInventory();
-      setItems(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchBatches = async (itemId: string) => {
-    try {
-      const data = await getBatches(itemId);
-      setBatches(data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    fetchItems();
-  }, []);
-
-  useEffect(() => {
-    if (selectedItem) {
-      fetchBatches(selectedItem.id);
-    } else {
-      setBatches([]);
-    }
-  }, [selectedItem]);
-
   const handleBatchAdded = () => {
-    fetchItems();
-    if (selectedItem) fetchBatches(selectedItem.id);
+    refetchItems();
+    if (selectedItem) refetchBatches();
   };
 
   const handleStockConsumed = () => {
-    fetchItems();
-    if (selectedItem) fetchBatches(selectedItem.id);
+    refetchItems();
+    if (selectedItem) refetchBatches();
   };
+
+
 
   const isExpired = (expiryDate: string | null) => {
     if (!expiryDate) return false;
@@ -167,6 +146,9 @@ export function StockManagementPage() {
                         >
                           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3">
                             <div className="flex flex-wrap items-center gap-2">
+                              <span className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${expired ? 'bg-slate-400' : 'bg-blue-600'}`} title={`FEFO priority ${index + 1}`}>
+                                {index + 1}
+                              </span>
                               {isNextOut && (
                                 <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400 text-xs px-2 py-1 rounded-md font-bold flex items-center gap-1 shadow-sm">
                                   <ArrowRight className="w-3 h-3" /> NEXT OUT
@@ -177,11 +159,14 @@ export function StockManagementPage() {
                                   <AlertTriangle className="w-3 h-3" /> EXPIRED
                                 </span>
                               )}
-                              {soon && (
+                              {soon && !expired && (
                                 <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400 text-xs px-2 py-1 rounded-md font-bold flex items-center gap-1 shadow-sm">
                                   <AlertTriangle className="w-3 h-3" /> EXPIRING SOON
                                 </span>
                               )}
+                              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                                Priority {index + 1}
+                              </span>
                               <span className="font-mono text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                                 {batch.id.substring(0, 8)}
                               </span>
