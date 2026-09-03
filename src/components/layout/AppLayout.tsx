@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom';
-import { LogOut, Package, FileText, Menu, X, Users, Tags, ArrowLeftRight, Bell, LayoutDashboard, Layers, History, FileBarChart, TrendingUp, AlertTriangle, Clock, Archive, Settings } from 'lucide-react';
+import { LogOut, Package, FileText, Menu, X, Users, Tags, LayoutDashboard, Layers, History, FileBarChart, TrendingUp, AlertTriangle, Clock, Archive, Settings } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { cn } from '@/lib/utils';

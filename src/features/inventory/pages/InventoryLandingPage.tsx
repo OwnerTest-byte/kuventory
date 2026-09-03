@@ -2,13 +2,13 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getInventory } from '../api';
 import { supabase } from '@/lib/supabase';
-import { Package, Bell, AlertOctagon, Clock, AlertTriangle, ArrowRight, XCircle } from 'lucide-react';
+import { Package, Bell, AlertOctagon, Clock, AlertTriangle, ArrowRight } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export function InventoryLandingPage() {
-  const { data: items, isLoading: isItemsLoading } = useQuery({
+  const { data: items } = useQuery({
     queryKey: ['inventory'],
     queryFn: getInventory,
   });

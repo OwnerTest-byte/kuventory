@@ -8,7 +8,7 @@ interface InventorySheetProps {
   date: string;
 }
 
-export function InventorySheet({ items, isReadOnly }: InventorySheetProps) {
+export function InventorySheet({ items }: InventorySheetProps) {
   
   // UX Spec: strictly group into PORTION STOCK and PER CASES
   const { portionItems, caseItems } = useMemo(() => {

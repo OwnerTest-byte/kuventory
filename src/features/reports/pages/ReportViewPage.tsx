@@ -10,9 +10,9 @@ export function ReportViewPage() {
   const { id } = useParams<{ id: string }>();
   const { data: report, isLoading, error } = useReport(id);
 
-  const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [isExportingXlsx, setIsExportingXlsx] = useState(false);
-  const [isExportingCsv, setIsExportingCsv] = useState(false);
+  const [isExportingPdf] = useState(false);
+  const [isExportingXlsx] = useState(false);
+  const [isExportingCsv] = useState(false);
 
   if (isLoading) return <div className="p-8 flex items-center"><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Loading report snapshot...</div>;
   if (error || !report) return <div className="p-8 text-red-500">Failed to load report snapshot.</div>;
