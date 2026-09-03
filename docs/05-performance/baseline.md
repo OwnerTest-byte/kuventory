@@ -8,6 +8,7 @@ Initial baseline measurements for the minimal application shell. These serve as 
 **Environment:** Node v24, Vite v8, React v19, Tailwind v4
 
 ### Production Build Sizes
+
 - **HTML (`index.html`)**: 0.45 kB (gzip: 0.28 kB)
 - **CSS (`index.css`)**: 2.14 kB (gzip: 0.62 kB)
 - **JavaScript (`index.js`)**: 253.12 kB (gzip: 80.11 kB)

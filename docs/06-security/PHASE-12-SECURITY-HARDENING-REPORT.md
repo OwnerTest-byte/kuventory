@@ -1,7 +1,9 @@
 # Phase 12 Security Hardening Report
 
 ## Scope
+
 The scope of this phase was a penetration-style engineering security review of the KUVENTORY application boundary, focusing specifically on:
+
 - Supabase Row Level Security (RLS) policies.
 - PostgreSQL database functions (RPCs).
 - Privilege escalation scenarios (USER to ADMIN).
@@ -9,11 +11,14 @@ The scope of this phase was a penetration-style engineering security review of t
 - Daily Inventory snapshot integrity.
 
 ## Threat Model
+
 We simulated two primary attacker profiles:
+
 1. **Unauthenticated Attacker**: Attempts to bypass the Supabase Auth session boundary to directly query the REST API.
 2. **USER Attacker**: A valid, authenticated user (non-admin) attempting to spoof identities, escalate privileges, bypass business logic via direct API requests, and mutate historical records.
 
 ## Findings
+
 | Finding | Severity | Status | Affected Component | Attack Scenario |
 | :--- | :--- | :--- | :--- | :--- |
 | **RLS Bypass on `daily_inventory` State** | CRITICAL | Fixed | RLS (`daily_inventory`) | A malicious USER directly updates a `FINALIZED` inventory record via REST API and sets `state = 'DRAFT'`. The wide-open UPDATE policy permits this. They then freely alter historical `daily_inventory_items`. |
@@ -25,10 +30,12 @@ We simulated two primary attacker profiles:
 ## Fixes
 
 ### 1. Hardened RLS
+
 - **`daily_inventory`**: Removed the wide-open `UPDATE` policy. Normal users can now only update records if `state = 'DRAFT'`, enforced via both `USING (state = 'DRAFT')` and `WITH CHECK (state = 'DRAFT')`. Finalized inventories are now immutably protected from normal users.
 - **`notifications`**: Completely revoked `UPDATE` privileges from the table.
 
 ### 2. Secure RPC Execution
+
 - **Identity Resolution**: Removed `p_user_id` arguments from all sensitive business logic RPCs (`consume_stock`, `finalize_daily_inventory`, `create_daily_inventory_draft`). Identity is now securely and immutably resolved *server-side* using `auth.uid()`.
 - **Search Paths**: Added `SET search_path = ''` to every `SECURITY DEFINER` function in the system (`is_admin`, `audit_trigger_func`, `trigger_check_inventory_thresholds`, `consume_stock`, `finalize_daily_inventory`, `create_daily_inventory_draft`, `handle_new_user`).
 - **Notification API**: Created secure `mark_notification_as_read` and `mark_all_notifications_as_read` RPCs to handle state transitions without allowing arbitrary user updates to notification bodies.
@@ -46,15 +53,19 @@ We simulated two primary attacker profiles:
 - **Secrets**: Repository scan verified safe.
 
 ## Testing
+
 - Automated Playwright tests (`e2e/inventory.spec.ts`, `e2e/auth.spec.ts`) continue to pass, proving that the tighter security bounds did not regress legitimate UI operations.
 
 ## Residual Risk
+
 - The `handle_new_user` trigger automatically elevates the first user to `ADMIN`. This is acceptable for bootstrap, but should be removed or secured if this application is ever exposed as a public SaaS rather than an internal tool.
 - Global notifications are currently dismissible by *any* user for *everyone* since they lack distinct tracking. For a small team, this acts as a shared broadcast. For a larger enterprise, a dedicated `user_notification_states` intersection table would be required.
 
 ## Documentation Updated
+
 - `docs/06-security/PHASE-12-SECURITY-HARDENING-REPORT.md` (This file)
 - `CHANGELOG.md`
 
 ## Git Commit
+
 Phase 12 complete and verified.

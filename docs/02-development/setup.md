@@ -8,6 +8,7 @@
 
 3. **Supabase Local Development**
    Ensure Docker is running, then start the local Supabase environment:
+
    ```bash
    supabase start
    ```
@@ -16,7 +17,9 @@
    Copy `.env.example` to `.env.local` and populate it with the local Supabase URLs and keys (provided by the `supabase start` command).
 
 5. **Start the Development Server**
+
    ```bash
    npm run dev
    ```
+
    The application will be accessible at `http://localhost:5173`.

@@ -1,15 +1,16 @@
 # Authorization and Role Model
 
 KUVENTORY supports exactly two roles: `ADMIN` and `USER`.
-Roles are strictly assigned and stored in the `profiles` table. 
+Roles are strictly assigned and stored in the `profiles` table.
 
 ## Role Assignment
+
 When a user signs up or is invited, their entry in `auth.users` triggers a PostgreSQL function that creates a row in `public.profiles`. The first user created might default to `ADMIN`, and subsequent users to `USER`, or they are explicitly assigned by an existing `ADMIN`.
 
 ## Permission Matrix
 
 | Module | Action | USER | ADMIN | Rationale |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | **Inventory Master** | View | Yes | Yes | Users need to see items for daily counts. |
 | **Inventory Master** | Create/Edit | No | Yes | Prevents operational users from messing up standard items. |
 | **Categories** | View | Yes | Yes | Needed for filtering. |

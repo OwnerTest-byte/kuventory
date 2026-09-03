@@ -44,24 +44,31 @@ src/
 ```
 
 ### Feature Boundaries
+
 We use a feature-sliced design. Each directory inside `src/features/` acts as an independent module containing its own:
+
 - Components (specific to the feature)
 - API calls (react-query hooks)
 - Forms & Validation schemas
 - Types (if isolated to the feature)
 
 ### Dependency Rules
+
 1. `features/*` can import from `components/`, `lib/`, `hooks/`, and `types/`.
 2. `features/*` should generally *not* import from other features to prevent tangled coupling, except for explicit shared domains (e.g., reports utilizing daily-inventory types).
 3. `components/ui/` contains only dumb, presentational components.
 
 ### Form Architecture
+
 Forms are built using `react-hook-form` coupled with `zod` for validation.
+
 - **Uncontrolled Inputs**: To minimize re-renders, forms rely on standard HTML behavior enhanced by React Hook Form.
 - **Validation**: Schema-based validation runs before any API call is initiated.
 
 ## Application States & Data Flow
+
 There is no global state manager like Redux or Zustand.
+
 - **Server State**: Managed exclusively by `@tanstack/react-query`.
 - **Local UI State**: Managed via standard React `useState` and `useReducer` near where it's needed.
 - **Context**: Used sparingly, primarily for Auth state and Theme.

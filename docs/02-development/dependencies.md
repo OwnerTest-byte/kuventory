@@ -12,6 +12,7 @@
 | `clsx` / `tailwind-merge` | Styling Utilities | Required by shadcn/ui to merge Tailwind classes cleanly without conflicts. |
 
 ## Development Dependencies
+
 - `vite` / `@vitejs/plugin-react`: Fast modern build tool and development server.
 - `tailwindcss` / `@tailwindcss/vite`: Utility-first CSS framework for rapid UI styling.
 - `typescript` / `@types/*`: Strict type checking for reliability.

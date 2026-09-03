@@ -9,7 +9,7 @@
 
 ## User Experience
 
-- **Main Workflows**: 
+- **Main Workflows**:
   - Login -> `InventoryLandingPage` -> *Click 'Open Today's Inventory'* -> `DailyInventoryPage`.
   - Admin users can seamlessly access user management and category CRUD without cluttering the UI for generic users.
 - **Inventory Sheet Polish**: Separated Daily Inventory strictly into "PORTION STOCK" and "PER CASES" identical to the paper sheets and report views. Boxed out the `BEG`, `ADD`, `AM`, and `PM` inputs while displaying `TOTAL` and `END` as flat calculated text to prevent erroneous clicking.
@@ -19,7 +19,7 @@
 ## Responsive
 
 - **Mobile Verification**: The mobile inventory view condenses complex tables into stacked cards. The `AppLayout` hamburger menu prevents horizontal overflow. All large tables (Reports, Stock) are wrapped in `overflow-x-auto` to allow horizontal swipe on mobile without breaking viewport constraints.
-- **Desktop/Tablet Verification**: Fully fluid, making heavy use of `max-w-*` bounds (e.g. `max-w-5xl`, `max-w-7xl`) so tables don't stretch aggressively on ultrawide monitors. 
+- **Desktop/Tablet Verification**: Fully fluid, making heavy use of `max-w-*` bounds (e.g. `max-w-5xl`, `max-w-7xl`) so tables don't stretch aggressively on ultrawide monitors.
 
 ## Accessibility
 
@@ -40,13 +40,13 @@
 
 ## Dependencies
 
-- No new external dependencies were introduced in this phase to prevent bloat. Native tools and existing `lucide-react` icons were sufficient. 
+- No new external dependencies were introduced in this phase to prevent bloat. Native tools and existing `lucide-react` icons were sufficient.
 
 ## Testing
 
 - Updated `e2e/auth.spec.ts` and `e2e/inventory.spec.ts` to expect `/inventory` (not `/dashboard`).
 - Ran Playwright tests. E2E tests for navigation pass perfectly.
-- Validated TypeScript via `npx tsc --noEmit`. 
+- Validated TypeScript via `npx tsc --noEmit`.
 
 ## Security
 

@@ -3,8 +3,9 @@
 This document records the final state of the KUVENTORY dependencies after the Phase 16 Production Cleanup.
 
 ## Direct Dependencies (Required for Runtime)
+
 | Package | Purpose | Retained/Removed | Reason |
-|---------|---------|------------------|--------|
+| --------- | --------- | ------------------ | -------- |
 | `@base-ui/react` | Accessible, unstyled React UI components | Retained | Required for custom UI elements |
 | `@hookform/resolvers` | Zod validation integration | Retained | Required for form validation |
 | `@shadcn/react` | Core UI component library | Retained | Required for standard UI |
@@ -31,8 +32,9 @@ This document records the final state of the KUVENTORY dependencies after the Ph
 | `zod` | Schema validation | Retained | Required for Forms |
 
 ## Dev Dependencies (Required for Build/Test)
+
 | Package | Purpose | Retained/Removed | Reason |
-|---------|---------|------------------|--------|
+| --------- | --------- | ------------------ | -------- |
 | `@playwright/test` | End-to-end testing | Retained | Required for E2E tests |
 | `@tailwindcss/vite` | Vite plugin for Tailwind v4 | Retained | Required for styling |
 | `@testing-library/react` | React testing utilities | Retained | Required for Unit tests |
@@ -46,6 +48,7 @@ This document records the final state of the KUVENTORY dependencies after the Ph
 | `@vitejs/plugin-react` | Vite plugin for React | Retained | Required for React |
 
 ## Removed Dependencies (During Phase 16)
+
 | Package | Purpose | Reason for Removal |
 |---------|---------|--------------------|
 | `autoprefixer` | CSS Vendor prefixing | Obsolete with Tailwind v4 `@tailwindcss/vite` |

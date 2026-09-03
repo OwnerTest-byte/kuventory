@@ -1,9 +1,9 @@
 # KUVENTORY VERSION REPORT
 
-Version: 
-Release date: 
-Git commit: 
-Git tag: 
+Version:
+Release date:
+Git commit:
+Git tag:
 
 ## Summary
 

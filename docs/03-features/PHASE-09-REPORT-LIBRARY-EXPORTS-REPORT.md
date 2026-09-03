@@ -2,7 +2,7 @@
 
 ## 1. Report Library
 
-- **ReportsLibraryPage**: Implemented as the primary destination for accessing past inventory reports. 
+- **ReportsLibraryPage**: Implemented as the primary destination for accessing past inventory reports.
 - **Filters**: Included filters for 'From Date', 'To Date', and 'Status'.
 - **Bounded Pagination**: Used Tanstack Query paired with Supabase `.range(offset, offset + limit - 1)` to fetch bounded pages of reports (20 per page).
 
@@ -53,7 +53,7 @@
 ## 10. Dependencies
 
 - **Added**: `jspdf`, `jspdf-autotable`, `xlsx`.
-- **Reason**: Needed for professional, standards-compliant, client-side generation of document exports per specifications. 
+- **Reason**: Needed for professional, standards-compliant, client-side generation of document exports per specifications.
 
 ## 11. Code Quality
 
