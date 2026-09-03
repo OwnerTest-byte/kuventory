@@ -6,7 +6,7 @@ test.describe('Authentication and Authorization', () => {
     await page.setViewportSize({ width: 1280, height: 720 });
     // 1. Go to public route, should be at login
     await page.goto('/login');
-    await expect(page.locator('h1')).toContainText('KUVENTORY');
+    await expect(page.locator('img[alt="KUVENTORY"]')).toBeVisible();
     
     // 2. Login as USER
     await page.fill('input[type="email"]', 'user@kuventory.local');
