@@ -9,13 +9,19 @@ import { Loader2 } from 'lucide-react';
 
 // Code Splitting for heavy or secondary routes
 const DailyInventoryPage = lazy(() => import('@/features/daily-inventory/components/DailyInventoryPage').then(module => ({ default: module.DailyInventoryPage })));
-const StockManagementPage = lazy(() => import('@/features/inventory/pages/StockManagementPage').then(module => ({ default: module.StockManagementPage })));
 const ItemsCatalogPage = lazy(() => import('@/features/inventory/pages/ItemsCatalogPage').then(module => ({ default: module.ItemsCatalogPage })));
 const ReportViewPage = lazy(() => import('@/features/reports/pages/ReportViewPage').then(module => ({ default: module.ReportViewPage })));
 const ReportsLibraryPage = lazy(() => import('@/features/reports/pages/ReportsLibraryPage').then(module => ({ default: module.ReportsLibraryPage })));
 const CategoriesPage = lazy(() => import('@/features/categories/pages/CategoriesPage').then(module => ({ default: module.CategoriesPage })));
 const AdminPage = lazy(() => import('@/features/admin/pages/AdminPage').then(module => ({ default: module.AdminPage })));
 const NotificationCenter = lazy(() => import('@/features/inventory/pages/NotificationCenter').then(module => ({ default: module.NotificationCenter })));
+
+// Placeholders for the new exact mockup routes
+const ItemDetailsPage = () => <div className="p-8 text-center text-slate-500 font-medium">Item Details Page (In Development)</div>;
+const StockBatchesPage = () => <div className="p-8 text-center text-slate-500 font-medium">Global Stock Batches Page (In Development)</div>;
+const StockHistoryPage = () => <div className="p-8 text-center text-slate-500 font-medium">Global Stock History Page (In Development)</div>;
+const SettingsPage = () => <div className="p-8 text-center text-slate-500 font-medium">System Settings (In Development)</div>;
+
 const FallbackLoader = () => (
   <div className="flex h-full w-full items-center justify-center p-8">
     <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
@@ -40,28 +46,36 @@ export function App() {
             <Route path="/reports" element={
               <Suspense fallback={<FallbackLoader />}><ReportsLibraryPage /></Suspense>
             } />
-            <Route path="/notifications" element={
-              <Suspense fallback={<FallbackLoader />}><NotificationCenter /></Suspense>
-            } />
             <Route path="/reports/:id" element={
               <Suspense fallback={<FallbackLoader />}><ReportViewPage /></Suspense>
+            } />
+            <Route path="/reports/inventory" element={<Suspense fallback={<FallbackLoader />}><ReportsLibraryPage /></Suspense>} />
+            <Route path="/reports/movement" element={<Suspense fallback={<FallbackLoader />}><ReportsLibraryPage /></Suspense>} />
+            <Route path="/reports/low-stock" element={<Suspense fallback={<FallbackLoader />}><ReportsLibraryPage /></Suspense>} />
+            <Route path="/reports/expiry" element={<Suspense fallback={<FallbackLoader />}><ReportsLibraryPage /></Suspense>} />
+            <Route path="/reports/archived" element={<Suspense fallback={<FallbackLoader />}><ReportsLibraryPage /></Suspense>} />
+
+            <Route path="/notifications" element={
+              <Suspense fallback={<FallbackLoader />}><NotificationCenter /></Suspense>
             } />
             
             <Route path="/items" element={
               <Suspense fallback={<FallbackLoader />}><ItemsCatalogPage /></Suspense>
             } />
+            <Route path="/items/:id" element={<ItemDetailsPage />} />
+            
             <Route path="/categories" element={
               <Suspense fallback={<FallbackLoader />}><CategoriesPage /></Suspense>
             } />
-            <Route path="/stock" element={
-              <Suspense fallback={<FallbackLoader />}><StockManagementPage /></Suspense>
-            } />
+            <Route path="/stock" element={<StockBatchesPage />} />
+            <Route path="/history" element={<StockHistoryPage />} />
             
             {/* Admin-only Routes */}
             <Route element={<RequireAdmin />}>
               <Route path="/admin" element={
                 <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
               } />
+              <Route path="/settings" element={<SettingsPage />} />
             </Route>
 
             {/* Fallback for authenticated users */}

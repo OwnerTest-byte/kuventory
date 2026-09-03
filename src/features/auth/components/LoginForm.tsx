@@ -5,8 +5,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/lib/supabase';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Link } from 'react-router-dom';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -40,71 +40,80 @@ export function LoginForm() {
       setAuthError(error.message);
       setIsLoading(false);
     }
-    // If successful, the AuthContext will catch the session change and trigger a redirect.
   };
 
   return (
-    <Card className="w-full max-w-md shadow-lg border-border">
-      <CardHeader className="text-center space-y-2">
-        <CardTitle className="text-2xl font-bold tracking-tight">
+    <div className="w-full max-w-sm">
+      <div className="text-center space-y-2 mb-8">
+        <h2 className="text-3xl font-bold tracking-tight text-slate-900">Welcome Back!</h2>
+        <p className="text-slate-500">
           Sign in to your account
-        </CardTitle>
-        <CardDescription>
-          Welcome to KUVENTORY
-        </CardDescription>
-      </CardHeader>
+        </p>
+      </div>
       
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {authError && (
-            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
-              {authError}
-            </div>
-          )}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {authError && (
+          <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+            {authError}
+          </div>
+        )}
 
-          <div className="space-y-4">
-            <div className="space-y-2 text-left">
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                {...register('email')}
-                aria-invalid={!!errors.email}
-              />
-              {errors.email && (
-                <p className="text-sm text-destructive" id="email-error">
-                  {errors.email.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2 text-left">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                {...register('password')}
-                aria-invalid={!!errors.password}
-              />
-              {errors.password && (
-                <p className="text-sm text-destructive" id="password-error">
-                  {errors.password.message}
-                </p>
-              )}
-            </div>
+        <div className="space-y-4">
+          <div className="space-y-2 text-left">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="Enter your email"
+              autoComplete="email"
+              {...register('email')}
+              aria-invalid={!!errors.email}
+              className="h-11"
+            />
+            {errors.email && (
+              <p className="text-sm text-destructive" id="email-error">
+                {errors.email.message}
+              </p>
+            )}
           </div>
 
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isLoading}
-          >
-            {isLoading ? "Signing in..." : "Sign In"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+          <div className="space-y-2 text-left">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="Enter your password"
+              autoComplete="current-password"
+              {...register('password')}
+              aria-invalid={!!errors.password}
+              className="h-11"
+            />
+            {errors.password && (
+              <p className="text-sm text-destructive" id="password-error">
+                {errors.password.message}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center space-x-2">
+            <input type="checkbox" id="remember" className="rounded border-slate-300 text-blue-600 focus:ring-blue-600 h-4 w-4" />
+            <label htmlFor="remember" className="text-slate-600 font-medium">Remember me</label>
+          </div>
+          <Link to="#" className="font-semibold text-blue-600 hover:text-blue-500">
+            Forgot password?
+          </Link>
+        </div>
+
+        <Button
+          type="submit"
+          className="w-full h-11 text-base font-semibold bg-blue-600 hover:bg-blue-700"
+          disabled={isLoading}
+        >
+          {isLoading ? "Signing in..." : "Sign In"}
+        </Button>
+      </form>
+    </div>
   );
 }

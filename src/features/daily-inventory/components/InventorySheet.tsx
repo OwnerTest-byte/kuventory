@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import type { DailyInventoryItem } from '../types';
-import { InventoryRow } from './InventoryRow';
-import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface InventorySheetProps {
   items: DailyInventoryItem[];
@@ -9,7 +8,7 @@ interface InventorySheetProps {
   date: string;
 }
 
-export function InventorySheet({ items, isReadOnly, date }: InventorySheetProps) {
+export function InventorySheet({ items, isReadOnly }: InventorySheetProps) {
   
   // UX Spec: strictly group into PORTION STOCK and PER CASES
   const { portionItems, caseItems } = useMemo(() => {
@@ -25,45 +24,74 @@ export function InventorySheet({ items, isReadOnly, date }: InventorySheetProps)
 
   const renderTable = (tableItems: DailyInventoryItem[], title: string) => {
     if (tableItems.length === 0) return null;
+    
+    // Calculate totals
+    const totals = tableItems.reduce((acc, item) => ({
+      beg: acc.beg + (item.beginning_qty || 0),
+      add: acc.add + (item.added_qty || 0),
+      total: acc.total + ((item.beginning_qty || 0) + (item.added_qty || 0)),
+      am: acc.am + (item.sales_am || 0),
+      pm: acc.pm + (item.sales_pm || 0),
+      end: acc.end + (item.ending_qty || 0)
+    }), { beg: 0, add: 0, total: 0, am: 0, pm: 0, end: 0 });
+
     return (
-      <div className="bg-white dark:bg-slate-900 rounded shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden mb-8 animate-in fade-in">
-        <div className="bg-slate-50 dark:bg-slate-900 px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest">{title}</h2>
-          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">{tableItems.length} items</span>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <Table className="w-full text-left">
-            <TableHeader className="hidden md:table-header-group">
-              <TableRow className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800">
-                <TableHead className="w-1/4">ITEM</TableHead>
-                <TableHead className="text-center w-24">BEG</TableHead>
-                <TableHead className="text-center w-24">ADD</TableHead>
-                <TableHead className="text-center w-24 bg-slate-200/50 dark:bg-slate-700/50">TOTAL</TableHead>
-                <TableHead className="text-center w-24">AM</TableHead>
-                <TableHead className="text-center w-24">PM</TableHead>
-                <TableHead className="text-center w-24 bg-slate-200/50 dark:bg-slate-700/50">END</TableHead>
-                <TableHead className="w-10"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tableItems.map(item => (
-                <InventoryRow 
-                  key={item.id} 
-                  item={item} 
-                  isReadOnly={isReadOnly} 
-                  date={date}
-                />
-              ))}
-            </TableBody>
-          </Table>
+      <div className="mb-10">
+        <h2 className="text-sm font-bold text-blue-800 uppercase tracking-widest mb-3 pl-2">{title}</h2>
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table className="w-full text-left">
+              <TableHeader>
+                <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200">
+                  <TableHead className="w-12 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">#</TableHead>
+                  <TableHead className="text-xs font-bold text-slate-500 uppercase tracking-wider">ITEM</TableHead>
+                  <TableHead className="text-center w-24 text-xs font-bold text-slate-500 uppercase tracking-wider">BEG</TableHead>
+                  <TableHead className="text-center w-24 text-xs font-bold text-slate-500 uppercase tracking-wider">ADD</TableHead>
+                  <TableHead className="text-center w-32 text-xs font-bold text-slate-500 uppercase tracking-wider">TOTAL STOCK</TableHead>
+                  <TableHead className="text-center w-28 text-xs font-bold text-slate-500 uppercase tracking-wider">SALES AM</TableHead>
+                  <TableHead className="text-center w-28 text-xs font-bold text-slate-500 uppercase tracking-wider">SALES PM</TableHead>
+                  <TableHead className="text-center w-24 text-xs font-bold text-slate-500 uppercase tracking-wider">ENDING</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tableItems.map((item, index) => {
+                  const totalStock = (item.beginning_qty || 0) + (item.added_qty || 0);
+                  
+                  return (
+                    <TableRow key={item.id} className="hover:bg-slate-50/50">
+                      <TableCell className="text-center text-slate-500 font-medium">{index + 1}</TableCell>
+                      <TableCell className="font-semibold text-slate-800 uppercase text-sm">{item.inventory_items?.name}</TableCell>
+                      <TableCell className="text-center font-medium text-slate-700">{item.beginning_qty || 0}</TableCell>
+                      <TableCell className="text-center font-medium text-slate-700">{item.added_qty || 0}</TableCell>
+                      <TableCell className="text-center font-medium text-slate-700">{totalStock}</TableCell>
+                      <TableCell className="text-center font-medium text-slate-700">{item.sales_am || 0}</TableCell>
+                      <TableCell className="text-center font-medium text-slate-700">{item.sales_pm || 0}</TableCell>
+                      <TableCell className="text-center font-medium text-slate-700">{item.ending_qty || 0}</TableCell>
+                    </TableRow>
+                  );
+                })}
+                {/* Custom Total Row */}
+                <TableRow className="bg-green-50/50 hover:bg-green-50/50 border-t border-slate-200">
+                  <TableCell colSpan={2} className="font-bold text-green-700 uppercase tracking-wide text-sm pl-8">
+                    TOTAL
+                  </TableCell>
+                  <TableCell className="text-center font-bold text-green-700">{totals.beg}</TableCell>
+                  <TableCell className="text-center font-bold text-green-700">{totals.add}</TableCell>
+                  <TableCell className="text-center font-bold text-green-700">{totals.total}</TableCell>
+                  <TableCell className="text-center font-bold text-green-700">{totals.am}</TableCell>
+                  <TableCell className="text-center font-bold text-green-700">{totals.pm}</TableCell>
+                  <TableCell className="text-center font-bold text-green-700">{totals.end}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {renderTable(portionItems, 'PORTION STOCK')}
       {renderTable(caseItems, 'PER CASES')}
     </div>

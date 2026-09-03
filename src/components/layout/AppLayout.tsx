@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom';
-import { LogOut, Package, FileText, Menu, X, Users, Tags, ArrowLeftRight, Bell, LayoutDashboard } from 'lucide-react';
+import { LogOut, Package, FileText, Menu, X, Users, Tags, ArrowLeftRight, Bell, LayoutDashboard, Layers, History, FileBarChart, TrendingUp, AlertTriangle, Clock, Archive, Settings } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -10,11 +10,19 @@ import { NotificationBell } from '@/features/inventory/components/NotificationBe
 const primaryNav = [
   { name: 'Dashboard', to: '/inventory', icon: LayoutDashboard },
   { name: 'Daily Inventory', to: '/daily-inventory', icon: FileText },
-  { name: 'Items Catalog', to: '/items', icon: Package },
-  { name: 'Stock Mgt', to: '/stock', icon: ArrowLeftRight },
+  { name: 'Inventory Items', to: '/items', icon: Package },
+  { name: 'Stock Batches', to: '/stock', icon: Layers },
+  { name: 'Stock History', to: '/history', icon: History },
   { name: 'Categories', to: '/categories', icon: Tags },
-  { name: 'Reports', to: '/reports', icon: FileText },
-  { name: 'Notifications', to: '/notifications', icon: Bell },
+];
+
+const reportsNav = [
+  { name: 'Daily Reports', to: '/reports', icon: FileText },
+  { name: 'Inventory Reports', to: '/reports/inventory', icon: FileBarChart },
+  { name: 'Stock Movement', to: '/reports/movement', icon: TrendingUp },
+  { name: 'Low Stock', to: '/reports/low-stock', icon: AlertTriangle },
+  { name: 'Expiry / FEFO', to: '/reports/expiry', icon: Clock },
+  { name: 'Archived Reports', to: '/reports/archived', icon: Archive },
 ];
 
 function SidebarContent({ closeMobileMenu }: { closeMobileMenu?: () => void }) {
@@ -24,8 +32,9 @@ function SidebarContent({ closeMobileMenu }: { closeMobileMenu?: () => void }) {
     await supabase.auth.signOut();
   };
 
-  const adminNav = role === 'ADMIN' ? [
-    { name: 'Users & Visitors', to: '/admin', icon: Users },
+  const systemNav = role === 'ADMIN' ? [
+    { name: 'Users', to: '/admin', icon: Users },
+    { name: 'Settings', to: '/settings', icon: Settings },
   ] : [];
 
   return (
@@ -58,11 +67,32 @@ function SidebarContent({ closeMobileMenu }: { closeMobileMenu?: () => void }) {
               {item.name}
             </NavLink>
           ))}
+
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-6 mb-2 px-3">Reports</div>
           
-          {adminNav.length > 0 && (
+          {reportsNav.map((item) => (
+            <NavLink
+              key={item.name}
+              to={item.to}
+              onClick={closeMobileMenu}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-slate-800 text-blue-400"
+                    : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-50"
+                )
+              }
+            >
+              <item.icon className="h-5 w-5" />
+              {item.name}
+            </NavLink>
+          ))}
+          
+          {systemNav.length > 0 && (
             <>
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-6 mb-2 px-3">Administration</div>
-              {adminNav.map((item) => (
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-6 mb-2 px-3">System</div>
+              {systemNav.map((item) => (
                 <NavLink
                   key={item.name}
                   to={item.to}

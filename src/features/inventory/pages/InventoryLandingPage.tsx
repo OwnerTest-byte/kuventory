@@ -1,25 +1,16 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getInventory } from '../api';
-import { Package, AlertTriangle, ArrowRight, Search, Loader2, RefreshCw } from 'lucide-react';
+import { Package, Bell, AlertOctagon, Clock, AlertTriangle, ArrowRight, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { stockStatusVariant } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
-import type { InventoryStock } from '../types';
-
-type StatusFilter = 'ALL' | 'IN_STOCK' | 'LOW' | 'OUT';
 
 export function InventoryLandingPage() {
-  const { data: items, isLoading, isError, refetch } = useQuery({
+  const { data: items, isLoading } = useQuery({
     queryKey: ['inventory'],
     queryFn: getInventory,
   });
-
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
 
   const today = format(new Date(), 'MMM dd, yyyy');
 
@@ -27,186 +18,225 @@ export function InventoryLandingPage() {
     const list = items || [];
     return {
       total: list.length,
-      active: list.filter(i => i.total_quantity > 0 && i.total_quantity > i.min_quantity).length,
       low: list.filter(i => i.total_quantity > 0 && i.total_quantity <= i.min_quantity).length,
       out: list.filter(i => i.total_quantity <= 0).length,
-      units: list.reduce((acc, i) => acc + (Number(i.total_quantity) || 0), 0),
+      // Mock expiring soon for now
+      expiring: 3, 
     };
   }, [items]);
 
-  const filtered = useMemo(() => {
-    let list = items || [];
-    const q = search.trim().toLowerCase();
-    if (q) {
-      list = list.filter(i => i.name.toLowerCase().includes(q));
-    }
-    if (statusFilter === 'IN_STOCK') list = list.filter(i => i.total_quantity > 0 && i.total_quantity > i.min_quantity);
-    if (statusFilter === 'LOW') list = list.filter(i => i.total_quantity > 0 && i.total_quantity <= i.min_quantity);
-    if (statusFilter === 'OUT') list = list.filter(i => i.total_quantity <= 0);
-    return list;
-  }, [items, search, statusFilter]);
+  // Mock data for summary table
+  const portionItems = 64;
+  const portionStock = 1245;
+  const caseItems = 28;
+  const caseStock = 312;
 
-  const statusLabel = (item: InventoryStock) => {
-    if (item.total_quantity <= 0) return 'OUT OF STOCK';
-    if (item.total_quantity <= item.min_quantity) return 'LOW STOCK';
-    return 'IN STOCK';
-  };
-
-  const statusText: Record<string, string> = {
-    'IN STOCK': 'Normal',
-    'LOW STOCK': 'Low',
-    'OUT OF STOCK': 'None',
-  };
+  // Mock data for recent activity
+  const recentActivity = [
+    { time: '10:30 AM', user: 'Juan D.', details: 'Pale Pilsen', action: '+12 bottle(s)' },
+    { time: '10:15 AM', user: 'Maria S.', details: 'Stallion Red Horse', action: '-8 bottle(s)' },
+    { time: '09:50 AM', user: 'Juan D.', details: 'Milk', action: 'New stock: 57' },
+    { time: '08:30 AM', user: 'Admin User', details: 'Daily Inventory', action: 'May 23, 2025' },
+  ];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 p-4 md:p-8 animate-in fade-in duration-300">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Dashboard</h1>
-        <p className="text-slate-500 dark:text-slate-400">Monitor stock levels and run the daily count.</p>
-      </header>
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Items</div>
-          <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{isLoading ? '…' : summary.total}</div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wider text-green-600 dark:text-green-400">In Stock</div>
-          <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{isLoading ? '…' : summary.active}</div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Low Stock</div>
-          <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{isLoading ? '…' : summary.low}</div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wider text-red-600 dark:text-red-400">Out of Stock</div>
-          <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{isLoading ? '…' : summary.out}</div>
-        </div>
+    <div className="max-w-7xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-slate-900 tracking-tight uppercase">Dashboard</h1>
       </div>
 
-      {/* Primary Action */}
-      <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-xl p-5 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
-        <div className="space-y-1 text-center md:text-left">
-          <h2 className="text-lg font-bold text-blue-900 dark:text-blue-100">Today's Inventory</h2>
-          <p className="text-blue-700/80 dark:text-blue-300/80 font-medium">{today}</p>
-        </div>
-        <Link
-          to="/daily-inventory"
-          className="w-full md:w-auto inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-semibold h-11 px-6 rounded-lg shadow transition-colors"
-        >
-          Open Today's Inventory
-          <ArrowRight className="ml-2 w-5 h-5" />
-        </Link>
+      {/* Metrics Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="border-t-4 border-t-blue-600 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-bold text-slate-600 uppercase">Total Items</CardTitle>
+            <Package className="h-5 w-5 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-slate-900">{isLoading ? '-' : summary.total}</div>
+            <p className="text-xs text-slate-500 mt-1">All active inventory items</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-t-4 border-t-amber-500 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-bold text-slate-600 uppercase">Low Stock</CardTitle>
+            <Bell className="h-5 w-5 text-amber-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-slate-900">{isLoading ? '-' : summary.low}</div>
+            <p className="text-xs text-slate-500 mt-1">Below minimum quantity</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-t-4 border-t-red-500 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-bold text-slate-600 uppercase">Out of Stock</CardTitle>
+            <AlertOctagon className="h-5 w-5 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-slate-900">{isLoading ? '-' : summary.out}</div>
+            <p className="text-xs text-slate-500 mt-1">No remaining stock</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-t-4 border-t-yellow-600 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-bold text-slate-600 uppercase">Expiring Soon</CardTitle>
+            <Clock className="h-5 w-5 text-yellow-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold text-slate-900">{summary.expiring}</div>
+            <p className="text-xs text-slate-500 mt-1">Within 7 days</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Search + filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search items..."
-            className="pl-9"
-            aria-label="Search inventory items"
-          />
-        </div>
-        <div className="flex gap-2">
-          {(['ALL', 'IN_STOCK', 'LOW', 'OUT'] as StatusFilter[]).map((f) => (
-            <button
-              key={f}
-              onClick={() => setStatusFilter(f)}
-              className={`px-3 py-2 rounded-md text-sm font-medium border transition-colors ${
-                statusFilter === f
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
-              }`}
-            >
-              {f === 'ALL' ? 'All' : f === 'IN_STOCK' ? 'In Stock' : f === 'LOW' ? 'Low' : 'Out'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Inventory Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Item</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead className="text-right">Quantity</TableHead>
-              <TableHead className="text-right">Min</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-slate-500">
-                  <Loader2 className="w-5 h-5 animate-spin inline mr-2" /> Loading inventory...
-                </TableCell>
-              </TableRow>
-            ) : isError ? (
-              <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
-                  <div className="text-red-600 dark:text-red-400 mb-3">Unable to load inventory.</div>
-                  <button onClick={() => refetch()} className="inline-flex items-center text-sm font-medium text-blue-600 hover:underline">
-                    <RefreshCw className="w-4 h-4 mr-1" /> Try Again
-                  </button>
-                </TableCell>
-              </TableRow>
-            ) : filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-slate-500">
-                  <Package className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                  No inventory items found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((item) => {
-                const status = statusLabel(item);
-                return (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium text-slate-900 dark:text-white">
-                      {item.name}
-                    </TableCell>
-                    <TableCell className="text-slate-600 dark:text-slate-300">
-                      {item.unit}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold text-slate-900 dark:text-white tabular-nums">
-                      {item.total_quantity}
-                    </TableCell>
-                    <TableCell className="text-right text-slate-500 tabular-nums">
-                      {item.min_quantity}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={stockStatusVariant(item.total_quantity, item.min_quantity)}>
-                        <span className="sr-only">{statusText[status]}</span>
-                        {status}
-                      </Badge>
-                    </TableCell>
+      {/* Main Content Split */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left Column (2/3) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Today's Inventory Summary */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle className="text-lg font-bold uppercase tracking-tight text-slate-900">Today's Inventory Summary</CardTitle>
+              <p className="text-sm font-medium text-slate-500">{today}</p>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow>
+                    <TableHead className="font-bold text-slate-700">SECTION</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-center">TOTAL ITEMS</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-center">TOTAL STOCK</TableHead>
                   </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-semibold text-slate-700">PORTION STOCK</TableCell>
+                    <TableCell className="text-center font-medium">{portionItems}</TableCell>
+                    <TableCell className="text-center font-medium">{portionStock.toLocaleString()}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-semibold text-slate-700">PER CASES</TableCell>
+                    <TableCell className="text-center font-medium">{caseItems}</TableCell>
+                    <TableCell className="text-center font-medium">{caseStock.toLocaleString()}</TableCell>
+                  </TableRow>
+                  <TableRow className="bg-green-50/50 hover:bg-green-50/50">
+                    <TableCell className="font-bold text-green-700 uppercase">Total</TableCell>
+                    <TableCell className="text-center font-bold text-green-700">{portionItems + caseItems}</TableCell>
+                    <TableCell className="text-center font-bold text-green-700">{(portionStock + caseStock).toLocaleString()}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+              <div className="px-6 py-3 text-xs text-slate-400 bg-slate-50/30">
+                Last updated: 10:30 AM
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Low stock alert card */}
-      {summary.low + summary.out > 0 && !isLoading && (
-        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-xl p-5 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
-          <div className="text-sm text-amber-900 dark:text-amber-200">
-            <span className="font-semibold">
-              {summary.out} out of stock, {summary.low} low.
-            </span>{' '}
-            Restock soon to avoid stockouts. Use the stock management screen to add batches.
-          </div>
+          {/* Recent Activity */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle className="text-lg font-bold uppercase tracking-tight text-slate-900">Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow>
+                    <TableHead className="font-bold text-slate-700 w-24">TIME</TableHead>
+                    <TableHead className="font-bold text-slate-700">USER</TableHead>
+                    <TableHead className="font-bold text-slate-700">DETAILS</TableHead>
+                    <TableHead className="font-bold text-slate-700">ACTION</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentActivity.map((act, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-slate-500 font-medium text-sm">{act.time}</TableCell>
+                      <TableCell className="text-slate-700 font-medium">{act.user}</TableCell>
+                      <TableCell className="text-slate-900 font-semibold">{act.details}</TableCell>
+                      <TableCell className="text-slate-600 font-medium">{act.action}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </div>
-      )}
+
+        {/* Right Column (1/3) */}
+        <div className="space-y-6">
+          {/* Recent Alerts */}
+          <Card className="shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-border">
+              <CardTitle className="text-lg font-bold uppercase tracking-tight text-slate-900">Recent Alerts</CardTitle>
+              <span className="text-sm font-semibold text-blue-600 cursor-pointer hover:underline">View All</span>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-border">
+                {/* Low Stock Alert */}
+                <div className="p-4 flex gap-4 hover:bg-slate-50 transition-colors">
+                  <div className="mt-0.5">
+                    <AlertTriangle className="h-5 w-5 text-amber-500" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-bold text-amber-600 uppercase">Low Stock</p>
+                      <span className="text-xs font-medium text-slate-400">10 min ago</span>
+                    </div>
+                    <p className="text-sm font-medium text-slate-800">SMA <span className="font-normal text-slate-600">has only 6 bottle(s) left.</span></p>
+                  </div>
+                </div>
+
+                {/* Expiring Soon Alert */}
+                <div className="p-4 flex gap-4 hover:bg-slate-50 transition-colors">
+                  <div className="mt-0.5">
+                    <Clock className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-bold text-green-600 uppercase">Expiring Soon</p>
+                      <span className="text-xs font-medium text-slate-400">25 min ago</span>
+                    </div>
+                    <p className="text-sm font-medium text-slate-800">Milk Batch A <span className="font-normal text-slate-600">expires in 3 days.</span></p>
+                  </div>
+                </div>
+
+                {/* Out of Stock Alert */}
+                <div className="p-4 flex gap-4 hover:bg-slate-50 transition-colors">
+                  <div className="mt-0.5">
+                    <XCircle className="h-5 w-5 text-red-500" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-bold text-red-600 uppercase">Out of Stock</p>
+                      <span className="text-xs font-medium text-slate-400">1 hour ago</span>
+                    </div>
+                    <p className="text-sm font-medium text-slate-800">Coke Zero <span className="font-normal text-slate-600">is out of stock.</span></p>
+                  </div>
+                </div>
+
+                {/* Expired Alert */}
+                <div className="p-4 flex gap-4 hover:bg-slate-50 transition-colors">
+                  <div className="mt-0.5">
+                    <AlertTriangle className="h-5 w-5 text-red-700" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-bold text-red-700 uppercase">Expired</p>
+                      <span className="text-xs font-medium text-slate-400">2 hours ago</span>
+                    </div>
+                    <p className="text-sm font-medium text-slate-800">Cream Batch B <span className="font-normal text-slate-600">expired on May 23.</span></p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+      </div>
     </div>
   );
 }

@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useReport } from '../api/reports';
-import { Download, FileSpreadsheet, FileText, ArrowLeft, Loader2 } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, ArrowLeft, Loader2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { format } from 'date-fns';
 import type { ReportItem } from '../types';
 
 export function ReportViewPage() {
@@ -24,143 +23,113 @@ export function ReportViewPage() {
   const perCaseItems = items.filter(item => item.unit?.toUpperCase().includes('CASE') || item.category_name?.toUpperCase().includes('CASE'));
   const portionItems = items.filter(item => !perCaseItems.includes(item));
 
-  const handleExportPdf = async () => {
-    try {
-      setIsExportingPdf(true);
-      const { exportToPdf } = await import('../export/pdf');
-      exportToPdf(report);
-    } catch (err) {
-      console.error('Failed to export PDF:', err);
-      alert('Failed to generate PDF. Please try again.');
-    } finally {
-      setIsExportingPdf(false);
-    }
+  const handlePrint = () => {
+    window.print();
   };
 
-  const handleExportXlsx = async () => {
-    try {
-      setIsExportingXlsx(true);
-      const { exportToXlsx } = await import('../export/xlsx');
-      exportToXlsx(report);
-    } catch (err) {
-      console.error('Failed to export XLSX:', err);
-      alert('Failed to generate Spreadsheet. Please try again.');
-    } finally {
-      setIsExportingXlsx(false);
-    }
-  };
-
-  const handleExportCsv = async () => {
-    try {
-      setIsExportingCsv(true);
-      const { exportToCsv } = await import('../export/csv');
-      exportToCsv(report);
-    } catch (err) {
-      console.error('Failed to export CSV:', err);
-      alert('Failed to generate CSV. Please try again.');
-    } finally {
-      setIsExportingCsv(false);
-    }
-  };
-
-  const renderTable = (tableItems: ReportItem[], title: string) => {
+  const renderPrintableTable = (tableItems: ReportItem[], title: string) => {
     if (tableItems.length === 0) return null;
     return (
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold tracking-tight">{title}</h2>
-        <div className="rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead className="text-right w-24">BEG</TableHead>
-                <TableHead className="text-right w-24">ADD</TableHead>
-                <TableHead className="text-right w-24 font-bold text-foreground">TOTAL</TableHead>
-                <TableHead className="text-right w-24">AM</TableHead>
-                <TableHead className="text-right w-24">PM</TableHead>
-                <TableHead className="text-right w-24 font-bold text-foreground">END</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tableItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium" data-testid={`report-item-name-${item.item_name}`}>
-                    {item.item_name}
-                    <div className="text-xs text-muted-foreground font-normal">
-                      {item.category_name} &bull; {item.unit}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">{item.beg}</TableCell>
-                  <TableCell className="text-right">{item.add}</TableCell>
-                  <TableCell className="text-right font-bold">{item.total}</TableCell>
-                  <TableCell className="text-right">{item.am}</TableCell>
-                  <TableCell className="text-right">{item.pm}</TableCell>
-                  <TableCell className="text-right font-bold text-primary">{item.ending}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+      <div className="mb-8">
+        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900 mb-2">{title}</h3>
+        <table className="w-full text-left text-xs sm:text-sm border-collapse border border-slate-300">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-300">
+              <th className="py-2 px-3 font-bold border-r border-slate-300">ITEM</th>
+              <th className="py-2 px-3 font-bold text-center border-r border-slate-300">BEG</th>
+              <th className="py-2 px-3 font-bold text-center border-r border-slate-300">ADD</th>
+              <th className="py-2 px-3 font-bold text-center border-r border-slate-300">TOTAL STOCK</th>
+              <th className="py-2 px-3 font-bold text-center border-r border-slate-300">SALES AM</th>
+              <th className="py-2 px-3 font-bold text-center border-r border-slate-300">SALES PM</th>
+              <th className="py-2 px-3 font-bold text-center">ENDING</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tableItems.map((item, idx) => {
+              const totalStock = (item.beginning_qty || 0) + (item.added_qty || 0);
+              return (
+                <tr key={idx} className="border-b border-slate-200">
+                  <td className="py-2 px-3 border-r border-slate-200">{item.item_name}</td>
+                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.beginning_qty}</td>
+                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.added_qty}</td>
+                  <td className="py-2 px-3 text-center border-r border-slate-200 font-medium">{totalStock}</td>
+                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.sales_am}</td>
+                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.sales_pm}</td>
+                  <td className="py-2 px-3 text-center font-medium">{item.ending_qty}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     );
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8">
-      
-      <div className="flex items-center gap-4">
-        <Link to="/reports" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="w-4 h-4 mr-1" />
-          Back to Reports
-        </Link>
+    <div className="max-w-5xl mx-auto pb-12">
+      {/* Top action bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+        <div className="flex items-center gap-2 text-slate-500">
+          <Link to="/reports" className="hover:text-slate-900 transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <h1 className="text-xl font-bold text-slate-900 uppercase">Report Preview</h1>
+        </div>
+        
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" className="bg-red-600 hover:bg-red-700 text-white border-transparent" disabled={isExportingPdf}>
+            {isExportingPdf ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
+            Export PDF
+          </Button>
+          <Button variant="outline" className="bg-green-600 hover:bg-green-700 text-white border-transparent" disabled={isExportingXlsx}>
+            {isExportingXlsx ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
+            Export XLSX
+          </Button>
+          <Button variant="outline" className="text-slate-700 bg-white" disabled={isExportingCsv}>
+            {isExportingCsv ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+            Export CSV
+          </Button>
+          <Button variant="outline" className="text-slate-700 bg-white" onClick={handlePrint}>
+            <Printer className="w-4 h-4 mr-2" />
+            Print
+          </Button>
+        </div>
       </div>
 
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b pb-6">
-        <div className="space-y-2">
-          <Badge variant={report.status === 'ACTIVE' ? 'default' : report.status === 'CORRECTED' ? 'outline' : 'secondary'} className="mb-2">
-            {report.status}
-          </Badge>
-          <h1 className="text-3xl font-bold tracking-tight">Daily Inventory Report</h1>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            <p><span className="font-medium text-foreground">Date:</span> {report.report_date}</p>
-            <p><span className="font-medium text-foreground">Version:</span> {report.version}</p>
-            <p><span className="font-medium text-foreground">Finalized:</span> {new Date(report.generated_at).toLocaleString()}</p>
+      {/* Printable Report Page */}
+      <div className="bg-white p-8 sm:p-12 shadow-md border border-slate-200 mx-auto max-w-4xl min-h-[1056px] print:shadow-none print:border-none print:m-0 print:p-0 print:w-full">
+        <div className="flex flex-col items-center justify-center text-center mb-8 border-b-2 border-slate-800 pb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <img src="/logo-icon.png" alt="KUVENTORY Logo" className="h-8 w-auto grayscale" />
+            <span className="font-bold text-2xl tracking-tight text-slate-900">KUVENTORY</span>
+          </div>
+          <h1 className="text-lg font-bold uppercase tracking-widest text-slate-900">INVENTORY KIOSK AND BODEGA</h1>
+          <h2 className="text-lg font-bold uppercase tracking-widest text-slate-900">DAILY INVENTORY REPORT</h2>
+        </div>
+
+        <div className="flex justify-between items-start mb-8 text-sm text-slate-700 font-medium">
+          <div>
+            <p>Date: {format(new Date(report.date), 'MMMM dd, yyyy')}</p>
+          </div>
+          <div className="text-right space-y-4">
+            <div className="flex justify-end gap-2 items-end">
+              <span className="w-24 text-right">Prepared by:</span>
+              <div className="border-b border-slate-400 w-48 text-center pb-1 text-slate-900">{report.generated_by_user?.full_name}</div>
+            </div>
+            <div className="flex justify-end gap-2 items-end">
+              <span className="w-24 text-right">Finalized by:</span>
+              <div className="border-b border-slate-400 w-48 text-center pb-1 text-slate-900">{report.state === 'FINALIZED' ? report.generated_by_user?.full_name : ''}</div>
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button 
-            variant="outline"
-            onClick={handleExportPdf}
-            disabled={isExportingPdf}
-          >
-            {isExportingPdf ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2 text-red-500" />}
-            PDF
-          </Button>
-          <Button 
-            variant="outline"
-            onClick={handleExportXlsx}
-            disabled={isExportingXlsx}
-          >
-            {isExportingXlsx ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 mr-2 text-green-600" />}
-            XLSX
-          </Button>
-          <Button 
-            variant="outline"
-            onClick={handleExportCsv}
-            disabled={isExportingCsv}
-          >
-            {isExportingCsv ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2 text-blue-500" />}
-            CSV
-          </Button>
+        {renderPrintableTable(portionItems, 'PORTION STOCK')}
+        {renderPrintableTable(perCaseItems, 'PER CASES')}
+        
+        <div className="text-center mt-12 pt-4 border-t border-slate-300 text-xs text-slate-500 font-medium uppercase tracking-widest">
+          KUVENTORY Inventory Management System
         </div>
-      </header>
-
-      <div className="space-y-8">
-        {renderTable(portionItems, 'PORTION STOCK')}
-        {renderTable(perCaseItems, 'PER CASES')}
       </div>
-
     </div>
   );
 }
