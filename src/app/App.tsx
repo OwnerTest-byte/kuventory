@@ -10,6 +10,7 @@ import { Loader2 } from 'lucide-react';
 // Code Splitting for heavy or secondary routes
 const DailyInventoryPage = lazy(() => import('@/features/daily-inventory/components/DailyInventoryPage').then(module => ({ default: module.DailyInventoryPage })));
 const StockManagementPage = lazy(() => import('@/features/inventory/pages/StockManagementPage').then(module => ({ default: module.StockManagementPage })));
+const ItemsCatalogPage = lazy(() => import('@/features/inventory/pages/ItemsCatalogPage').then(module => ({ default: module.ItemsCatalogPage })));
 const ReportViewPage = lazy(() => import('@/features/reports/pages/ReportViewPage').then(module => ({ default: module.ReportViewPage })));
 const ReportsLibraryPage = lazy(() => import('@/features/reports/pages/ReportsLibraryPage').then(module => ({ default: module.ReportsLibraryPage })));
 const CategoriesPage = lazy(() => import('@/features/categories/pages/CategoriesPage').then(module => ({ default: module.CategoriesPage })));
@@ -46,14 +47,18 @@ export function App() {
               <Suspense fallback={<FallbackLoader />}><ReportViewPage /></Suspense>
             } />
             
+            <Route path="/items" element={
+              <Suspense fallback={<FallbackLoader />}><ItemsCatalogPage /></Suspense>
+            } />
+            <Route path="/categories" element={
+              <Suspense fallback={<FallbackLoader />}><CategoriesPage /></Suspense>
+            } />
+            <Route path="/stock" element={
+              <Suspense fallback={<FallbackLoader />}><StockManagementPage /></Suspense>
+            } />
+            
             {/* Admin-only Routes */}
             <Route element={<RequireAdmin />}>
-              <Route path="/categories" element={
-                <Suspense fallback={<FallbackLoader />}><CategoriesPage /></Suspense>
-              } />
-              <Route path="/stock" element={
-                <Suspense fallback={<FallbackLoader />}><StockManagementPage /></Suspense>
-              } />
               <Route path="/admin" element={
                 <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
               } />

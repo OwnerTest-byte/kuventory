@@ -61,7 +61,7 @@ export function InventoryLandingPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-6 p-4 md:p-8 animate-in fade-in duration-300">
       <header className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Inventory Overview</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Dashboard</h1>
         <p className="text-slate-500 dark:text-slate-400">Monitor stock levels and run the daily count.</p>
       </header>
 

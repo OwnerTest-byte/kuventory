@@ -3,10 +3,13 @@ export type InventoryItem = {
   category_id: string;
   name: string;
   description: string | null;
+  supplier_a: string | null;
+  supplier_b: string | null;
   unit: string;
   unit_cost: number;
   min_quantity: number;
   is_active: boolean;
+  is_archived: boolean;
 };
 
 export type InventoryStock = InventoryItem & {

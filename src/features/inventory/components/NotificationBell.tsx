@@ -6,7 +6,11 @@ import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
-export function NotificationBell() {
+interface Props {
+  placement?: 'bottom-right' | 'top-left';
+}
+
+export function NotificationBell({ placement = 'bottom-right' }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -87,7 +91,12 @@ export function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg overflow-hidden z-50 flex flex-col max-h-[80vh]">
+        <div 
+          className={cn(
+            "absolute w-80 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl overflow-hidden z-[100] flex flex-col max-h-[70vh]",
+            placement === 'bottom-right' ? "right-0 top-full mt-2" : "left-0 bottom-full mb-2"
+          )}
+        >
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
             <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
               Notifications

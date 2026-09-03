@@ -99,3 +99,4 @@ export async function getStockHistory(): Promise<StockMovement[]> {
   if (error) throw error;
   return data as StockMovement[];
 }
+export * from './items';
