@@ -16,11 +16,10 @@ const CategoriesPage = lazy(() => import('@/features/categories/pages/Categories
 const AdminPage = lazy(() => import('@/features/admin/pages/AdminPage').then(module => ({ default: module.AdminPage })));
 const NotificationCenter = lazy(() => import('@/features/inventory/pages/NotificationCenter').then(module => ({ default: module.NotificationCenter })));
 
-// Placeholders for the new exact mockup routes
+const StockBatchesPage = lazy(() => import('@/features/inventory/pages/StockBatchesPage').then(module => ({ default: module.StockBatchesPage })));
+const StockHistoryPage = lazy(() => import('@/features/inventory/pages/StockHistoryPage').then(module => ({ default: module.StockHistoryPage })));
+
 const ItemDetailsPage = () => <div className="p-8 text-center text-slate-500 font-medium">Item Details Page (In Development)</div>;
-const StockBatchesPage = () => <div className="p-8 text-center text-slate-500 font-medium">Global Stock Batches Page (In Development)</div>;
-const StockHistoryPage = () => <div className="p-8 text-center text-slate-500 font-medium">Global Stock History Page (In Development)</div>;
-const SettingsPage = () => <div className="p-8 text-center text-slate-500 font-medium">System Settings (In Development)</div>;
 
 const FallbackLoader = () => (
   <div className="flex h-full w-full items-center justify-center p-8">
@@ -67,15 +66,17 @@ export function App() {
             <Route path="/categories" element={
               <Suspense fallback={<FallbackLoader />}><CategoriesPage /></Suspense>
             } />
-            <Route path="/stock" element={<StockBatchesPage />} />
-            <Route path="/history" element={<StockHistoryPage />} />
+            <Route path="/stock" element={<Suspense fallback={<FallbackLoader />}><StockBatchesPage /></Suspense>} />
+            <Route path="/history" element={<Suspense fallback={<FallbackLoader />}><StockHistoryPage /></Suspense>} />
             
             {/* Admin-only Routes */}
             <Route element={<RequireAdmin />}>
               <Route path="/admin" element={
                 <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
               } />
-              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/settings" element={
+                <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
+              } />
             </Route>
 
             {/* Fallback for authenticated users */}
