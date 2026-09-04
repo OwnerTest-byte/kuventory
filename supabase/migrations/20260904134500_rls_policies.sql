@@ -4,7 +4,7 @@
 -- 1. Helper Function to get the current user's role
 CREATE OR REPLACE FUNCTION public.get_user_role()
 RETURNS text AS $$
-  SELECT role FROM public.profiles WHERE auth_user_id = auth.uid() LIMIT 1;
+  SELECT role FROM public.profiles WHERE id = auth.uid() LIMIT 1;
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 -- 2. Categories Policies
