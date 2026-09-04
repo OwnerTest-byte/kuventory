@@ -10,7 +10,7 @@ import { Loader2 } from 'lucide-react';
 import { useRealtimeSync } from '@/features/inventory/hooks/useRealtimeSync';
 
 // Code Splitting for heavy or secondary routes
-const DailyInventoryPage = lazy(() => import('@/features/daily-inventory/components/DailyInventoryPage').then(module => ({ default: module.DailyInventoryPage })));
+const DailyInventoryPage = lazy(() => import('@/features/daily-inventory/pages/DailyInventoryPage').then(module => ({ default: module.DailyInventoryPage })));
 const ItemsCatalogPage = lazy(() => import('@/features/inventory/pages/ItemsCatalogPage').then(module => ({ default: module.ItemsCatalogPage })));
 const ItemDetailsPage = lazy(() => import('@/features/inventory/pages/ItemDetailsPage').then(module => ({ default: module.ItemDetailsPage })));
 const ReportViewPage = lazy(() => import('@/features/reports/pages/ReportViewPage').then(module => ({ default: module.ReportViewPage })));

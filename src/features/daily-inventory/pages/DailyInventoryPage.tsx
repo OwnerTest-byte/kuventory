@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDailyInventory, useFinalizeDailyInventory } from '../hooks/useDailyInventory';
-import { InventorySheet } from './InventorySheet';
+import { InventorySheet } from '../components/InventorySheet';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Loader2, AlertTriangle, CalendarIcon } from 'lucide-react';

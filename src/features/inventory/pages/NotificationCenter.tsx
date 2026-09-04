@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, AlertTriangle, Info, Clock, AlertCircle, CheckCheck, Loader2, RefreshCw, BellOff } from 'lucide-react';
-import { useNotifications, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from '../api/notifications';
+import { useNotifications, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from '../hooks/useNotifications';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
