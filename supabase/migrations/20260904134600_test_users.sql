@@ -7,7 +7,11 @@ DO $$
 BEGIN
   -- Insert ADMIN user
   IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'admin@kuventory.com') THEN
-    INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+    INSERT INTO auth.users (
+      id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, 
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+      confirmation_token, recovery_token, email_change_token_new, email_change_token_current
+    )
     VALUES (
       gen_random_uuid(),
       '00000000-0000-0000-0000-000000000000',
@@ -19,13 +23,18 @@ BEGIN
       '{"provider":"email","providers":["email"]}',
       '{"role":"ADMIN","first_name":"Admin","last_name":"User"}',
       now(),
-      now()
+      now(),
+      '', '', '', ''
     );
   END IF;
 
   -- Insert STAFF user
   IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'staff@kuventory.com') THEN
-    INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+    INSERT INTO auth.users (
+      id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, 
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+      confirmation_token, recovery_token, email_change_token_new, email_change_token_current
+    )
     VALUES (
       gen_random_uuid(),
       '00000000-0000-0000-0000-000000000000',
@@ -37,7 +46,8 @@ BEGIN
       '{"provider":"email","providers":["email"]}',
       '{"role":"STAFF","first_name":"Staff","last_name":"User"}',
       now(),
-      now()
+      now(),
+      '', '', '', ''
     );
   END IF;
 END $$;
