@@ -61,8 +61,12 @@ export function NotificationCenter() {
 
   const handleOpen = (n: AppNotification) => {
     if (!n.is_read) markAsRead.mutate(n.id);
-    if (n.type === 'LOW_STOCK' || n.type === 'OUT_OF_STOCK' || n.type === 'EXPIRING_SOON' || n.type === 'EXPIRED') {
-      navigate('/stock');
+    if (n.type === 'LOW_STOCK' || n.type === 'OUT_OF_STOCK') {
+      navigate('/reports/low-stock');
+    } else if (n.type === 'EXPIRING_SOON' || n.type === 'EXPIRED') {
+      navigate('/items?tab=batches');
+    } else {
+      navigate('/items?tab=history');
     }
   };
 

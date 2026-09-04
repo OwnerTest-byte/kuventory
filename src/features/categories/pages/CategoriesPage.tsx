@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit2, Archive, Loader2, Tags } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, Tags, AlertCircle } from 'lucide-react';
 import type { Database } from '@/types/supabase';
 
 type Category = Database['public']['Tables']['categories']['Row'];
@@ -13,6 +13,8 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
   const [newCatName, setNewCatName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: categories, isLoading } = useQuery({
     queryKey: ['categories'],
@@ -45,6 +47,39 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
       setEditingId(null);
     }
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      setDeleteError(null);
+      const { data: linkedItems, error: checkError } = await supabase
+        .from('inventory_items')
+        .select('id')
+        .eq('category_id', id)
+        .limit(1);
+      if (checkError) throw checkError;
+      if (linkedItems && linkedItems.length > 0) {
+        throw new Error('Cannot delete this category because active inventory items are assigned to it. Please reassign items first.');
+      }
+      const { error } = await supabase.from('categories').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      setDeletingId(null);
+      setDeleteError(null);
+    },
+    onError: (err: any) => {
+      setDeleteError(err.message || 'Failed to delete category');
+      setDeletingId(null);
+    }
+  });
+
+  const handleDelete = (id: string, name: string) => {
+    if (window.confirm(`Are you sure you want to delete the category "${name}"?`)) {
+      setDeletingId(id);
+      deleteMutation.mutate(id);
+    }
+  };
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +138,16 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
           </div>
         )}
 
+        {deleteError && (
+          <div className="p-3 mx-4 mt-4 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 text-xs font-semibold flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+              <span>{deleteError}</span>
+            </div>
+            <button onClick={() => setDeleteError(null)} className="text-rose-600 hover:text-rose-900 dark:hover:text-rose-200 font-bold ml-2">×</button>
+          </div>
+        )}
+
         <div className="divide-y divide-slate-100 dark:divide-slate-800">
           {isLoading ? (
             <div className="p-8 text-center text-slate-500">
@@ -134,8 +179,19 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
                       <Button variant="ghost" size="sm" onClick={() => { setEditingId(cat.id); setEditName(cat.name); }}>
                         <Edit2 className="w-4 h-4 text-slate-500" />
                       </Button>
-                      <Button variant="ghost" size="sm" title="Archive not implemented" disabled>
-                        <Archive className="w-4 h-4 text-slate-400" />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        title="Delete Category"
+                        onClick={() => handleDelete(cat.id, cat.name)}
+                        disabled={deletingId === cat.id}
+                        className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                      >
+                        {deletingId === cat.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
                       </Button>
                     </div>
                   </>

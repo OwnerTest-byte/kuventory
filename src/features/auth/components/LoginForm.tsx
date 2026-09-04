@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 
 const loginSchema = z.object({
@@ -107,14 +106,14 @@ export function LoginForm() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center space-x-2">
             <input type="checkbox" id="remember" className="rounded border-input text-primary focus:ring-primary h-4 w-4" />
-            <label htmlFor="remember" className="text-muted-foreground font-medium">Remember me</label>
+            <label htmlFor="remember" className="font-medium cursor-pointer">Remember me</label>
           </div>
-          <Link to="#" className="font-semibold text-primary hover:text-primary/80">
-            Forgot password?
-          </Link>
+          <span className="text-slate-400">
+            Forgot password? Contact Administrator
+          </span>
         </div>
 
         <Button

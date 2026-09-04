@@ -7,7 +7,7 @@ import {
   FileText, ChevronLeft, ChevronRight, BarChart3, AlertTriangle, 
   ArrowDownRight, ArrowUpRight, RefreshCw, Download
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -221,12 +221,13 @@ export function ReportsLibraryPage() {
                           {report.finalized_at ? format(new Date(report.finalized_at), 'MMM dd, yyyy h:mm a') : '-'}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="outline" size="sm" className="font-bold border-slate-300 dark:border-slate-700 hover:bg-slate-100">
-                            <Link to={`/reports/${report.id}`} className="flex items-center">
-                              <FileText className="w-4 h-4 mr-2" />
-                              View & Export
-                            </Link>
-                          </Button>
+                          <Link 
+                            to={`/reports/${report.id}`} 
+                            className={buttonVariants({ variant: 'outline', size: 'sm', className: "font-bold border-slate-300 dark:border-slate-700 hover:bg-slate-100" })}
+                          >
+                            <FileText className="w-4 h-4 mr-2" />
+                            View & Export
+                          </Link>
                         </TableCell>
                       </TableRow>
                     ))

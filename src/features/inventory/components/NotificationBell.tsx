@@ -61,9 +61,11 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
     
     // Navigate based on type
     if (notification.type === 'LOW_STOCK' || notification.type === 'OUT_OF_STOCK') {
-      navigate('/stock');
+      navigate('/reports/low-stock');
     } else if (notification.type === 'EXPIRING_SOON' || notification.type === 'EXPIRED') {
-      navigate('/stock'); // Assuming stock page will show expiring items or batches
+      navigate('/items?tab=batches');
+    } else {
+      navigate('/items?tab=history');
     }
   };
 
@@ -162,6 +164,16 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="p-2.5 border-t border-slate-200 dark:border-slate-800 text-center bg-slate-50 dark:bg-slate-900/50">
+            <button 
+              type="button"
+              onClick={() => { setIsOpen(false); navigate('/notifications'); }}
+              className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 font-bold hover:underline"
+            >
+              View All in Notification Center →
+            </button>
           </div>
         </div>
       )}

@@ -24,36 +24,50 @@ export function AdminPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('restaurant');
 
-  // Restaurant Info state
-  const [restaurantInfo, setRestaurantInfo] = useState({
-    name: 'KUVENTORY KIOSK & BODEGA',
-    branch: 'Central Bodega & Kiosk Operations',
-    address: 'Commercial Boulevard, Metro Manila, Philippines',
-    phone: '+63 (02) 8921-4567',
-    email: 'operations@kuventory.com',
-    hours: '10:00 AM – 11:00 PM Daily',
-    currency: 'PHP (₱)',
+  // Restaurant Info state with localStorage persistence
+  const [restaurantInfo, setRestaurantInfo] = useState(() => {
+    const saved = localStorage.getItem('kuventory_restaurant_info');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return {
+      name: 'KUVENTORY KIOSK & BODEGA',
+      branch: 'Central Bodega & Kiosk Operations',
+      address: 'Commercial Boulevard, Metro Manila, Philippines',
+      phone: '+63 (02) 8921-4567',
+      email: 'operations@kuventory.com',
+      hours: '10:00 AM – 11:00 PM Daily',
+      currency: 'PHP (₱)',
+    };
   });
   const [savedNotice, setSavedNotice] = useState(false);
 
   const handleSaveRestaurant = (e: React.FormEvent) => {
     e.preventDefault();
+    localStorage.setItem('kuventory_restaurant_info', JSON.stringify(restaurantInfo));
     setSavedNotice(true);
     setTimeout(() => setSavedNotice(false), 3000);
   };
 
-  // Notification Preferences State
-  const [notifPrefs, setNotifPrefs] = useState({
-    lowStockThreshold: 20,
-    expiryNoticeDays: 14,
-    emailAlerts: true,
-    soundAlerts: false,
-    fefoAutoAllocation: true,
+  // Notification Preferences State with localStorage persistence
+  const [notifPrefs, setNotifPrefs] = useState(() => {
+    const saved = localStorage.getItem('kuventory_notif_prefs');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return {
+      lowStockThreshold: 20,
+      expiryNoticeDays: 14,
+      emailAlerts: true,
+      soundAlerts: false,
+      fefoAutoAllocation: true,
+    };
   });
   const [savedNotifNotice, setSavedNotifNotice] = useState(false);
 
   const handleSaveNotif = (e: React.FormEvent) => {
     e.preventDefault();
+    localStorage.setItem('kuventory_notif_prefs', JSON.stringify(notifPrefs));
     setSavedNotifNotice(true);
     setTimeout(() => setSavedNotifNotice(false), 3000);
   };
@@ -579,7 +593,7 @@ export function AdminPage() {
 
           {addError && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded text-xs text-rose-700 font-semibold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <AlertCircle className="w-4 h-4 shrink-0" />
               {addError}
             </div>
           )}

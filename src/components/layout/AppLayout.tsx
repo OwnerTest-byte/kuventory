@@ -346,7 +346,7 @@ export function AppLayout() {
                     type="button"
                     onClick={() => {
                       setQuickActionOpen(false);
-                      navigate('/stock');
+                      navigate('/items?tab=batches');
                     }}
                     className="w-full text-left px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-2.5"
                   >
