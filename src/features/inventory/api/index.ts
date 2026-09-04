@@ -302,6 +302,19 @@ export async function archiveItem(id: string, isArchived: boolean): Promise<void
 }
 
 /**
+ * Permanently delete an item and any associated records.
+ */
+export async function deleteItem(id: string): Promise<void> {
+  await supabase.from('stock_batches').delete().eq('item_id', id);
+  await supabase.from('stock_movements').delete().eq('item_id', id);
+  const { error } = await supabase.from('inventory_items').delete().eq('id', id);
+  if (error) {
+    console.error('deleteItem error:', error);
+    throw error;
+  }
+}
+
+/**
  * Fetch all categories.
  */
 export async function getCategories(): Promise<Category[]> {

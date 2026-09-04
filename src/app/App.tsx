@@ -15,12 +15,8 @@ const ItemsCatalogPage = lazy(() => import('@/features/inventory/pages/ItemsCata
 const ItemDetailsPage = lazy(() => import('@/features/inventory/pages/ItemDetailsPage').then(module => ({ default: module.ItemDetailsPage })));
 const ReportViewPage = lazy(() => import('@/features/reports/pages/ReportViewPage').then(module => ({ default: module.ReportViewPage })));
 const ReportsLibraryPage = lazy(() => import('@/features/reports/pages/ReportsLibraryPage').then(module => ({ default: module.ReportsLibraryPage })));
-const CategoriesPage = lazy(() => import('@/features/categories/pages/CategoriesPage').then(module => ({ default: module.CategoriesPage })));
 const AdminPage = lazy(() => import('@/features/admin/pages/AdminPage').then(module => ({ default: module.AdminPage })));
 const NotificationCenter = lazy(() => import('@/features/inventory/pages/NotificationCenter').then(module => ({ default: module.NotificationCenter })));
-
-const StockBatchesPage = lazy(() => import('@/features/inventory/pages/StockBatchesPage').then(module => ({ default: module.StockBatchesPage })));
-const StockHistoryPage = lazy(() => import('@/features/inventory/pages/StockHistoryPage').then(module => ({ default: module.StockHistoryPage })));
 
 const FallbackLoader = () => (
   <div className="flex h-full w-full items-center justify-center p-8">
@@ -68,11 +64,9 @@ export function App() {
               <Suspense fallback={<FallbackLoader />}><ItemDetailsPage /></Suspense>
             } />
             
-            <Route path="/categories" element={
-              <Suspense fallback={<FallbackLoader />}><CategoriesPage /></Suspense>
-            } />
-            <Route path="/stock" element={<Suspense fallback={<FallbackLoader />}><StockBatchesPage /></Suspense>} />
-            <Route path="/history" element={<Suspense fallback={<FallbackLoader />}><StockHistoryPage /></Suspense>} />
+            <Route path="/categories" element={<Navigate to="/items?tab=categories" replace />} />
+            <Route path="/stock" element={<Navigate to="/items?tab=batches" replace />} />
+            <Route path="/history" element={<Navigate to="/items?tab=history" replace />} />
             
             {/* Admin-only Routes */}
             <Route element={<RequireAdmin />}>

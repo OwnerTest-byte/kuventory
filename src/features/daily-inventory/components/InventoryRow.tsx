@@ -74,12 +74,12 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
   return (
     <>
       <TableRow className="hover:bg-slate-50 group border-b border-slate-100 last:border-0 transition-colors">
-        <TableCell className="p-3 text-center text-sm font-medium text-slate-400">
+        <TableCell className="p-3 text-center text-sm font-medium text-slate-400 sticky left-0 z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200">
           {index + 1}
         </TableCell>
-        <TableCell className="p-3 align-middle">
-          <div className="font-bold text-slate-800">{item.items?.item_name}</div>
-          <div className="text-xs text-slate-500">{item.items?.unit}</div>
+        <TableCell className="p-3 align-middle sticky left-12 z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200 min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+          <div className="font-bold text-slate-800 text-xs sm:text-sm">{item.items?.item_name}</div>
+          <div className="text-[11px] text-slate-500">{item.items?.unit}</div>
         </TableCell>
         <TableCell className="p-2">
           <input 

@@ -7,7 +7,7 @@ import type { Database } from '@/types/supabase';
 
 type Category = Database['public']['Tables']['categories']['Row'];
 
-export function CategoriesPage() {
+export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
   const queryClient = useQueryClient();
   const [isAdding, setIsAdding] = useState(false);
   const [newCatName, setNewCatName] = useState('');
@@ -59,20 +59,29 @@ export function CategoriesPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6 animate-in fade-in">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-            <Tags className="w-8 h-8 text-blue-500" />
-            Categories
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Manage inventory categories and groupings.</p>
+    <div className={embedded ? "space-y-4 max-w-4xl" : "p-4 md:p-8 max-w-4xl mx-auto space-y-6 animate-in fade-in"}>
+      {!embedded ? (
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+              <Tags className="w-8 h-8 text-blue-500" />
+              Categories
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-1">Manage inventory categories and groupings.</p>
+          </div>
+          
+          <Button onClick={() => setIsAdding(true)} disabled={isAdding}>
+            <Plus className="w-4 h-4 mr-2" /> Add Category
+          </Button>
         </div>
-        
-        <Button onClick={() => setIsAdding(true)} disabled={isAdding}>
-          <Plus className="w-4 h-4 mr-2" /> Add Category
-        </Button>
-      </div>
+      ) : (
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-xs text-slate-500 font-medium">Manage inventory item categories, sections, and groupings.</p>
+          <Button onClick={() => setIsAdding(true)} disabled={isAdding} size="sm" className="h-8 text-xs bg-blue-600 text-white hover:bg-blue-700">
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Category
+          </Button>
+        </div>
+      )}
 
       <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
         {isAdding && (

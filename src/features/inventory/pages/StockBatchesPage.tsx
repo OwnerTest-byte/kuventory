@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 
-export function StockBatchesPage() {
+export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
   const [activeTab, setActiveTab] = useState<'all' | 'fefo'>('fefo');
   const [search, setSearch] = useState('');
 
@@ -58,10 +58,10 @@ export function StockBatchesPage() {
         items: {
           id: b.inventory_items?.id,
           item_name: b.inventory_items?.name || 'Item',
-          item_code: b.inventory_items?.id ? b.inventory_items.id.substring(0, 8).toUpperCase() : 'ITM',
+          item_code: (b.inventory_items?.id || '').substring(0, 8).toUpperCase(),
           unit: b.inventory_items?.unit || 'pcs',
-          inventory_type: b.inventory_items?.categories?.name || 'General',
           unit_cost: Number(b.inventory_items?.unit_cost || 0),
+          category_name: b.inventory_items?.categories?.name || 'General',
           supplier_a: b.inventory_items?.supplier_a || 'Supplier A',
           supplier_b: b.inventory_items?.supplier_b || 'Supplier B',
         }
@@ -87,25 +87,27 @@ export function StockBatchesPage() {
   }, [batches, search, activeTab]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className={embedded ? "space-y-4" : "p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6"}>
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 uppercase">
-            Global Stock Batches
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            FEFO inventory rotation, batch lots, and expiration date monitoring.
-          </p>
+      {!embedded && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 uppercase">
+              Global Stock Batches
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              FEFO inventory rotation, batch lots, and expiration date monitoring.
+            </p>
+          </div>
+          <Button 
+            variant="outline"
+            onClick={() => refetch()}
+            className="border-slate-300 text-slate-700 bg-white hover:bg-slate-50 font-semibold text-xs flex items-center gap-1.5 self-start sm:self-auto"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh Batches
+          </Button>
         </div>
-        <Button 
-          variant="outline"
-          onClick={() => refetch()}
-          className="border-slate-300 text-slate-700 bg-white hover:bg-slate-50 font-semibold text-xs flex items-center gap-1.5 self-start sm:self-auto"
-        >
-          <RefreshCw className="w-3.5 h-3.5" /> Refresh Batches
-        </Button>
-      </div>
+      )}
 
       {/* Tabs & Search Bar matching Mockup Screen 5 */}
       <Card className="bg-white border-slate-200/90 shadow-xs overflow-hidden">
@@ -149,11 +151,11 @@ export function StockBatchesPage() {
         </div>
 
         {/* Batches Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500">
-                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Batch Code</th>
+        <div className="max-h-[calc(100dvh-320px)] min-h-[350px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+          <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
+            <thead className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 shadow-xs">
+              <tr className="text-slate-500">
+                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs sticky left-0 z-30 bg-slate-50 border-r border-slate-200">Batch Code</th>
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Item Name</th>
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-center">Quantity</th>
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Received Date</th>
@@ -202,8 +204,8 @@ export function StockBatchesPage() {
                   }
 
                   return (
-                    <tr key={batch.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-6 py-4 font-mono text-xs font-bold text-slate-800">
+                    <tr key={batch.id} className="hover:bg-slate-50/60 transition-colors group">
+                      <td className="px-6 py-4 font-mono text-xs font-bold text-slate-800 sticky left-0 z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200">
                         {batch.batch_code}
                       </td>
                       <td className="px-6 py-4 text-xs font-bold text-slate-900">

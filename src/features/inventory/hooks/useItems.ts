@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getItems, createItem, updateItem, archiveItem } from '../api';
+import { getItems, createItem, updateItem, archiveItem, deleteItem } from '../api';
 import type { InventoryItem } from '../types';
 
 export function useItems() {
@@ -14,6 +14,7 @@ export function useItems() {
     mutationFn: createItem,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory-items'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
     },
   });
 
@@ -22,7 +23,6 @@ export function useItems() {
       updateItem(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory-items'] });
-      // Invalidate inventory stock as well since item names/units might change
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
     },
   });
@@ -30,6 +30,14 @@ export function useItems() {
   const archiveMutation = useMutation({
     mutationFn: ({ id, isArchived }: { id: string; isArchived: boolean }) =>
       archiveItem(id, isArchived),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory-items'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteItem(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory-items'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
@@ -46,5 +54,7 @@ export function useItems() {
     isUpdating: updateMutation.isPending,
     archiveItem: archiveMutation.mutateAsync,
     isArchiving: archiveMutation.isPending,
+    deleteItem: deleteMutation.mutateAsync,
+    isDeleting: deleteMutation.isPending,
   };
 }

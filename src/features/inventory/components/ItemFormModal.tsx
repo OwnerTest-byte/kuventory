@@ -9,7 +9,7 @@ import type { InventoryItem } from '../types';
 interface Props {
   item?: InventoryItem; // If undefined, it's a create action
   onClose: () => void;
-  onSubmit: (data: Omit<InventoryItem, 'id' | 'is_archived' | 'created_at' | 'updated_at' | 'current_qty'>) => Promise<void>;
+  onSubmit: (data: Omit<InventoryItem, 'id' | 'is_archived' | 'created_at' | 'updated_at' | 'current_qty'>, initialQty?: number) => Promise<void>;
   isSubmitting: boolean;
 }
 
@@ -25,6 +25,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
     unit: item?.unit || 'pcs',
     unit_cost: item?.unit_cost?.toString() || '0',
     min_qty: item?.min_qty?.toString() || '0',
+    initial_qty: '0',
     image_path: item?.image_path || ''
   });
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +69,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
         min_qty: parseInt(formData.min_qty, 10) || 0,
         image_path: formData.image_path || null,
         category_name: categories?.find(c => c.id === formData.category_id)?.name
-      });
+      }, !item ? parseFloat(formData.initial_qty) || 0 : undefined);
     } catch (err: any) {
       setError(err.message || 'Failed to save item');
     }
@@ -171,6 +172,19 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
                   placeholder="Alert threshold"
                 />
               </div>
+
+              {!item && (
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Initial Stock Quantity</label>
+                  <Input 
+                    type="number"
+                    min="0"
+                    value={formData.initial_qty}
+                    onChange={e => setFormData({ ...formData, initial_qty: e.target.value })}
+                    placeholder="Initial units on hand"
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700">Unit Cost (₱)</label>

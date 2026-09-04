@@ -7,16 +7,12 @@ import {
   Menu, 
   X, 
   Users, 
-  Tags, 
   LayoutDashboard, 
-  History, 
   FileBarChart, 
-  AlertTriangle, 
   Settings, 
   User as UserIcon,
   Search,
   Plus,
-  TrendingUp,
   Layers,
   ChevronDown
 } from 'lucide-react';
@@ -28,22 +24,17 @@ import { NotificationBell } from '@/features/inventory/components/NotificationBe
 import { CommandPalette } from './CommandPalette';
 import { ItemFormModal } from '@/features/inventory/components/ItemFormModal';
 import { useItems } from '@/features/inventory/hooks/useItems';
+import { useStockMutations } from '@/features/inventory/hooks/useStockMutations';
 import type { InventoryItem } from '@/features/inventory/types';
 
 const coreNav = [
   { name: 'Dashboard', to: '/inventory', icon: LayoutDashboard },
   { name: 'Daily Inventory', to: '/daily-inventory', icon: FileText },
-  { name: 'Inventory Items', to: '/items', icon: Package },
-  { name: 'Stock Batches', to: '/stock', icon: Layers },
-  { name: 'Stock History', to: '/history', icon: History },
-  { name: 'Categories', to: '/categories', icon: Tags },
+  { name: 'Stock & Items', to: '/items', icon: Package },
 ];
 
 const reportsNav = [
-  { name: 'Daily Reports', to: '/reports', icon: FileBarChart, end: true },
-  { name: 'Stock Valuation', to: '/reports/inventory', icon: FileText, end: true },
-  { name: 'Stock Movement', to: '/reports/movement', icon: TrendingUp, end: true },
-  { name: 'Low Stock Alerts', to: '/reports/low-stock', icon: AlertTriangle, end: true },
+  { name: 'Reports & Exports', to: '/reports', icon: FileBarChart },
 ];
 
 function SidebarNavigation({ closeMobileMenu }: { closeMobileMenu?: () => void }) {
@@ -113,7 +104,7 @@ function SidebarNavigation({ closeMobileMenu }: { closeMobileMenu?: () => void }
               <NavLink
                 key={item.name}
                 to={item.to}
-                end={item.end}
+                end={item.to === '/reports'}
                 onClick={closeMobileMenu}
                 className={({ isActive }) =>
                   cn(
@@ -211,6 +202,7 @@ export function AppLayout() {
   const [isSubmittingItem, setIsSubmittingItem] = useState(false);
 
   const { createItem } = useItems();
+  const { add } = useStockMutations();
   const { profile, user, role } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -230,10 +222,20 @@ export function AppLayout() {
     }
   }, [profile, user]);
 
-  const handleCreateItem = async (data: Omit<InventoryItem, 'id' | 'is_archived' | 'created_at' | 'updated_at' | 'current_qty'>) => {
+  const handleCreateItem = async (
+    data: Omit<InventoryItem, 'id' | 'is_archived' | 'created_at' | 'updated_at' | 'current_qty'>,
+    initialQty?: number
+  ) => {
     setIsSubmittingItem(true);
     try {
-      await createItem(data);
+      const newItem = await createItem(data);
+      if (initialQty && initialQty > 0) {
+        await add.mutateAsync({
+          itemId: newItem.id,
+          quantity: initialQty,
+          reason: 'Initial Opening Stock Balance'
+        });
+      }
       setIsNewItemModalOpen(false);
     } finally {
       setIsSubmittingItem(false);
@@ -245,7 +247,7 @@ export function AppLayout() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
+    <div className="flex flex-col h-dvh min-h-dvh max-h-dvh bg-slate-50 text-slate-900 overflow-hidden font-sans">
       {/* Top Header Bar */}
       <header className="h-16 shrink-0 bg-white border-b border-slate-200/90 flex items-center justify-between px-4 sm:px-6 z-20 shadow-xs">
         {/* Left Side: Menu Trigger & Location Badge */}
@@ -414,8 +416,8 @@ export function AppLayout() {
         )}
 
         {/* Main Content Area */}
-        <main className="flex-1 flex flex-col min-w-0 h-full relative bg-slate-50/80">
-          <div className="flex-1 overflow-y-auto pb-20 md:pb-6">
+        <main className="flex-1 flex flex-col min-w-0 h-full relative bg-slate-50/80 overflow-hidden">
+          <div className="flex-1 overflow-y-auto pb-24 md:pb-8 overscroll-none scroll-smooth">
             <Outlet />
           </div>
           
