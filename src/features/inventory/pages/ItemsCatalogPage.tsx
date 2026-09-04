@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getInventory, getBatches } from '../api';
 import { useItems } from '../hooks/useItems';
@@ -18,7 +19,7 @@ export function ItemsCatalogPage() {
   });
   
   const { createItem, updateItem } = useItems();
-  const { add, remove } = useStockMutations();
+  const { add, remove, adjust } = useStockMutations();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
@@ -92,13 +93,17 @@ export function ItemsCatalogPage() {
           reason: data.reason
         });
       } else if (data.action === 'remove') {
-         await remove.mutateAsync({
+        await remove.mutateAsync({
           itemId: stockUpdateItem.id,
           quantity: data.quantity,
           reason: data.reason
         });
       } else if (data.action === 'adjust') {
-        alert("ADJUST not fully wired in backend, please use ADD or REMOVE");
+        await adjust.mutateAsync({
+          itemId: stockUpdateItem.id,
+          targetQuantity: data.quantity,
+          reason: data.reason
+        });
       }
       setStockUpdateItem(null);
     } catch (err: any) {
@@ -201,7 +206,14 @@ export function ItemsCatalogPage() {
                   return (
                     <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4 font-mono text-xs text-slate-500">{item.item_code}</td>
-                      <td className="px-6 py-4 font-semibold text-slate-800">{item.item_name}</td>
+                      <td className="px-6 py-4 font-semibold text-slate-800">
+                        <Link 
+                          to={`/items/${item.id}`} 
+                          className="text-blue-600 hover:text-blue-800 hover:underline font-bold"
+                        >
+                          {item.item_name}
+                        </Link>
+                      </td>
                       <td className="px-6 py-4 text-slate-600">{item.category_name || 'Uncategorized'}</td>
                       <td className="px-6 py-4 text-slate-600">{item.inventory_type}</td>
                       <td className="px-6 py-4 text-slate-600">{item.unit}</td>

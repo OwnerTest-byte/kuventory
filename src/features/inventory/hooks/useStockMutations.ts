@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { addStock, removeStock } from '../api';
+import { addStock, removeStock, adjustStock } from '../api';
 
 export function useStockMutations() {
   const queryClient = useQueryClient();
@@ -9,6 +9,8 @@ export function useStockMutations() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['inventory', 'batches'] });
+      queryClient.invalidateQueries({ queryKey: ['global-stock-batches'] });
+      queryClient.invalidateQueries({ queryKey: ['global-stock-history'] });
     },
   });
 
@@ -17,11 +19,24 @@ export function useStockMutations() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['inventory', 'batches'] });
+      queryClient.invalidateQueries({ queryKey: ['global-stock-batches'] });
+      queryClient.invalidateQueries({ queryKey: ['global-stock-history'] });
+    },
+  });
+
+  const adjust = useMutation({
+    mutationFn: adjustStock,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'batches'] });
+      queryClient.invalidateQueries({ queryKey: ['global-stock-batches'] });
+      queryClient.invalidateQueries({ queryKey: ['global-stock-history'] });
     },
   });
 
   return {
     add,
     remove,
+    adjust,
   };
 }

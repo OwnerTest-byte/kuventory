@@ -143,6 +143,94 @@ export async function removeStock(params: {
     .eq('id', params.itemId);
 }
 
+/**
+ * Adjust stock to a specific target balance or with a delta.
+ */
+export async function adjustStock(params: {
+  itemId: string;
+  targetQuantity: number;
+  reason: string;
+  userId?: string;
+}): Promise<void> {
+  const { data: item } = await supabase.from('items').select('current_qty').eq('id', params.itemId).single();
+  const previousBalance = item?.current_qty || 0;
+  const target = Math.max(0, params.targetQuantity);
+  const diff = target - previousBalance;
+
+  if (diff === 0) return;
+
+  if (diff > 0) {
+    // Adding stock to reach target
+    const { data: batch, error: batchError } = await supabase.from('stock_batches').insert({
+      item_id: params.itemId,
+      batch_code: `ADJ-${Date.now()}`,
+      quantity: diff,
+      initial_quantity: diff,
+      expiry_date: '2099-12-31'
+    }).select().single();
+
+    if (batchError) throw batchError;
+
+    await supabase.from('stock_transactions').insert({
+      item_id: params.itemId,
+      user_id: params.userId,
+      action_type: 'ADJUST',
+      quantity: diff,
+      previous_balance: previousBalance,
+      new_balance: target,
+      batch_id: batch?.id,
+      reason: params.reason || 'Physical count adjustment'
+    });
+  } else {
+    // Deducting stock to reach target via FEFO
+    let remainingToDeduct = Math.abs(diff);
+    const batches = await getBatches(params.itemId);
+
+    for (const batch of batches) {
+      if (remainingToDeduct <= 0) break;
+      if (batch.quantity <= 0) continue;
+
+      const toRemove = Math.min(batch.quantity, remainingToDeduct);
+      await supabase.from('stock_batches')
+        .update({ quantity: batch.quantity - toRemove })
+        .eq('id', batch.id);
+
+      remainingToDeduct -= toRemove;
+    }
+
+    await supabase.from('stock_transactions').insert({
+      item_id: params.itemId,
+      user_id: params.userId,
+      action_type: 'ADJUST',
+      quantity: diff,
+      previous_balance: previousBalance,
+      new_balance: target,
+      reason: params.reason || 'Physical count adjustment'
+    });
+  }
+
+  await supabase.from('items')
+    .update({ current_qty: target })
+    .eq('id', params.itemId);
+}
+
+export async function getItemById(id: string): Promise<InventoryItem> {
+  const { data, error } = await supabase
+    .from('items')
+    .select(`
+      *,
+      categories(name)
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return {
+    ...data,
+    category_name: data.categories?.name
+  } as InventoryItem;
+}
+
 export async function getStockMovementHistory(itemId?: string): Promise<StockTransaction[]> {
   let query = supabase
     .from('stock_transactions')
