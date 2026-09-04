@@ -54,7 +54,7 @@ export function AddBatchModal({ item, onClose, onSuccess }: Props) {
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-md">
         <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-800">
-          <h2 className="font-semibold text-lg">Add Batch - {item.name}</h2>
+          <h2 className="font-semibold text-lg">Add Batch - {item.item_name}</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="w-5 h-5" />
           </Button>

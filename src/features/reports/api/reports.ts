@@ -1,49 +1,59 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import type { Report, ReportsFilter } from '../types';
+
+export interface ReportsFilter {
+  fromDate?: string;
+  toDate?: string;
+  limit?: number;
+  offset?: number;
+}
 
 export function useReportsList(filters: ReportsFilter) {
   return useQuery({
     queryKey: ['reports', 'list', filters],
     queryFn: async () => {
       let query = supabase
-        .from('reports')
+        .from('daily_inventory_sessions')
         .select(`
           id,
-          daily_inventory_id,
-          report_date,
+          inventory_date,
           status,
-          version,
-          generated_at,
-          generated_by
-        `, { count: 'exact' });
+          finalized_at,
+          users!daily_inventory_sessions_finalized_by_fkey (
+            full_name
+          )
+        `, { count: 'exact' })
+        .eq('status', 'FINALIZED');
 
       if (filters.fromDate) {
-        query = query.gte('report_date', filters.fromDate);
+        query = query.gte('inventory_date', filters.fromDate);
       }
       if (filters.toDate) {
-        query = query.lte('report_date', filters.toDate);
-      }
-      if (filters.status) {
-        query = query.eq('status', filters.status);
+        query = query.lte('inventory_date', filters.toDate);
       }
       
       const limit = filters.limit || 20;
       const offset = filters.offset || 0;
       
       query = query
-        .order('report_date', { ascending: false })
-        .order('version', { ascending: false })
+        .order('inventory_date', { ascending: false })
         .range(offset, offset + limit - 1);
 
       const { data, error, count } = await query;
 
       if (error) throw error;
       
-      return { data: data as Report[], count: count || 0 };
+      return { 
+        data: data.map((d: any) => ({
+          ...d,
+          finalized_by_name: d.users?.full_name
+        })), 
+        count: count || 0 
+      };
     }
   });
 }
+
 export function useReport(reportId: string | undefined) {
   return useQuery({
     queryKey: ['report', reportId],
@@ -51,10 +61,21 @@ export function useReport(reportId: string | undefined) {
       if (!reportId) return null;
 
       const { data, error } = await supabase
-        .from('reports')
+        .from('daily_inventory_sessions')
         .select(`
           *,
-          report_items (*)
+          daily_inventory_entries (
+            *,
+            items (
+              item_name,
+              item_code,
+              unit,
+              inventory_type
+            )
+          ),
+          users!daily_inventory_sessions_finalized_by_fkey (
+            full_name
+          )
         `)
         .eq('id', reportId)
         .single();
@@ -63,37 +84,8 @@ export function useReport(reportId: string | undefined) {
         throw error;
       }
 
-      return data as Report;
+      return data;
     },
     enabled: !!reportId,
-  });
-}
-
-export function useReportByDailyInventoryId(dailyInventoryId: string | undefined) {
-  return useQuery({
-    queryKey: ['report', 'by-daily-inventory', dailyInventoryId],
-    queryFn: async () => {
-      if (!dailyInventoryId) return null;
-
-      const { data, error } = await supabase
-        .from('reports')
-        .select(`
-          *,
-          report_items (*)
-        `)
-        .eq('daily_inventory_id', dailyInventoryId)
-        .order('version', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (error) {
-        // If no report exists, don't throw an error, just return null
-        if (error.code === 'PGRST116') return null;
-        throw error;
-      }
-
-      return data as Report;
-    },
-    enabled: !!dailyInventoryId,
   });
 }

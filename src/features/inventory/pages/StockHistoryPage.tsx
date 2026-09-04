@@ -9,15 +9,15 @@ export function StockHistoryPage() {
     queryKey: ['global-stock-history'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('stock_movements')
+        .from('stock_transactions')
         .select(`
           id,
-          type,
-          quantity_change,
+          action_type,
+          quantity,
           reason,
           created_at,
-          inventory_items (
-            name,
+          items (
+            item_name,
             unit
           )
         `)
@@ -30,7 +30,7 @@ export function StockHistoryPage() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 uppercase">Global Stock History</h1>
       </div>
@@ -63,11 +63,11 @@ export function StockHistoryPage() {
               ) : (
                 movements?.map(move => {
                   let badgeClass = 'bg-slate-100 text-slate-700';
-                  if (move.type === 'ADD') badgeClass = 'bg-green-100 text-green-700';
-                  if (move.type === 'REMOVE') badgeClass = 'bg-red-100 text-red-700';
-                  if (move.type === 'ADJUST') badgeClass = 'bg-blue-100 text-blue-700';
+                  if (move.action_type === 'ADD') badgeClass = 'bg-green-100 text-green-700';
+                  if (move.action_type === 'REMOVE') badgeClass = 'bg-red-100 text-red-700';
+                  if (move.action_type === 'ADJUST') badgeClass = 'bg-blue-100 text-blue-700';
 
-                  const prefix = move.type === 'REMOVE' ? '-' : move.type === 'ADD' ? '+' : '';
+                  const prefix = move.action_type === 'REMOVE' ? '-' : move.action_type === 'ADD' ? '+' : '';
 
                   return (
                     <tr key={move.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
@@ -75,15 +75,15 @@ export function StockHistoryPage() {
                         {format(new Date(move.created_at), 'MMM dd, yyyy h:mm a')}
                       </td>
                       <td className="px-6 py-4 font-semibold text-slate-900">
-                        {move.inventory_items?.name}
+                        {move.items?.item_name}
                       </td>
                       <td className="px-6 py-4 text-center">
                          <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${badgeClass}`}>
-                           {move.type}
+                           {move.action_type}
                          </span>
                       </td>
                       <td className="px-6 py-4 text-center font-bold text-slate-900">
-                        {prefix}{Math.abs(move.quantity_change)} <span className="text-xs font-normal text-slate-500">{move.inventory_items?.unit}</span>
+                        {prefix}{Math.abs(move.quantity)} <span className="text-xs font-normal text-slate-500">{move.items?.unit}</span>
                       </td>
                       <td className="px-6 py-4 text-slate-600">
                         {move.reason}

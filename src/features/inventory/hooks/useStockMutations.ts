@@ -1,28 +1,27 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { addStock, removeStock, adjustStock } from '../api';
-import { inventoryKeys } from './useInventory';
+import { addStock, removeStock } from '../api';
 
 export function useStockMutations() {
   const queryClient = useQueryClient();
 
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
-  };
-
   const add = useMutation({
     mutationFn: addStock,
-    onSuccess: invalidate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'batches'] });
+    },
   });
 
   const remove = useMutation({
     mutationFn: removeStock,
-    onSuccess: invalidate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'batches'] });
+    },
   });
 
-  const adjust = useMutation({
-    mutationFn: adjustStock,
-    onSuccess: invalidate,
-  });
-
-  return { add, remove, adjust };
+  return {
+    add,
+    remove,
+  };
 }

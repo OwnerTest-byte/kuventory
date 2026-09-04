@@ -20,7 +20,7 @@ export function DailyInventoryPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
       {/* Top Header matching mockup */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
@@ -46,7 +46,7 @@ export function DailyInventoryPage() {
             Preview Report
           </Button>
           
-          {(!record || record.state === 'DRAFT') && (
+          {(!record || record.status === 'DRAFT') && (
             <Button 
               onClick={() => setShowFinalizeDialog(true)}
               className="bg-green-700 hover:bg-green-800 text-white font-semibold"
@@ -73,8 +73,8 @@ export function DailyInventoryPage() {
 
       {record && !isLoading && (
         <InventorySheet 
-          items={record.daily_inventory_items || []} 
-          isReadOnly={record.state !== 'DRAFT'} 
+          session={record} 
+          isReadOnly={record.status !== 'DRAFT'} 
           date={date}
         />
       )}

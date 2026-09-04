@@ -41,7 +41,7 @@ function SidebarContent({ closeMobileMenu }: { closeMobileMenu?: () => void }) {
     <>
       <div className="h-16 flex items-center px-6 border-b border-slate-800">
         <Link to="/inventory" onClick={closeMobileMenu} className="flex items-center gap-2">
-          <img src="/logo-transparent.png" alt="KUVENTORY Logo" className="h-8 w-auto object-contain brightness-0 invert" />
+          <img src="/pics/logo-transparent.png" alt="KUVENTORY Logo" className="h-8 w-auto object-contain brightness-0 invert" />
           <span className="font-bold text-lg text-white tracking-tight">KUVENTORY</span>
         </Link>
       </div>
@@ -162,10 +162,10 @@ export function AppLayout() {
   }, [profile]);
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
       
       {/* Desktop Sidebar */}
-      <aside className="w-64 bg-slate-950 border-r border-slate-800 flex-col hidden md:flex shrink-0">
+      <aside className="w-64 bg-slate-900 border-r border-slate-800 flex-col hidden md:flex shrink-0">
         <SidebarContent />
       </aside>
 
@@ -173,7 +173,7 @@ export function AppLayout() {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
           <div className="fixed inset-0 bg-black/50" onClick={closeMobileMenu} />
-          <div className="relative flex w-64 max-w-xs flex-col bg-slate-950 text-slate-300">
+          <div className="relative flex w-64 max-w-xs flex-col bg-slate-900 text-slate-300">
             <Button variant="ghost" className="absolute right-2 top-2 p-2 h-9 w-9 text-slate-400" onClick={closeMobileMenu}>
               <X className="h-5 w-5" />
             </Button>
@@ -185,13 +185,13 @@ export function AppLayout() {
       {/* Main content */}
       <main className="flex-1 flex flex-col min-w-0 h-full">
         {/* Mobile Header */}
-        <header className="h-16 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:hidden">
+        <header className="h-16 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:hidden">
            <div className="flex items-center gap-2">
              <Button variant="ghost" className="p-2 h-9 w-9" onClick={() => setMobileMenuOpen(true)}>
-               <Menu className="h-6 w-6 text-slate-700 dark:text-slate-300" />
+               <Menu className="h-6 w-6 text-slate-700" />
              </Button>
-             <img src="/logo-transparent.png" alt="KUVENTORY Logo" className="h-7 w-auto object-contain" />
-             <span className="font-bold text-lg text-slate-900 dark:text-white tracking-tight">KUVENTORY</span>
+             <img src="/pics/logo-transparent.png" alt="KUVENTORY Logo" className="h-7 w-auto object-contain" />
+             <span className="font-bold text-lg text-slate-900 tracking-tight">KUVENTORY</span>
            </div>
            <div className="flex items-center gap-2">
              <NotificationBell />
@@ -199,7 +199,7 @@ export function AppLayout() {
         </header>
 
         {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 relative pb-16 md:pb-0">
+        <div className="flex-1 overflow-y-auto bg-slate-50 relative pb-16 md:pb-0">
           <Outlet />
         </div>
         

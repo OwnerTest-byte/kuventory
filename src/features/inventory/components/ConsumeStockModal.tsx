@@ -51,7 +51,7 @@ export function ConsumeStockModal({ item, onClose, onSuccess }: Props) {
       <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-md">
         <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-800">
           <h2 className="font-semibold text-lg flex items-center gap-2">
-            <LogOut className="w-5 h-5 text-blue-600" /> Consume Stock - {item.name}
+            <LogOut className="w-5 h-5 text-blue-600" /> Consume Stock - {item.item_name}
           </h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="w-5 h-5" />
@@ -60,7 +60,7 @@ export function ConsumeStockModal({ item, onClose, onSuccess }: Props) {
         
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div className="bg-blue-50 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 p-3 rounded-lg text-sm mb-4">
-            Total Valid Stock: <strong>{item.total_quantity} {item.unit}</strong><br/>
+            Total Valid Stock: <strong>{item.current_qty} {item.unit}</strong><br/>
             Stock will be removed following the <strong>FEFO</strong> (First-Expire, First-Out) rule. Expired stock is automatically excluded.
           </div>
 
@@ -79,10 +79,10 @@ export function ConsumeStockModal({ item, onClose, onSuccess }: Props) {
               required
               min="1"
               step="any"
-              max={item.total_quantity}
+              max={item.current_qty}
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              placeholder={`Max: ${item.total_quantity}`}
+              placeholder={`Max: ${item.current_qty}`}
             />
           </div>
 
@@ -102,7 +102,7 @@ export function ConsumeStockModal({ item, onClose, onSuccess }: Props) {
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || Number(item.total_quantity) <= 0}>
+            <Button type="submit" disabled={isSubmitting || Number(item.current_qty) <= 0}>
               {isSubmitting ? 'Processing...' : 'Consume Stock'}
             </Button>
           </div>

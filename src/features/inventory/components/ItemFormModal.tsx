@@ -5,27 +5,27 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { X } from 'lucide-react';
 import type { InventoryItem } from '../types';
-import type { Database } from '@/types/supabase';
-
-type Category = Database['public']['Tables']['categories']['Row'];
 
 interface Props {
   item?: InventoryItem; // If undefined, it's a create action
   onClose: () => void;
-  onSubmit: (data: Omit<InventoryItem, 'id' | 'is_active' | 'is_archived'>) => Promise<void>;
+  onSubmit: (data: Omit<InventoryItem, 'id' | 'is_archived' | 'created_at' | 'updated_at' | 'current_qty'>) => Promise<void>;
   isSubmitting: boolean;
 }
 
 export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) {
   const [formData, setFormData] = useState({
-    name: item?.name || '',
+    item_code: item?.item_code || '',
+    item_name: item?.item_name || '',
     category_id: item?.category_id || '',
     description: item?.description || '',
+    inventory_type: item?.inventory_type || 'PORTION STOCK',
     supplier_a: item?.supplier_a || '',
     supplier_b: item?.supplier_b || '',
     unit: item?.unit || 'pcs',
     unit_cost: item?.unit_cost?.toString() || '0',
-    min_quantity: item?.min_quantity?.toString() || '0',
+    min_qty: item?.min_qty?.toString() || '0',
+    image_path: item?.image_path || ''
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +34,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
     queryFn: async () => {
       const { data, error } = await supabase.from('categories').select('*').order('name');
       if (error) throw error;
-      return data as Category[];
+      return data;
     }
   });
 
@@ -49,145 +49,174 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
     e.preventDefault();
     setError(null);
 
-    const unitCost = parseFloat(formData.unit_cost);
-    const minQty = parseInt(formData.min_quantity, 10);
-
-    if (!formData.name.trim()) return setError('Name is required');
-    if (!formData.category_id) return setError('Category is required');
-    if (!formData.unit.trim()) return setError('Unit is required');
-    if (isNaN(unitCost) || unitCost < 0) return setError('Invalid unit cost');
-    if (isNaN(minQty) || minQty < 0) return setError('Invalid min quantity');
+    if (!formData.item_name || !formData.category_id || !formData.item_code) {
+      setError("Item code, Name and category are required");
+      return;
+    }
 
     try {
       await onSubmit({
-        name: formData.name.trim(),
+        item_code: formData.item_code,
+        item_name: formData.item_name,
         category_id: formData.category_id,
-        description: formData.description.trim() || null,
-        supplier_a: formData.supplier_a.trim() || null,
-        supplier_b: formData.supplier_b.trim() || null,
-        unit: formData.unit.trim(),
-        unit_cost: unitCost,
-        min_quantity: minQty,
+        description: formData.description,
+        inventory_type: formData.inventory_type as 'PORTION STOCK' | 'PER CASES',
+        supplier_a: formData.supplier_a,
+        supplier_b: formData.supplier_b,
+        unit: formData.unit,
+        unit_cost: parseFloat(formData.unit_cost) || 0,
+        min_qty: parseInt(formData.min_qty, 10) || 0,
+        image_path: formData.image_path || null,
+        category_name: categories?.find(c => c.id === formData.category_id)?.name
       });
-      onClose();
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      setError(err.message || 'Failed to save item');
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-lg my-8">
-        <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 rounded-t-xl z-10">
-          <h2 className="font-semibold text-lg">{item ? 'Edit Item' : 'New Item'}</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl">
+          <h2 className="text-xl font-bold text-slate-800">{item ? 'Edit Item' : 'Add New Item'}</h2>
+          <Button variant="ghost" size="icon" onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <X className="w-5 h-5" />
           </Button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <div className="p-6 overflow-y-auto">
           {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm">
+            <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 shadow-sm text-sm font-medium">
               {error}
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Name <span className="text-red-500">*</span></label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g. Pale Pilsen"
-                required
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Category <span className="text-red-500">*</span></label>
-              <select
-                value={formData.category_id}
-                onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:focus-visible:ring-slate-300"
-                required
-              >
-                <option value="" disabled>Select Category</option>
-                {categories?.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <form id="item-form" onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Item Code *</label>
+                <Input 
+                  value={formData.item_code}
+                  onChange={e => setFormData({ ...formData, item_code: e.target.value })}
+                  placeholder="e.g. ITM-001"
+                  required
+                />
+              </div>
 
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Description</label>
-            <Input
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Optional description"
-            />
-          </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Item Name *</label>
+                <Input 
+                  value={formData.item_name}
+                  onChange={e => setFormData({ ...formData, item_name: e.target.value })}
+                  placeholder="e.g. Chicken Breast"
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Category *</label>
+                <select
+                  value={formData.category_id}
+                  onChange={e => setFormData({ ...formData, category_id: e.target.value })}
+                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="" disabled>Select a category</option>
+                  {categories?.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Supplier A</label>
-              <Input
-                value={formData.supplier_a}
-                onChange={(e) => setFormData({ ...formData, supplier_a: e.target.value })}
-                placeholder="Primary Supplier"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Supplier B</label>
-              <Input
-                value={formData.supplier_b}
-                onChange={(e) => setFormData({ ...formData, supplier_b: e.target.value })}
-                placeholder="Secondary Supplier"
-              />
-            </div>
-          </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Inventory Section *</label>
+                <select
+                  value={formData.inventory_type}
+                  onChange={e => setFormData({ ...formData, inventory_type: e.target.value as 'PORTION STOCK' | 'PER CASES' })}
+                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="PORTION STOCK">PORTION STOCK</option>
+                  <option value="PER CASES">PER CASES</option>
+                </select>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Unit <span className="text-red-500">*</span></label>
-              <Input
-                value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                placeholder="e.g. pcs, case"
-                required
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Unit Cost <span className="text-red-500">*</span></label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.unit_cost}
-                onChange={(e) => setFormData({ ...formData, unit_cost: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Min Qty <span className="text-red-500">*</span></label>
-              <Input
-                type="number"
-                min="0"
-                value={formData.min_quantity}
-                onChange={(e) => setFormData({ ...formData, min_quantity: e.target.value })}
-                required
-              />
-            </div>
-          </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-bold text-slate-700">Description</label>
+                <Input 
+                  value={formData.description}
+                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Optional details..."
+                />
+              </div>
 
-          <div className="pt-4 flex justify-end gap-3 sticky bottom-0 bg-white dark:bg-slate-900">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : (item ? 'Save Changes' : 'Create Item')}
-            </Button>
-          </div>
-        </form>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Unit of Measurement</label>
+                <Input 
+                  value={formData.unit}
+                  onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                  placeholder="e.g. kg, pcs, box"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Minimum Quantity</label>
+                <Input 
+                  type="number"
+                  min="0"
+                  value={formData.min_qty}
+                  onChange={e => setFormData({ ...formData, min_qty: e.target.value })}
+                  placeholder="Alert threshold"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Unit Cost (₱)</label>
+                <Input 
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.unit_cost}
+                  onChange={e => setFormData({ ...formData, unit_cost: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Primary Supplier</label>
+                <Input 
+                  value={formData.supplier_a}
+                  onChange={e => setFormData({ ...formData, supplier_a: e.target.value })}
+                  placeholder="e.g. Monterey"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Secondary Supplier</label>
+                <Input 
+                  value={formData.supplier_b}
+                  onChange={e => setFormData({ ...formData, supplier_b: e.target.value })}
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl flex justify-end gap-3">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            form="item-form" 
+            disabled={isSubmitting}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {isSubmitting ? 'Saving...' : 'Save Item'}
+          </Button>
+        </div>
       </div>
     </div>
   );

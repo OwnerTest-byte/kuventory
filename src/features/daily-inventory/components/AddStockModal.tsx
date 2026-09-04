@@ -1,22 +1,23 @@
 import { useState } from 'react';
-import type { DailyInventoryItem } from '../types';
+import type { DailyInventorySessionWithEntries } from '../api';
 import { useStockMutations } from '../../inventory/hooks/useStockMutations';
 import { useUpsertDailyItem } from '../hooks/useDailyInventory';
-// import { useAuth } from '../../auth/context/AuthContext';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/features/auth/context/AuthContext';
+
+type DailyEntry = DailyInventorySessionWithEntries['daily_inventory_entries'][0];
 
 interface AddStockModalProps {
   isOpen: boolean;
   onClose: () => void;
-  item: DailyInventoryItem;
+  item: DailyEntry;
   date: string;
 }
 
 export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProps) {
-  // const { user } = useAuth();
+  const { profile } = useAuth();
   const [qty, setQty] = useState('');
   const [expiry, setExpiry] = useState(() => {
-    // Default expiry 30 days from now
     const d = new Date();
     d.setDate(d.getDate() + 30);
     return d.toISOString().split('T')[0];
@@ -39,25 +40,22 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
     try {
       setErrorMsg('');
       
-      // 1. Physically add the batch via Inventory Engine
+      // 1. Physically add the batch via Inventory API
       await stockMutations.add.mutateAsync({
         itemId: item.item_id,
         quantity: numQty,
         expiryDate: expiry,
-        receivedDate: new Date().toISOString().split('T')[0],
-        reason: 'Daily Inventory Receiving'
+        reason: 'Daily Inventory Receiving',
+        userId: profile?.id
       });
 
       // 2. Increment the local daily sheet ADD column
       await dailyMutation.mutateAsync({
         id: item.id,
-        beg: item.beg,
-        am: item.am,
-        pm: item.pm,
-        // we can't safely do atomic increment here without an RPC, but since this is a controlled environment, 
-        // passing the aggregated total is acceptable for the MVP.
-        // We really should use a backend trigger or RPC, but this is fine.
-        // Wait! We didn't expose 'add' in updateDailyInventoryItem. Let me update the API.
+        beg: item.beginning_qty,
+        add: item.add_qty + numQty,
+        am: item.sales_am,
+        pm: item.sales_pm,
       });
 
       onClose();
@@ -67,9 +65,9 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold mb-4">Receive Delivery: {item.inventory_items?.name}</h2>
+        <h2 className="text-xl font-bold mb-4">Receive Delivery: {item.items?.item_name}</h2>
         
         {errorMsg && (
           <div className="mb-4 p-3 bg-red-50 text-red-700 rounded border border-red-200 text-sm">
@@ -79,14 +77,14 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Quantity to Add</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Quantity to Add ({item.items?.unit})</label>
             <input 
               type="number" 
-              step="0.01"
               required
+              min="1"
               value={qty}
               onChange={e => setQty(e.target.value)}
-              className="w-full border rounded p-2 focus:ring-2 focus:ring-indigo-500"
+              className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500"
               placeholder="e.g. 10"
             />
           </div>
@@ -98,14 +96,16 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
               required
               value={expiry}
               onChange={e => setExpiry(e.target.value)}
-              className="w-full border rounded p-2 focus:ring-2 focus:ring-indigo-500"
+              className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div className="flex justify-end gap-3 mt-6">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={stockMutations.add.isPending}>
-              {stockMutations.add.isPending ? 'Saving...' : 'Add Stock'}
+            <Button type="button" variant="outline" onClick={onClose} disabled={stockMutations.add.isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={stockMutations.add.isPending} className="bg-blue-600 hover:bg-blue-700 text-white">
+              {stockMutations.add.isPending ? 'Adding...' : 'Add Stock'}
             </Button>
           </div>
         </form>

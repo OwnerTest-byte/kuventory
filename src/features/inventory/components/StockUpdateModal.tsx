@@ -38,9 +38,9 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit }: S
       <DialogContent className="sm:max-w-md p-0 overflow-hidden">
         <DialogHeader className="p-6 bg-slate-50 border-b border-slate-200">
           <DialogTitle className="text-xl text-slate-900 uppercase font-bold tracking-tight">
-            Update Stock: {item.name}
+            Update Stock: {item.item_name}
           </DialogTitle>
-          <p className="text-sm text-slate-500 font-medium">Current Total: <strong className="text-slate-900">{item.total_quantity} {item.unit}</strong></p>
+          <p className="text-sm text-slate-500 font-medium">Current Total: <strong className="text-slate-900">{item.current_qty} {item.unit}</strong></p>
         </DialogHeader>
 
         <div className="p-6">

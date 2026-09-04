@@ -1,38 +1,37 @@
 import { useState, useEffect, useRef, memo } from 'react';
-import type { DailyInventoryItem } from '../types';
+import type { DailyInventorySessionWithEntries } from '../api';
 import { useUpsertDailyItem } from '../hooks/useDailyInventory';
-import { CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+
 import { AddStockModal } from './AddStockModal';
 import { TableRow, TableCell } from '@/components/ui/table';
 
+type DailyEntry = DailyInventorySessionWithEntries['daily_inventory_entries'][0];
+
 interface InventoryRowProps {
-  item: DailyInventoryItem;
+  item: DailyEntry;
+  index: number;
   isReadOnly: boolean;
   date: string;
 }
 
-export const InventoryRow = memo(function InventoryRow({ item, isReadOnly, date }: InventoryRowProps) {
-  const [beg, setBeg] = useState(item.beg.toString());
-  const [am, setAm] = useState(item.am.toString());
-  const [pm, setPm] = useState(item.pm.toString());
+export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly, date }: InventoryRowProps) {
+  const [beg, setBeg] = useState(item.beginning_qty.toString());
+  const [am, setAm] = useState(item.sales_am.toString());
+  const [pm, setPm] = useState(item.sales_pm.toString());
   
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   
   const mutation = useUpsertDailyItem(date);
-  
-  // To prevent debouncing the initial load
   const isInitialMount = useRef(true);
 
   const [prevItem, setPrevItem] = useState(item);
   if (item !== prevItem) {
     setPrevItem(item);
-    if (parseFloat(beg) !== item.beg) setBeg(item.beg.toString());
-    if (parseFloat(am) !== item.am) setAm(item.am.toString());
-    if (parseFloat(pm) !== item.pm) setPm(item.pm.toString());
+    if (parseFloat(beg) !== item.beginning_qty) setBeg(item.beginning_qty.toString());
+    if (parseFloat(am) !== item.sales_am) setAm(item.sales_am.toString());
+    if (parseFloat(pm) !== item.sales_pm) setPm(item.sales_pm.toString());
   }
 
-  // Debounced auto-save effect
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -45,49 +44,47 @@ export const InventoryRow = memo(function InventoryRow({ item, isReadOnly, date 
     const numAm = parseFloat(am) || 0;
     const numPm = parseFloat(pm) || 0;
 
-    // Only save if different from prop
-    if (numBeg === item.beg && numAm === item.am && numPm === item.pm) {
+    if (numBeg === item.beginning_qty && numAm === item.sales_am && numPm === item.sales_pm) {
       return;
     }
 
     const timer = setTimeout(async () => {
-      setSaveStatus('saving');
       try {
         await mutation.mutateAsync({
           id: item.id,
           beg: numBeg,
+          add: item.add_qty,
           am: numAm,
           pm: numPm
         });
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 2000);
       } catch {
-        setSaveStatus('error');
+        // error handling
       }
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [beg, am, pm, isReadOnly, item, mutation]);
+  }, [beg, am, pm, isReadOnly, item, mutation, date]);
 
-  const inputClass = `w-full text-center p-2 border rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${isReadOnly ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white'}`;
+  const inputClass = `w-full text-center p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isReadOnly ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900 font-semibold'}`;
 
   // Optimistic calculation for visual feedback while debouncing
-  const optTotal = (parseFloat(beg) || 0) + item.add;
+  const optTotal = (parseFloat(beg) || 0) + item.add_qty;
   const optEnding = optTotal - (parseFloat(am) || 0) - (parseFloat(pm) || 0);
 
   return (
     <>
-      {/* DESKTOP VIEW */}
-      <TableRow className="hidden md:table-row hover:bg-slate-50 group border-b border-slate-100 last:border-0">
+      <TableRow className="hover:bg-slate-50 group border-b border-slate-100 last:border-0 transition-colors">
+        <TableCell className="p-3 text-center text-sm font-medium text-slate-400">
+          {index + 1}
+        </TableCell>
         <TableCell className="p-3 align-middle">
-          <div className="font-medium text-slate-800">{item.inventory_items?.name}</div>
-          <div className="text-xs text-slate-500">{item.inventory_items?.unit}</div>
+          <div className="font-bold text-slate-800">{item.items?.item_name}</div>
+          <div className="text-xs text-slate-500">{item.items?.unit}</div>
         </TableCell>
         <TableCell className="p-2">
           <input 
             type="number" 
             min="0"
-            step="0.01"
             value={beg} 
             onChange={e => setBeg(e.target.value)}
             disabled={isReadOnly}
@@ -97,22 +94,22 @@ export const InventoryRow = memo(function InventoryRow({ item, isReadOnly, date 
         <TableCell className="p-2 relative">
           <div 
             onClick={() => !isReadOnly && setIsModalOpen(true)}
-            className={`w-full text-center p-2 border rounded flex items-center justify-center ${
-              isReadOnly ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white cursor-pointer hover:border-indigo-500 hover:text-indigo-600'
-            }`}
-            title={isReadOnly ? "" : "Click to add stock"}
+            className={`w-full text-center p-2 border rounded flex items-center justify-center font-bold
+              ${isReadOnly ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white text-blue-600 hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-colors'}
+            `}
           >
-            {item.add}
+            {item.add_qty > 0 ? `+${item.add_qty}` : '0'}
           </div>
         </TableCell>
-        <TableCell className="p-2 bg-slate-100 font-bold text-center text-slate-700">
-          {optTotal}
+        <TableCell className="p-2">
+          <div className="w-full text-center p-2 rounded bg-blue-50/50 text-blue-700 font-bold border border-blue-100/50">
+            {optTotal}
+          </div>
         </TableCell>
         <TableCell className="p-2">
           <input 
             type="number" 
             min="0"
-            step="0.01"
             value={am} 
             onChange={e => setAm(e.target.value)}
             disabled={isReadOnly}
@@ -123,109 +120,27 @@ export const InventoryRow = memo(function InventoryRow({ item, isReadOnly, date 
           <input 
             type="number" 
             min="0"
-            step="0.01"
             value={pm} 
             onChange={e => setPm(e.target.value)}
             disabled={isReadOnly}
             className={inputClass}
           />
         </TableCell>
-        <TableCell className={`p-2 bg-slate-100 font-bold text-center ${optEnding < 0 ? 'text-red-600' : 'text-slate-700'}`}>
-          {optEnding}
-        </TableCell>
-        <TableCell className="p-2 text-center align-middle">
-          {saveStatus === 'saving' && <Loader2 className="w-4 h-4 animate-spin text-slate-400 inline" />}
-          {saveStatus === 'saved' && <CheckCircle2 className="w-4 h-4 text-green-500 inline" />}
-          {saveStatus === 'error' && <div title="Failed to save" className="inline-block"><AlertCircle className="w-4 h-4 text-red-500 inline" /></div>}
-        </TableCell>
-      </TableRow>
-
-      {/* MOBILE VIEW */}
-      <TableRow className="md:hidden border-b border-slate-200 last:border-0">
-        <TableCell colSpan={8} className="p-4 bg-white">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <div className="font-bold text-slate-800 text-lg">{item.inventory_items?.name}</div>
-              <div className="text-sm text-slate-500">{item.inventory_items?.unit}</div>
-            </div>
-            <div className="h-6 w-6 flex items-center justify-center">
-              {saveStatus === 'saving' && <Loader2 className="w-5 h-5 animate-spin text-slate-400" />}
-              {saveStatus === 'saved' && <CheckCircle2 className="w-5 h-5 text-green-500" />}
-              {saveStatus === 'error' && <div title="Failed to save"><AlertCircle className="w-5 h-5 text-red-500" /></div>}
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider">BEG</label>
-              <input 
-                type="number" 
-                min="0"
-                step="0.01"
-                value={beg} 
-                onChange={e => setBeg(e.target.value)}
-                disabled={isReadOnly}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider">ADD</label>
-              <div 
-                onClick={() => !isReadOnly && setIsModalOpen(true)}
-                className={`w-full text-center p-2 border rounded flex items-center justify-center h-[42px] ${
-                  isReadOnly ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white cursor-pointer hover:border-indigo-500 hover:text-indigo-600'
-                }`}
-              >
-                {item.add}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-md mb-4 flex justify-between items-center">
-            <span className="text-xs font-bold text-indigo-800 tracking-wider">TOTAL AVAILABLE</span>
-            <span className="font-bold text-lg text-indigo-900">{optTotal}</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider">AM (-)</label>
-              <input 
-                type="number" 
-                min="0"
-                step="0.01"
-                value={am} 
-                onChange={e => setAm(e.target.value)}
-                disabled={isReadOnly}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider">PM (-)</label>
-              <input 
-                type="number" 
-                min="0"
-                step="0.01"
-                value={pm} 
-                onChange={e => setPm(e.target.value)}
-                disabled={isReadOnly}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div className={`p-3 rounded-md border flex justify-between items-center ${optEnding < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-slate-100 border-slate-200 text-slate-800'}`}>
-            <span className="text-xs font-bold tracking-wider">ENDING INVENTORY</span>
-            <span className="font-bold text-xl">{optEnding}</span>
+        <TableCell className="p-2">
+          <div className={`w-full text-center p-2 rounded font-bold border ${optEnding < 0 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-blue-50/50 text-blue-700 border-blue-100/50'}`}>
+            {optEnding}
           </div>
         </TableCell>
       </TableRow>
 
-      <AddStockModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        item={item}
-        date={date}
-      />
+      {!isReadOnly && isModalOpen && (
+        <AddStockModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          item={item}
+          date={date}
+        />
+      )}
     </>
   );
 });

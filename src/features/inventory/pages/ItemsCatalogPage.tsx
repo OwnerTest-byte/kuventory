@@ -41,7 +41,7 @@ export function ItemsCatalogPage() {
     
     // Search
     if (searchTerm) {
-      list = list.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
+      list = list.filter(i => i.item_name.toLowerCase().includes(searchTerm.toLowerCase()) || i.item_code.toLowerCase().includes(searchTerm.toLowerCase()));
     }
     
     // Status Filter
@@ -67,7 +67,7 @@ export function ItemsCatalogPage() {
     return Array.from(cats).sort();
   }, [inventory]);
 
-  const handleCreateOrUpdate = async (data: Omit<InventoryItem, 'id' | 'is_active' | 'is_archived'>) => {
+  const handleCreateOrUpdate = async (data: Omit<InventoryItem, 'id' | 'is_archived' | 'created_at' | 'updated_at' | 'current_qty'>) => {
     setIsSubmitting(true);
     try {
       if (editingItem) {
@@ -89,7 +89,6 @@ export function ItemsCatalogPage() {
           itemId: stockUpdateItem.id,
           quantity: data.quantity,
           expiryDate: data.expiryDate,
-          receivedDate: new Date().toISOString(),
           reason: data.reason
         });
       } else if (data.action === 'remove') {
@@ -99,12 +98,6 @@ export function ItemsCatalogPage() {
           reason: data.reason
         });
       } else if (data.action === 'adjust') {
-        // We will default to a remove operation if it's negative, or add if it's positive.
-        // Wait, adjust expects absolute replacement. 
-        // For simplicity of API, we'll map adjust to either add or remove depending on difference.
-        // Or tell the user we just support add/remove for this MVP via the backend.
-        // Let's implement adjust via a DB RPC if needed, but for now we throw if they choose it.
-        // We'll update the modal to support adjust later.
         alert("ADJUST not fully wired in backend, please use ADD or REMOVE");
       }
       setStockUpdateItem(null);
@@ -114,7 +107,7 @@ export function ItemsCatalogPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 uppercase">INVENTORY ITEMS</h1>
       </div>
@@ -163,8 +156,10 @@ export function ItemsCatalogPage() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200">
-                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">ITEM</th>
+                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">ITEM CODE</th>
+                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">ITEM NAME</th>
                 <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">CATEGORY</th>
+                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">SECTION</th>
                 <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">UNIT</th>
                 <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-center">MIN. QTY</th>
                 <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-center">CURRENT QTY</th>
@@ -175,13 +170,13 @@ export function ItemsCatalogPage() {
             <tbody className="bg-white">
               {isLoadingInventory ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
                     Loading items...
                   </td>
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
                     No items found matching your criteria.
                   </td>
                 </tr>
@@ -190,10 +185,10 @@ export function ItemsCatalogPage() {
                   let status = 'IN STOCK';
                   let badgeClass = 'text-green-700 bg-green-100';
                   
-                  if (item.total_quantity <= 0) {
+                  if (item.current_qty <= 0) {
                     status = 'OUT OF STOCK';
                     badgeClass = 'text-red-700 bg-red-100';
-                  } else if (item.total_quantity <= item.min_quantity) {
+                  } else if (item.current_qty <= item.min_qty) {
                     status = 'LOW STOCK';
                     badgeClass = 'text-amber-700 bg-amber-100';
                   }
@@ -205,11 +200,13 @@ export function ItemsCatalogPage() {
 
                   return (
                     <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 font-semibold text-slate-800">{item.name}</td>
+                      <td className="px-6 py-4 font-mono text-xs text-slate-500">{item.item_code}</td>
+                      <td className="px-6 py-4 font-semibold text-slate-800">{item.item_name}</td>
                       <td className="px-6 py-4 text-slate-600">{item.category_name || 'Uncategorized'}</td>
+                      <td className="px-6 py-4 text-slate-600">{item.inventory_type}</td>
                       <td className="px-6 py-4 text-slate-600">{item.unit}</td>
-                      <td className="px-6 py-4 text-center font-medium text-slate-700">{item.min_quantity}</td>
-                      <td className="px-6 py-4 text-center font-semibold text-slate-900">{item.total_quantity}</td>
+                      <td className="px-6 py-4 text-center font-medium text-slate-700">{item.min_qty}</td>
+                      <td className="px-6 py-4 text-center font-bold text-slate-900">{item.current_qty}</td>
                       <td className="px-6 py-4 text-center">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${badgeClass}`}>
                           {status}
@@ -248,16 +245,16 @@ export function ItemsCatalogPage() {
         <ItemFormModal
           item={editingItem}
           isSubmitting={isSubmitting}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => { setIsModalOpen(false); setEditingItem(undefined); }}
           onSubmit={handleCreateOrUpdate}
         />
       )}
 
       {stockUpdateItem && (
         <StockUpdateModal
+          isOpen={true}
           item={stockUpdateItem}
           batches={currentBatches}
-          isOpen={!!stockUpdateItem}
           onClose={() => setStockUpdateItem(null)}
           onSubmit={handleStockUpdateSubmit}
         />

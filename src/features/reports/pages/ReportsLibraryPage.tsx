@@ -2,16 +2,14 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useReportsList } from '../api/reports';
 import { FileText, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { format } from 'date-fns';
 
 export function ReportsLibraryPage() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const limit = 20;
   const offset = (page - 1) * limit;
@@ -19,7 +17,6 @@ export function ReportsLibraryPage() {
   const { data: reportsData, isLoading } = useReportsList({
     fromDate: fromDate || undefined,
     toDate: toDate || undefined,
-    status: status || undefined,
     limit,
     offset,
   });
@@ -30,120 +27,126 @@ export function ReportsLibraryPage() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">
-      <header className="flex flex-col gap-2 border-b pb-4">
-        <h1 className="text-3xl font-bold tracking-tight">Report Library</h1>
-        <p className="text-muted-foreground">
+      <header className="flex flex-col gap-2 border-b pb-4 border-slate-200">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Report Library</h1>
+        <p className="text-slate-500 font-medium">
           View and export historical daily inventory reports.
         </p>
       </header>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 items-end bg-muted/30 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-wrap gap-4 items-end bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
         <div className="space-y-1.5 flex-1 min-w-[200px]">
-          <label className="text-sm font-medium">From Date</label>
+          <label className="text-sm font-bold text-slate-700">From Date</label>
           <Input
             type="date"
             value={fromDate}
             onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+            className="bg-white border-slate-300"
           />
         </div>
         <div className="space-y-1.5 flex-1 min-w-[200px]">
-          <label className="text-sm font-medium">To Date</label>
+          <label className="text-sm font-bold text-slate-700">To Date</label>
           <Input
             type="date"
             value={toDate}
             onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+            className="bg-white border-slate-300"
           />
         </div>
-        <div className="space-y-1.5 flex-1 min-w-[200px]">
-          <label className="text-sm font-medium">Status</label>
-          <Select 
-            value={status} 
-            onValueChange={(val) => { setStatus(val === 'all' ? '' : (val || '')); setPage(1); }}
+        
+        <div className="flex gap-2 w-full md:w-auto">
+          <Button 
+            variant="outline" 
+            className="flex-1 border-slate-300 text-slate-700 font-bold"
+            onClick={() => {
+              setFromDate('');
+              setToDate('');
+              setPage(1);
+            }}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="ACTIVE">Active (Finalized)</SelectItem>
-              <SelectItem value="CORRECTED">Corrected</SelectItem>
-              <SelectItem value="ARCHIVED">Archived</SelectItem>
-            </SelectContent>
-          </Select>
+            Clear Filters
+          </Button>
         </div>
       </div>
 
-      {/* Report List */}
-      <div className="rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Version</TableHead>
-              <TableHead className="text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-slate-50">
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Loading reports...</TableCell>
+                <TableHead className="font-bold text-slate-700">Inventory Date</TableHead>
+                <TableHead className="font-bold text-slate-700">Status</TableHead>
+                <TableHead className="font-bold text-slate-700">Finalized By</TableHead>
+                <TableHead className="font-bold text-slate-700">Finalized At</TableHead>
+                <TableHead className="text-right font-bold text-slate-700">Actions</TableHead>
               </TableRow>
-            ) : reports.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No reports found matching your filters.</TableCell>
-              </TableRow>
-            ) : (
-              reports.map((report) => (
-                <TableRow key={report.id}>
-                  <TableCell className="font-medium">{report.report_date}</TableCell>
-                  <TableCell>Daily Inventory</TableCell>
-                  <TableCell>
-                    <Badge variant={report.status === 'ACTIVE' ? 'default' : report.status === 'CORRECTED' ? 'outline' : 'secondary'}>
-                      {report.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">v{report.version}</TableCell>
-                  <TableCell className="text-right">
-                    <Link
-                      to={`/reports/${report.id}`}
-                      className={buttonVariants({ variant: "default", size: "sm" })}
-                    >
-                      <FileText className="w-4 h-4 mr-2" />
-                      Open
-                    </Link>
-                  </TableCell>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-12 text-slate-500 font-medium">Loading reports...</TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : reports.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-12 text-slate-500 font-medium">No reports found.</TableCell>
+                </TableRow>
+              ) : (
+                reports.map(report => (
+                  <TableRow key={report.id} className="hover:bg-slate-50">
+                    <TableCell className="font-semibold text-slate-900">
+                      {format(new Date(report.inventory_date), 'MMMM dd, yyyy')}
+                    </TableCell>
+                    <TableCell>
+                      <span className="inline-flex px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-green-100 text-green-700">
+                        {report.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-slate-600 font-medium">{report.finalized_by_name || 'System'}</TableCell>
+                    <TableCell className="text-slate-600">
+                      {report.finalized_at ? format(new Date(report.finalized_at), 'MMM dd, yyyy h:mm a') : '-'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="outline" size="sm" className="font-bold border-slate-300 hover:bg-slate-100">
+                        <Link to={`/reports/${report.id}`} className="flex items-center">
+                          <FileText className="w-4 h-4 mr-2" />
+                          View
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-end space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-          >
-            <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-          </Button>
-          <div className="text-sm text-muted-foreground font-medium">
-            Page {page} of {totalPages}
+        <div className="flex items-center justify-between border-t pt-4 border-slate-200">
+          <div className="text-sm text-slate-500 font-medium">
+            Showing {offset + 1} to {Math.min(offset + limit, totalCount)} of {totalCount} reports
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-          >
-            Next <ChevronRight className="w-4 h-4 ml-1" />
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="border-slate-300 text-slate-700"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="border-slate-300 text-slate-700"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       )}
     </div>

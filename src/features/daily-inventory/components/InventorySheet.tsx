@@ -1,38 +1,35 @@
 import { useMemo } from 'react';
-import type { DailyInventoryItem } from '../types';
+import type { DailyInventorySessionWithEntries } from '../api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { InventoryRow } from './InventoryRow';
 
 interface InventorySheetProps {
-  items: DailyInventoryItem[];
+  session: DailyInventorySessionWithEntries;
   isReadOnly: boolean;
   date: string;
 }
 
-export function InventorySheet({ items }: InventorySheetProps) {
+export function InventorySheet({ session, isReadOnly, date }: InventorySheetProps) {
+  const items = session.daily_inventory_entries || [];
   
-  // UX Spec: strictly group into PORTION STOCK and PER CASES
+  // Group into PORTION STOCK and PER CASES using the strict section field
   const { portionItems, caseItems } = useMemo(() => {
-    const caseItems = items.filter(item => {
-      const unit = item.inventory_items?.unit?.toUpperCase() || '';
-      const category = item.inventory_items?.categories?.name?.toUpperCase() || '';
-      return unit.includes('CASE') || category.includes('CASE');
-    });
-    
-    const portionItems = items.filter(item => !caseItems.includes(item));
+    const caseItems = items.filter(item => item.section === 'PER CASES');
+    const portionItems = items.filter(item => item.section === 'PORTION STOCK');
     return { portionItems, caseItems };
   }, [items]);
 
-  const renderTable = (tableItems: DailyInventoryItem[], title: string) => {
+  const renderTable = (tableItems: typeof items, title: string) => {
     if (tableItems.length === 0) return null;
     
     // Calculate totals
     const totals = tableItems.reduce((acc, item) => ({
-      beg: acc.beg + (item.beg || 0),
-      add: acc.add + (item.add || 0),
-      total: acc.total + ((item.beg || 0) + (item.add || 0)),
-      am: acc.am + (item.am || 0),
-      pm: acc.pm + (item.pm || 0),
-      end: acc.end + (item.ending || 0)
+      beg: acc.beg + item.beginning_qty,
+      add: acc.add + item.add_qty,
+      total: acc.total + item.total_stock,
+      am: acc.am + item.sales_am,
+      pm: acc.pm + item.sales_pm,
+      end: acc.end + item.ending_qty
     }), { beg: 0, add: 0, total: 0, am: 0, pm: 0, end: 0 });
 
     return (
@@ -48,39 +45,34 @@ export function InventorySheet({ items }: InventorySheetProps) {
                   <TableHead className="text-center w-24 text-xs font-bold text-slate-500 uppercase tracking-wider">BEG</TableHead>
                   <TableHead className="text-center w-24 text-xs font-bold text-slate-500 uppercase tracking-wider">ADD</TableHead>
                   <TableHead className="text-center w-32 text-xs font-bold text-slate-500 uppercase tracking-wider">TOTAL STOCK</TableHead>
-                  <TableHead className="text-center w-28 text-xs font-bold text-slate-500 uppercase tracking-wider">SALES AM</TableHead>
-                  <TableHead className="text-center w-28 text-xs font-bold text-slate-500 uppercase tracking-wider">SALES PM</TableHead>
-                  <TableHead className="text-center w-24 text-xs font-bold text-slate-500 uppercase tracking-wider">ENDING</TableHead>
+                  <TableHead className="text-center w-24 text-xs font-bold text-slate-500 uppercase tracking-wider">SALES AM</TableHead>
+                  <TableHead className="text-center w-24 text-xs font-bold text-slate-500 uppercase tracking-wider">SALES PM</TableHead>
+                  <TableHead className="text-center w-32 text-xs font-bold text-slate-500 uppercase tracking-wider">ENDING QTY</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tableItems.map((item, index) => {
-                  const totalStock = (item.beg || 0) + (item.add || 0);
-                  
-                  return (
-                    <TableRow key={item.id} className="hover:bg-slate-50/50">
-                      <TableCell className="text-center text-slate-500 font-medium">{index + 1}</TableCell>
-                      <TableCell className="font-semibold text-slate-800 uppercase text-sm">{item.inventory_items?.name}</TableCell>
-                      <TableCell className="text-center font-medium text-slate-700">{item.beg || 0}</TableCell>
-                      <TableCell className="text-center font-medium text-slate-700">{item.add || 0}</TableCell>
-                      <TableCell className="text-center font-medium text-slate-700">{totalStock}</TableCell>
-                      <TableCell className="text-center font-medium text-slate-700">{item.am || 0}</TableCell>
-                      <TableCell className="text-center font-medium text-slate-700">{item.pm || 0}</TableCell>
-                      <TableCell className="text-center font-medium text-slate-700">{item.ending || 0}</TableCell>
-                    </TableRow>
-                  );
-                })}
-                {/* Custom Total Row */}
-                <TableRow className="bg-green-50/50 hover:bg-green-50/50 border-t border-slate-200">
-                  <TableCell colSpan={2} className="font-bold text-green-700 uppercase tracking-wide text-sm pl-8">
-                    TOTAL
+                {tableItems.map((item, index) => (
+                  <InventoryRow 
+                    key={item.id} 
+                    item={item} 
+                    index={index} 
+                    isReadOnly={isReadOnly}
+                    date={date}
+                  />
+                ))}
+              </TableBody>
+              {/* Grand Total Row */}
+              <TableBody className="bg-slate-50 border-t-2 border-slate-300">
+                <TableRow className="hover:bg-slate-50 font-bold">
+                  <TableCell colSpan={2} className="text-right text-slate-700 uppercase tracking-widest text-xs">
+                    GRAND TOTAL {title}
                   </TableCell>
-                  <TableCell className="text-center font-bold text-green-700">{totals.beg}</TableCell>
-                  <TableCell className="text-center font-bold text-green-700">{totals.add}</TableCell>
-                  <TableCell className="text-center font-bold text-green-700">{totals.total}</TableCell>
-                  <TableCell className="text-center font-bold text-green-700">{totals.am}</TableCell>
-                  <TableCell className="text-center font-bold text-green-700">{totals.pm}</TableCell>
-                  <TableCell className="text-center font-bold text-green-700">{totals.end}</TableCell>
+                  <TableCell className="text-center text-slate-700">{totals.beg}</TableCell>
+                  <TableCell className="text-center text-slate-700">{totals.add}</TableCell>
+                  <TableCell className="text-center text-blue-700 bg-blue-50/50">{totals.total}</TableCell>
+                  <TableCell className="text-center text-slate-700">{totals.am}</TableCell>
+                  <TableCell className="text-center text-slate-700">{totals.pm}</TableCell>
+                  <TableCell className="text-center text-blue-700 bg-blue-50/50">{totals.end}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -91,9 +83,14 @@ export function InventorySheet({ items }: InventorySheetProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {renderTable(portionItems, 'PORTION STOCK')}
       {renderTable(caseItems, 'PER CASES')}
+      {items.length === 0 && (
+        <div className="text-center py-12 text-slate-500 bg-slate-50 rounded-lg border border-slate-200 border-dashed">
+          No active items found for this date. Ensure items exist and are not archived.
+        </div>
+      )}
     </div>
   );
 }

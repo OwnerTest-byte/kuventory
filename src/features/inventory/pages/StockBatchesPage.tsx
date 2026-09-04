@@ -12,11 +12,12 @@ export function StockBatchesPage() {
         .from('stock_batches')
         .select(`
           id,
+          batch_code,
           quantity,
           expiry_date,
-          received_date,
-          inventory_items (
-            name,
+          created_at,
+          items (
+            item_name,
             unit
           )
         `)
@@ -28,7 +29,7 @@ export function StockBatchesPage() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 uppercase">Global Stock Batches</h1>
       </div>
@@ -38,6 +39,7 @@ export function StockBatchesPage() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">Batch Code</th>
                 <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">Item Name</th>
                 <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-center">Quantity</th>
                 <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">Received Date</th>
@@ -48,13 +50,13 @@ export function StockBatchesPage() {
             <tbody className="bg-white">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                   </td>
                 </tr>
               ) : batches?.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                     No active stock batches found.
                   </td>
                 </tr>
@@ -63,14 +65,17 @@ export function StockBatchesPage() {
                   const isExpired = batch.expiry_date && new Date(batch.expiry_date) < new Date();
                   return (
                     <tr key={batch.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 font-mono text-xs text-slate-500">
+                        {batch.batch_code}
+                      </td>
                       <td className="px-6 py-4 font-semibold text-slate-900">
-                        {batch.inventory_items?.name}
+                        {batch.items?.item_name}
                       </td>
                       <td className="px-6 py-4 text-center font-bold text-slate-700">
-                        {batch.quantity} <span className="text-xs font-normal text-slate-500">{batch.inventory_items?.unit}</span>
+                        {batch.quantity} <span className="text-xs font-normal text-slate-500">{batch.items?.unit}</span>
                       </td>
                       <td className="px-6 py-4 text-slate-600">
-                        {format(new Date(batch.received_date), 'MMM dd, yyyy')}
+                        {format(new Date(batch.created_at), 'MMM dd, yyyy')}
                       </td>
                       <td className="px-6 py-4 font-medium">
                         {batch.expiry_date ? (
