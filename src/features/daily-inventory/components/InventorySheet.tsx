@@ -12,14 +12,30 @@ interface InventorySheetProps {
 export function InventorySheet({ session, isReadOnly, date }: InventorySheetProps) {
   const items = session.daily_inventory_entries || [];
   
-  // Group into PORTION STOCK and PER CASES using the strict section field
-  const { portionItems, caseItems } = useMemo(() => {
-    const caseItems = items.filter(item => item.section === 'PER CASES');
-    const portionItems = items.filter(item => item.section === 'PORTION STOCK');
-    return { portionItems, caseItems };
+  // Group into GRILLED STOCK, PORTION STOCK, PER CASES, and OTHER
+  const { grilledItems, portionItems, caseItems, otherItems } = useMemo(() => {
+    const grilledItems: typeof items = [];
+    const portionItems: typeof items = [];
+    const caseItems: typeof items = [];
+    const otherItems: typeof items = [];
+
+    items.forEach(item => {
+      const sec = (item.section || '').toUpperCase();
+      if (sec.includes('GRILL')) {
+        grilledItems.push(item);
+      } else if (sec.includes('CASE')) {
+        caseItems.push(item);
+      } else if (sec.includes('PORTION')) {
+        portionItems.push(item);
+      } else {
+        otherItems.push(item);
+      }
+    });
+
+    return { grilledItems, portionItems, caseItems, otherItems };
   }, [items]);
 
-  const renderTable = (tableItems: typeof items, title: string) => {
+  const renderTable = (tableItems: typeof items, title: string, colorClass = 'text-blue-800') => {
     if (tableItems.length === 0) return null;
     
     // Calculate totals
@@ -34,7 +50,14 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
 
     return (
       <div className="mb-10">
-        <h2 className="text-sm font-bold text-blue-800 uppercase tracking-widest mb-3 pl-2">{title}</h2>
+        <div className="flex items-center justify-between mb-3 pl-2">
+          <h2 className={`text-sm font-bold uppercase tracking-widest ${colorClass}`}>
+            {title}
+          </h2>
+          <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+            {tableItems.length} items
+          </span>
+        </div>
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
             <Table className="w-full text-left">
@@ -84,11 +107,14 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
 
   return (
     <div className="space-y-4">
-      {renderTable(portionItems, 'PORTION STOCK')}
-      {renderTable(caseItems, 'PER CASES')}
+      {renderTable(grilledItems, 'GRILLED STOCK', 'text-amber-700')}
+      {renderTable(portionItems, 'PORTION STOCK', 'text-blue-800')}
+      {renderTable(caseItems, 'PER CASES', 'text-emerald-700')}
+      {renderTable(otherItems, 'OTHER SUPPLIES', 'text-slate-700')}
+      
       {items.length === 0 && (
         <div className="text-center py-12 text-slate-500 bg-slate-50 rounded-lg border border-slate-200 border-dashed">
-          No active items found for this date. Ensure items exist and are not archived.
+          No active items found for this date. Ensure items exist in catalog.
         </div>
       )}
     </div>

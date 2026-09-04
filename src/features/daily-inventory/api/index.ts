@@ -83,7 +83,14 @@ export async function fetchOrCreateDailyInventory(date: string): Promise<DailyIn
     const itemName = entry.inventory_items?.name || 'Unknown Item';
     const unit = entry.inventory_items?.unit || 'pcs';
     const catName = entry.inventory_items?.categories?.name || 'General';
-    const isPerCase = catName.toUpperCase().includes('CASE');
+    let section: 'GRILLED STOCK' | 'PORTION STOCK' | 'PER CASES' = 'PORTION STOCK';
+    if (catName.toUpperCase().includes('GRILL')) {
+      section = 'GRILLED STOCK';
+    } else if (catName.toUpperCase().includes('CASE')) {
+      section = 'PER CASES';
+    } else {
+      section = 'PORTION STOCK';
+    }
 
     return {
       id: entry.id,
@@ -91,7 +98,7 @@ export async function fetchOrCreateDailyInventory(date: string): Promise<DailyIn
       item_id: entry.item_id,
       item_name: itemName,
       unit: unit,
-      section: isPerCase ? 'PER CASES' : 'PORTION STOCK',
+      section: section,
       beginning_qty: Number(entry.beg || 0),
       add_qty: Number(entry.add || 0),
       total_stock: Number(entry.total ?? (Number(entry.beg || 0) + Number(entry.add || 0))),

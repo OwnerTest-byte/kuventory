@@ -68,7 +68,7 @@ export type DailyInventoryEntry = {
   item_id: string;
   item_name?: string;
   unit?: string;
-  section: 'PORTION STOCK' | 'PER CASES';
+  section: 'GRILLED STOCK' | 'PORTION STOCK' | 'PER CASES' | string;
   beginning_qty: number;
   add_qty: number;
   total_stock: number;

@@ -4,26 +4,86 @@ import { useReport } from '../api/reports';
 import { Download, FileSpreadsheet, FileText, ArrowLeft, Loader2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
+import { exportToPdf } from '../export/pdf';
+import { exportToXlsx } from '../export/xlsx';
+import { exportToCsv } from '../export/csv';
 
 export function ReportViewPage() {
   const { id } = useParams<{ id: string }>();
   const { data: report, isLoading, error } = useReport(id);
 
-  const [isExportingPdf] = useState(false);
-  const [isExportingXlsx] = useState(false);
-  const [isExportingCsv] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isExportingXlsx, setIsExportingXlsx] = useState(false);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
 
   if (isLoading) return <div className="p-8 flex items-center"><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Loading report...</div>;
   if (error || !report) return <div className="p-8 text-red-500">Failed to load report.</div>;
 
   const items = report.daily_inventory_entries || [];
   
-  // UX Spec: PORTION STOCK vs PER CASES
-  const perCaseItems = items.filter((item: any) => item.section === 'PER CASES');
-  const portionItems = items.filter((item: any) => item.section === 'PORTION STOCK');
+  // Categorize items
+  const grilledItems = items.filter((item: any) => (item.section || '').toUpperCase().includes('GRILL'));
+  const perCaseItems = items.filter((item: any) => (item.section || '').toUpperCase().includes('CASE'));
+  const portionItems = items.filter((item: any) => 
+    !grilledItems.includes(item) && !perCaseItems.includes(item)
+  );
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const getReportPayload = () => ({
+    id: report.id,
+    daily_inventory_id: report.id,
+    report_date: report.inventory_date,
+    status: report.status as any,
+    version: 1,
+    generated_at: report.finalized_at || new Date().toISOString(),
+    generated_by: 'Admin',
+    report_items: items.map((it: any) => ({
+      id: it.id,
+      report_id: report.id,
+      item_name: it.items?.item_name || 'Item',
+      category_name: it.section || 'General',
+      description: '',
+      unit: it.items?.unit || 'pcs',
+      unit_cost: 0,
+      supplier_a: '',
+      supplier_b: '',
+      beg: it.beginning_qty,
+      add: it.add_qty,
+      total: it.total_stock,
+      am: it.sales_am,
+      pm: it.sales_pm,
+      ending: it.ending_qty
+    }))
+  });
+
+  const handleExportPdf = () => {
+    try {
+      setIsExportingPdf(true);
+      exportToPdf(getReportPayload());
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  const handleExportXlsx = () => {
+    try {
+      setIsExportingXlsx(true);
+      exportToXlsx(getReportPayload());
+    } finally {
+      setIsExportingXlsx(false);
+    }
+  };
+
+  const handleExportCsv = () => {
+    try {
+      setIsExportingCsv(true);
+      exportToCsv(getReportPayload());
+    } finally {
+      setIsExportingCsv(false);
+    }
   };
 
   const renderPrintableTable = (tableItems: any[], title: string) => {
@@ -65,30 +125,26 @@ export function ReportViewPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto pb-12 p-8">
-      {/* Top action bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4 print:hidden">
-        <div className="flex items-center gap-2 text-slate-500">
-          <Link to="/reports" className="hover:text-slate-900 transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <h1 className="text-xl font-bold text-slate-900 uppercase">Report Preview</h1>
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="border-slate-300" onClick={handlePrint}>
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6 animate-in fade-in">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
+        <Link to="/reports" className="inline-flex items-center text-sm font-semibold text-slate-600 hover:text-slate-900">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Reports Library
+        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={handlePrint} className="border-slate-300 text-slate-700 font-bold hover:bg-slate-50">
             <Printer className="w-4 h-4 mr-2" />
             Print
           </Button>
-          <Button variant="outline" className="bg-red-600 hover:bg-red-700 text-white border-transparent" disabled={isExportingPdf}>
+          <Button variant="outline" onClick={handleExportPdf} className="bg-red-600 hover:bg-red-700 text-white border-transparent" disabled={isExportingPdf}>
             {isExportingPdf ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
             PDF
           </Button>
-          <Button variant="outline" className="bg-emerald-600 hover:bg-emerald-700 text-white border-transparent" disabled={isExportingXlsx}>
+          <Button variant="outline" onClick={handleExportXlsx} className="bg-emerald-600 hover:bg-emerald-700 text-white border-transparent" disabled={isExportingXlsx}>
             {isExportingXlsx ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
             EXCEL
           </Button>
-          <Button variant="outline" className="bg-blue-600 hover:bg-blue-700 text-white border-transparent" disabled={isExportingCsv}>
+          <Button variant="outline" onClick={handleExportCsv} className="bg-blue-600 hover:bg-blue-700 text-white border-transparent" disabled={isExportingCsv}>
             {isExportingCsv ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
             CSV
           </Button>
@@ -97,7 +153,6 @@ export function ReportViewPage() {
 
       {/* Printable Report Document */}
       <div className="bg-white border border-slate-300 p-8 sm:p-12 shadow-sm rounded-sm print:shadow-none print:border-none print:p-0 font-mono" id="printable-report">
-        
         <div className="text-center mb-10 border-b border-slate-300 pb-6">
           <h1 className="text-2xl font-bold tracking-widest mb-1 uppercase">KUVENTORY</h1>
           <h2 className="text-lg font-bold text-slate-700 mb-4 uppercase">Daily Inventory Report</h2>
@@ -110,6 +165,7 @@ export function ReportViewPage() {
           </div>
         </div>
 
+        {renderPrintableTable(grilledItems, 'GRILLED STOCK')}
         {renderPrintableTable(portionItems, 'PORTION STOCK')}
         {renderPrintableTable(perCaseItems, 'PER CASES')}
 
@@ -122,17 +178,9 @@ export function ReportViewPage() {
           <div>
             <p className="mb-8 font-bold">FINALIZED BY:</p>
             <div className="border-b border-slate-800 w-3/4 mb-1"></div>
-            <p className="text-slate-600">{(report as any).profiles ? `${(report as any).profiles.first_name} ${(report as any).profiles.last_name}` : 'Name & Signature'}</p>
-            <p className="text-slate-500 text-xs mt-1">
-              At: {report.finalized_at ? format(new Date(report.finalized_at), 'MMM dd, yyyy h:mm a') : '-'}
-            </p>
+            <p className="text-slate-600">Supervisor Signature</p>
           </div>
         </div>
-
-        <div className="mt-12 text-center text-xs text-slate-400">
-          <p>Generated by Kuventory System • {format(new Date(), 'MMM dd, yyyy h:mm a')}</p>
-        </div>
-
       </div>
     </div>
   );
