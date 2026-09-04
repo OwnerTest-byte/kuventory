@@ -24,7 +24,7 @@ export function LoginPage() {
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-center items-center bg-slate-950 text-white p-12 relative overflow-hidden">
         
         <div className="relative z-10 flex flex-col items-center gap-6">
-          <img src="/logo-transparent.png" alt="KUVENTORY Logo" className="h-48 w-auto object-contain brightness-0 invert" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          <img src="/logo-transparent.png" alt="KUVENTORY Logo" className="h-48 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           <div className="text-center">
             <h1 className="text-3xl font-bold tracking-widest text-slate-100">KUVENTORY</h1>
             <p className="text-lg text-slate-400 mt-2 font-light">Inventory Management System</p>
@@ -45,10 +45,6 @@ export function LoginPage() {
         </div>
         
         <div className="w-full max-w-md bg-card p-8 rounded-xl shadow-sm border border-border">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-foreground">Welcome back</h2>
-            <p className="text-sm text-muted-foreground mt-2">Please enter your details to sign in.</p>
-          </div>
           <LoginForm />
         </div>
       </div>
