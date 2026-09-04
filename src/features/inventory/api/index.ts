@@ -31,8 +31,8 @@ export async function getInventory(): Promise<InventoryItem[]> {
       inventory_type: section as any,
       unit: row.unit || 'pcs',
       unit_cost: Number(row.unit_cost || 0),
-      supplier_a: row.supplier_a || null,
-      supplier_b: row.supplier_b || null,
+      supplier_a: row.supplier_a || '',
+      supplier_b: row.supplier_b || '',
       min_qty: Number(row.min_quantity || 0),
       current_qty: Number(row.total_quantity || 0),
       image_path: null,
@@ -77,8 +77,8 @@ export async function getItemById(id: string): Promise<InventoryItem> {
     inventory_type: section as any,
     unit: data.unit || 'pcs',
     unit_cost: Number(data.unit_cost || 0),
-    supplier_a: data.supplier_a || null,
-    supplier_b: data.supplier_b || null,
+    supplier_a: data.supplier_a || '',
+    supplier_b: data.supplier_b || '',
     min_qty: Number(data.min_quantity || 0),
     current_qty: Number(data.total_quantity || 0),
     image_path: null,
@@ -238,8 +238,8 @@ export async function createItem(data: Omit<InventoryItem, 'id' | 'is_archived' 
       description: data.description || '',
       unit: data.unit,
       unit_cost: data.unit_cost,
-      supplier_a: data.supplier_a || null,
-      supplier_b: data.supplier_b || null,
+      supplier_a: data.supplier_a || '',
+      supplier_b: data.supplier_b || '',
       min_quantity: data.min_qty,
       is_active: true,
       is_archived: false,
@@ -261,12 +261,12 @@ export async function createItem(data: Omit<InventoryItem, 'id' | 'is_archived' 
 export async function updateItem(id: string, updates: Partial<Omit<InventoryItem, 'id'>>): Promise<InventoryItem> {
   const mapped: any = {};
   if (updates.item_name !== undefined) mapped.name = updates.item_name;
-  if (updates.description !== undefined) mapped.description = updates.description;
+  if (updates.description !== undefined) mapped.description = updates.description || '';
   if (updates.category_id !== undefined) mapped.category_id = updates.category_id;
   if (updates.unit !== undefined) mapped.unit = updates.unit;
   if (updates.unit_cost !== undefined) mapped.unit_cost = updates.unit_cost;
-  if (updates.supplier_a !== undefined) mapped.supplier_a = updates.supplier_a;
-  if (updates.supplier_b !== undefined) mapped.supplier_b = updates.supplier_b;
+  if (updates.supplier_a !== undefined) mapped.supplier_a = updates.supplier_a || '';
+  if (updates.supplier_b !== undefined) mapped.supplier_b = updates.supplier_b || '';
   if (updates.min_qty !== undefined) mapped.min_quantity = updates.min_qty;
   if (updates.is_archived !== undefined) {
     mapped.is_archived = updates.is_archived;
