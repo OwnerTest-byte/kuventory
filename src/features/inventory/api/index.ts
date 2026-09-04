@@ -1,28 +1,83 @@
 import { supabase } from '@/lib/supabase';
-import type { InventoryItem, StockBatch, StockTransaction } from '../types';
+import type { InventoryItem, StockBatch, StockTransaction, Category } from '../types';
 
 /**
- * Fetch all inventory items.
+ * Fetch all inventory items with aggregated live stock from inventory_stock_view.
  */
 export async function getInventory(): Promise<InventoryItem[]> {
   const { data, error } = await supabase
-    .from('items')
-    .select(`
-      *,
-      categories(name)
-    `)
-    .order('item_name');
+    .from('inventory_stock_view')
+    .select('*')
+    .order('name');
 
-  if (error) throw error;
+  if (error) {
+    console.error('getInventory error:', error);
+    throw error;
+  }
   
-  return data.map(item => ({
-    ...item,
-    category_name: item.categories?.name
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    item_code: row.id.substring(0, 8).toUpperCase(),
+    item_name: row.name,
+    description: row.description || '',
+    category_id: row.category_id,
+    category_name: row.category_name || 'General',
+    inventory_type: (row.category_name === 'PER CASES' ? 'PER CASES' : 'PORTION STOCK') as any,
+    unit: row.unit || 'pcs',
+    unit_cost: Number(row.unit_cost || 0),
+    supplier_a: row.supplier_a || null,
+    supplier_b: row.supplier_b || null,
+    min_qty: Number(row.min_quantity || 0),
+    current_qty: Number(row.total_quantity || 0),
+    image_path: null,
+    is_archived: !row.is_active || !!row.is_archived,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   })) as InventoryItem[];
 }
 
+export async function getItems(): Promise<InventoryItem[]> {
+  return getInventory();
+}
+
 /**
- * Fetch all stock batches for a specific inventory item.
+ * Fetch single item by ID with live stock balance.
+ */
+export async function getItemById(id: string): Promise<InventoryItem> {
+  const { data, error } = await supabase
+    .from('inventory_stock_view')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error('getItemById error:', error);
+    throw error;
+  }
+
+  return {
+    id: data.id,
+    item_code: data.id.substring(0, 8).toUpperCase(),
+    item_name: data.name,
+    description: data.description || '',
+    category_id: data.category_id,
+    category_name: data.category_name || 'General',
+    inventory_type: (data.category_name === 'PER CASES' ? 'PER CASES' : 'PORTION STOCK') as any,
+    unit: data.unit || 'pcs',
+    unit_cost: Number(data.unit_cost || 0),
+    supplier_a: data.supplier_a || null,
+    supplier_b: data.supplier_b || null,
+    min_qty: Number(data.min_quantity || 0),
+    current_qty: Number(data.total_quantity || 0),
+    image_path: null,
+    is_archived: !data.is_active || !!data.is_archived,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  } as InventoryItem;
+}
+
+/**
+ * Fetch all active stock batches for an item ordered by FEFO (earliest expiry first).
  */
 export async function getBatches(itemId: string): Promise<StockBatch[]> {
   const { data, error } = await supabase
@@ -32,14 +87,24 @@ export async function getBatches(itemId: string): Promise<StockBatch[]> {
     .order('expiry_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true });
 
-  if (error) throw error;
-  return data as StockBatch[];
+  if (error) {
+    console.error('getBatches error:', error);
+    throw error;
+  }
+
+  return (data || []).map((b: any) => ({
+    id: b.id,
+    item_id: b.item_id,
+    batch_code: `BATCH-${b.id.substring(0, 6).toUpperCase()}`,
+    quantity: Number(b.quantity || 0),
+    initial_quantity: Number(b.quantity || 0),
+    expiry_date: b.expiry_date || '2099-12-31',
+    created_at: b.created_at,
+  })) as StockBatch[];
 }
 
 /**
- * Add physical stock via standard insert.
- * Wait, the backend doesn't have `add_stock` RPC anymore? We need to implement it in JS or recreate the RPC.
- * Actually, doing it via Supabase client is fine since it's just table inserts.
+ * Add physical stock via backend RPC (creates batch and logs movement).
  */
 export async function addStock(params: {
   itemId: string;
@@ -49,47 +114,22 @@ export async function addStock(params: {
   reason: string;
   userId?: string;
 }): Promise<void> {
-  // We need to:
-  // 1. Get current item balance
-  const { data: item } = await supabase.from('items').select('current_qty').eq('id', params.itemId).single();
-  const previousBalance = item?.current_qty || 0;
-  const newBalance = previousBalance + params.quantity;
-
-  // 2. Create batch
-  const { data: batch, error: batchError } = await supabase.from('stock_batches').insert({
-    item_id: params.itemId,
-    batch_code: `BATCH-${Date.now()}`,
-    quantity: params.quantity,
-    initial_quantity: params.quantity,
-    expiry_date: params.expiryDate || '2099-12-31'
-  }).select().single();
-
-  if (batchError) throw batchError;
-
-  // 3. Create transaction
-  const { error: txError } = await supabase.from('stock_transactions').insert({
-    item_id: params.itemId,
-    user_id: params.userId,
-    action_type: 'ADD',
-    quantity: params.quantity,
-    previous_balance: previousBalance,
-    new_balance: newBalance,
-    batch_id: batch.id,
-    reason: params.reason
+  const { error } = await supabase.rpc('add_stock', {
+    p_item_id: params.itemId,
+    p_quantity: params.quantity,
+    p_expiry_date: params.expiryDate || '2099-12-31',
+    p_received_date: params.receivedDate || new Date().toISOString().split('T')[0],
+    p_reason: params.reason || 'Stock Received',
   });
 
-  if (txError) throw txError;
-
-  // 4. Update item current_qty
-  const { error: updateError } = await supabase.from('items')
-    .update({ current_qty: newBalance })
-    .eq('id', params.itemId);
-
-  if (updateError) throw updateError;
+  if (error) {
+    console.error('addStock RPC error:', error);
+    throw error;
+  }
 }
 
 /**
- * Remove stock using FEFO in JavaScript.
+ * Remove stock using automated FEFO consumption via backend RPC.
  */
 export async function removeStock(params: {
   itemId: string;
@@ -97,54 +137,20 @@ export async function removeStock(params: {
   reason: string;
   userId?: string;
 }): Promise<void> {
-  // Get current item balance
-  const { data: item } = await supabase.from('items').select('current_qty').eq('id', params.itemId).single();
-  const previousBalance = item?.current_qty || 0;
-  
-  if (previousBalance < params.quantity) {
-    throw new Error('Insufficient total stock');
-  }
-
-  // Get batches ordered by expiry
-  const batches = await getBatches(params.itemId);
-  
-  let remainingToRemove = params.quantity;
-  
-  for (const batch of batches) {
-    if (remainingToRemove <= 0) break;
-    if (batch.quantity <= 0) continue;
-
-    const toRemoveFromBatch = Math.min(batch.quantity, remainingToRemove);
-    
-    // Update batch
-    await supabase.from('stock_batches')
-      .update({ quantity: batch.quantity - toRemoveFromBatch })
-      .eq('id', batch.id);
-
-    remainingToRemove -= toRemoveFromBatch;
-  }
-
-  const newBalance = previousBalance - params.quantity;
-
-  // Record transaction
-  await supabase.from('stock_transactions').insert({
-    item_id: params.itemId,
-    user_id: params.userId,
-    action_type: 'REMOVE',
-    quantity: params.quantity,
-    previous_balance: previousBalance,
-    new_balance: newBalance,
-    reason: params.reason
+  const { error } = await supabase.rpc('consume_stock', {
+    p_item_id: params.itemId,
+    p_quantity: params.quantity,
+    p_reason: params.reason || 'Stock Consumption / Sales',
   });
 
-  // Update master item
-  await supabase.from('items')
-    .update({ current_qty: newBalance })
-    .eq('id', params.itemId);
+  if (error) {
+    console.error('removeStock RPC error:', error);
+    throw error;
+  }
 }
 
 /**
- * Adjust stock to a specific target balance or with a delta.
+ * Adjust physical stock count up or down.
  */
 export async function adjustStock(params: {
   itemId: string;
@@ -152,94 +158,32 @@ export async function adjustStock(params: {
   reason: string;
   userId?: string;
 }): Promise<void> {
-  const { data: item } = await supabase.from('items').select('current_qty').eq('id', params.itemId).single();
-  const previousBalance = item?.current_qty || 0;
-  const target = Math.max(0, params.targetQuantity);
-  const diff = target - previousBalance;
-
+  const item = await getItemById(params.itemId);
+  const diff = params.targetQuantity - item.current_qty;
   if (diff === 0) return;
 
   if (diff > 0) {
-    // Adding stock to reach target
-    const { data: batch, error: batchError } = await supabase.from('stock_batches').insert({
-      item_id: params.itemId,
-      batch_code: `ADJ-${Date.now()}`,
+    await addStock({
+      itemId: params.itemId,
       quantity: diff,
-      initial_quantity: diff,
-      expiry_date: '2099-12-31'
-    }).select().single();
-
-    if (batchError) throw batchError;
-
-    await supabase.from('stock_transactions').insert({
-      item_id: params.itemId,
-      user_id: params.userId,
-      action_type: 'ADJUST',
-      quantity: diff,
-      previous_balance: previousBalance,
-      new_balance: target,
-      batch_id: batch?.id,
-      reason: params.reason || 'Physical count adjustment'
+      reason: params.reason || 'Physical Count Adjustment (Up)',
     });
   } else {
-    // Deducting stock to reach target via FEFO
-    let remainingToDeduct = Math.abs(diff);
-    const batches = await getBatches(params.itemId);
-
-    for (const batch of batches) {
-      if (remainingToDeduct <= 0) break;
-      if (batch.quantity <= 0) continue;
-
-      const toRemove = Math.min(batch.quantity, remainingToDeduct);
-      await supabase.from('stock_batches')
-        .update({ quantity: batch.quantity - toRemove })
-        .eq('id', batch.id);
-
-      remainingToDeduct -= toRemove;
-    }
-
-    await supabase.from('stock_transactions').insert({
-      item_id: params.itemId,
-      user_id: params.userId,
-      action_type: 'ADJUST',
-      quantity: diff,
-      previous_balance: previousBalance,
-      new_balance: target,
-      reason: params.reason || 'Physical count adjustment'
+    await removeStock({
+      itemId: params.itemId,
+      quantity: Math.abs(diff),
+      reason: params.reason || 'Physical Count Adjustment (Down)',
     });
   }
-
-  await supabase.from('items')
-    .update({ current_qty: target })
-    .eq('id', params.itemId);
 }
 
-export async function getItemById(id: string): Promise<InventoryItem> {
-  const { data, error } = await supabase
-    .from('items')
-    .select(`
-      *,
-      categories(name)
-    `)
-    .eq('id', id)
-    .single();
-
-  if (error) throw error;
-  return {
-    ...data,
-    category_name: data.categories?.name
-  } as InventoryItem;
-}
-
+/**
+ * Fetch complete stock movement history from stock_history_view.
+ */
 export async function getStockMovementHistory(itemId?: string): Promise<StockTransaction[]> {
   let query = supabase
-    .from('stock_transactions')
-    .select(`
-      *,
-      items(item_name),
-      profiles(first_name, last_name),
-      stock_batches(batch_code)
-    `)
+    .from('stock_history_view')
+    .select('*')
     .order('created_at', { ascending: false })
     .limit(100);
 
@@ -248,68 +192,116 @@ export async function getStockMovementHistory(itemId?: string): Promise<StockTra
   }
 
   const { data, error } = await query;
-  if (error) throw error;
-  
-  return data.map(tx => ({
-    ...tx,
-    item_name: tx.items?.item_name,
-    user_name: tx.profiles ? `${tx.profiles.first_name} ${tx.profiles.last_name}` : 'Unknown',
-    batch_code: tx.stock_batches?.batch_code
+  if (error) {
+    console.error('getStockMovementHistory error:', error);
+    throw error;
+  }
+
+  return (data || []).map((m: any) => ({
+    id: m.movement_id,
+    item_id: m.item_id,
+    item_name: m.item_name,
+    user_id: m.actor_id,
+    user_name: m.actor_name || 'Staff User',
+    action_type: m.type === 'ADD' ? 'ADD' : m.type === 'REMOVE' ? 'REMOVE' : 'ADJUST',
+    quantity: Math.abs(Number(m.quantity_change || 0)),
+    previous_balance: Number(m.quantity_before || 0),
+    new_balance: Number(m.quantity_after || 0),
+    batch_id: m.batch_id,
+    batch_code: m.batch_id ? `BATCH-${m.batch_id.substring(0, 6).toUpperCase()}` : undefined,
+    reason: m.reason || 'Stock Movement',
+    created_at: m.created_at,
   })) as StockTransaction[];
 }
-export async function getItems(): Promise<InventoryItem[]> {
-  return getInventory();
-}
 
+/**
+ * Create a new master inventory item in inventory_items.
+ */
 export async function createItem(data: Omit<InventoryItem, 'id' | 'is_archived' | 'created_at' | 'updated_at' | 'current_qty'>): Promise<InventoryItem> {
   const { data: newItem, error } = await supabase
-    .from('items')
+    .from('inventory_items')
     .insert({
-      item_code: data.item_code,
-      item_name: data.item_name,
-      description: data.description,
       category_id: data.category_id,
-      inventory_type: data.inventory_type,
+      name: data.item_name,
+      description: data.description || '',
       unit: data.unit,
       unit_cost: data.unit_cost,
-      supplier_a: data.supplier_a,
-      supplier_b: data.supplier_b,
-      min_qty: data.min_qty,
-      image_path: data.image_path
+      supplier_a: data.supplier_a || null,
+      supplier_b: data.supplier_b || null,
+      min_quantity: data.min_qty,
+      is_active: true,
+      is_archived: false,
     })
     .select()
     .single();
 
-  if (error) throw error;
-  return newItem as InventoryItem;
+  if (error) {
+    console.error('createItem error:', error);
+    throw error;
+  }
+
+  return getItemById(newItem.id);
 }
 
+/**
+ * Update an existing inventory item in inventory_items.
+ */
 export async function updateItem(id: string, updates: Partial<Omit<InventoryItem, 'id'>>): Promise<InventoryItem> {
-  const { data: updated, error } = await supabase
-    .from('items')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
+  const mapped: any = {};
+  if (updates.item_name !== undefined) mapped.name = updates.item_name;
+  if (updates.description !== undefined) mapped.description = updates.description;
+  if (updates.category_id !== undefined) mapped.category_id = updates.category_id;
+  if (updates.unit !== undefined) mapped.unit = updates.unit;
+  if (updates.unit_cost !== undefined) mapped.unit_cost = updates.unit_cost;
+  if (updates.supplier_a !== undefined) mapped.supplier_a = updates.supplier_a;
+  if (updates.supplier_b !== undefined) mapped.supplier_b = updates.supplier_b;
+  if (updates.min_qty !== undefined) mapped.min_quantity = updates.min_qty;
+  if (updates.is_archived !== undefined) {
+    mapped.is_archived = updates.is_archived;
+    mapped.is_active = !updates.is_archived;
+  }
 
-  if (error) throw error;
-  return updated as InventoryItem;
-}
-
-export async function archiveItem(id: string, isArchived: boolean): Promise<void> {
   const { error } = await supabase
-    .from('items')
-    .update({ is_archived: isArchived })
+    .from('inventory_items')
+    .update(mapped)
     .eq('id', id);
 
-  if (error) throw error;
+  if (error) {
+    console.error('updateItem error:', error);
+    throw error;
+  }
+
+  return getItemById(id);
 }
 
-export async function getCategories() {
+/**
+ * Archive or unarchive an item.
+ */
+export async function archiveItem(id: string, isArchived: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('inventory_items')
+    .update({ is_archived: isArchived, is_active: !isArchived })
+    .eq('id', id);
+
+  if (error) {
+    console.error('archiveItem error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch all categories.
+ */
+export async function getCategories(): Promise<Category[]> {
   const { data, error } = await supabase
     .from('categories')
     .select('*')
     .order('name');
-  if (error) throw error;
-  return data;
+
+  if (error) {
+    console.error('getCategories error:', error);
+    throw error;
+  }
+
+  return data as Category[];
 }
