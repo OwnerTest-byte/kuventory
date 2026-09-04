@@ -140,7 +140,7 @@ export function ItemsCatalogPage() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900 uppercase">INVENTORY ITEMS</h1>
@@ -266,7 +266,7 @@ export function ItemsCatalogPage() {
                           {item.item_code}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-xs text-slate-500 max-w-[160px] truncate" title={item.description || ''}>
+                      <td className="px-5 py-3.5 text-xs text-slate-500 max-w-40 truncate" title={item.description || ''}>
                         {item.description || '—'}
                       </td>
                       <td className="px-5 py-3.5 text-xs text-slate-700">

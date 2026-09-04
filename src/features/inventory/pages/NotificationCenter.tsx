@@ -125,7 +125,7 @@ export function NotificationCenter() {
                     n.is_read ? "opacity-70 hover:bg-slate-50 dark:hover:bg-slate-800/40" : "bg-blue-50/40 dark:bg-blue-900/10 hover:bg-blue-50 dark:hover:bg-blue-900/20"
                   )}
                 >
-                  <div className="mt-0.5 flex-shrink-0">{getIcon(n.type)}</div>
+                  <div className="mt-0.5 shrink-0">{getIcon(n.type)}</div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <p className={cn("text-sm", n.is_read ? "text-slate-700 dark:text-slate-300" : "font-semibold text-slate-900 dark:text-white")}>

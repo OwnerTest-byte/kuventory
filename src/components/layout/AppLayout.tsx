@@ -12,12 +12,10 @@ import {
   History, 
   FileBarChart, 
   AlertTriangle, 
-  Archive, 
   Settings, 
   User as UserIcon,
   Search,
   Plus,
-  Clock,
   TrendingUp,
   Layers,
   ChevronDown
@@ -42,12 +40,10 @@ const coreNav = [
 ];
 
 const reportsNav = [
-  { name: 'Daily Reports', to: '/reports', icon: FileBarChart },
-  { name: 'Inventory Reports', to: '/reports/inventory', icon: FileText },
-  { name: 'Stock Movement', to: '/reports/movement', icon: TrendingUp },
-  { name: 'Low Stock', to: '/reports/low-stock', icon: AlertTriangle },
-  { name: 'Expiry / FEFO', to: '/reports/expiry', icon: Clock },
-  { name: 'Archived Reports', to: '/reports/archived', icon: Archive },
+  { name: 'Daily Reports', to: '/reports', icon: FileBarChart, end: true },
+  { name: 'Stock Valuation', to: '/reports/inventory', icon: FileText, end: true },
+  { name: 'Stock Movement', to: '/reports/movement', icon: TrendingUp, end: true },
+  { name: 'Low Stock Alerts', to: '/reports/low-stock', icon: AlertTriangle, end: true },
 ];
 
 function SidebarNavigation({ closeMobileMenu }: { closeMobileMenu?: () => void }) {
@@ -117,6 +113,7 @@ function SidebarNavigation({ closeMobileMenu }: { closeMobileMenu?: () => void }
               <NavLink
                 key={item.name}
                 to={item.to}
+                end={item.end}
                 onClick={closeMobileMenu}
                 className={({ isActive }) =>
                   cn(

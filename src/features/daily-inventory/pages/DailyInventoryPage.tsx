@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDailyInventory, useFinalizeDailyInventory } from '../hooks/useDailyInventory';
 import { InventorySheet } from '../components/InventorySheet';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,7 @@ import { Loader2, AlertTriangle, CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 
 export function DailyInventoryPage() {
+  const navigate = useNavigate();
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
   
@@ -20,14 +22,14 @@ export function DailyInventoryPage() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* Top Header matching mockup */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 uppercase">INVENTORY KIOSK AND BODEGA</h1>
           <div className="flex items-center text-sm text-slate-600 mt-2">
             <span className="font-semibold mr-2">Date:</span>
-            <div className="flex items-center border border-slate-200 rounded px-2 py-1 bg-white">
+            <div className="flex items-center border border-slate-200 rounded px-2 py-1 bg-white relative">
               <span className="mr-2">{format(new Date(date), 'MMM dd, yyyy')}</span>
               <CalendarIcon className="w-4 h-4 text-slate-400 cursor-pointer" />
               {/* Hidden native date picker to keep functionality */}
@@ -35,14 +37,24 @@ export function DailyInventoryPage() {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="absolute opacity-0 w-8 h-6 cursor-pointer"
+                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
               />
             </div>
           </div>
         </div>
         
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="border-slate-300 text-slate-700 bg-white font-semibold">
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              if (record?.id) {
+                navigate(`/reports/${record.id}`);
+              } else {
+                navigate('/reports');
+              }
+            }}
+            className="border-slate-300 text-slate-700 bg-white font-semibold hover:bg-slate-50"
+          >
             Preview Report
           </Button>
           
@@ -88,7 +100,7 @@ export function DailyInventoryPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg my-2">
-            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
             <p className="text-sm text-amber-900">
               This action cannot be undone. Review all counts before finalizing.
             </p>

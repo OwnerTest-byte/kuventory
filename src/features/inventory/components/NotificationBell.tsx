@@ -93,7 +93,7 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
       {isOpen && (
         <div 
           className={cn(
-            "absolute w-80 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl overflow-hidden z-[100] flex flex-col max-h-[70vh]",
+            "absolute w-80 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl overflow-hidden z-100 flex flex-col max-h-[70vh]",
             placement === 'bottom-right' ? "right-0 top-full mt-2" : "left-0 bottom-full mb-2"
           )}
         >
@@ -139,7 +139,7 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
                         : "bg-blue-50/50 hover:bg-blue-50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20"
                     )}
                   >
-                    <div className="mt-0.5 flex-shrink-0">
+                    <div className="mt-0.5 shrink-0">
                       {getIcon(notification.type)}
                     </div>
                     <div className="min-w-0 flex-1">

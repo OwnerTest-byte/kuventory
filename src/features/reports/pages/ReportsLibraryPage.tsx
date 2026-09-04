@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useReportsList } from '../api/reports';
 import { useQuery } from '@tanstack/react-query';
 import { getInventory, getStockMovementHistory } from '@/features/inventory/api';
@@ -14,7 +14,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 
 export function ReportsLibraryPage() {
-  const [activeTab, setActiveTab] = useState('daily-sheets');
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const activeTab = useMemo(() => {
+    if (location.pathname === '/reports/inventory') return 'valuation';
+    if (location.pathname === '/reports/movement') return 'movements';
+    if (location.pathname === '/reports/low-stock' || location.pathname === '/reports/expiry') return 'alerts';
+    return 'daily-sheets';
+  }, [location.pathname]);
+
+  const handleTabChange = (val: string) => {
+    if (val === 'valuation') navigate('/reports/inventory');
+    else if (val === 'movements') navigate('/reports/movement');
+    else if (val === 'alerts') navigate('/reports/low-stock');
+    else navigate('/reports');
+  };
 
   // Tab 1: Daily inventory sheets filters
   const [fromDate, setFromDate] = useState('');
@@ -120,8 +135,8 @@ export function ReportsLibraryPage() {
         </div>
       </header>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+      <Tabs value={activeTab} onValueChange={(val) => handleTabChange(val as string)} className="space-y-6">
+        <TabsList className="bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-xl flex flex-wrap gap-1.5 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
           <TabsTrigger value="daily-sheets" className="font-semibold text-xs sm:text-sm">
             Daily Inventory Sheets
           </TabsTrigger>
@@ -139,7 +154,7 @@ export function ReportsLibraryPage() {
         {/* TAB 1: DAILY INVENTORY WORKSHEETS */}
         <TabsContent value="daily-sheets" className="space-y-6">
           <div className="flex flex-wrap gap-4 items-end bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="space-y-1.5 flex-1 min-w-[180px]">
+            <div className="space-y-1.5 flex-1 min-w-45">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">From Date</label>
               <Input
                 type="date"
@@ -148,7 +163,7 @@ export function ReportsLibraryPage() {
                 className="bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700"
               />
             </div>
-            <div className="space-y-1.5 flex-1 min-w-[180px]">
+            <div className="space-y-1.5 flex-1 min-w-45">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">To Date</label>
               <Input
                 type="date"
@@ -445,7 +460,7 @@ export function ReportsLibraryPage() {
         {/* TAB 4: LOW STOCK & REPLENISHMENT */}
         <TabsContent value="alerts" className="space-y-6">
           <div className="bg-amber-50 dark:bg-amber-950/40 p-4 rounded-xl border border-amber-200 dark:border-amber-900 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
             <div>
               <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200">Reorder & Stock Replenishment Action List</h3>
               <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
