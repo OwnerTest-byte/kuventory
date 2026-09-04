@@ -112,7 +112,7 @@ export function AppLayout() {
             <Menu className="h-6 w-6 text-foreground" />
           </Button>
           <Link to="/inventory" className="flex items-center gap-3">
-            <img src="/logo-icon.png" alt="KUVENTORY Logo" className="h-8 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <img src="/pics/logo-icon.png" alt="KUVENTORY Logo" className="h-8 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             <span className="font-bold text-xl text-foreground tracking-tight hidden sm:block">KUVENTORY</span>
           </Link>
         </div>

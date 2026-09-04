@@ -24,7 +24,7 @@ export function LoginPage() {
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-center items-center bg-slate-950 text-white p-12 relative overflow-hidden">
         
         <div className="relative z-10 flex flex-col items-center gap-6">
-          <img src="/logo-transparent.png" alt="KUVENTORY Logo" className="h-48 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          <img src="/pics/logo-transparent.png" alt="KUVENTORY Logo" className="h-48 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           <div className="text-center">
             <h1 className="text-3xl font-bold tracking-widest text-slate-100">KUVENTORY</h1>
             <p className="text-lg text-slate-400 mt-2 font-light">Inventory Management System</p>
@@ -40,7 +40,7 @@ export function LoginPage() {
       <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 bg-background relative z-10">
         {/* Mobile Logo */}
         <div className="lg:hidden mb-8 flex flex-col items-center gap-2">
-          <img src="/logo-icon.png" alt="Logo" className="h-16 w-auto" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          <img src="/pics/logo-icon.png" alt="Logo" className="h-16 w-auto" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           <span className="font-bold text-2xl text-foreground tracking-tight">KUVENTORY</span>
         </div>
         
