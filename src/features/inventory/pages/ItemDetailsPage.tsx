@@ -409,10 +409,10 @@ export function ItemDetailsPage() {
             </Button>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500">
+            <div className="max-h-[420px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+              <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
+                <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 text-slate-500 shadow-xs">
+                  <tr>
                     <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Batch Code</th>
                     <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-center">Quantity</th>
                     <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Expiry Date</th>
@@ -510,10 +510,10 @@ export function ItemDetailsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500">
+            <div className="max-h-[420px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+              <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
+                <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 text-slate-500 shadow-xs">
+                  <tr>
                     <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Date / Time</th>
                     <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">User</th>
                     <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-center">Action</th>

@@ -183,11 +183,11 @@ export function ReportsLibraryPage() {
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-slate-50 dark:bg-slate-950">
+            <div className="max-h-[calc(100dvh-320px)] min-h-[300px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+              <Table className="border-collapse">
+                <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
                   <TableRow>
-                    <TableHead className="font-bold text-slate-700 dark:text-slate-300">Inventory Date</TableHead>
+                    <TableHead className="font-bold text-slate-700 dark:text-slate-300 sticky left-0 z-30 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Inventory Date</TableHead>
                     <TableHead className="font-bold text-slate-700 dark:text-slate-300">Status</TableHead>
                     <TableHead className="font-bold text-slate-700 dark:text-slate-300">Finalized By</TableHead>
                     <TableHead className="font-bold text-slate-700 dark:text-slate-300">Finalized At</TableHead>
@@ -207,8 +207,8 @@ export function ReportsLibraryPage() {
                     </TableRow>
                   ) : (
                     reports.map(report => (
-                      <TableRow key={report.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                        <TableCell className="font-semibold text-slate-900 dark:text-white">
+                      <TableRow key={report.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 group">
+                        <TableCell className="font-semibold text-slate-900 dark:text-white sticky left-0 z-10 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                           {format(new Date(report.inventory_date), 'MMMM dd, yyyy')}
                         </TableCell>
                         <TableCell>
@@ -301,35 +301,36 @@ export function ReportsLibraryPage() {
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-950">
-                <TableRow>
-                  <TableHead className="font-bold">Item</TableHead>
-                  <TableHead className="font-bold">Category</TableHead>
-                  <TableHead className="text-center font-bold">Unit</TableHead>
-                  <TableHead className="text-right font-bold">Unit Cost</TableHead>
-                  <TableHead className="text-center font-bold">Physical Stock</TableHead>
-                  <TableHead className="text-right font-bold">Total Value</TableHead>
-                  <TableHead className="text-center font-bold">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isInvLoading ? (
+            <div className="max-h-[calc(100dvh-340px)] min-h-[300px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+              <Table className="border-collapse">
+                <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-slate-500 font-medium">Loading valuation data...</TableCell>
+                    <TableHead className="font-bold sticky left-0 z-30 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item</TableHead>
+                    <TableHead className="font-bold">Category</TableHead>
+                    <TableHead className="text-center font-bold">Unit</TableHead>
+                    <TableHead className="text-right font-bold">Unit Cost</TableHead>
+                    <TableHead className="text-center font-bold">Physical Stock</TableHead>
+                    <TableHead className="text-right font-bold">Total Value</TableHead>
+                    <TableHead className="text-center font-bold">Status</TableHead>
                   </TableRow>
-                ) : filteredValuation.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-slate-500 font-medium">No items match your filter.</TableCell>
-                  </TableRow>
-                ) : (
-                  filteredValuation.map(item => {
-                    const itemValue = item.current_qty * item.unit_cost;
-                    const isOOS = item.current_qty <= 0;
-                    const isLow = !isOOS && item.current_qty <= item.min_qty;
-                    return (
-                      <TableRow key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                        <TableCell>
+                </TableHeader>
+                <TableBody>
+                  {isInvLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-slate-500 font-medium">Loading valuation data...</TableCell>
+                    </TableRow>
+                  ) : filteredValuation.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-slate-500 font-medium">No items match your filter.</TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredValuation.map(item => {
+                      const itemValue = item.current_qty * item.unit_cost;
+                      const isOOS = item.current_qty <= 0;
+                      const isLow = !isOOS && item.current_qty <= item.min_qty;
+                      return (
+                        <TableRow key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 group">
+                          <TableCell className="sticky left-0 z-10 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                           <div className="font-bold text-slate-900 dark:text-white">{item.item_name}</div>
                           <div className="text-xs text-slate-400 font-mono">{item.item_code}</div>
                         </TableCell>
@@ -363,6 +364,7 @@ export function ReportsLibraryPage() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </div>
         </TabsContent>
 
@@ -389,71 +391,73 @@ export function ReportsLibraryPage() {
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-950">
-                <TableRow>
-                  <TableHead className="font-bold">Timestamp</TableHead>
-                  <TableHead className="font-bold">Item</TableHead>
-                  <TableHead className="font-bold text-center">Action</TableHead>
-                  <TableHead className="text-center font-bold">Qty Change</TableHead>
-                  <TableHead className="text-center font-bold">Balance (Before → After)</TableHead>
-                  <TableHead className="font-bold">Performed By</TableHead>
-                  <TableHead className="font-bold">Reason / Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isMovementsLoading ? (
+            <div className="max-h-[calc(100dvh-320px)] min-h-[300px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+              <Table className="border-collapse">
+                <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-slate-500 font-medium">Loading movements...</TableCell>
+                    <TableHead className="font-bold sticky left-0 z-30 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 min-w-[160px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Timestamp</TableHead>
+                    <TableHead className="font-bold">Item</TableHead>
+                    <TableHead className="font-bold text-center">Action</TableHead>
+                    <TableHead className="text-center font-bold">Qty Change</TableHead>
+                    <TableHead className="text-center font-bold">Balance (Before → After)</TableHead>
+                    <TableHead className="font-bold">Performed By</TableHead>
+                    <TableHead className="font-bold">Reason / Notes</TableHead>
                   </TableRow>
-                ) : filteredMovements.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-slate-500 font-medium">No stock transactions found for this selection.</TableCell>
-                  </TableRow>
-                ) : (
-                  filteredMovements.map(m => {
-                    const isAdd = m.action_type === 'ADD';
-                    const isRemove = m.action_type === 'REMOVE';
-                    return (
-                      <TableRow key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 text-xs">
-                        <TableCell className="text-slate-500 font-mono">
-                          {format(new Date(m.created_at), 'MMM dd, yyyy h:mm a')}
-                        </TableCell>
-                        <TableCell className="font-bold text-slate-900 dark:text-white">
-                          {m.item_name}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded font-bold ${
-                            isAdd 
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
-                              : isRemove 
-                              ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' 
-                              : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
-                          }`}>
-                            {isAdd && <ArrowDownRight className="w-3 h-3 mr-1" />}
-                            {isRemove && <ArrowUpRight className="w-3 h-3 mr-1" />}
-                            {!isAdd && !isRemove && <RefreshCw className="w-3 h-3 mr-1" />}
-                            {m.action_type}
-                          </span>
-                        </TableCell>
-                        <TableCell className={`text-center font-black ${isAdd ? 'text-emerald-600' : isRemove ? 'text-rose-600' : 'text-blue-600'}`}>
-                          {isAdd ? `+${m.quantity}` : isRemove ? `-${m.quantity}` : `${m.quantity}`}
-                        </TableCell>
-                        <TableCell className="text-center text-slate-600 font-mono">
-                          {m.previous_balance} → <span className="font-bold text-slate-900 dark:text-white">{m.new_balance}</span>
-                        </TableCell>
-                        <TableCell className="font-medium text-slate-700 dark:text-slate-300">
-                          {m.user_name || 'Staff User'}
-                        </TableCell>
-                        <TableCell className="text-slate-500 max-w-xs truncate">
-                          {m.reason}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {isMovementsLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-slate-500 font-medium">Loading movements...</TableCell>
+                    </TableRow>
+                  ) : filteredMovements.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-slate-500 font-medium">No stock transactions found for this selection.</TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredMovements.map(m => {
+                      const isAdd = m.action_type === 'ADD';
+                      const isRemove = m.action_type === 'REMOVE';
+                      return (
+                        <TableRow key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 text-xs group">
+                          <TableCell className="text-slate-500 font-mono sticky left-0 z-10 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 min-w-[160px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                            {format(new Date(m.created_at), 'MMM dd, yyyy h:mm a')}
+                          </TableCell>
+                          <TableCell className="font-bold text-slate-900 dark:text-white">
+                            {m.item_name}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded font-bold ${
+                              isAdd 
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
+                                : isRemove 
+                                ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' 
+                                : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                            }`}>
+                              {isAdd && <ArrowDownRight className="w-3 h-3 mr-1" />}
+                              {isRemove && <ArrowUpRight className="w-3 h-3 mr-1" />}
+                              {!isAdd && !isRemove && <RefreshCw className="w-3 h-3 mr-1" />}
+                              {m.action_type}
+                            </span>
+                          </TableCell>
+                          <TableCell className={`text-center font-black ${isAdd ? 'text-emerald-600' : isRemove ? 'text-rose-600' : 'text-blue-600'}`}>
+                            {isAdd ? `+${m.quantity}` : isRemove ? `-${m.quantity}` : `${m.quantity}`}
+                          </TableCell>
+                          <TableCell className="text-center text-slate-600 font-mono">
+                            {m.previous_balance} → <span className="font-bold text-slate-900 dark:text-white">{m.new_balance}</span>
+                          </TableCell>
+                          <TableCell className="font-medium text-slate-700 dark:text-slate-300">
+                            {m.user_name || 'Staff User'}
+                          </TableCell>
+                          <TableCell className="text-slate-500 max-w-xs truncate">
+                            {m.reason}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </TabsContent>
 
@@ -470,66 +474,68 @@ export function ReportsLibraryPage() {
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-950">
-                <TableRow>
-                  <TableHead className="font-bold">Item Name</TableHead>
-                  <TableHead className="font-bold">Category</TableHead>
-                  <TableHead className="text-center font-bold">Current Stock</TableHead>
-                  <TableHead className="text-center font-bold">Min Threshold</TableHead>
-                  <TableHead className="text-center font-bold">Deficit</TableHead>
-                  <TableHead className="font-bold">Supplier A</TableHead>
-                  <TableHead className="text-right font-bold">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lowStockItems.length === 0 ? (
+            <div className="max-h-[calc(100dvh-320px)] min-h-[300px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+              <Table className="border-collapse">
+                <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-emerald-600 font-bold">
-                      ✓ All catalog items are sufficiently stocked above minimum reorder points.
-                    </TableCell>
+                    <TableHead className="font-bold sticky left-0 z-30 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item Name</TableHead>
+                    <TableHead className="font-bold">Category</TableHead>
+                    <TableHead className="text-center font-bold">Current Stock</TableHead>
+                    <TableHead className="text-center font-bold">Min Threshold</TableHead>
+                    <TableHead className="text-center font-bold">Deficit</TableHead>
+                    <TableHead className="font-bold">Supplier A</TableHead>
+                    <TableHead className="text-right font-bold">Action</TableHead>
                   </TableRow>
-                ) : (
-                  lowStockItems.map(item => {
-                    const deficit = Math.max(0, item.min_qty - item.current_qty);
-                    return (
-                      <TableRow key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                        <TableCell className="font-bold text-slate-900 dark:text-white">
-                          <Link to={`/items/${item.id}`} className="hover:text-blue-600">
-                            {item.item_name}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                            {item.category_name}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center font-black text-rose-600">
-                          {item.current_qty} {item.unit}
-                        </TableCell>
-                        <TableCell className="text-center text-slate-600 font-semibold">
-                          {item.min_qty} {item.unit}
-                        </TableCell>
-                        <TableCell className="text-center font-black text-amber-700 bg-amber-50 dark:bg-amber-950/30">
-                          -{deficit} {item.unit}
-                        </TableCell>
-                        <TableCell className="text-slate-600 text-xs">
-                          {item.supplier_a || 'Primary Supplier'}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Link 
-                            to={`/items/${item.id}`}
-                            className="inline-flex items-center justify-center rounded-md bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3 py-1.5 shadow-sm transition-colors"
-                          >
-                            Restock Item
-                          </Link>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {lowStockItems.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-emerald-600 font-bold">
+                        ✓ All catalog items are sufficiently stocked above minimum reorder points.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    lowStockItems.map(item => {
+                      const deficit = Math.max(0, item.min_qty - item.current_qty);
+                      return (
+                        <TableRow key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 group">
+                          <TableCell className="font-bold text-slate-900 dark:text-white sticky left-0 z-10 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                            <Link to={`/items/${item.id}`} className="hover:text-blue-600">
+                              {item.item_name}
+                            </Link>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                              {item.category_name}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center font-black text-rose-600">
+                            {item.current_qty} {item.unit}
+                          </TableCell>
+                          <TableCell className="text-center text-slate-600 font-semibold">
+                            {item.min_qty} {item.unit}
+                          </TableCell>
+                          <TableCell className="text-center font-black text-amber-700 bg-amber-50 dark:bg-amber-950/30">
+                            -{deficit} {item.unit}
+                          </TableCell>
+                          <TableCell className="text-slate-600 text-xs">
+                            {item.supplier_a || 'Primary Supplier'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Link 
+                              to={`/items/${item.id}`}
+                              className="inline-flex items-center justify-center rounded-md bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3 py-1.5 shadow-sm transition-colors"
+                            >
+                              Restock Item
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </TabsContent>
       </Tabs>

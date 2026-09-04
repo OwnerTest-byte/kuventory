@@ -91,35 +91,37 @@ export function ReportViewPage() {
     return (
       <div className="mb-8">
         <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900 mb-2">{title}</h3>
-        <table className="w-full text-left text-xs sm:text-sm border-collapse border border-slate-300">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-300">
-              <th className="py-2 px-3 font-bold border-r border-slate-300">ITEM</th>
-              <th className="py-2 px-3 font-bold text-center border-r border-slate-300">BEG</th>
-              <th className="py-2 px-3 font-bold text-center border-r border-slate-300">ADD</th>
-              <th className="py-2 px-3 font-bold text-center border-r border-slate-300">TOTAL STOCK</th>
-              <th className="py-2 px-3 font-bold text-center border-r border-slate-300">SALES AM</th>
-              <th className="py-2 px-3 font-bold text-center border-r border-slate-300">SALES PM</th>
-              <th className="py-2 px-3 font-bold text-center">ENDING</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tableItems.map((item, idx) => {
-              const totalStock = (item.beginning_qty || 0) + (item.add_qty || 0);
-              return (
-                <tr key={idx} className="border-b border-slate-200">
-                  <td className="py-2 px-3 border-r border-slate-200">{item.items?.item_name}</td>
-                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.beginning_qty}</td>
-                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.add_qty}</td>
-                  <td className="py-2 px-3 text-center border-r border-slate-200 font-medium">{totalStock}</td>
-                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.sales_am}</td>
-                  <td className="py-2 px-3 text-center border-r border-slate-200">{item.sales_pm}</td>
-                  <td className="py-2 px-3 text-center font-medium">{item.ending_qty}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs sm:text-sm border-collapse border border-slate-300">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-300">
+                <th className="py-2 px-3 font-bold border-r border-slate-300">ITEM</th>
+                <th className="py-2 px-3 font-bold text-center border-r border-slate-300">BEG</th>
+                <th className="py-2 px-3 font-bold text-center border-r border-slate-300">ADD</th>
+                <th className="py-2 px-3 font-bold text-center border-r border-slate-300">TOTAL STOCK</th>
+                <th className="py-2 px-3 font-bold text-center border-r border-slate-300">SALES AM</th>
+                <th className="py-2 px-3 font-bold text-center border-r border-slate-300">SALES PM</th>
+                <th className="py-2 px-3 font-bold text-center">ENDING</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tableItems.map((item, idx) => {
+                const totalStock = (item.beginning_qty || 0) + (item.add_qty || 0);
+                return (
+                  <tr key={idx} className="border-b border-slate-200">
+                    <td className="py-2 px-3 border-r border-slate-200">{item.items?.item_name}</td>
+                    <td className="py-2 px-3 text-center border-r border-slate-200">{item.beginning_qty}</td>
+                    <td className="py-2 px-3 text-center border-r border-slate-200">{item.add_qty}</td>
+                    <td className="py-2 px-3 text-center border-r border-slate-200 font-medium">{totalStock}</td>
+                    <td className="py-2 px-3 text-center border-r border-slate-200">{item.sales_am}</td>
+                    <td className="py-2 px-3 text-center border-r border-slate-200">{item.sales_pm}</td>
+                    <td className="py-2 px-3 text-center font-medium">{item.ending_qty}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   };

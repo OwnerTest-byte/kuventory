@@ -555,7 +555,7 @@ export function InventoryLandingPage() {
                 Recent Activity Audit Stream
               </CardTitle>
             </div>
-            <Link to="/history" className="text-xs font-semibold text-blue-600 hover:underline">
+            <Link to="/items?tab=history" className="text-xs font-semibold text-blue-600 hover:underline">
               View All History
             </Link>
           </CardHeader>
@@ -637,7 +637,7 @@ export function InventoryLandingPage() {
                 FEFO Priority Queue
               </CardTitle>
             </div>
-            <Link to="/stock" className="text-xs font-semibold text-blue-600 hover:underline">
+            <Link to="/items?tab=batches" className="text-xs font-semibold text-blue-600 hover:underline">
               View All Batches
             </Link>
           </CardHeader>
