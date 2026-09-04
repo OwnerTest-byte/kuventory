@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { X } from 'lucide-react';
 import type { InventoryItem } from '../types';
+import { useSuppliers } from '../api/suppliers';
 
 interface Props {
   item?: InventoryItem; // If undefined, it's a create action
@@ -38,6 +39,8 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
       return data;
     }
   });
+
+  const { data: registeredSuppliers } = useSuppliers();
 
   // Default to first category if not set
   useEffect(() => {
@@ -201,20 +204,30 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700">Primary Supplier</label>
                 <Input 
+                  list="registered-suppliers"
                   value={formData.supplier_a}
                   onChange={e => setFormData({ ...formData, supplier_a: e.target.value })}
-                  placeholder="e.g. Monterey"
+                  placeholder="e.g. Monterey Meats"
                 />
               </div>
               
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700">Secondary Supplier</label>
                 <Input 
+                  list="registered-suppliers"
                   value={formData.supplier_b}
                   onChange={e => setFormData({ ...formData, supplier_b: e.target.value })}
-                  placeholder="Optional"
+                  placeholder="Optional alternate vendor"
                 />
               </div>
+
+              <datalist id="registered-suppliers">
+                {registeredSuppliers?.map(sup => (
+                  <option key={sup.id} value={sup.name}>
+                    {sup.contact_person ? `(${sup.contact_person})` : ''} {sup.phone ? `• ${sup.phone}` : ''}
+                  </option>
+                ))}
+              </datalist>
             </div>
           </form>
         </div>

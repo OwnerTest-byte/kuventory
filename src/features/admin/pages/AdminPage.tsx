@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { 
   Users, Shield, Loader2, Plus, Trash2, Store, Bell, Activity, 
-  Info, CheckCircle2, AlertCircle, Save
+  Info, CheckCircle2, AlertCircle, Save, Database, KeyRound, RefreshCw, Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -12,6 +12,12 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
+import { 
+  useSystemSetting, 
+  useUpdateSystemSetting, 
+  type EstablishmentSettings, 
+  type NotificationSettings 
+} from '@/features/admin/api/settings';
 
 interface ProfileRow {
   id: string;
@@ -23,10 +29,21 @@ interface ProfileRow {
 export function AdminPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('restaurant');
+  const [activitySubTab, setActivitySubTab] = useState<'stock' | 'database' | 'logins'>('stock');
 
-  // Restaurant Info state with localStorage persistence
-  const [restaurantInfo, setRestaurantInfo] = useState(() => {
-    const saved = localStorage.getItem('kuventory_restaurant_info');
+  // 1. Establishment Settings from PostgreSQL system_settings table
+  const { data: dbEst } = useSystemSetting<EstablishmentSettings>('establishment', {
+    name: 'KUVENTORY KIOSK & BODEGA',
+    branch: 'Central Bodega & Kiosk Operations',
+    address: 'Commercial Boulevard, Metro Manila, Philippines',
+    phone: '+63 (02) 8921-4567',
+    email: 'operations@kuventory.com',
+    hours: '10:00 AM – 11:00 PM Daily',
+    currency: 'PHP (₱)',
+  });
+
+  const [restaurantInfo, setRestaurantInfo] = useState<EstablishmentSettings>(() => {
+    const saved = localStorage.getItem('kuventory_setting_establishment');
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
@@ -40,18 +57,48 @@ export function AdminPage() {
       currency: 'PHP (₱)',
     };
   });
+
+  useEffect(() => {
+    if (dbEst) {
+      setRestaurantInfo({
+        name: dbEst.name || 'KUVENTORY KIOSK & BODEGA',
+        branch: dbEst.branch || 'Central Bodega & Kiosk Operations',
+        address: dbEst.address || '',
+        phone: dbEst.phone || dbEst.contact_number || '',
+        email: dbEst.email || '',
+        hours: dbEst.hours || dbEst.operating_hours || '',
+        currency: dbEst.currency || 'PHP (₱)',
+        tax_rate: dbEst.tax_rate ?? 12,
+        receipt_footer: dbEst.receipt_footer || ''
+      });
+    }
+  }, [dbEst]);
+
+  const updateEstMutation = useUpdateSystemSetting<EstablishmentSettings>('establishment');
   const [savedNotice, setSavedNotice] = useState(false);
 
-  const handleSaveRestaurant = (e: React.FormEvent) => {
+  const handleSaveRestaurant = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('kuventory_restaurant_info', JSON.stringify(restaurantInfo));
-    setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 3000);
+    try {
+      await updateEstMutation.mutateAsync(restaurantInfo);
+      setSavedNotice(true);
+      setTimeout(() => setSavedNotice(false), 3000);
+    } catch (err) {
+      console.error('Save establishment error:', err);
+    }
   };
 
-  // Notification Preferences State with localStorage persistence
-  const [notifPrefs, setNotifPrefs] = useState(() => {
-    const saved = localStorage.getItem('kuventory_notif_prefs');
+  // 2. Notification & Alert Policies from PostgreSQL system_settings table
+  const { data: dbNotifs } = useSystemSetting<NotificationSettings>('notifications', {
+    lowStockThreshold: 20,
+    expiryNoticeDays: 14,
+    emailAlerts: true,
+    soundAlerts: false,
+    fefoAutoAllocation: true,
+  });
+
+  const [notifPrefs, setNotifPrefs] = useState<NotificationSettings>(() => {
+    const saved = localStorage.getItem('kuventory_setting_notifications');
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
@@ -63,13 +110,33 @@ export function AdminPage() {
       fefoAutoAllocation: true,
     };
   });
+
+  useEffect(() => {
+    if (dbNotifs) {
+      setNotifPrefs({
+        lowStockThreshold: dbNotifs.lowStockThreshold ?? dbNotifs.low_stock_threshold ?? 20,
+        expiryNoticeDays: dbNotifs.expiryNoticeDays ?? dbNotifs.expiry_warning_days ?? 14,
+        emailAlerts: dbNotifs.emailAlerts ?? dbNotifs.email_alerts ?? true,
+        soundAlerts: dbNotifs.soundAlerts ?? false,
+        fefoAutoAllocation: dbNotifs.fefoAutoAllocation ?? true,
+        autoDailyReminder: dbNotifs.autoDailyReminder ?? dbNotifs.auto_daily_reminder ?? true,
+        sms_alerts: dbNotifs.sms_alerts ?? false,
+      });
+    }
+  }, [dbNotifs]);
+
+  const updateNotifsMutation = useUpdateSystemSetting<NotificationSettings>('notifications');
   const [savedNotifNotice, setSavedNotifNotice] = useState(false);
 
-  const handleSaveNotif = (e: React.FormEvent) => {
+  const handleSaveNotif = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('kuventory_notif_prefs', JSON.stringify(notifPrefs));
-    setSavedNotifNotice(true);
-    setTimeout(() => setSavedNotifNotice(false), 3000);
+    try {
+      await updateNotifsMutation.mutateAsync(notifPrefs);
+      setSavedNotifNotice(true);
+      setTimeout(() => setSavedNotifNotice(false), 3000);
+    } catch (err) {
+      console.error('Save notifications error:', err);
+    }
   };
 
   // User Management State
@@ -142,14 +209,42 @@ export function AdminPage() {
     }
   });
 
-  // System Activity Log
-  const { data: activityMovements = [], isLoading: isLoadingActivities } = useQuery({
+  // 1. Stock Movements Audit
+  const { data: activityMovements = [], isLoading: isLoadingActivities, refetch: refetchMovements } = useQuery({
     queryKey: ['admin-activity-logs'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stock_history_view')
         .select('*')
         .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) return [];
+      return data || [];
+    }
+  });
+
+  // 2. Database Entity Mutations (audit_logs)
+  const { data: auditLogs = [], isLoading: isLoadingAuditLogs, refetch: refetchAudits } = useQuery({
+    queryKey: ['admin-audit-logs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) return [];
+      return data || [];
+    }
+  });
+
+  // 3. Staff Access & Security Logins (visitor_logs)
+  const { data: visitorLogs = [], isLoading: isLoadingVisitorLogs, refetch: refetchVisitors } = useQuery({
+    queryKey: ['admin-visitor-logs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('visitor_logs')
+        .select('*')
+        .order('visited_at', { ascending: false })
         .limit(50);
       if (error) return [];
       return data || [];
@@ -469,73 +564,258 @@ export function AdminPage() {
           </div>
         </TabsContent>
 
-        {/* TAB 4: ACTIVITY AUDIT TRAIL */}
+        {/* TAB 4: MULTI-LAYER ACTIVITY AUDIT TRAIL */}
         <TabsContent value="activity" className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Security & Stock Action Audit Feed</h3>
-                <p className="text-xs text-slate-500">Real-time immutable log of inventory modifications and system events</p>
-              </div>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600">
-                {activityMovements.length} logged actions
-              </span>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Activity className="w-5 h-5 text-blue-600" />
+                Live System & Security Audit Center
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Multi-layer audit tracking of inventory stock movements, database mutations, and staff logins.
+              </p>
             </div>
+            
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setActivitySubTab('stock')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activitySubTab === 'stock'
+                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                Stock Movements ({activityMovements.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActivitySubTab('database')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activitySubTab === 'database'
+                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                <Database className="w-3.5 h-3.5" />
+                Database Mutations ({auditLogs.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActivitySubTab('logins')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activitySubTab === 'logins'
+                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                Staff Logins ({visitorLogs.length})
+              </button>
+            </div>
+          </div>
 
-            <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-950">
-                <TableRow>
-                  <TableHead className="font-bold">Timestamp</TableHead>
-                  <TableHead className="font-bold">Actor</TableHead>
-                  <TableHead className="font-bold">Action Type</TableHead>
-                  <TableHead className="font-bold">Target Item</TableHead>
-                  <TableHead className="font-bold text-center">Qty / Delta</TableHead>
-                  <TableHead className="font-bold">Reason / Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoadingActivities ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-slate-500 font-medium">Loading audit events...</TableCell>
-                  </TableRow>
-                ) : activityMovements.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-slate-500 font-medium">No activity logged yet.</TableCell>
-                  </TableRow>
-                ) : (
-                  activityMovements.map((act: any) => (
-                    <TableRow key={act.movement_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 text-xs">
-                      <TableCell className="font-mono text-slate-500">
-                        {format(new Date(act.created_at), 'MMM dd, yyyy h:mm:ss a')}
-                      </TableCell>
-                      <TableCell className="font-bold text-slate-800 dark:text-slate-200">
-                        {act.actor_name || 'System / Admin'}
-                      </TableCell>
-                      <TableCell>
-                        <span className={`inline-flex px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[10px] ${
-                          act.type === 'ADD' 
-                            ? 'bg-emerald-100 text-emerald-800' 
-                            : act.type === 'REMOVE' 
-                            ? 'bg-rose-100 text-rose-800' 
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {act.type}
-                        </span>
-                      </TableCell>
-                      <TableCell className="font-semibold text-slate-900 dark:text-white">
-                        {act.item_name}
-                      </TableCell>
-                      <TableCell className="text-center font-bold font-mono">
-                        {act.quantity_change > 0 ? `+${act.quantity_change}` : act.quantity_change}
-                      </TableCell>
-                      <TableCell className="text-slate-500 max-w-xs truncate">
-                        {act.reason}
-                      </TableCell>
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            {activitySubTab === 'stock' && (
+              <>
+                <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/40">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Physical Inventory Stock Actions</h3>
+                    <p className="text-xs text-slate-500">Atomic inventory adjustments, usage, deductions, and receiving movements</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => refetchMovements()} className="text-xs font-bold text-slate-600">
+                    <RefreshCw className="w-3.5 h-3.5 mr-1" /> Refresh
+                  </Button>
+                </div>
+
+                <Table>
+                  <TableHeader className="bg-slate-50 dark:bg-slate-950">
+                    <TableRow>
+                      <TableHead className="font-bold">Timestamp</TableHead>
+                      <TableHead className="font-bold">Actor</TableHead>
+                      <TableHead className="font-bold">Action Type</TableHead>
+                      <TableHead className="font-bold">Target Item</TableHead>
+                      <TableHead className="font-bold text-center">Qty / Delta</TableHead>
+                      <TableHead className="font-bold">Reason / Notes</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoadingActivities ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-12 text-slate-500 font-medium">
+                          <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
+                          Loading stock movement events...
+                        </TableCell>
+                      </TableRow>
+                    ) : activityMovements.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-12 text-slate-500 font-medium">No activity logged yet.</TableCell>
+                      </TableRow>
+                    ) : (
+                      activityMovements.map((act: any) => (
+                        <TableRow key={act.movement_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 text-xs">
+                          <TableCell className="font-mono text-slate-500">
+                            {format(new Date(act.created_at), 'MMM dd, yyyy h:mm:ss a')}
+                          </TableCell>
+                          <TableCell className="font-bold text-slate-800 dark:text-slate-200">
+                            {act.actor_name || 'System / Admin'}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[10px] ${
+                              act.type === 'ADD' 
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
+                                : act.type === 'REMOVE' 
+                                ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' 
+                                : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                            }`}>
+                              {act.type}
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-semibold text-slate-900 dark:text-white">
+                            {act.item_name}
+                          </TableCell>
+                          <TableCell className="text-center font-bold font-mono">
+                            {act.quantity_change > 0 ? `+${act.quantity_change}` : act.quantity_change}
+                          </TableCell>
+                          <TableCell className="text-slate-500 max-w-xs truncate">
+                            {act.reason || '—'}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </>
+            )}
+
+            {activitySubTab === 'database' && (
+              <>
+                <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/40">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Database Mutation Audit Stream</h3>
+                    <p className="text-xs text-slate-500">PostgreSQL row-level triggers recording INSERT, UPDATE, and DELETE operations</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => refetchAudits()} className="text-xs font-bold text-slate-600">
+                    <RefreshCw className="w-3.5 h-3.5 mr-1" /> Refresh
+                  </Button>
+                </div>
+
+                <Table>
+                  <TableHeader className="bg-slate-50 dark:bg-slate-950">
+                    <TableRow>
+                      <TableHead className="font-bold">Timestamp</TableHead>
+                      <TableHead className="font-bold">Mutation</TableHead>
+                      <TableHead className="font-bold">Target Table</TableHead>
+                      <TableHead className="font-bold">Record ID</TableHead>
+                      <TableHead className="font-bold">Audit Details</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoadingAuditLogs ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-12 text-slate-500 font-medium">
+                          <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
+                          Loading database audit logs...
+                        </TableCell>
+                      </TableRow>
+                    ) : auditLogs.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-12 text-slate-500 font-medium">No database mutations recorded.</TableCell>
+                      </TableRow>
+                    ) : (
+                      auditLogs.map((log: any) => (
+                        <TableRow key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 text-xs">
+                          <TableCell className="font-mono text-slate-500">
+                            {format(new Date(log.created_at), 'MMM dd, yyyy h:mm:ss a')}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[10px] ${
+                              log.action === 'INSERT'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                : log.action === 'DELETE'
+                                ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                                : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                            }`}>
+                              {log.action}
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                            public.{log.target_table}
+                          </TableCell>
+                          <TableCell className="font-mono text-slate-500 text-[11px]">
+                            {log.target_id ? `${String(log.target_id).substring(0, 13)}...` : '—'}
+                          </TableCell>
+                          <TableCell className="text-slate-600 dark:text-slate-400 max-w-sm truncate">
+                            {log.reason || (log.new_data ? JSON.stringify(log.new_data).substring(0, 80) + '...' : 'System Trigger')}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </>
+            )}
+
+            {activitySubTab === 'logins' && (
+              <>
+                <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/40">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Staff Session & Security Logins</h3>
+                    <p className="text-xs text-slate-500">Authenticated access events logged from web portal sessions</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => refetchVisitors()} className="text-xs font-bold text-slate-600">
+                    <RefreshCw className="w-3.5 h-3.5 mr-1" /> Refresh
+                  </Button>
+                </div>
+
+                <Table>
+                  <TableHeader className="bg-slate-50 dark:bg-slate-950">
+                    <TableRow>
+                      <TableHead className="font-bold">Login Timestamp</TableHead>
+                      <TableHead className="font-bold">Staff User Email</TableHead>
+                      <TableHead className="font-bold">Auth User ID</TableHead>
+                      <TableHead className="font-bold text-right">Authentication Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoadingVisitorLogs ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-12 text-slate-500 font-medium">
+                          <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
+                          Loading access logs...
+                        </TableCell>
+                      </TableRow>
+                    ) : visitorLogs.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-12 text-slate-500 font-medium">No visitor logs found.</TableCell>
+                      </TableRow>
+                    ) : (
+                      visitorLogs.map((log: any) => (
+                        <TableRow key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 text-xs">
+                          <TableCell className="font-mono text-slate-500">
+                            {format(new Date(log.visited_at), 'MMM dd, yyyy h:mm:ss a')}
+                          </TableCell>
+                          <TableCell className="font-bold text-slate-900 dark:text-white">
+                            {log.user_email}
+                          </TableCell>
+                          <TableCell className="font-mono text-slate-500 text-[11px]">
+                            {log.user_id ? `${String(log.user_id).substring(0, 13)}...` : 'Anonymous'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              VERIFIED ACTIVE SESSION
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </>
+            )}
           </div>
         </TabsContent>
 

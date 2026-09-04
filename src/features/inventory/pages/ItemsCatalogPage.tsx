@@ -17,13 +17,15 @@ import {
   Package, 
   Layers, 
   History, 
-  Tags 
+  Tags,
+  Building2 
 } from 'lucide-react';
 import { ItemFormModal } from '../components/ItemFormModal';
 import { StockUpdateModal } from '../components/StockUpdateModal';
 import { StockBatchesPage } from './StockBatchesPage';
 import { StockHistoryPage } from './StockHistoryPage';
 import { CategoriesPage } from '@/features/categories/pages/CategoriesPage';
+import { SuppliersDirectoryTab } from '../components/SuppliersDirectoryTab';
 import { cn } from '@/lib/utils';
 import type { InventoryItem, InventoryStock } from '../types';
 
@@ -234,6 +236,19 @@ export function ItemsCatalogPage() {
         </button>
         <button
           type="button"
+          onClick={() => setSearchParams({ tab: 'suppliers' })}
+          className={cn(
+            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
+            currentTab === 'suppliers'
+              ? "bg-white text-blue-700 shadow-xs"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+          )}
+        >
+          <Building2 className="w-3.5 h-3.5" />
+          Suppliers
+        </button>
+        <button
+          type="button"
           onClick={() => setSearchParams({ tab: 'categories' })}
           className={cn(
             "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
@@ -250,6 +265,7 @@ export function ItemsCatalogPage() {
       {/* Sub-view Content based on Ribbon Tab */}
       {currentTab === 'batches' && <StockBatchesPage embedded />}
       {currentTab === 'history' && <StockHistoryPage embedded />}
+      {currentTab === 'suppliers' && <SuppliersDirectoryTab />}
       {currentTab === 'categories' && <CategoriesPage embedded />}
 
       {currentTab === 'catalog' && (
