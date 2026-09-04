@@ -122,7 +122,7 @@ export function ReportViewPage() {
           <div>
             <p className="mb-8 font-bold">FINALIZED BY:</p>
             <div className="border-b border-slate-800 w-3/4 mb-1"></div>
-            <p className="text-slate-600">{(report as any).users?.full_name || 'Name & Signature'}</p>
+            <p className="text-slate-600">{(report as any).profiles ? `${(report as any).profiles.first_name} ${(report as any).profiles.last_name}` : 'Name & Signature'}</p>
             <p className="text-slate-500 text-xs mt-1">
               At: {report.finalized_at ? format(new Date(report.finalized_at), 'MMM dd, yyyy h:mm a') : '-'}
             </p>

@@ -45,8 +45,8 @@ export function LoginForm() {
   return (
     <div className="w-full max-w-sm">
       <div className="text-center space-y-2 mb-8">
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900">Welcome Back!</h2>
-        <p className="text-slate-500">
+        <h2 className="text-3xl font-bold tracking-tight text-foreground">Welcome Back!</h2>
+        <p className="text-muted-foreground">
           Sign in to your account
         </p>
       </div>
@@ -98,17 +98,17 @@ export function LoginForm() {
 
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center space-x-2">
-            <input type="checkbox" id="remember" className="rounded border-slate-300 text-blue-600 focus:ring-blue-600 h-4 w-4" />
-            <label htmlFor="remember" className="text-slate-600 font-medium">Remember me</label>
+            <input type="checkbox" id="remember" className="rounded border-input text-primary focus:ring-primary h-4 w-4" />
+            <label htmlFor="remember" className="text-muted-foreground font-medium">Remember me</label>
           </div>
-          <Link to="#" className="font-semibold text-blue-600 hover:text-blue-500">
+          <Link to="#" className="font-semibold text-primary hover:text-primary/80">
             Forgot password?
           </Link>
         </div>
 
         <Button
           type="submit"
-          className="w-full h-11 text-base font-semibold bg-blue-600 hover:bg-blue-700"
+          className="w-full h-11 text-base font-semibold"
           disabled={isLoading}
         >
           {isLoading ? "Signing in..." : "Sign In"}

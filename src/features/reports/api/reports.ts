@@ -19,8 +19,9 @@ export function useReportsList(filters: ReportsFilter) {
           inventory_date,
           status,
           finalized_at,
-          users!daily_inventory_sessions_finalized_by_fkey (
-            full_name
+          profiles!daily_inventory_sessions_finalized_by_fkey (
+            first_name,
+            last_name
           )
         `, { count: 'exact' })
         .eq('status', 'FINALIZED');
@@ -46,7 +47,7 @@ export function useReportsList(filters: ReportsFilter) {
       return { 
         data: data.map((d: any) => ({
           ...d,
-          finalized_by_name: d.users?.full_name
+          finalized_by_name: d.profiles ? `${d.profiles.first_name} ${d.profiles.last_name}` : 'Unknown'
         })), 
         count: count || 0 
       };

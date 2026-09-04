@@ -149,7 +149,7 @@ export async function getStockMovementHistory(itemId?: string): Promise<StockTra
     .select(`
       *,
       items(item_name),
-      users(full_name),
+      profiles(first_name, last_name),
       stock_batches(batch_code)
     `)
     .order('created_at', { ascending: false })
@@ -165,7 +165,7 @@ export async function getStockMovementHistory(itemId?: string): Promise<StockTra
   return data.map(tx => ({
     ...tx,
     item_name: tx.items?.item_name,
-    user_name: tx.users?.full_name,
+    user_name: tx.profiles ? `${tx.profiles.first_name} ${tx.profiles.last_name}` : 'Unknown',
     batch_code: tx.stock_batches?.batch_code
   })) as StockTransaction[];
 }
