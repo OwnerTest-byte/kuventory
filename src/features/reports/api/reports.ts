@@ -76,7 +76,11 @@ export function useReport(reportId: string | undefined) {
             inventory_items (
               id,
               name,
+              description,
               unit,
+              unit_cost,
+              supplier_a,
+              supplier_b,
               categories ( name )
             )
           )
@@ -90,10 +94,14 @@ export function useReport(reportId: string | undefined) {
       }
 
       const mappedEntries = (data.daily_inventory_items || []).map((entry: any) => {
-        const catName = entry.inventory_items?.categories?.name || 'General';
+        const catName = (entry.inventory_items?.categories?.name || '').toUpperCase();
+        let section: 'GRILLED STOCK' | 'PORTION STOCK' | 'PER CASES' = 'PORTION STOCK';
+        if (catName.includes('GRILL')) section = 'GRILLED STOCK';
+        else if (catName.includes('CASE')) section = 'PER CASES';
+
         return {
           id: entry.id,
-          section: catName.toUpperCase().includes('CASE') ? 'PER CASES' : 'PORTION STOCK',
+          section,
           beginning_qty: Number(entry.beg || 0),
           add_qty: Number(entry.add || 0),
           total_stock: Number(entry.total ?? (Number(entry.beg || 0) + Number(entry.add || 0))),
@@ -102,7 +110,11 @@ export function useReport(reportId: string | undefined) {
           ending_qty: Number(entry.ending ?? 0),
           items: {
             item_name: entry.inventory_items?.name || 'Unknown Item',
-            unit: entry.inventory_items?.unit || 'pcs'
+            description: entry.inventory_items?.description || '',
+            unit: entry.inventory_items?.unit || 'pcs',
+            unit_cost: Number(entry.inventory_items?.unit_cost || 0),
+            supplier_a: entry.inventory_items?.supplier_a || '',
+            supplier_b: entry.inventory_items?.supplier_b || '',
           }
         };
       });

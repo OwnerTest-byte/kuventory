@@ -60,7 +60,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
         item_name: formData.item_name,
         category_id: formData.category_id,
         description: formData.description,
-        inventory_type: formData.inventory_type as 'PORTION STOCK' | 'PER CASES',
+        inventory_type: formData.inventory_type as any,
         supplier_a: formData.supplier_a,
         supplier_b: formData.supplier_b,
         unit: formData.unit,
@@ -133,10 +133,11 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
                 <label className="text-sm font-bold text-slate-700">Inventory Section *</label>
                 <select
                   value={formData.inventory_type}
-                  onChange={e => setFormData({ ...formData, inventory_type: e.target.value as 'PORTION STOCK' | 'PER CASES' })}
+                  onChange={e => setFormData({ ...formData, inventory_type: e.target.value as any })}
                   className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 >
+                  <option value="GRILLED STOCK">GRILLED STOCK</option>
                   <option value="PORTION STOCK">PORTION STOCK</option>
                   <option value="PER CASES">PER CASES</option>
                 </select>

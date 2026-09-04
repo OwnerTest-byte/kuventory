@@ -15,25 +15,32 @@ export async function getInventory(): Promise<InventoryItem[]> {
     throw error;
   }
   
-  return (data || []).map((row: any) => ({
-    id: row.id,
-    item_code: row.id.substring(0, 8).toUpperCase(),
-    item_name: row.name,
-    description: row.description || '',
-    category_id: row.category_id,
-    category_name: row.category_name || 'General',
-    inventory_type: (row.category_name === 'PER CASES' ? 'PER CASES' : 'PORTION STOCK') as any,
-    unit: row.unit || 'pcs',
-    unit_cost: Number(row.unit_cost || 0),
-    supplier_a: row.supplier_a || null,
-    supplier_b: row.supplier_b || null,
-    min_qty: Number(row.min_quantity || 0),
-    current_qty: Number(row.total_quantity || 0),
-    image_path: null,
-    is_archived: !row.is_active || !!row.is_archived,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  })) as InventoryItem[];
+  return (data || []).map((row: any) => {
+    const cat = (row.category_name || '').toUpperCase();
+    let section: 'GRILLED STOCK' | 'PORTION STOCK' | 'PER CASES' = 'PORTION STOCK';
+    if (cat.includes('GRILL')) section = 'GRILLED STOCK';
+    else if (cat.includes('CASE')) section = 'PER CASES';
+
+    return {
+      id: row.id,
+      item_code: row.id.substring(0, 8).toUpperCase(),
+      item_name: row.name,
+      description: row.description || '',
+      category_id: row.category_id,
+      category_name: row.category_name || 'General',
+      inventory_type: section as any,
+      unit: row.unit || 'pcs',
+      unit_cost: Number(row.unit_cost || 0),
+      supplier_a: row.supplier_a || null,
+      supplier_b: row.supplier_b || null,
+      min_qty: Number(row.min_quantity || 0),
+      current_qty: Number(row.total_quantity || 0),
+      image_path: null,
+      is_archived: !row.is_active || !!row.is_archived,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+  }) as InventoryItem[];
 }
 
 export async function getItems(): Promise<InventoryItem[]> {
@@ -55,6 +62,11 @@ export async function getItemById(id: string): Promise<InventoryItem> {
     throw error;
   }
 
+  const cat = (data.category_name || '').toUpperCase();
+  let section: 'GRILLED STOCK' | 'PORTION STOCK' | 'PER CASES' = 'PORTION STOCK';
+  if (cat.includes('GRILL')) section = 'GRILLED STOCK';
+  else if (cat.includes('CASE')) section = 'PER CASES';
+
   return {
     id: data.id,
     item_code: data.id.substring(0, 8).toUpperCase(),
@@ -62,7 +74,7 @@ export async function getItemById(id: string): Promise<InventoryItem> {
     description: data.description || '',
     category_id: data.category_id,
     category_name: data.category_name || 'General',
-    inventory_type: (data.category_name === 'PER CASES' ? 'PER CASES' : 'PORTION STOCK') as any,
+    inventory_type: section as any,
     unit: data.unit || 'pcs',
     unit_cost: Number(data.unit_cost || 0),
     supplier_a: data.supplier_a || null,

@@ -24,22 +24,48 @@ export function StockBatchesPage() {
         .from('stock_batches')
         .select(`
           id,
-          batch_code,
           quantity,
           expiry_date,
+          received_date,
           created_at,
-          items (
+          inventory_items (
             id,
-            item_name,
-            item_code,
+            name,
             unit,
-            inventory_type
+            unit_cost,
+            supplier_a,
+            supplier_b,
+            description,
+            categories (
+              name
+            )
           )
         `)
         .order('expiry_date', { ascending: true, nullsFirst: false });
       
-      if (error) throw error;
-      return data as any[];
+      if (error) {
+        console.error('Failed to query stock_batches:', error);
+        throw error;
+      }
+
+      return (data || []).map((b: any) => ({
+        id: b.id,
+        batch_code: `BATCH-${b.id.substring(0, 6).toUpperCase()}`,
+        quantity: Number(b.quantity || 0),
+        expiry_date: b.expiry_date,
+        received_date: b.received_date,
+        created_at: b.created_at,
+        items: {
+          id: b.inventory_items?.id,
+          item_name: b.inventory_items?.name || 'Item',
+          item_code: b.inventory_items?.id ? b.inventory_items.id.substring(0, 8).toUpperCase() : 'ITM',
+          unit: b.inventory_items?.unit || 'pcs',
+          inventory_type: b.inventory_items?.categories?.name || 'General',
+          unit_cost: Number(b.inventory_items?.unit_cost || 0),
+          supplier_a: b.inventory_items?.supplier_a || 'Supplier A',
+          supplier_b: b.inventory_items?.supplier_b || 'Supplier B',
+        }
+      }));
     }
   });
 
@@ -50,11 +76,11 @@ export function StockBatchesPage() {
       list = list.filter(b => 
         b.batch_code?.toLowerCase().includes(q) ||
         b.items?.item_name?.toLowerCase().includes(q) ||
-        b.items?.item_code?.toLowerCase().includes(q)
+        b.items?.item_code?.toLowerCase().includes(q) ||
+        b.items?.supplier_a?.toLowerCase().includes(q)
       );
     }
     if (activeTab === 'fefo') {
-      // In FEFO mode, prioritize items that are active (>0) and have upcoming or past expiry
       list = list.filter(b => b.quantity > 0);
     }
     return list;

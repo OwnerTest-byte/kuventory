@@ -44,9 +44,15 @@ export function exportToPdf(report: Report): void {
   
   const items = report.report_items || [];
   
-  // Naive splitting for demonstration (in reality based on categories or units, we'll assume "CASE" implies case stock)
-  const perCaseItems = items.filter(item => item.unit?.toUpperCase().includes('CASE') || item.category_name?.toUpperCase().includes('CASE'));
-  const portionItems = items.filter(item => !perCaseItems.includes(item));
+  const grilledItems = items.filter(item => 
+    item.category_name?.toUpperCase().includes('GRILL')
+  );
+  const perCaseItems = items.filter(item => 
+    item.unit?.toUpperCase().includes('CASE') || item.category_name?.toUpperCase().includes('CASE')
+  );
+  const portionItems = items.filter(item => 
+    !grilledItems.includes(item) && !perCaseItems.includes(item)
+  );
 
   let finalY = 70;
 
@@ -70,6 +76,34 @@ export function exportToPdf(report: Report): void {
     item.ending
   ]);
 
+  // 1. GRILLED STOCK
+  if (grilledItems.length > 0) {
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('GRILLED STOCK', 14, finalY);
+    
+    autoTable(doc, {
+      startY: finalY + 5,
+      head: [tableColumn],
+      body: createTableBody(grilledItems),
+      theme: 'grid',
+      headStyles: { fillColor: [40, 40, 40], textColor: 255 },
+      styles: { fontSize: 9 },
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { halign: 'right', cellWidth: 15 },
+        2: { halign: 'right', cellWidth: 15 },
+        3: { halign: 'right', cellWidth: 15, fontStyle: 'bold' },
+        4: { halign: 'right', cellWidth: 15 },
+        5: { halign: 'right', cellWidth: 15 },
+        6: { halign: 'right', cellWidth: 15, fontStyle: 'bold' }
+      }
+    });
+    
+    finalY = (doc as any).lastAutoTable.finalY + 15;
+  }
+
+  // 2. PORTION STOCK
   if (portionItems.length > 0) {
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
@@ -83,7 +117,7 @@ export function exportToPdf(report: Report): void {
       headStyles: { fillColor: [40, 40, 40], textColor: 255 },
       styles: { fontSize: 9 },
       columnStyles: {
-        0: { cellWidth: 'auto' }, // Item name gets max space
+        0: { cellWidth: 'auto' },
         1: { halign: 'right', cellWidth: 15 },
         2: { halign: 'right', cellWidth: 15 },
         3: { halign: 'right', cellWidth: 15, fontStyle: 'bold' },
@@ -96,6 +130,7 @@ export function exportToPdf(report: Report): void {
     finalY = (doc as any).lastAutoTable.finalY + 15;
   }
 
+  // 3. PER CASES
   if (perCaseItems.length > 0) {
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
@@ -109,7 +144,7 @@ export function exportToPdf(report: Report): void {
       headStyles: { fillColor: [40, 40, 40], textColor: 255 },
       styles: { fontSize: 9 },
       columnStyles: {
-        0: { cellWidth: 'auto' }, // Item name gets max space
+        0: { cellWidth: 'auto' },
         1: { halign: 'right', cellWidth: 15 },
         2: { halign: 'right', cellWidth: 15 },
         3: { halign: 'right', cellWidth: 15, fontStyle: 'bold' },

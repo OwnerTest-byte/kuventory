@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { getInventory } from '../api';
+import { getInventory, getStockMovementHistory } from '../api';
 import { supabase } from '@/lib/supabase';
 import { 
   Package, 
@@ -53,51 +53,41 @@ export function InventoryLandingPage() {
         .from('stock_batches')
         .select(`
           id, 
-          batch_code,
           quantity, 
           expiry_date,
           created_at,
-          items (
+          inventory_items (
             id,
-            item_name,
+            name,
             unit
           )
         `)
         .gt('quantity', 0)
         .order('expiry_date', { ascending: true, nullsFirst: false })
         .limit(10);
-      if (error) throw error;
-      return data as any[];
+      if (error) {
+        console.error('Error fetching expiring batches:', error);
+        throw error;
+      }
+      return (data || []).map((b: any) => ({
+        id: b.id,
+        batch_code: `BATCH-${b.id.substring(0, 6).toUpperCase()}`,
+        quantity: Number(b.quantity || 0),
+        expiry_date: b.expiry_date,
+        created_at: b.created_at,
+        items: {
+          id: b.inventory_items?.id,
+          item_name: b.inventory_items?.name || 'Item',
+          unit: b.inventory_items?.unit || 'pcs'
+        }
+      }));
     }
   });
 
   // 3. Fetch Recent Stock Transactions (Activity Trail & Analytics)
   const { data: recentTransactions = [] } = useQuery({
     queryKey: ['global-stock-history'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('stock_transactions')
-        .select(`
-          id,
-          action_type,
-          quantity,
-          reason,
-          created_at,
-          items (
-            id,
-            item_name,
-            unit
-          ),
-          profiles (
-            first_name,
-            last_name
-          )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(100);
-      if (error) throw error;
-      return data as any[];
-    }
+    queryFn: () => getStockMovementHistory(),
   });
 
   // 4. Fetch Live Notifications for Alerts Widget
@@ -118,6 +108,8 @@ export function InventoryLandingPage() {
   const summary = useMemo(() => {
     const activeList = items.filter(i => !i.is_archived);
     
+    let grilledItems = 0;
+    let grilledStock = 0;
     let portionItems = 0;
     let portionStock = 0;
     let caseItems = 0;
@@ -127,7 +119,11 @@ export function InventoryLandingPage() {
     activeList.forEach(item => {
       const qty = Number(item.current_qty) || 0;
       totalStock += qty;
-      if (item.inventory_type === 'PER CASES') {
+      const type = (item.inventory_type || item.category_name || '').toUpperCase();
+      if (type.includes('GRILL')) {
+        grilledItems++;
+        grilledStock += qty;
+      } else if (type.includes('CASE')) {
         caseItems++;
         caseStock += qty;
       } else {
@@ -148,6 +144,8 @@ export function InventoryLandingPage() {
       lowStockCount: lowStock.length,
       outOfStockCount: outOfStock.length,
       expiringCount: expiringSoonBatches.length,
+      grilledItems,
+      grilledStock,
       portionItems,
       portionStock,
       caseItems,
@@ -338,6 +336,18 @@ export function InventoryLandingPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
+                  <tr className="hover:bg-slate-50/60 transition-colors">
+                    <td className="px-6 py-3.5 font-semibold text-slate-800 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                      GRILLED STOCK
+                    </td>
+                    <td className="px-6 py-3.5 text-center font-mono font-medium text-slate-700">
+                      {summary.grilledItems}
+                    </td>
+                    <td className="px-6 py-3.5 text-right font-mono font-bold text-slate-900">
+                      {summary.grilledStock.toLocaleString()}
+                    </td>
+                  </tr>
                   <tr className="hover:bg-slate-50/60 transition-colors">
                     <td className="px-6 py-3.5 font-semibold text-slate-800 flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
@@ -583,10 +593,7 @@ export function InventoryLandingPage() {
                         icon = <RefreshCw className="w-3 h-3 mr-1" />;
                       }
 
-                      const userDisplay = tx.profiles 
-                        ? `${tx.profiles.first_name || ''} ${tx.profiles.last_name || ''}`.trim()
-                        : 'System Staff';
-
+                      const userDisplay = tx.user_name || 'System Staff';
                       const prefix = tx.action_type === 'REMOVE' ? '-' : tx.action_type === 'ADD' ? '+' : '';
 
                       return (
@@ -604,10 +611,10 @@ export function InventoryLandingPage() {
                             </span>
                           </td>
                           <td className="px-6 py-3.5 text-xs font-semibold text-slate-900">
-                            {tx.items?.item_name || 'Item'}
+                            {tx.item_name || 'Item'}
                           </td>
                           <td className="px-6 py-3.5 text-right font-mono text-xs font-bold text-slate-800">
-                            {prefix}{Math.abs(tx.quantity)} {tx.items?.unit}
+                            {prefix}{Math.abs(tx.quantity)}
                           </td>
                         </tr>
                       );

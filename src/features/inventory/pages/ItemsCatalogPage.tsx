@@ -7,7 +7,7 @@ import { useStockMutations } from '../hooks/useStockMutations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Plus, Search, Edit2 } from 'lucide-react';
+import { Plus, Search, Edit2, Archive, ArrowUpDown } from 'lucide-react';
 import { ItemFormModal } from '../components/ItemFormModal';
 import { StockUpdateModal } from '../components/StockUpdateModal';
 import type { InventoryItem, InventoryStock } from '../types';
@@ -18,12 +18,13 @@ export function ItemsCatalogPage() {
     queryFn: getInventory,
   });
   
-  const { createItem, updateItem } = useItems();
+  const { createItem, updateItem, archiveItem } = useItems();
   const { add, remove, adjust } = useStockMutations();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
   const [statusFilter, setStatusFilter] = useState('Active');
+  const [sortBy, setSortBy] = useState<'name_asc' | 'name_desc' | 'cost_desc' | 'cost_asc' | 'qty_desc' | 'qty_asc' | 'category'>('name_asc');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | undefined>();
@@ -40,9 +41,16 @@ export function ItemsCatalogPage() {
   const filteredItems = useMemo(() => {
     let list = inventory || [];
     
-    // Search
+    // Search across name, code, description, and suppliers
     if (searchTerm) {
-      list = list.filter(i => i.item_name.toLowerCase().includes(searchTerm.toLowerCase()) || i.item_code.toLowerCase().includes(searchTerm.toLowerCase()));
+      const q = searchTerm.toLowerCase();
+      list = list.filter(i => 
+        i.item_name.toLowerCase().includes(q) || 
+        i.item_code.toLowerCase().includes(q) ||
+        (i.description && i.description.toLowerCase().includes(q)) ||
+        (i.supplier_a && i.supplier_a.toLowerCase().includes(q)) ||
+        (i.supplier_b && i.supplier_b.toLowerCase().includes(q))
+      );
     }
     
     // Status Filter
@@ -57,8 +65,18 @@ export function ItemsCatalogPage() {
       list = list.filter(i => i.category_name === categoryFilter);
     }
 
-    return list;
-  }, [inventory, searchTerm, statusFilter, categoryFilter]);
+    // Sort
+    return [...list].sort((a, b) => {
+      if (sortBy === 'name_asc') return a.item_name.localeCompare(b.item_name);
+      if (sortBy === 'name_desc') return b.item_name.localeCompare(a.item_name);
+      if (sortBy === 'cost_desc') return (b.unit_cost || 0) - (a.unit_cost || 0);
+      if (sortBy === 'cost_asc') return (a.unit_cost || 0) - (b.unit_cost || 0);
+      if (sortBy === 'qty_desc') return (b.current_qty || 0) - (a.current_qty || 0);
+      if (sortBy === 'qty_asc') return (a.current_qty || 0) - (b.current_qty || 0);
+      if (sortBy === 'category') return (a.category_name || '').localeCompare(b.category_name || '');
+      return 0;
+    });
+  }, [inventory, searchTerm, statusFilter, categoryFilter, sortBy]);
 
   const uniqueCategories = useMemo(() => {
     const cats = new Set<string>();
@@ -111,10 +129,26 @@ export function ItemsCatalogPage() {
     }
   };
 
+  const handleToggleArchive = async (item: InventoryItem) => {
+    const action = item.is_archived ? 'restore' : 'archive';
+    if (!window.confirm(`Are you sure you want to ${action} "${item.item_name}"?`)) return;
+    try {
+      await archiveItem({ id: item.id, isArchived: !item.is_archived });
+    } catch (err: any) {
+      alert(err.message || `Failed to ${action} item`);
+    }
+  };
+
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 uppercase">INVENTORY ITEMS</h1>
+        <div>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 uppercase">INVENTORY ITEMS</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Master items catalog, unit costs, supplier mapping, and live quantity balances.</p>
+        </div>
+        <Button onClick={() => { setEditingItem(undefined); setIsModalOpen(true); }} className="h-10 bg-blue-600 hover:bg-blue-700 text-white shadow-sm font-bold text-xs">
+          <Plus className="w-4 h-4 mr-2" /> Add New Item
+        </Button>
       </div>
 
       <Card className="shadow-sm border-slate-200">
@@ -122,18 +156,37 @@ export function ItemsCatalogPage() {
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input 
-              placeholder="Search items..." 
+              placeholder="Search items, description, supplier..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 h-10 border-slate-300"
+              className="pl-9 h-10 border-slate-300 text-xs"
             />
           </div>
           
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {/* Sort Selector */}
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700"
+              >
+                <option value="name_asc">Name (A-Z)</option>
+                <option value="name_desc">Name (Z-A)</option>
+                <option value="cost_desc">Unit Cost (High-Low)</option>
+                <option value="cost_asc">Unit Cost (Low-High)</option>
+                <option value="qty_desc">Stock Balance (High-Low)</option>
+                <option value="qty_asc">Stock Balance (Low-High)</option>
+                <option value="category">Category</option>
+              </select>
+            </div>
+
+            {/* Category Filter */}
             <select 
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 w-full sm:w-auto text-slate-700"
+              className="h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700"
             >
               <option value="All Categories">All Categories</option>
               {uniqueCategories.map(cat => (
@@ -141,19 +194,16 @@ export function ItemsCatalogPage() {
               ))}
             </select>
             
+            {/* Status Filter */}
             <select 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 w-full sm:w-auto text-slate-700"
+              className="h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700"
             >
               <option>Active</option>
               <option>Archived</option>
               <option>All</option>
             </select>
-            
-            <Button onClick={() => { setEditingItem(undefined); setIsModalOpen(true); }} className="h-10 bg-blue-600 hover:bg-blue-700 text-white shrink-0 shadow-sm">
-              <Plus className="w-4 h-4 mr-2" /> Add New Item
-            </Button>
           </div>
         </div>
 
@@ -161,15 +211,15 @@ export function ItemsCatalogPage() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200">
-                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">ITEM CODE</th>
-                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">ITEM NAME</th>
-                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">CATEGORY</th>
-                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">SECTION</th>
-                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">UNIT</th>
-                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-center">MIN. QTY</th>
-                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-center">CURRENT QTY</th>
-                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-center">STATUS</th>
-                <th className="px-6 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-right">ACTIONS</th>
+                <th className="px-5 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">ITEM</th>
+                <th className="px-5 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">DESCRIPTION</th>
+                <th className="px-5 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">SECTION</th>
+                <th className="px-5 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-right">UNIT COST</th>
+                <th className="px-5 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs">SUPPLIERS</th>
+                <th className="px-5 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-center">MIN</th>
+                <th className="px-5 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-center">QUANTITY BALANCE</th>
+                <th className="px-5 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-center">STATUS</th>
+                <th className="px-5 py-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-right">ACTIONS</th>
               </tr>
             </thead>
             <tbody className="bg-white">
@@ -205,31 +255,50 @@ export function ItemsCatalogPage() {
 
                   return (
                     <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 font-mono text-xs text-slate-500">{item.item_code}</td>
-                      <td className="px-6 py-4 font-semibold text-slate-800">
+                      <td className="px-5 py-3.5">
                         <Link 
                           to={`/items/${item.id}`} 
-                          className="text-blue-600 hover:text-blue-800 hover:underline font-bold"
+                          className="text-blue-600 hover:text-blue-800 hover:underline font-bold text-xs sm:text-sm"
                         >
                           {item.item_name}
                         </Link>
+                        <span className="block font-mono text-[10px] text-slate-400 font-normal">
+                          {item.item_code}
+                        </span>
                       </td>
-                      <td className="px-6 py-4 text-slate-600">{item.category_name || 'Uncategorized'}</td>
-                      <td className="px-6 py-4 text-slate-600">{item.inventory_type}</td>
-                      <td className="px-6 py-4 text-slate-600">{item.unit}</td>
-                      <td className="px-6 py-4 text-center font-medium text-slate-700">{item.min_qty}</td>
-                      <td className="px-6 py-4 text-center font-bold text-slate-900">{item.current_qty}</td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${badgeClass}`}>
+                      <td className="px-5 py-3.5 text-xs text-slate-500 max-w-[160px] truncate" title={item.description || ''}>
+                        {item.description || '—'}
+                      </td>
+                      <td className="px-5 py-3.5 text-xs text-slate-700">
+                        <span className="font-semibold">{item.inventory_type}</span>
+                        <span className="block text-[10px] text-slate-400">{item.category_name || 'General'}</span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right font-mono text-xs font-bold text-slate-800">
+                        ₱{Number(item.unit_cost || 0).toFixed(2)}
+                      </td>
+                      <td className="px-5 py-3.5 text-[11px] text-slate-600">
+                        <div><span className="text-slate-400 font-medium">A:</span> {item.supplier_a || '—'}</div>
+                        {item.supplier_b && <div><span className="text-slate-400 font-medium">B:</span> {item.supplier_b}</div>}
+                      </td>
+                      <td className="px-5 py-3.5 text-center font-mono text-xs text-slate-600">
+                        {item.min_qty} {item.unit}
+                      </td>
+                      <td className="px-5 py-3.5 text-center font-mono font-bold text-slate-900 text-xs">
+                        <span className="px-2.5 py-1 rounded-md bg-slate-100 font-black">
+                          {item.current_qty} {item.unit}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${badgeClass}`}>
                           {status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end items-center gap-2">
+                      <td className="px-5 py-3.5 text-right">
+                        <div className="flex justify-end items-center gap-1.5">
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            className="h-8 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 font-semibold uppercase text-[10px] tracking-wider"
+                            className="h-7 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 font-semibold uppercase text-[10px] tracking-wider"
                             onClick={() => setStockUpdateItem(item as InventoryStock)}
                           >
                             Update Stock
@@ -237,10 +306,20 @@ export function ItemsCatalogPage() {
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-8 w-8 text-slate-400 hover:text-blue-600"
+                            className="h-7 w-7 text-slate-400 hover:text-blue-600"
                             onClick={() => { setEditingItem(item as InventoryItem); setIsModalOpen(true); }}
+                            title="Edit Details"
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className={`h-7 w-7 ${item.is_archived ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50' : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'}`}
+                            onClick={() => handleToggleArchive(item)}
+                            title={item.is_archived ? 'Restore SKU' : 'Archive SKU'}
+                          >
+                            <Archive className="w-3.5 h-3.5" />
                           </Button>
                         </div>
                       </td>
