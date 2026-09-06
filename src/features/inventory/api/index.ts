@@ -290,27 +290,42 @@ export async function updateItem(id: string, updates: Partial<Omit<InventoryItem
  * Archive or unarchive an item.
  */
 export async function archiveItem(id: string, isArchived: boolean): Promise<void> {
-  const { error } = await supabase
-    .from('inventory_items')
-    .update({ is_archived: isArchived, is_active: !isArchived })
-    .eq('id', id);
+  const { error: rpcError } = await supabase.rpc('archive_inventory_item', {
+    p_item_id: id,
+    p_archived: isArchived,
+  });
 
-  if (error) {
-    console.error('archiveItem error:', error);
-    throw error;
+  if (rpcError) {
+    const { error } = await supabase
+      .from('inventory_items')
+      .update({ is_archived: isArchived, is_active: !isArchived })
+      .eq('id', id);
+
+    if (error) {
+      console.error('archiveItem error:', error);
+      throw error;
+    }
   }
 }
 
 /**
- * Permanently delete an item and any associated records.
+ * Permanently delete an item and any associated records atomically.
  */
 export async function deleteItem(id: string): Promise<void> {
-  await supabase.from('stock_batches').delete().eq('item_id', id);
-  await supabase.from('stock_movements').delete().eq('item_id', id);
-  const { error } = await supabase.from('inventory_items').delete().eq('id', id);
-  if (error) {
-    console.error('deleteItem error:', error);
-    throw error;
+  const { error: rpcError } = await supabase.rpc('remove_inventory_item', {
+    p_item_id: id,
+  });
+
+  if (rpcError) {
+    await supabase.from('daily_inventory_items').delete().eq('item_id', id);
+    await supabase.from('stock_batches').delete().eq('item_id', id);
+    await supabase.from('stock_movements').delete().eq('item_id', id);
+    await supabase.from('notifications').delete().eq('item_id', id);
+    const { error } = await supabase.from('inventory_items').delete().eq('id', id);
+    if (error) {
+      console.error('deleteItem error:', error);
+      throw error;
+    }
   }
 }
 

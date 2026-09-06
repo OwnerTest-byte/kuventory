@@ -25,9 +25,18 @@ export function useUpsertDailyItem(date: string) {
         if (!oldData || !oldData.daily_inventory_entries) return oldData;
         return {
           ...oldData,
-          daily_inventory_entries: oldData.daily_inventory_entries.map((item: any) =>
-            item.id === updatedItem.id ? { ...item, ...updatedItem } : item
-          )
+          daily_inventory_entries: oldData.daily_inventory_entries.map((item: any) => {
+            if (item.id !== updatedItem.id) return item;
+            return {
+              ...item,
+              beginning_qty: Number(updatedItem.beg),
+              add_qty: Number(updatedItem.add),
+              total_stock: Number(updatedItem.total ?? (Number(updatedItem.beg) + Number(updatedItem.add))),
+              sales_am: Number(updatedItem.am),
+              sales_pm: Number(updatedItem.pm),
+              ending_qty: Number(updatedItem.ending ?? (Number(updatedItem.beg) + Number(updatedItem.add) - Number(updatedItem.am) - Number(updatedItem.pm))),
+            };
+          })
         };
       });
     },
