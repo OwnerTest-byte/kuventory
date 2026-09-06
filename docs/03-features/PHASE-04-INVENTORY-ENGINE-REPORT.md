@@ -76,4 +76,4 @@ New Database Schema additions:
 
 ## Git
 
-_(Commit hash will be generated upon commit)_
+Commit hash will be recorded upon merge.

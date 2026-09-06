@@ -183,7 +183,7 @@ export function ReportsLibraryPage() {
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="max-h-[calc(100dvh-320px)] min-h-[300px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+            <div className="max-h-[calc(100dvh-320px)] min-h-75 overflow-y-auto overflow-x-auto relative overscroll-contain">
               <Table className="border-collapse">
                 <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
                   <TableRow>
@@ -302,11 +302,11 @@ export function ReportsLibraryPage() {
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="max-h-[calc(100dvh-340px)] min-h-[300px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+            <div className="max-h-[calc(100dvh-340px)] min-h-75 overflow-y-auto overflow-x-auto relative overscroll-contain">
               <Table className="border-collapse">
                 <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
                   <TableRow>
-                    <TableHead className="font-bold sticky left-0 z-30 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item</TableHead>
+                    <TableHead className="font-bold sticky left-0 z-30 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item</TableHead>
                     <TableHead className="font-bold">Category</TableHead>
                     <TableHead className="text-center font-bold">Unit</TableHead>
                     <TableHead className="text-right font-bold">Unit Cost</TableHead>
@@ -331,7 +331,7 @@ export function ReportsLibraryPage() {
                       const isLow = !isOOS && item.current_qty <= item.min_qty;
                       return (
                         <TableRow key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 group">
-                          <TableCell className="sticky left-0 z-10 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                          <TableCell className="sticky left-0 z-10 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                           <div className="font-bold text-slate-900 dark:text-white">{item.item_name}</div>
                           <div className="text-xs text-slate-400 font-mono">{item.item_code}</div>
                         </TableCell>
@@ -392,11 +392,11 @@ export function ReportsLibraryPage() {
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="max-h-[calc(100dvh-320px)] min-h-[300px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+            <div className="max-h-[calc(100dvh-320px)] min-h-75 overflow-y-auto overflow-x-auto relative overscroll-contain">
               <Table className="border-collapse">
                 <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
                   <TableRow>
-                    <TableHead className="font-bold sticky left-0 z-30 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 min-w-[160px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Timestamp</TableHead>
+                    <TableHead className="font-bold sticky left-0 z-30 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 min-w-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Timestamp</TableHead>
                     <TableHead className="font-bold">Item</TableHead>
                     <TableHead className="font-bold text-center">Action</TableHead>
                     <TableHead className="text-center font-bold">Qty Change</TableHead>
@@ -420,7 +420,7 @@ export function ReportsLibraryPage() {
                       const isRemove = m.action_type === 'REMOVE';
                       return (
                         <TableRow key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 text-xs group">
-                          <TableCell className="text-slate-500 font-mono sticky left-0 z-10 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 min-w-[160px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                          <TableCell className="text-slate-500 font-mono sticky left-0 z-10 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 min-w-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                             {format(new Date(m.created_at), 'MMM dd, yyyy h:mm a')}
                           </TableCell>
                           <TableCell className="font-bold text-slate-900 dark:text-white">
@@ -475,11 +475,11 @@ export function ReportsLibraryPage() {
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="max-h-[calc(100dvh-320px)] min-h-[300px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+            <div className="max-h-[calc(100dvh-320px)] min-h-75 overflow-y-auto overflow-x-auto relative overscroll-contain">
               <Table className="border-collapse">
                 <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
                   <TableRow>
-                    <TableHead className="font-bold sticky left-0 z-30 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item Name</TableHead>
+                    <TableHead className="font-bold sticky left-0 z-30 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item Name</TableHead>
                     <TableHead className="font-bold">Category</TableHead>
                     <TableHead className="text-center font-bold">Current Stock</TableHead>
                     <TableHead className="text-center font-bold">Min Threshold</TableHead>
@@ -500,7 +500,7 @@ export function ReportsLibraryPage() {
                       const deficit = Math.max(0, item.min_qty - item.current_qty);
                       return (
                         <TableRow key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 group">
-                          <TableCell className="font-bold text-slate-900 dark:text-white sticky left-0 z-10 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                          <TableCell className="font-bold text-slate-900 dark:text-white sticky left-0 z-10 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                             <Link to={`/items/${item.id}`} className="hover:text-blue-600">
                               {item.item_name}
                             </Link>

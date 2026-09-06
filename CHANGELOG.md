@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - 2026-09-02
 
-### Added
+### Added (Initial Setup)
 
 - Initial project scaffolding using Vite, React 19, and TypeScript.
 - Tailwind CSS v4 and shadcn/ui configuration.
