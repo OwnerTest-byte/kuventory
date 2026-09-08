@@ -14,7 +14,8 @@ import {
 import { format, differenceInDays } from 'date-fns';
 
 export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
-  const [activeTab, setActiveTab] = useState<'all' | 'fefo'>('fefo');
+  const [stockFilter, setStockFilter] = useState<'in_stock' | 'all'>('in_stock');
+  const [expiryFilter, setExpiryFilter] = useState<'all' | 'expiring' | 'expired'>('all');
   const [search, setSearch] = useState('');
 
   const { data: batches = [], isLoading, refetch } = useQuery({
@@ -71,6 +72,8 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
 
   const filteredBatches = useMemo(() => {
     let list = batches;
+    const now = new Date();
+
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(b => 
@@ -80,11 +83,23 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
         b.items?.supplier_a?.toLowerCase().includes(q)
       );
     }
-    if (activeTab === 'fefo') {
+
+    if (stockFilter === 'in_stock') {
       list = list.filter(b => b.quantity > 0);
     }
+
+    if (expiryFilter === 'expired') {
+      list = list.filter(b => b.expiry_date && new Date(b.expiry_date) < now);
+    } else if (expiryFilter === 'expiring') {
+      list = list.filter(b => {
+        if (!b.expiry_date) return false;
+        const d = differenceInDays(new Date(b.expiry_date), now);
+        return d >= 0 && d <= 14;
+      });
+    }
+
     return list;
-  }, [batches, search, activeTab]);
+  }, [batches, search, stockFilter, expiryFilter]);
 
   return (
     <div className={embedded ? "space-y-4" : "p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6"}>
@@ -93,10 +108,10 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 uppercase">
-              Global Stock Batches
+              Stock Batches (FEFO Tracking)
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              FEFO inventory rotation, batch lots, and expiration date monitoring.
+              Automated First-Expired, First-Out queue, expiration monitoring, and batch lot tracking.
             </p>
           </div>
           <Button 
@@ -109,33 +124,47 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
         </div>
       )}
 
-      {/* Tabs & Search Bar matching Mockup Screen 5 */}
+      {/* Filter Toolbar with Search */}
       <Card className="bg-white border-slate-200/90 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-4 items-center justify-between bg-slate-50/50">
-          {/* Tabs */}
-          <div className="flex items-center gap-2 bg-slate-200/60 p-1 rounded-lg self-stretch sm:self-auto">
-            <button
-              type="button"
-              onClick={() => setActiveTab('fefo')}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${
-                activeTab === 'fefo'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
+            {/* Stock Balance Filter */}
+            <div className="flex items-center gap-1 bg-slate-200/70 p-1 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setStockFilter('in_stock')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  stockFilter === 'in_stock'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                In-Stock Only
+              </button>
+              <button
+                type="button"
+                onClick={() => setStockFilter('all')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  stockFilter === 'all'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                All (incl. Depleted)
+              </button>
+            </div>
+
+            {/* Expiry Quick Filter */}
+            <select
+              value={expiryFilter}
+              onChange={(e) => setExpiryFilter(e.target.value as any)}
+              className="h-9 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 shadow-xs focus:ring-1 focus:ring-blue-500"
             >
-              FEFO Priority Queue
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('all')}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${
-                activeTab === 'all'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              All Batches &amp; Expiry
-            </button>
+              <option value="all">All Expirations</option>
+              <option value="expiring">Expiring Soon (≤14 days)</option>
+              <option value="expired">Expired Batches</option>
+            </select>
           </div>
 
           {/* Search Box */}
@@ -150,18 +179,18 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
           </div>
         </div>
 
-        {/* Batches Table */}
-        <div className="max-h-[calc(100dvh-320px)] min-h-[350px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+        {/* Batches Table with Table Slider Container */}
+        <div className="table-slider-container max-h-[calc(100dvh-320px)] min-h-[350px] relative overscroll-contain">
           <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
             <thead className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 shadow-xs">
-              <tr className="text-slate-500">
-                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs sticky left-0 z-30 bg-slate-50 border-r border-slate-200">Batch Code</th>
+              <tr className="text-slate-600">
+                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs sticky left-0 z-30 bg-slate-50 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Batch Code</th>
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Item Name</th>
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-center">Quantity</th>
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Received Date</th>
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Expiry Date</th>
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-center">Days Left</th>
-                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-center">Status</th>
+                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-center">Priority</th>
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-right">Action</th>
               </tr>
             </thead>

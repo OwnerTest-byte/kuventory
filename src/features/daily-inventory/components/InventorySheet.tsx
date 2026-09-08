@@ -59,7 +59,7 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
           </span>
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-          <div className="max-h-[500px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+          <div className="table-slider-container max-h-[550px] relative overscroll-contain">
             <Table className="w-full text-left border-collapse">
               <TableHeader className="sticky top-0 z-20 bg-slate-100 shadow-xs">
                 <TableRow className="border-b border-slate-200">

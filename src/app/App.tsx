@@ -68,12 +68,14 @@ export function App() {
             <Route path="/stock" element={<Navigate to="/items?tab=batches" replace />} />
             <Route path="/history" element={<Navigate to="/items?tab=history" replace />} />
             
+            {/* Settings accessible to all authenticated users (Staff & Admin) */}
+            <Route path="/settings" element={
+              <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
+            } />
+
             {/* Admin-only Routes */}
             <Route element={<RequireAdmin />}>
               <Route path="/admin" element={
-                <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
-              } />
-              <Route path="/settings" element={
                 <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
               } />
             </Route>

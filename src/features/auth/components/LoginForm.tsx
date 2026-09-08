@@ -6,7 +6,8 @@ import { supabase } from '@/lib/supabase';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -19,6 +20,13 @@ export function LoginForm() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Forgot Password State
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [isSendingReset, setIsSendingReset] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState<string | null>(null);
+  const [forgotError, setForgotError] = useState<string | null>(null);
 
   const {
     register,
@@ -40,6 +48,25 @@ export function LoginForm() {
     if (error) {
       setAuthError(error.message);
       setIsLoading(false);
+    }
+  };
+
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail) return;
+    setIsSendingReset(true);
+    setForgotError(null);
+    setForgotMessage(null);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}/login`,
+      });
+      if (error) throw error;
+      setForgotMessage('Password reset link has been dispatched to your email.');
+    } catch (err: any) {
+      setForgotError(err.message || 'Unable to send reset email. Contact operations administrator directly.');
+    } finally {
+      setIsSendingReset(false);
     }
   };
 
@@ -111,9 +138,18 @@ export function LoginForm() {
             <input type="checkbox" id="remember" className="rounded border-input text-primary focus:ring-primary h-4 w-4" />
             <label htmlFor="remember" className="font-medium cursor-pointer">Remember me</label>
           </div>
-          <span className="text-slate-400">
-            Forgot password? Contact Administrator
-          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setForgotEmail('');
+              setForgotMessage(null);
+              setForgotError(null);
+              setIsForgotModalOpen(true);
+            }}
+            className="text-primary hover:underline font-medium"
+          >
+            Forgot password?
+          </button>
         </div>
 
         <Button
@@ -124,6 +160,71 @@ export function LoginForm() {
           {isLoading ? "Signing in..." : "Sign In"}
         </Button>
       </form>
+
+      {/* Forgot Password Dialog */}
+      <Dialog open={isForgotModalOpen} onOpenChange={setIsForgotModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-primary" />
+              Reset Password
+            </DialogTitle>
+            <DialogDescription>
+              Enter your account email to receive a password reset link, or contact the warehouse administrator.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleForgotSubmit} className="space-y-4 py-2">
+            {forgotError && (
+              <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {forgotError}
+              </div>
+            )}
+            {forgotMessage && (
+              <div className="p-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                {forgotMessage}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label className="text-xs font-bold">Your Email Address</Label>
+              <Input
+                type="email"
+                value={forgotEmail}
+                onChange={e => setForgotEmail(e.target.value)}
+                placeholder="e.g. staff@kuventory.com"
+                required
+              />
+            </div>
+
+            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1">
+              <p className="font-semibold text-slate-800">Admin Hotline Assistance:</p>
+              <p>Email: <span className="font-mono text-slate-900">operations@kuventory.com</span></p>
+              <p>Warehouse Tel: <span className="font-mono text-slate-900">+63 (02) 8921-4567</span></p>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsForgotModalOpen(false)}
+              >
+                Close
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSendingReset || !forgotEmail}
+                className="font-bold"
+              >
+                {isSendingReset ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <KeyRound className="w-4 h-4 mr-2" />}
+                Send Reset Link
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

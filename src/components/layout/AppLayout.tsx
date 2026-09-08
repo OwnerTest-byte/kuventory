@@ -6,7 +6,6 @@ import {
   FileText, 
   Menu, 
   X, 
-  Users, 
   LayoutDashboard, 
   FileBarChart, 
   Settings, 
@@ -14,7 +13,9 @@ import {
   Search,
   Plus,
   Layers,
-  ChevronDown
+  ChevronDown,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/context/AuthContext';
@@ -37,50 +38,80 @@ const reportsNav = [
   { name: 'Reports & Exports', to: '/reports', icon: FileBarChart },
 ];
 
-function SidebarNavigation({ closeMobileMenu }: { closeMobileMenu?: () => void }) {
+interface SidebarNavigationProps {
+  closeMobileMenu?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+}
+
+function SidebarNavigation({ closeMobileMenu, isCollapsed = false, onToggleCollapse }: SidebarNavigationProps) {
   const { role, profile, user } = useAuth();
-  const isAdmin = role === 'ADMIN';
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0A0F1D] text-slate-300 select-none">
+    <div className="flex flex-col h-full bg-[#0A0F1D] text-slate-300 select-none transition-all duration-300">
       {/* Brand Header */}
-      <div className="h-16 flex items-center gap-3 px-5 border-b border-slate-800/80 shrink-0">
-        <img 
-          src="/pics/logo-icon.png" 
-          alt="KUVENTORY" 
-          className="h-8 w-auto object-contain" 
-          onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-        />
-        <div className="flex flex-col">
-          <span className="font-bold text-lg text-white tracking-tight flex items-center gap-1.5">
-            KUVENTORY
-          </span>
-          <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">
-            Enterprise IMS
-          </span>
-        </div>
+      <div className={cn(
+        "h-16 flex items-center border-b border-slate-800/80 shrink-0 transition-all duration-300",
+        isCollapsed ? "justify-center px-2" : "justify-between px-4"
+      )}>
+        <Link to="/inventory" className="flex items-center gap-3 min-w-0" onClick={closeMobileMenu}>
+          <img 
+            src="/pics/logo-icon.png" 
+            alt="KUVENTORY" 
+            className="h-8 w-auto object-contain shrink-0" 
+            onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+          />
+          {!isCollapsed && (
+            <div className="flex flex-col min-w-0">
+              <span className="font-bold text-lg text-white tracking-tight leading-tight">
+                KUVENTORY
+              </span>
+            </div>
+          )}
+        </Link>
+
+        {onToggleCollapse && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            className={cn(
+              "p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors hidden md:flex items-center justify-center",
+              isCollapsed && "mt-1"
+            )}
+          >
+            {isCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+          </button>
+        )}
       </div>
 
       {/* Navigation Sections */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scrollbar-thin">
+      <div className={cn(
+        "flex-1 overflow-y-auto py-4 space-y-5 scrollbar-thin",
+        isCollapsed ? "px-2" : "px-3"
+      )}>
         {/* Core Nav */}
         <div>
-          <div className="px-3 pb-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-            Operations
-          </div>
-          <nav className="space-y-0.5">
+          {!isCollapsed && (
+            <div className="px-3 pb-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              Operations
+            </div>
+          )}
+          <nav className="space-y-1">
             {coreNav.map((item) => (
               <NavLink
                 key={item.name}
                 to={item.to}
                 onClick={closeMobileMenu}
+                title={isCollapsed ? item.name : undefined}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all",
+                    "flex items-center rounded-lg text-sm font-medium transition-all group",
+                    isCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2",
                     isActive
                       ? "bg-blue-600/90 text-white font-semibold shadow-sm"
                       : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-100"
@@ -88,7 +119,7 @@ function SidebarNavigation({ closeMobileMenu }: { closeMobileMenu?: () => void }
                 }
               >
                 <item.icon className="h-4 w-4 shrink-0" />
-                <span>{item.name}</span>
+                {!isCollapsed && <span>{item.name}</span>}
               </NavLink>
             ))}
           </nav>
@@ -96,19 +127,23 @@ function SidebarNavigation({ closeMobileMenu }: { closeMobileMenu?: () => void }
 
         {/* Reports Nav */}
         <div>
-          <div className="px-3 pb-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-            Reports
-          </div>
-          <nav className="space-y-0.5">
+          {!isCollapsed && (
+            <div className="px-3 pb-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              Reports
+            </div>
+          )}
+          <nav className="space-y-1">
             {reportsNav.map((item) => (
               <NavLink
                 key={item.name}
                 to={item.to}
                 end={item.to === '/reports'}
                 onClick={closeMobileMenu}
+                title={isCollapsed ? item.name : undefined}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all",
+                    "flex items-center rounded-lg text-sm font-medium transition-all group",
+                    isCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2",
                     isActive
                       ? "bg-blue-600/90 text-white font-semibold shadow-sm"
                       : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-100"
@@ -116,79 +151,88 @@ function SidebarNavigation({ closeMobileMenu }: { closeMobileMenu?: () => void }
                 }
               >
                 <item.icon className="h-4 w-4 shrink-0" />
-                <span>{item.name}</span>
+                {!isCollapsed && <span>{item.name}</span>}
               </NavLink>
             ))}
           </nav>
         </div>
 
-        {/* System Admin Nav */}
-        {isAdmin && (
-          <div>
+        {/* System Settings Nav */}
+        <div>
+          {!isCollapsed && (
             <div className="px-3 pb-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              System Admin
+              Preferences
             </div>
-            <nav className="space-y-0.5">
-              <NavLink
-                to="/admin"
-                onClick={closeMobileMenu}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all",
-                    isActive
-                      ? "bg-blue-600/90 text-white font-semibold shadow-sm"
-                      : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-100"
-                  )
-                }
-              >
-                <Users className="h-4 w-4 shrink-0" />
-                <span>Users & Roles</span>
-              </NavLink>
-              <NavLink
-                to="/settings"
-                onClick={closeMobileMenu}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all",
-                    isActive
-                      ? "bg-blue-600/90 text-white font-semibold shadow-sm"
-                      : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-100"
-                  )
-                }
-              >
-                <Settings className="h-4 w-4 shrink-0" />
-                <span>Settings</span>
-              </NavLink>
-            </nav>
-          </div>
-        )}
+          )}
+          <nav className="space-y-1">
+            <NavLink
+              to="/settings"
+              onClick={closeMobileMenu}
+              title={isCollapsed ? "Settings" : undefined}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center rounded-lg text-sm font-medium transition-all group",
+                  isCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2",
+                  isActive
+                    ? "bg-blue-600/90 text-white font-semibold shadow-sm"
+                    : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-100"
+                )
+              }
+            >
+              <Settings className="h-4 w-4 shrink-0" />
+              {!isCollapsed && <span>Settings</span>}
+            </NavLink>
+          </nav>
+        </div>
       </div>
 
       {/* User Profile Footer Card */}
-      <div className="p-3 border-t border-slate-800/80 bg-slate-950/40">
-        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800/60">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-8 w-8 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-500/30">
+      <div className={cn(
+        "border-t border-slate-800/80 bg-slate-950/40",
+        isCollapsed ? "p-2" : "p-3"
+      )}>
+        {isCollapsed ? (
+          <div className="flex flex-col items-center gap-2 py-1">
+            <div 
+              title={profile ? `${profile.first_name} ${profile.last_name}` : user?.email || 'User'}
+              className="h-8 w-8 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-500/30 cursor-pointer"
+            >
               {profile?.first_name ? profile.first_name[0].toUpperCase() : 'U'}
             </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-semibold text-slate-100 truncate">
-                {profile ? `${profile.first_name} ${profile.last_name}` : user?.email || 'User'}
-              </span>
-              <span className="text-[10px] text-slate-400 uppercase font-medium tracking-wide">
-                {role === 'ADMIN' ? 'Administrator' : 'Staff Member'}
-              </span>
-            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Sign Out"
+              className="p-1.5 rounded-md text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            title="Sign Out"
-            className="p-1.5 rounded-md text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
+        ) : (
+          <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800/60">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-8 w-8 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-500/30">
+                {profile?.first_name ? profile.first_name[0].toUpperCase() : 'U'}
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-semibold text-slate-100 truncate">
+                  {profile ? `${profile.first_name} ${profile.last_name}` : user?.email || 'User'}
+                </span>
+                <span className="text-[10px] text-slate-400 uppercase font-medium tracking-wide">
+                  {role === 'ADMIN' ? 'Administrator' : 'Staff Member'}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Sign Out"
+              className="p-1.5 rounded-md text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -200,6 +244,17 @@ export function AppLayout() {
   const [quickActionOpen, setQuickActionOpen] = useState(false);
   const [isNewItemModalOpen, setIsNewItemModalOpen] = useState(false);
   const [isSubmittingItem, setIsSubmittingItem] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('kuventory_sidebar_collapsed') === 'true';
+  });
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('kuventory_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
 
   const { createItem } = useItems();
   const { add } = useStockMutations();
@@ -388,8 +443,14 @@ export function AppLayout() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar Navigation */}
-        <aside className="w-64 bg-[#0A0F1D] border-r border-slate-800/80 flex-col hidden md:flex shrink-0">
-          <SidebarNavigation />
+        <aside className={cn(
+          "bg-[#0A0F1D] border-r border-slate-800/80 flex-col hidden md:flex shrink-0 transition-all duration-300",
+          isSidebarCollapsed ? "w-[72px]" : "w-64"
+        )}>
+          <SidebarNavigation 
+            isCollapsed={isSidebarCollapsed} 
+            onToggleCollapse={toggleSidebar} 
+          />
         </aside>
 
         {/* Mobile Drawer Navigation */}

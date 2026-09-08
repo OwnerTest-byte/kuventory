@@ -183,7 +183,7 @@ export function ReportsLibraryPage() {
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="max-h-[calc(100dvh-320px)] min-h-75 overflow-y-auto overflow-x-auto relative overscroll-contain">
+            <div className="table-slider-container max-h-[calc(100dvh-320px)] min-h-[300px] relative overscroll-contain">
               <Table className="border-collapse">
                 <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
                   <TableRow>
@@ -302,7 +302,7 @@ export function ReportsLibraryPage() {
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="max-h-[calc(100dvh-340px)] min-h-75 overflow-y-auto overflow-x-auto relative overscroll-contain">
+            <div className="table-slider-container max-h-[calc(100dvh-340px)] min-h-[300px] relative overscroll-contain">
               <Table className="border-collapse">
                 <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
                   <TableRow>
@@ -392,7 +392,7 @@ export function ReportsLibraryPage() {
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="max-h-[calc(100dvh-320px)] min-h-75 overflow-y-auto overflow-x-auto relative overscroll-contain">
+            <div className="table-slider-container max-h-[calc(100dvh-320px)] min-h-[300px] relative overscroll-contain">
               <Table className="border-collapse">
                 <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
                   <TableRow>
@@ -475,7 +475,7 @@ export function ReportsLibraryPage() {
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="max-h-[calc(100dvh-320px)] min-h-75 overflow-y-auto overflow-x-auto relative overscroll-contain">
+            <div className="table-slider-container max-h-[calc(100dvh-320px)] min-h-[300px] relative overscroll-contain">
               <Table className="border-collapse">
                 <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
                   <TableRow>

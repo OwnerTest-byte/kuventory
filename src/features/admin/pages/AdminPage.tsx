@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/features/auth/context/AuthContext';
 import { 
   Users, Shield, Loader2, Plus, Trash2, Store, Bell, Activity, 
-  Info, CheckCircle2, AlertCircle, Save, Database, KeyRound, RefreshCw, Layers
+  Info, CheckCircle2, AlertCircle, Save, Database, KeyRound, RefreshCw, Layers,
+  Lock, Eye, EyeOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -28,8 +30,83 @@ interface ProfileRow {
 
 export function AdminPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('restaurant');
+  const { user, profile, role } = useAuth();
+  const isAdmin = role === 'ADMIN';
+  const [activeTab, setActiveTab] = useState(isAdmin ? 'restaurant' : 'account');
   const [activitySubTab, setActivitySubTab] = useState<'stock' | 'database' | 'logins'>('stock');
+
+  // Self Password Change State
+  const [selfNewPassword, setSelfNewPassword] = useState('');
+  const [selfConfirmPassword, setSelfConfirmPassword] = useState('');
+  const [selfPasswordLoading, setSelfPasswordLoading] = useState(false);
+  const [selfPasswordSuccess, setSelfPasswordSuccess] = useState<string | null>(null);
+  const [selfPasswordError, setSelfPasswordError] = useState<string | null>(null);
+  const [showSelfPass, setShowSelfPass] = useState(false);
+
+  // Admin Reset Password State for Staff
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<ProfileRow | null>(null);
+  const [targetNewPassword, setTargetNewPassword] = useState('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
+
+  const handleUpdateSelfPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selfNewPassword || selfNewPassword.length < 6) {
+      setSelfPasswordError('Password must be at least 6 characters.');
+      setSelfPasswordSuccess(null);
+      return;
+    }
+    if (selfNewPassword !== selfConfirmPassword) {
+      setSelfPasswordError('Passwords do not match.');
+      setSelfPasswordSuccess(null);
+      return;
+    }
+    setSelfPasswordLoading(true);
+    setSelfPasswordError(null);
+    setSelfPasswordSuccess(null);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: selfNewPassword });
+      if (error) throw error;
+      setSelfPasswordSuccess('Your password has been changed successfully!');
+      setSelfNewPassword('');
+      setSelfConfirmPassword('');
+    } catch (err: any) {
+      setSelfPasswordError(err.message || 'Failed to update password');
+    } finally {
+      setSelfPasswordLoading(false);
+    }
+  };
+
+  const handleAdminResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPasswordTarget) return;
+    if (!targetNewPassword || targetNewPassword.length < 6) {
+      setResetPasswordError('Password must be at least 6 characters.');
+      setResetPasswordSuccess(null);
+      return;
+    }
+    setIsResettingPassword(true);
+    setResetPasswordError(null);
+    setResetPasswordSuccess(null);
+    try {
+      const { error } = await supabase.rpc('admin_reset_user_password', {
+        p_user_id: resetPasswordTarget.id,
+        p_new_password: targetNewPassword,
+      });
+      if (error) throw error;
+      setResetPasswordSuccess(`Password for ${resetPasswordTarget.display_name || 'user'} has been reset.`);
+      setTimeout(() => {
+        setResetPasswordTarget(null);
+        setTargetNewPassword('');
+        setResetPasswordSuccess(null);
+      }, 1500);
+    } catch (err: any) {
+      setResetPasswordError(err.message || 'Failed to reset password');
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
 
   // 1. Establishment Settings from PostgreSQL system_settings table
   const { data: dbEst } = useSystemSetting<EstablishmentSettings>('establishment', {
@@ -265,22 +342,129 @@ export function AdminPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg flex flex-wrap h-auto gap-1">
+          <TabsTrigger value="account" className="font-semibold text-xs sm:text-sm">
+            <KeyRound className="w-4 h-4 mr-2" /> Account & Password
+          </TabsTrigger>
           <TabsTrigger value="restaurant" className="font-semibold text-xs sm:text-sm">
             <Store className="w-4 h-4 mr-2" /> Restaurant Info
           </TabsTrigger>
-          <TabsTrigger value="users" className="font-semibold text-xs sm:text-sm">
-            <Users className="w-4 h-4 mr-2" /> Staff & Users ({users.length})
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="font-semibold text-xs sm:text-sm">
-            <Bell className="w-4 h-4 mr-2" /> Preferences & Alerts
-          </TabsTrigger>
-          <TabsTrigger value="activity" className="font-semibold text-xs sm:text-sm">
-            <Activity className="w-4 h-4 mr-2" /> Activity Audit Trail
-          </TabsTrigger>
+          {isAdmin && (
+            <>
+              <TabsTrigger value="users" className="font-semibold text-xs sm:text-sm">
+                <Users className="w-4 h-4 mr-2" /> Staff & Users ({users.length})
+              </TabsTrigger>
+              <TabsTrigger value="notifications" className="font-semibold text-xs sm:text-sm">
+                <Bell className="w-4 h-4 mr-2" /> Preferences & Alerts
+              </TabsTrigger>
+              <TabsTrigger value="activity" className="font-semibold text-xs sm:text-sm">
+                <Activity className="w-4 h-4 mr-2" /> Activity Audit Trail
+              </TabsTrigger>
+            </>
+          )}
           <TabsTrigger value="about" className="font-semibold text-xs sm:text-sm">
             <Info className="w-4 h-4 mr-2" /> About & Diagnostics
           </TabsTrigger>
         </TabsList>
+
+        {/* TAB 0: ACCOUNT & PASSWORD (FOR ALL USERS) */}
+        <TabsContent value="account" className="space-y-6">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm max-w-2xl space-y-6">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Shield className="w-5 h-5 text-blue-600" />
+                My Account & Profile
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Logged in as <strong className="text-slate-900 dark:text-white">{user?.email}</strong> with <strong className="text-blue-600">{role === 'ADMIN' ? 'Administrator' : 'Staff'}</strong> privileges.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div>
+                <span className="text-slate-400 block font-medium">Display Name</span>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : (user?.email?.split('@')[0] || 'Staff User')}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-medium">Account Role</span>
+                <span className="font-bold text-blue-600">{role || 'USER'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-medium">Security Status</span>
+                <span className="font-bold text-emerald-600 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Active Session
+                </span>
+              </div>
+            </div>
+
+            <hr className="border-slate-200 dark:border-slate-800" />
+
+            <form onSubmit={handleUpdateSelfPassword} className="space-y-4">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Lock className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                Change Account Password
+              </h3>
+
+              {selfPasswordError && (
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded text-xs text-rose-700 dark:text-rose-300 font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {selfPasswordError}
+                </div>
+              )}
+
+              {selfPasswordSuccess && (
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded text-xs text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                  {selfPasswordSuccess}
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">New Password</Label>
+                  <div className="relative">
+                    <Input 
+                      type={showSelfPass ? "text" : "password"}
+                      value={selfNewPassword}
+                      onChange={e => setSelfNewPassword(e.target.value)}
+                      placeholder="Minimum 6 characters"
+                      required
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSelfPass(!showSelfPass)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showSelfPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Confirm New Password</Label>
+                  <Input 
+                    type={showSelfPass ? "text" : "password"}
+                    value={selfConfirmPassword}
+                    onChange={e => setSelfConfirmPassword(e.target.value)}
+                    placeholder="Re-type new password"
+                    required
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={selfPasswordLoading || !selfNewPassword}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs"
+              >
+                {selfPasswordLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <KeyRound className="w-4 h-4 mr-2" />}
+                Update My Password
+              </Button>
+            </form>
+          </div>
+        </TabsContent>
 
         {/* TAB 1: RESTAURANT INFO */}
         <TabsContent value="restaurant" className="space-y-6">
@@ -433,6 +617,21 @@ export function AdminPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-xs font-bold gap-1 text-slate-700 hover:text-blue-600"
+                              onClick={() => {
+                                setResetPasswordTarget(u);
+                                setTargetNewPassword('');
+                                setResetPasswordError(null);
+                                setResetPasswordSuccess(null);
+                              }}
+                              title="Reset Password for this user"
+                            >
+                              <KeyRound className="w-3.5 h-3.5 text-blue-600" />
+                              Reset Pass
+                            </Button>
                             <Button 
                               variant="outline" 
                               size="sm" 
@@ -933,6 +1132,80 @@ export function AdminPage() {
               {createUserMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : 'Create Account'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin Reset User Password Dialog */}
+      <Dialog open={!!resetPasswordTarget} onOpenChange={(open) => !open && setResetPasswordTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-blue-600" />
+              Reset Staff Password
+            </DialogTitle>
+            <DialogDescription>
+              Set a new operational password for <strong className="text-slate-900 dark:text-white">{resetPasswordTarget?.display_name || 'Staff Member'}</strong> ({resetPasswordTarget?.role}).
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleAdminResetPasswordSubmit} className="space-y-4 py-2">
+            {resetPasswordError && (
+              <div className="p-3 text-xs text-rose-600 bg-rose-50 dark:bg-rose-950/40 rounded-md border border-rose-200 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {resetPasswordError}
+              </div>
+            )}
+            {resetPasswordSuccess && (
+              <div className="p-3 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 rounded-md border border-emerald-200 font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                {resetPasswordSuccess}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold">New Password</Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+                    let pass = '';
+                    for (let i = 0; i < 10; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+                    setTargetNewPassword(pass);
+                  }}
+                  className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                >
+                  Generate Random
+                </button>
+              </div>
+              <Input
+                type="text"
+                value={targetNewPassword}
+                onChange={(e) => setTargetNewPassword(e.target.value)}
+                placeholder="Enter at least 6 characters..."
+                className="font-mono text-sm"
+                required
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setResetPasswordTarget(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isResettingPassword || !targetNewPassword || targetNewPassword.length < 6}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
+              >
+                {isResettingPassword ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <KeyRound className="w-4 h-4 mr-2" />}
+                Set New Password
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

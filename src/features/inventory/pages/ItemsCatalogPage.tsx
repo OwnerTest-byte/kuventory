@@ -18,7 +18,9 @@ import {
   Layers, 
   History, 
   Tags,
-  Building2 
+  Building2,
+  RotateCcw,
+  Info
 } from 'lucide-react';
 import { ItemFormModal } from '../components/ItemFormModal';
 import { StockUpdateModal } from '../components/StockUpdateModal';
@@ -104,6 +106,16 @@ export function ItemsCatalogPage() {
       if (i.category_name) cats.add(i.category_name);
     });
     return Array.from(cats).sort();
+  }, [inventory]);
+
+  const { activeCount, archivedCount } = useMemo(() => {
+    let active = 0;
+    let archived = 0;
+    inventory?.forEach(i => {
+      if (i.is_archived) archived++;
+      else active++;
+    });
+    return { activeCount: active, archivedCount: archived };
   }, [inventory]);
 
   const handleCreateOrUpdate = async (
@@ -312,20 +324,61 @@ export function ItemsCatalogPage() {
                 ))}
               </select>
               
-              {/* Status Filter */}
-              <select 
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-xs shadow-xs focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700"
-              >
-                <option>Active</option>
-                <option>Archived</option>
-                <option>All</option>
-              </select>
+              {/* Segmented Status Filter Buttons */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('Active')}
+                  className={cn(
+                    "px-3 py-1 text-xs font-bold rounded-md transition-all",
+                    statusFilter === 'Active'
+                      ? "bg-white text-blue-700 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  Active ({activeCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('Archived')}
+                  className={cn(
+                    "px-3 py-1 text-xs font-bold rounded-md transition-all",
+                    statusFilter === 'Archived'
+                      ? "bg-amber-600 text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  Archived ({archivedCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('All')}
+                  className={cn(
+                    "px-3 py-1 text-xs font-bold rounded-md transition-all",
+                    statusFilter === 'All'
+                      ? "bg-white text-blue-700 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  All ({activeCount + archivedCount})
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="max-h-[calc(100dvh-280px)] min-h-[350px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+          {/* Banner when viewing archived items */}
+          {statusFilter === 'Archived' && (
+            <div className="p-3.5 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-3 text-xs text-amber-900">
+              <div className="flex items-center gap-2">
+                <Info className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  <strong>Archived Items:</strong> These items are hidden from daily counts and active stock balances. Click <strong>Restore</strong> to return an item to the active catalog, or <strong>Delete</strong> to permanently purge it.
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="table-slider-container max-h-[calc(100dvh-280px)] min-h-[350px] relative overscroll-contain">
             <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
               <thead className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 shadow-xs">
                 <tr className="text-slate-600">
@@ -413,41 +466,68 @@ export function ItemsCatalogPage() {
                         </td>
                         <td className="px-5 py-3.5 text-right">
                           <div className="flex justify-end items-center gap-1.5">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="h-7 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 font-semibold uppercase text-[10px] tracking-wider"
-                              onClick={() => setStockUpdateItem(item as InventoryStock)}
-                            >
-                              Update Stock
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-7 w-7 text-slate-400 hover:text-blue-600"
-                              onClick={() => { setEditingItem(item as InventoryItem); setIsModalOpen(true); }}
-                              title="Edit Details"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className={`h-7 w-7 ${item.is_archived ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50' : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'}`}
-                              onClick={() => handleToggleArchive(item)}
-                              title={item.is_archived ? 'Restore SKU' : 'Archive SKU'}
-                            >
-                              <Archive className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                              onClick={() => handleDelete(item)}
-                              title="Delete SKU permanently"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
+                            {item.is_archived ? (
+                              <>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="h-7 border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-bold text-xs gap-1.5"
+                                  onClick={() => handleToggleArchive(item)}
+                                  title="Restore SKU back to active catalog"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5 text-emerald-600" />
+                                  Restore
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="h-7 border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-xs gap-1.5"
+                                  onClick={() => handleDelete(item)}
+                                  title="Permanently purge SKU from database"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                  Delete
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="h-7 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 font-semibold uppercase text-[10px] tracking-wider"
+                                  onClick={() => setStockUpdateItem(item as InventoryStock)}
+                                >
+                                  Update Stock
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7 text-slate-400 hover:text-blue-600"
+                                  onClick={() => { setEditingItem(item as InventoryItem); setIsModalOpen(true); }}
+                                  title="Edit Details"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7 text-slate-400 hover:text-amber-600 hover:bg-amber-50"
+                                  onClick={() => handleToggleArchive(item)}
+                                  title="Archive SKU"
+                                >
+                                  <Archive className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                                  onClick={() => handleDelete(item)}
+                                  title="Delete SKU permanently"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
