@@ -17,7 +17,7 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
   profile: null,
-  role: 'ADMIN',
+  role: 'USER',
   isLoading: true,
   signOut: async () => {},
 });
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('Profile fetch warning (using metadata fallback):', error.message);
         }
 
-        const roleFromMeta = (user.user_metadata?.role as Role) || 'ADMIN';
+        const roleFromMeta = (user.user_metadata?.role as Role) || 'USER';
         const roleFromDb = data?.role as Role;
 
         return {
@@ -84,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Profile query exception:', err);
         return {
           id: user.id,
-          role: (user.user_metadata?.role as Role) || 'ADMIN',
+          role: (user.user_metadata?.role as Role) || 'USER',
           first_name: user.email?.split('@')[0] || 'Admin',
           last_name: '',
           created_at: new Date().toISOString(),
@@ -104,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isLoading = isSessionLoading || (!!user && isProfileLoading);
-  const role: Role = profile?.role ?? (user?.user_metadata?.role as Role) ?? 'ADMIN';
+  const role: Role = profile?.role ?? (user?.user_metadata?.role as Role) ?? 'USER';
 
   return (
     <AuthContext.Provider value={{ session, user, profile: profile ?? null, role, isLoading, signOut }}>

@@ -1,3 +1,4 @@
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/features/auth/context/AuthContext';
@@ -29,6 +30,7 @@ export function App() {
 
   return (
     <AuthProvider>
+      <ErrorBoundary>
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
@@ -88,6 +90,7 @@ export function App() {
         {/* Global Fallback */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+    </ErrorBoundary>
     </AuthProvider>
   );
 }

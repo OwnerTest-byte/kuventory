@@ -115,7 +115,7 @@ export function AdminPage() {
     address: 'Commercial Boulevard, Metro Manila, Philippines',
     phone: '+63 (02) 8921-4567',
     email: 'operations@kuventory.com',
-    hours: '10:00 AM – 11:00 PM Daily',
+    hours: '10:00 AM - 11:00 PM Daily',
     currency: 'PHP (₱)',
   });
 
@@ -130,7 +130,7 @@ export function AdminPage() {
       address: 'Commercial Boulevard, Metro Manila, Philippines',
       phone: '+63 (02) 8921-4567',
       email: 'operations@kuventory.com',
-      hours: '10:00 AM – 11:00 PM Daily',
+      hours: '10:00 AM - 11:00 PM Daily',
       currency: 'PHP (₱)',
     };
   });
@@ -486,16 +486,16 @@ export function AdminPage() {
             <form onSubmit={handleSaveRestaurant} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Establishment Name</Label>
-                  <Input 
+                  <Label className="text-xs font-bold text-foreground">Establishment Name</Label>
+                  <Input disabled={!isAdmin}
                     value={restaurantInfo.name}
                     onChange={e => setRestaurantInfo({ ...restaurantInfo, name: e.target.value })}
                     className="font-bold"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Branch / Location Tag</Label>
-                  <Input 
+                  <Label className="text-xs font-bold text-foreground">Branch / Location Tag</Label>
+                  <Input disabled={!isAdmin}
                     value={restaurantInfo.branch}
                     onChange={e => setRestaurantInfo({ ...restaurantInfo, branch: e.target.value })}
                   />
@@ -503,24 +503,24 @@ export function AdminPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Physical Address</Label>
-                <Input 
-                  value={restaurantInfo.address}
+                <Label className="text-xs font-bold text-foreground">Physical Address</Label>
+                <Input disabled={!isAdmin}
+                    value={restaurantInfo.address}
                   onChange={e => setRestaurantInfo({ ...restaurantInfo, address: e.target.value })}
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Contact Number</Label>
-                  <Input 
+                  <Label className="text-xs font-bold text-foreground">Contact Number</Label>
+                  <Input disabled={!isAdmin}
                     value={restaurantInfo.phone}
                     onChange={e => setRestaurantInfo({ ...restaurantInfo, phone: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Operations Email</Label>
-                  <Input 
+                  <Label className="text-xs font-bold text-foreground">Operations Email</Label>
+                  <Input disabled={!isAdmin}
                     type="email"
                     value={restaurantInfo.email}
                     onChange={e => setRestaurantInfo({ ...restaurantInfo, email: e.target.value })}
@@ -530,8 +530,8 @@ export function AdminPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Operating Hours</Label>
-                  <Input 
+                  <Label className="text-xs font-bold text-foreground">Operating Hours</Label>
+                  <Input disabled={!isAdmin}
                     value={restaurantInfo.hours}
                     onChange={e => setRestaurantInfo({ ...restaurantInfo, hours: e.target.value })}
                   />
@@ -547,9 +547,15 @@ export function AdminPage() {
               </div>
 
               <div className="pt-4 flex items-center gap-3">
-                <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
-                  <Save className="w-4 h-4 mr-2" /> Save Restaurant Details
-                </Button>
+                {isAdmin ? (
+                  <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
+                    <Save className="w-4 h-4 mr-2" /> Save Restaurant Details
+                  </Button>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5" /> Restaurant profile settings can only be altered by Administrators.
+                  </p>
+                )}
                 {savedNotice && (
                   <span className="text-xs font-bold text-emerald-500 flex items-center">
                     <CheckCircle2 className="w-4 h-4 mr-1" /> Settings saved successfully!
@@ -684,7 +690,7 @@ export function AdminPage() {
 
             <form onSubmit={handleSaveNotif} className="space-y-6">
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                <Label className="text-xs font-bold text-foreground">
                   Global Minimum Low-Stock Threshold
                 </Label>
                 <div className="flex items-center gap-4">
