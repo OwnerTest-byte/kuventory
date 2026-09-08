@@ -11,7 +11,7 @@ export default defineConfig({
       '@': path.resolve(import.meta.dirname, './src'),
     },
   },
-  base: process.env.VITE_BASE_PATH || '/KUVENTORY/',
+  base: process.env.VITE_BASE_PATH || '/',
   build: {
     rollupOptions: {
       output: {
