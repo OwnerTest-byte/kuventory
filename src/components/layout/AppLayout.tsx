@@ -18,7 +18,12 @@ import {
   Moon,
   PenSquare,
   Truck,
-  Tags
+  Tags,
+  History,
+  Users,
+  Activity,
+  RefreshCw,
+  ChevronRight
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/context/AuthContext';
@@ -50,22 +55,96 @@ function SidebarToggleIcon({ className }: { className?: string }) {
   );
 }
 
-const operationsNav = [
+// Navigation definitions matching Section 1 & 2 requirements
+const overviewNav = [
   { name: 'Dashboard', to: '/inventory', icon: LayoutDashboard },
+];
+
+const inventoryNav = [
+  { name: 'Items', to: '/items', icon: Package },
+  { name: 'Batches', to: '/items?tab=batches', icon: Layers },
+  { name: 'Movements', to: '/items?tab=history', icon: History },
+];
+
+const operationsNav = [
   { name: 'Daily Inventory', to: '/daily-inventory', icon: FileText },
-  { name: 'Stock & Items', to: '/items', icon: Package },
-  { name: 'Stock Batches (FEFO)', to: '/items?tab=batches', icon: Layers },
-  { name: 'Suppliers Directory', to: '/items?tab=suppliers', icon: Truck },
-  { name: 'Categories', to: '/categories', icon: Tags },
+];
+
+const referenceNav = [
+  { name: 'Suppliers', to: '/items?tab=suppliers', icon: Truck },
 ];
 
 const reportsNav = [
-  { name: 'Reports & Exports', to: '/reports', icon: FileBarChart },
+  { name: 'Reports', to: '/reports', icon: FileBarChart },
 ];
 
-const preferencesNav = [
-  { name: 'Settings', to: '/settings', icon: Settings },
+const adminNav = [
+  { name: 'Users', to: '/admin?tab=users', icon: Users },
+  { name: 'Categories', to: '/items?tab=categories', icon: Tags },
+  { name: 'Audit Logs', to: '/admin?tab=logs', icon: Activity },
+  { name: 'Settings', to: '/admin?tab=settings', icon: Settings },
 ];
+
+const accountNav = [
+  { name: 'My Account', to: '/settings', icon: UserIcon },
+];
+
+// Collapsible breadcrumb component
+function AppBreadcrumbs() {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const tab = searchParams.get('tab');
+
+  let section = 'Overview';
+  let page = 'Dashboard';
+
+  if (location.pathname === '/inventory') {
+    section = 'Overview';
+    page = 'Dashboard';
+  } else if (location.pathname === '/daily-inventory') {
+    section = 'Operations';
+    page = 'Daily Inventory';
+  } else if (location.pathname === '/items') {
+    section = 'Inventory';
+    if (tab === 'batches') {
+      page = 'Batches';
+    } else if (tab === 'history') {
+      page = 'Movements';
+    } else if (tab === 'suppliers') {
+      section = 'Reference';
+      page = 'Suppliers';
+    } else if (tab === 'categories') {
+      section = 'Administration';
+      page = 'Categories';
+    } else {
+      page = 'Items';
+    }
+  } else if (location.pathname.startsWith('/items/')) {
+    section = 'Inventory';
+    page = 'Item Details';
+  } else if (location.pathname.startsWith('/reports')) {
+    section = 'Reports';
+    if (location.pathname === '/reports/inventory') page = 'Daily Inventory Report';
+    else if (location.pathname === '/reports/movement') page = 'Stock Movement Report';
+    else if (location.pathname === '/reports/low-stock') page = 'Low Stock Report';
+    else if (location.pathname === '/reports/expiry') page = 'Expiry & Waste Report';
+    else page = 'Reports Library';
+  } else if (location.pathname === '/settings') {
+    section = 'Account';
+    page = 'My Account';
+  } else if (location.pathname === '/admin') {
+    section = 'Administration';
+    page = tab === 'logs' ? 'Audit Logs' : tab === 'settings' ? 'System Settings' : 'Users & Roles';
+  }
+
+  return (
+    <div className="px-4 sm:px-6 py-2 border-b border-border/50 bg-card/30 flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0 select-none">
+      <span className="hidden sm:inline font-medium hover:text-foreground transition-colors">{section}</span>
+      <ChevronRight className="hidden sm:inline w-3 h-3 text-muted-foreground/60 shrink-0" />
+      <span className="font-semibold text-foreground truncate">{page}</span>
+    </div>
+  );
+}
 
 interface SidebarNavigationProps {
   closeMobileMenu?: () => void;
@@ -94,8 +173,8 @@ function SidebarNavigation({
     const targetTab = targetParams.get('tab');
 
     // Handle /categories alias -> /items?tab=categories
-    if (to === '/categories') {
-      return location.pathname === '/categories' || (location.pathname === '/items' && currentTab === 'categories');
+    if (to === '/categories' || to === '/items?tab=categories') {
+      return (location.pathname === '/items' && currentTab === 'categories') || location.pathname === '/categories';
     }
 
     // If path doesn't match, return false
@@ -108,8 +187,15 @@ function SidebarNavigation({
       if (targetTab) {
         return currentTab === targetTab;
       }
-      // If no target query param (Stock & Items), only active if no tab or tab is 'catalog'
       return !currentTab || currentTab === 'catalog';
+    }
+
+    // If path is /admin:
+    if (path === '/admin') {
+      if (targetTab) {
+        return currentTab === targetTab;
+      }
+      return !currentTab || currentTab === 'users';
     }
 
     if (path === '/reports') {
@@ -117,7 +203,7 @@ function SidebarNavigation({
     }
 
     if (path === '/settings') {
-      return location.pathname === '/settings' || location.pathname === '/admin';
+      return location.pathname === '/settings';
     }
 
     return true;
@@ -258,7 +344,71 @@ function SidebarNavigation({
           </div>
         )}
 
-        {/* Operations Section */}
+        {/* OVERVIEW Section */}
+        <div>
+          {!isCollapsed && (
+            <div className="px-3 pb-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              Overview
+            </div>
+          )}
+          <nav className="space-y-1">
+            {overviewNav.map((item) => {
+              const active = isItemActive(item.to);
+              return (
+                <Link
+                  key={item.name}
+                  to={item.to}
+                  onClick={closeMobileMenu}
+                  title={isCollapsed ? item.name : undefined}
+                  className={cn(
+                    "flex items-center rounded-xl text-xs font-medium transition-all group",
+                    isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
+                    active
+                      ? "bg-primary/15 text-primary font-semibold border-l-2 border-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  {!isCollapsed && <span className="truncate">{item.name}</span>}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* INVENTORY Section */}
+        <div>
+          {!isCollapsed && (
+            <div className="px-3 pb-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              Inventory
+            </div>
+          )}
+          <nav className="space-y-1">
+            {inventoryNav.map((item) => {
+              const active = isItemActive(item.to);
+              return (
+                <Link
+                  key={item.name}
+                  to={item.to}
+                  onClick={closeMobileMenu}
+                  title={isCollapsed ? item.name : undefined}
+                  className={cn(
+                    "flex items-center rounded-xl text-xs font-medium transition-all group",
+                    isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
+                    active
+                      ? "bg-primary/15 text-primary font-semibold border-l-2 border-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  {!isCollapsed && <span className="truncate">{item.name}</span>}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* OPERATIONS Section */}
         <div>
           {!isCollapsed && (
             <div className="px-3 pb-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -290,11 +440,43 @@ function SidebarNavigation({
           </nav>
         </div>
 
-        {/* Reports Section */}
+        {/* REFERENCE Section */}
         <div>
           {!isCollapsed && (
             <div className="px-3 pb-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              Analytics & Reports
+              Reference
+            </div>
+          )}
+          <nav className="space-y-1">
+            {referenceNav.map((item) => {
+              const active = isItemActive(item.to);
+              return (
+                <Link
+                  key={item.name}
+                  to={item.to}
+                  onClick={closeMobileMenu}
+                  title={isCollapsed ? item.name : undefined}
+                  className={cn(
+                    "flex items-center rounded-xl text-xs font-medium transition-all group",
+                    isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
+                    active
+                      ? "bg-primary/15 text-primary font-semibold border-l-2 border-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  {!isCollapsed && <span className="truncate">{item.name}</span>}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* REPORTS Section */}
+        <div>
+          {!isCollapsed && (
+            <div className="px-3 pb-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              Reports
             </div>
           )}
           <nav className="space-y-1">
@@ -322,15 +504,49 @@ function SidebarNavigation({
           </nav>
         </div>
 
-        {/* System Section */}
+        {/* ADMINISTRATION Section (Admin Only) */}
+        {role === 'ADMIN' && (
+          <div>
+            {!isCollapsed && (
+              <div className="px-3 pb-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                Administration
+              </div>
+            )}
+            <nav className="space-y-1">
+              {adminNav.map((item) => {
+                const active = isItemActive(item.to);
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.to}
+                    onClick={closeMobileMenu}
+                    title={isCollapsed ? item.name : undefined}
+                    className={cn(
+                      "flex items-center rounded-xl text-xs font-medium transition-all group",
+                      isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
+                      active
+                        ? "bg-primary/15 text-primary font-semibold border-l-2 border-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    {!isCollapsed && <span className="truncate">{item.name}</span>}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        )}
+
+        {/* ACCOUNT Section */}
         <div>
           {!isCollapsed && (
             <div className="px-3 pb-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              Preferences
+              Account
             </div>
           )}
           <nav className="space-y-1">
-            {preferencesNav.map((item) => {
+            {accountNav.map((item) => {
               const active = isItemActive(item.to);
               return (
                 <Link
@@ -580,7 +796,7 @@ export function AppLayout() {
             >
               <span className="flex items-center gap-2">
                 <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" />
-                <span>Search inventory, SKU, suppliers, or commands...</span>
+                <span>Search items, SKU, suppliers...</span>
               </span>
               <kbd className="px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground bg-card border border-border rounded">
                 Ctrl + K
@@ -610,7 +826,7 @@ export function AppLayout() {
               {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
             </button>
 
-            {/* Quick Action Dropdown (Pure Solid Blue, No Gradient) */}
+            {/* Quick Action Dropdown (Focused on Core Inventory Operations) */}
             <div className="relative">
               <Button
                 onClick={() => setQuickActionOpen(!quickActionOpen)}
@@ -629,7 +845,7 @@ export function AppLayout() {
                   />
                   <div className="absolute right-0 mt-2 w-56 bg-card rounded-xl shadow-xl border border-border py-2 z-40">
                     <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                       Quick Operations
+                       Inventory Actions
                     </div>
                     <button
                       type="button"
@@ -640,8 +856,42 @@ export function AppLayout() {
                       className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 cursor-pointer"
                     >
                       <Plus className="w-4 h-4 text-primary" />
-                      Add New Inventory Item
+                      + Add Item
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickActionOpen(false);
+                        navigate('/items?tab=batches&action=add');
+                      }}
+                      className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4 text-emerald-500" />
+                      + Receive Stock
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickActionOpen(false);
+                        navigate('/items?quick=adjust');
+                      }}
+                      className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <RefreshCw className="w-4 h-4 text-amber-500" />
+                      + Adjust Stock
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickActionOpen(false);
+                        navigate('/items?tab=suppliers&action=new');
+                      }}
+                      className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <Truck className="w-4 h-4 text-blue-500" />
+                      + Add Supplier
+                    </button>
+                    <div className="h-px bg-border/60 my-1" />
                     <button
                       type="button"
                       onClick={() => {
@@ -650,19 +900,8 @@ export function AppLayout() {
                       }}
                       className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 cursor-pointer"
                     >
-                      <FileText className="w-4 h-4 text-emerald-500" />
-                      Open Daily Inventory Sheet
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQuickActionOpen(false);
-                        navigate('/items?tab=batches');
-                      }}
-                      className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 cursor-pointer"
-                    >
-                      <Layers className="w-4 h-4 text-amber-500" />
-                      View Stock Batches (FEFO)
+                      <FileText className="w-4 h-4 text-emerald-600" />
+                      Open Daily Inventory
                     </button>
                   </div>
                 </>
@@ -696,6 +935,9 @@ export function AppLayout() {
             </div>
           </div>
         </header>
+
+        {/* Dynamic Contextual Breadcrumbs */}
+        <AppBreadcrumbs />
 
         {/* Main Content Viewport */}
         <main className="flex-1 flex flex-col min-w-0 h-full relative bg-background overflow-hidden">

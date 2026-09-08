@@ -20,10 +20,12 @@ import {
   Tags,
   Building2,
   RotateCcw,
-  Info
+  Info,
+  Eye
 } from 'lucide-react';
 import { ItemFormModal } from '../components/ItemFormModal';
 import { StockUpdateModal } from '../components/StockUpdateModal';
+import { ItemQuickViewDrawer } from '../components/ItemQuickViewDrawer';
 import { StockBatchesPage } from './StockBatchesPage';
 import { StockHistoryPage } from './StockHistoryPage';
 import { CategoriesPage } from '@/features/categories/pages/CategoriesPage';
@@ -53,6 +55,7 @@ export function ItemsCatalogPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [stockUpdateItem, setStockUpdateItem] = useState<InventoryStock | null>(null);
+  const [quickViewItem, setQuickViewItem] = useState<InventoryItem | null>(null);
 
   const { data: currentBatches = [] } = useQuery({
     queryKey: ['batches', stockUpdateItem?.id],
@@ -218,7 +221,7 @@ export function ItemsCatalogPage() {
           )}
         >
           <Package className="w-3.5 h-3.5" />
-          Master Catalog
+          Items
         </button>
         <button
           type="button"
@@ -231,7 +234,7 @@ export function ItemsCatalogPage() {
           )}
         >
           <Layers className="w-3.5 h-3.5" />
-          Stock Batches (FEFO)
+          Batches
         </button>
         <button
           type="button"
@@ -244,7 +247,7 @@ export function ItemsCatalogPage() {
           )}
         >
           <History className="w-3.5 h-3.5" />
-          Movement History
+          Movements
         </button>
         <button
           type="button"
@@ -492,6 +495,15 @@ export function ItemsCatalogPage() {
                             ) : (
                               <>
                                 <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted"
+                                  onClick={() => setQuickViewItem(item as InventoryItem)}
+                                  title="Quick View Item"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button 
                                   variant="outline" 
                                   size="sm" 
                                   className="h-7 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 font-semibold uppercase text-[10px] tracking-wider"
@@ -558,6 +570,14 @@ export function ItemsCatalogPage() {
           onSubmit={handleStockUpdateSubmit}
         />
       )}
+
+      <ItemQuickViewDrawer
+        item={quickViewItem}
+        isOpen={!!quickViewItem}
+        onClose={() => setQuickViewItem(null)}
+        onUpdateStock={(stockItem) => setStockUpdateItem(stockItem)}
+        onEdit={(editItem) => { setEditingItem(editItem); setIsModalOpen(true); }}
+      />
     </div>
   );
 }

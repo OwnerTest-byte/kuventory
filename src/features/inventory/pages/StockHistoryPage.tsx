@@ -15,7 +15,7 @@ export function StockHistoryPage({ embedded }: { embedded?: boolean } = {}) {
       {!embedded && (
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase">Global Stock History &amp; Audit Trail</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase">Stock Movements &amp; Audit Trail</h1>
             <p className="text-xs text-muted-foreground mt-1">Real-time log of stock receipts, consumption, adjustments, and balance transitions.</p>
           </div>
         </div>
@@ -24,15 +24,15 @@ export function StockHistoryPage({ embedded }: { embedded?: boolean } = {}) {
       <Card className="shadow-xs border-border overflow-hidden bg-card">
         <div className="table-slider-container max-h-[calc(100dvh-320px)] min-h-[350px] overflow-y-auto overflow-x-auto relative overscroll-contain">
           <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
-            <thead className="sticky top-0 z-20 bg-muted/60 backdrop-blur-xs border-b border-border shadow-xs">
-              <tr>
-                <th className="px-6 py-3 font-bold text-foreground uppercase tracking-wider text-xs sticky left-0 z-30 bg-muted/95 border-r border-border">Date / Time</th>
-                <th className="px-6 py-3 font-bold text-foreground uppercase tracking-wider text-xs">Item Name</th>
-                <th className="px-6 py-3 font-bold text-foreground uppercase tracking-wider text-xs text-center">Type</th>
-                <th className="px-6 py-3 font-bold text-foreground uppercase tracking-wider text-xs text-center">Qty Change</th>
-                <th className="px-6 py-3 font-bold text-foreground uppercase tracking-wider text-xs text-center">Balance Transition</th>
-                <th className="px-6 py-3 font-bold text-foreground uppercase tracking-wider text-xs">Logged By</th>
-                <th className="px-6 py-3 font-bold text-foreground uppercase tracking-wider text-xs">Reason / Ref</th>
+            <thead className="sticky top-0 z-20 bg-muted/90 backdrop-blur-xs border-b border-border shadow-xs">
+              <tr className="text-muted-foreground">
+                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs sticky left-0 z-30 bg-muted border-r border-border">Date / Time</th>
+                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Item Name</th>
+                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-center">Type</th>
+                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-center">Qty Change</th>
+                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-center">Balance Transition</th>
+                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Logged By</th>
+                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Reason / Ref</th>
               </tr>
             </thead>
             <tbody className="bg-card divide-y divide-border">
@@ -50,10 +50,19 @@ export function StockHistoryPage({ embedded }: { embedded?: boolean } = {}) {
                 </tr>
               ) : (
                 movements.map(move => {
-                  let badgeClass = 'bg-muted text-foreground border border-border';
-                  if (move.action_type === 'ADD') badgeClass = 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/20';
-                  if (move.action_type === 'REMOVE') badgeClass = 'bg-destructive/15 text-destructive border border-destructive/20';
-                  if (move.action_type === 'ADJUST') badgeClass = 'bg-primary/15 text-primary border border-primary/20';
+                  let badgeClass = 'bg-muted text-muted-foreground border-border';
+                  let actionLabel: string = move.action_type || 'Update';
+
+                  if (move.action_type === 'ADD') {
+                    badgeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20';
+                    actionLabel = 'Added';
+                  } else if (move.action_type === 'REMOVE') {
+                    badgeClass = 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20';
+                    actionLabel = 'Deducted';
+                  } else if (move.action_type === 'ADJUST') {
+                    badgeClass = 'bg-primary/10 text-primary border border-primary/20';
+                    actionLabel = 'Correction';
+                  }
 
                   const prefix = move.action_type === 'REMOVE' ? '-' : move.action_type === 'ADD' ? '+' : '';
 
@@ -71,8 +80,8 @@ export function StockHistoryPage({ embedded }: { embedded?: boolean } = {}) {
                         )}
                       </td>
                       <td className="px-6 py-4 text-center">
-                         <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${badgeClass}`}>
-                           {move.action_type}
+                         <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${badgeClass}`}>
+                           {actionLabel}
                          </span>
                       </td>
                       <td className="px-6 py-4 text-center font-bold text-foreground font-mono">

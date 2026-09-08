@@ -130,13 +130,13 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
             {/* Stock Balance Filter */}
-            <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+            <div className="flex items-center gap-1 bg-muted p-1 rounded-lg border border-border">
               <button
                 type="button"
                 onClick={() => setStockFilter('in_stock')}
-                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
                   stockFilter === 'in_stock'
-                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    ? 'bg-card text-primary shadow-xs border border-border/50'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -145,9 +145,9 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
               <button
                 type="button"
                 onClick={() => setStockFilter('all')}
-                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
                   stockFilter === 'all'
-                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    ? 'bg-card text-primary shadow-xs border border-border/50'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -182,9 +182,9 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
         {/* Batches Table with Table Slider Container */}
         <div className="table-slider-container max-h-[calc(100dvh-320px)] min-h-[350px] relative overscroll-contain">
           <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
-            <thead className="sticky top-0 z-20 bg-muted/60 backdrop-blur-xs border-b border-border shadow-xs">
+            <thead className="sticky top-0 z-20 bg-muted/90 backdrop-blur-xs border-b border-border shadow-xs">
               <tr className="text-muted-foreground">
-                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs sticky left-0 z-30 bg-muted/95 border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Batch Code</th>
+                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs sticky left-0 z-30 bg-muted border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Batch Code</th>
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Item Name</th>
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-center">Quantity</th>
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Received Date</th>
@@ -215,20 +215,20 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
                   const isExpired = expiryDate && expiryDate < now;
                   const daysLeft = expiryDate ? differenceInDays(expiryDate, now) : null;
 
-                  let priorityBadge = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+                  let priorityBadge = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
                   let priorityText = 'NORMAL';
 
                   if (isExpired) {
-                    priorityBadge = 'bg-rose-100 text-rose-800 font-bold border-rose-300';
+                    priorityBadge = 'bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold border-rose-500/20';
                     priorityText = 'EXPIRED';
                   } else if (batch.quantity <= 0) {
-                    priorityBadge = 'bg-slate-100 text-slate-600 border-slate-300';
+                    priorityBadge = 'bg-muted text-muted-foreground border-border';
                     priorityText = 'DEPLETED';
                   } else if (index === 0) {
-                    priorityBadge = 'bg-rose-600 text-white font-bold animate-pulse';
+                    priorityBadge = 'bg-rose-600 text-white font-bold animate-pulse border-rose-600';
                     priorityText = 'USE FIRST';
                   } else if (index === 1) {
-                    priorityBadge = 'bg-amber-500 text-white font-bold';
+                    priorityBadge = 'bg-amber-500 text-white font-bold border-amber-500';
                     priorityText = 'NEXT';
                   }
 

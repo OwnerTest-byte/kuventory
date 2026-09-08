@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { LoginForm } from '../components/LoginForm';
 
 export function LoginPage() {
-  const { session, isLoading } = useAuth();
+  const { session, role, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -13,9 +13,10 @@ export function LoginPage() {
     );
   }
 
-  // Redirect to inventory if already logged in
+  // Redirect role-specifically if already logged in (Admin -> Dashboard, Staff -> Daily Inventory)
   if (session) {
-    return <Navigate to="/inventory" replace />;
+    const landingPath = role === 'ADMIN' ? '/inventory' : '/daily-inventory';
+    return <Navigate to={landingPath} replace />;
   }
 
   return (

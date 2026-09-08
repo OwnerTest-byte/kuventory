@@ -63,16 +63,35 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
         <div className="bg-card rounded-xl shadow-xs border border-border overflow-hidden">
           <div className="table-slider-container max-h-[550px] relative overscroll-contain">
             <Table className="w-full text-left border-collapse">
-              <TableHeader className="sticky top-0 z-20 bg-muted/90 backdrop-blur-xs shadow-2xs">
-                <TableRow className="border-b border-border">
+              <TableHeader className="sticky top-0 z-20 bg-muted/95 backdrop-blur-xs shadow-2xs">
+                {/* Visual Grouping Super-Header */}
+                <TableRow className="border-b border-border/80 text-[10px] uppercase font-bold tracking-wider">
+                  <TableHead colSpan={2} className="sticky left-0 z-30 bg-muted border-r border-border min-w-[220px] py-1.5 px-3 text-muted-foreground">
+                    Item Identification
+                  </TableHead>
+                  <TableHead className="text-center py-1.5 px-2 bg-muted/70 text-muted-foreground border-r border-border/60">
+                    Beginning
+                  </TableHead>
+                  <TableHead colSpan={2} className="text-center py-1.5 px-2 bg-blue-500/10 text-blue-600 dark:text-blue-400 border-r border-border/60">
+                    Stock In
+                  </TableHead>
+                  <TableHead colSpan={2} className="text-center py-1.5 px-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-r border-border/60">
+                    Daily Sales
+                  </TableHead>
+                  <TableHead className="text-center py-1.5 px-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    Ending
+                  </TableHead>
+                </TableRow>
+                {/* Column Detail Sub-Header */}
+                <TableRow className="border-b border-border text-xs">
                   <TableHead className="w-12 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider sticky left-0 z-30 bg-muted border-r border-border">#</TableHead>
                   <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider sticky left-12 z-30 bg-muted border-r border-border min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">ITEM</TableHead>
-                  <TableHead className="text-center w-24 text-xs font-bold text-muted-foreground uppercase tracking-wider">BEG</TableHead>
-                  <TableHead className="text-center w-24 text-xs font-bold text-muted-foreground uppercase tracking-wider">ADD</TableHead>
-                  <TableHead className="text-center w-32 text-xs font-bold text-muted-foreground uppercase tracking-wider bg-muted/60">TOTAL STOCK</TableHead>
-                  <TableHead className="text-center w-24 text-xs font-bold text-muted-foreground uppercase tracking-wider">SALES AM</TableHead>
-                  <TableHead className="text-center w-24 text-xs font-bold text-muted-foreground uppercase tracking-wider">SALES PM</TableHead>
-                  <TableHead className="text-center w-32 text-xs font-bold text-muted-foreground uppercase tracking-wider bg-muted/60">ENDING QTY</TableHead>
+                  <TableHead className="text-center w-24 text-xs font-bold text-muted-foreground uppercase tracking-wider bg-muted/40 border-r border-border/60">BEG</TableHead>
+                  <TableHead className="text-center w-24 text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-500/5">ADD</TableHead>
+                  <TableHead className="text-center w-32 text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider bg-blue-500/15 border-r border-border/60">TOTAL</TableHead>
+                  <TableHead className="text-center w-24 text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider bg-amber-500/5">SALES AM</TableHead>
+                  <TableHead className="text-center w-24 text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider bg-amber-500/5 border-r border-border/60">SALES PM</TableHead>
+                  <TableHead className="text-center w-32 text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider bg-emerald-500/15">ENDING</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -93,12 +112,12 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
                   <TableCell className="sticky left-12 z-30 bg-muted border-r border-border text-left text-foreground uppercase tracking-wider text-xs font-black shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                     TOTAL {title}
                   </TableCell>
-                  <TableCell className="text-center text-foreground font-mono font-bold text-xs">{totals.beg}</TableCell>
-                  <TableCell className="text-center text-foreground font-mono font-bold text-xs">{totals.add}</TableCell>
-                  <TableCell className="text-center text-primary bg-primary/10 font-mono font-black text-xs">{totals.total}</TableCell>
-                  <TableCell className="text-center text-foreground font-mono font-bold text-xs">{totals.am}</TableCell>
-                  <TableCell className="text-center text-foreground font-mono font-bold text-xs">{totals.pm}</TableCell>
-                  <TableCell className="text-center text-primary bg-primary/10 font-mono font-black text-xs">{totals.end}</TableCell>
+                  <TableCell className="text-center text-foreground font-mono font-bold text-xs bg-muted/40 border-r border-border/60">{totals.beg}</TableCell>
+                  <TableCell className="text-center text-foreground font-mono font-bold text-xs bg-blue-500/5">{totals.add}</TableCell>
+                  <TableCell className="text-center text-primary bg-blue-500/15 font-mono font-black text-xs border-r border-border/60">{totals.total}</TableCell>
+                  <TableCell className="text-center text-foreground font-mono font-bold text-xs bg-amber-500/5">{totals.am}</TableCell>
+                  <TableCell className="text-center text-foreground font-mono font-bold text-xs bg-amber-500/5 border-r border-border/60">{totals.pm}</TableCell>
+                  <TableCell className="text-center text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 font-mono font-black text-xs">{totals.end}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>

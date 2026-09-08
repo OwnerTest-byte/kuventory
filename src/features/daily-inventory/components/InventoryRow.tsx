@@ -106,7 +106,7 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
   const optTotal = numBeg + numAdd;
   const optEnding = optTotal - numAm - numPm;
 
-  const inputClass = `w-full text-center p-2 text-base sm:text-sm font-semibold border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+  const inputClass = `w-full text-center p-2 h-10 min-h-[40px] text-base sm:text-sm font-semibold border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
     isReadOnly 
       ? 'bg-muted/50 text-muted-foreground cursor-not-allowed border-border' 
       : 'bg-card text-foreground border-border hover:border-muted-foreground/40'
@@ -129,7 +129,7 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
         </TableCell>
         
         {/* BEG */}
-        <TableCell className="p-2">
+        <TableCell className="p-2 bg-muted/20 border-r border-border/60">
           <input 
             type="number" 
             min="0"
@@ -143,7 +143,7 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
         </TableCell>
 
         {/* ADD - Direct Input + Batch Modal trigger */}
-        <TableCell className="p-2">
+        <TableCell className="p-2 bg-blue-500/[0.03]">
           <div className="relative flex items-center">
             <input 
               type="number" 
@@ -169,14 +169,14 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
         </TableCell>
 
         {/* TOTAL STOCK */}
-        <TableCell className="p-2">
-          <div className="w-full text-center p-2 rounded-lg bg-primary/10 text-primary font-bold border border-primary/20 text-sm">
+        <TableCell className="p-2 bg-blue-500/[0.06] border-r border-border/60">
+          <div className="w-full text-center p-2 h-10 flex items-center justify-center rounded-lg bg-blue-500/15 text-blue-700 dark:text-blue-300 font-bold border border-blue-500/25 text-sm">
             {optTotal}
           </div>
         </TableCell>
 
         {/* SALES AM */}
-        <TableCell className="p-2">
+        <TableCell className="p-2 bg-amber-500/[0.03]">
           <input 
             type="number" 
             min="0"
@@ -190,7 +190,7 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
         </TableCell>
 
         {/* SALES PM */}
-        <TableCell className="p-2">
+        <TableCell className="p-2 bg-amber-500/[0.03] border-r border-border/60">
           <input 
             type="number" 
             min="0"
@@ -204,11 +204,11 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
         </TableCell>
 
         {/* ENDING QTY */}
-        <TableCell className="p-2">
-          <div className={`w-full text-center p-2 rounded-lg font-bold border text-sm transition-colors ${
+        <TableCell className="p-2 bg-emerald-500/[0.04]">
+          <div className={`w-full text-center p-2 h-10 flex items-center justify-center rounded-lg font-bold border text-sm transition-colors ${
             optEnding < 0 
-              ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' 
-              : 'bg-primary/10 text-primary border border-primary/20'
+              ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/25' 
+              : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/25'
           }`}>
             {optEnding}
           </div>
