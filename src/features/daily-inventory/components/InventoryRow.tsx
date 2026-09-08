@@ -103,25 +103,25 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
   const optTotal = numBeg + numAdd;
   const optEnding = optTotal - numAm - numPm;
 
-  const inputClass = `w-full text-center p-2 text-sm font-semibold border rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+  const inputClass = `w-full text-center p-2 text-sm font-semibold border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
     isReadOnly 
-      ? 'bg-slate-50 text-slate-500 cursor-not-allowed border-slate-200' 
-      : 'bg-white text-slate-900 border-slate-300 hover:border-slate-400'
+      ? 'bg-muted/50 text-muted-foreground cursor-not-allowed border-border' 
+      : 'bg-card text-foreground border-border hover:border-muted-foreground/40'
   }`;
 
   return (
     <>
-      <TableRow className="hover:bg-slate-50/80 group border-b border-slate-100 last:border-0 transition-colors">
-        <TableCell className="p-3 text-center text-xs font-medium text-slate-400 sticky left-0 z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200">
+      <TableRow className="hover:bg-muted/40 group border-b border-border/60 last:border-0 transition-colors">
+        <TableCell className="p-3 text-center text-xs font-medium text-muted-foreground sticky left-0 z-10 bg-card group-hover:bg-muted/60 border-r border-border">
           {index + 1}
         </TableCell>
-        <TableCell className="p-3 align-middle sticky left-12 z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200 min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
-          <div className="font-bold text-slate-800 text-xs sm:text-sm">{item.items?.item_name}</div>
-          <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+        <TableCell className="p-3 align-middle sticky left-12 z-10 bg-card group-hover:bg-muted/60 border-r border-border min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+          <div className="font-bold text-foreground text-xs sm:text-sm">{item.items?.item_name}</div>
+          <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
             <span>{item.items?.unit}</span>
             {saveStatus === 'saving' && <span className="text-amber-500 font-medium">Saving...</span>}
-            {saveStatus === 'saved' && <span className="text-emerald-600 font-medium">Saved</span>}
-            {saveStatus === 'error' && <span className="text-rose-600 font-medium">Save failed</span>}
+            {saveStatus === 'saved' && <span className="text-emerald-500 font-medium">Saved</span>}
+            {saveStatus === 'error' && <span className="text-rose-500 font-medium">Save failed</span>}
           </div>
         </TableCell>
         
@@ -150,14 +150,14 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
               onChange={e => handleInputChange('add', e.target.value)}
               onBlur={handleBlur}
               disabled={isReadOnly}
-              className={`${inputClass} pr-7 font-bold text-blue-700`}
+              className={`${inputClass} pr-7 font-bold text-primary`}
             />
             {!isReadOnly && (
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
                 title="Receive Delivery with Expiry Date"
-                className="absolute right-1 text-slate-400 hover:text-blue-600 p-1 transition-colors"
+                className="absolute right-1 text-muted-foreground hover:text-primary p-1 transition-colors"
               >
                 <PlusCircle size={15} />
               </button>
@@ -167,7 +167,7 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
 
         {/* TOTAL STOCK */}
         <TableCell className="p-2">
-          <div className="w-full text-center p-2 rounded bg-blue-50/60 text-blue-700 font-bold border border-blue-100 text-sm">
+          <div className="w-full text-center p-2 rounded-lg bg-primary/10 text-primary font-bold border border-primary/20 text-sm">
             {optTotal}
           </div>
         </TableCell>
@@ -202,10 +202,10 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
 
         {/* ENDING QTY */}
         <TableCell className="p-2">
-          <div className={`w-full text-center p-2 rounded font-bold border text-sm transition-colors ${
+          <div className={`w-full text-center p-2 rounded-lg font-bold border text-sm transition-colors ${
             optEnding < 0 
-              ? 'bg-red-50 text-red-700 border-red-200' 
-              : 'bg-blue-50/60 text-blue-700 border-blue-100'
+              ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' 
+              : 'bg-primary/10 text-primary border border-primary/20'
           }`}>
             {optEnding}
           </div>

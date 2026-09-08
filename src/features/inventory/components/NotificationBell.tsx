@@ -88,22 +88,22 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
       >
         <Bell className="h-5 w-5 text-slate-600 dark:text-slate-300" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+          <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-destructive rounded-full border-2 border-background"></span>
         )}
       </button>
 
       {isOpen && (
         <div 
           className={cn(
-            "absolute w-80 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl overflow-hidden z-100 flex flex-col max-h-[70vh]",
+            "absolute w-80 sm:w-96 bg-card text-card-foreground border border-border rounded-xl shadow-xl overflow-hidden z-100 flex flex-col max-h-[70vh]",
             placement === 'bottom-right' ? "right-0 top-full mt-2" : "left-0 bottom-full mb-2"
           )}
         >
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
-            <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+          <div className="p-4 border-b border-border flex items-center justify-between bg-muted/40">
+            <h3 className="font-semibold text-foreground flex items-center gap-2">
               Notifications
               {unreadCount > 0 && (
-                <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400 text-xs py-0.5 px-2 rounded-full font-medium">
+                <span className="bg-primary/10 text-primary text-xs py-0.5 px-2 rounded-full font-medium">
                   {unreadCount} new
                 </span>
               )}
@@ -111,7 +111,7 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
             {unreadCount > 0 && (
               <button 
                 onClick={() => markAllAsRead.mutate()}
-                className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium flex items-center gap-1"
+                className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1"
                 disabled={markAllAsRead.isPending}
               >
                 <Check className="h-3 w-3" />
@@ -122,10 +122,10 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
           
           <div className="overflow-y-auto flex-1 p-2">
             {isLoading ? (
-              <div className="p-4 text-center text-sm text-slate-500">Loading...</div>
+              <div className="p-4 text-center text-sm text-muted-foreground">Loading...</div>
             ) : notifications.length === 0 ? (
-              <div className="p-8 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center">
-                <Bell className="h-8 w-8 mb-2 opacity-20" />
+              <div className="p-8 text-center text-muted-foreground flex flex-col items-center">
+                <Bell className="h-8 w-8 mb-2 opacity-30" />
                 <p className="text-sm">No notifications yet</p>
               </div>
             ) : (
@@ -135,10 +135,10 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={cn(
-                      "w-full text-left p-3 rounded-md transition-colors flex gap-3 items-start",
+                      "w-full text-left p-3 rounded-lg transition-colors flex gap-3 items-start",
                       notification.is_read 
-                        ? "opacity-60 hover:bg-slate-50 dark:hover:bg-slate-800/50" 
-                        : "bg-blue-50/50 hover:bg-blue-50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20"
+                        ? "opacity-70 hover:bg-muted/40" 
+                        : "bg-primary/5 hover:bg-primary/10"
                     )}
                   >
                     <div className="mt-0.5 shrink-0">
@@ -148,15 +148,15 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
                       <p className={cn(
                         "text-sm mb-1",
                         notification.is_read 
-                          ? "text-slate-700 dark:text-slate-300" 
-                          : "font-semibold text-slate-900 dark:text-white"
+                          ? "text-foreground/80" 
+                          : "font-semibold text-foreground"
                       )}>
                         {notification.title}
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
+                      <p className="text-xs text-muted-foreground line-clamp-2">
                         {notification.message}
                       </p>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">
+                      <p className="text-[10px] text-muted-foreground/80 mt-2">
                         {new Date(notification.created_at).toLocaleString()}
                       </p>
                     </div>
@@ -166,11 +166,11 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
             )}
           </div>
 
-          <div className="p-2.5 border-t border-slate-200 dark:border-slate-800 text-center bg-slate-50 dark:bg-slate-900/50">
+          <div className="p-2.5 border-t border-border text-center bg-muted/40">
             <button 
               type="button"
               onClick={() => { setIsOpen(false); navigate('/notifications'); }}
-              className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 font-bold hover:underline"
+              className="text-xs text-primary hover:text-primary/80 font-bold hover:underline"
             >
               View All in Notification Center →
             </button>

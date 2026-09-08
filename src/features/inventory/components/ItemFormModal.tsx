@@ -79,18 +79,18 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
-        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl">
-          <h2 className="text-xl font-bold text-slate-800">{item ? 'Edit Item' : 'Add New Item'}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose} className="text-slate-400 hover:text-slate-600">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-card rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh] border border-border">
+        <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/40 rounded-t-xl">
+          <h2 className="text-xl font-bold text-foreground">{item ? 'Edit Item' : 'Add New Item'}</h2>
+          <Button variant="ghost" size="icon" onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="w-5 h-5" />
           </Button>
         </div>
 
         <div className="p-6 overflow-y-auto">
           {error && (
-            <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 shadow-sm text-sm font-medium">
+            <div className="mb-6 p-4 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 shadow-sm text-sm font-medium">
               {error}
             </div>
           )}
@@ -99,7 +99,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Item Code *</label>
+                <label className="text-sm font-semibold text-foreground">Item Code *</label>
                 <Input 
                   value={formData.item_code}
                   onChange={e => setFormData({ ...formData, item_code: e.target.value })}
@@ -109,7 +109,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Item Name *</label>
+                <label className="text-sm font-semibold text-foreground">Item Name *</label>
                 <Input 
                   value={formData.item_name}
                   onChange={e => setFormData({ ...formData, item_name: e.target.value })}
@@ -119,11 +119,11 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Category *</label>
+                <label className="text-sm font-semibold text-foreground">Category *</label>
                 <select
                   value={formData.category_id}
                   onChange={e => setFormData({ ...formData, category_id: e.target.value })}
-                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full h-10 px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   required
                 >
                   <option value="" disabled>Select a category</option>
@@ -134,11 +134,11 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Inventory Section *</label>
+                <label className="text-sm font-semibold text-foreground">Inventory Section *</label>
                 <select
                   value={formData.inventory_type}
                   onChange={e => setFormData({ ...formData, inventory_type: e.target.value as any })}
-                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full h-10 px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   required
                 >
                   <option value="GRILLED STOCK">GRILLED STOCK</option>
@@ -148,7 +148,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-bold text-slate-700">Description</label>
+                <label className="text-sm font-semibold text-foreground">Description</label>
                 <Input 
                   value={formData.description}
                   onChange={e => setFormData({ ...formData, description: e.target.value })}
@@ -157,7 +157,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Unit of Measurement</label>
+                <label className="text-sm font-semibold text-foreground">Unit of Measurement</label>
                 <Input 
                   value={formData.unit}
                   onChange={e => setFormData({ ...formData, unit: e.target.value })}
@@ -166,7 +166,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Minimum Quantity</label>
+                <label className="text-sm font-semibold text-foreground">Minimum Quantity</label>
                 <Input 
                   type="number"
                   min="0"
@@ -178,7 +178,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
 
               {!item && (
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">Initial Stock Quantity</label>
+                  <label className="text-sm font-semibold text-foreground">Initial Stock Quantity</label>
                   <Input 
                     type="number"
                     min="0"
@@ -190,7 +190,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
               )}
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Unit Cost (₱)</label>
+                <label className="text-sm font-semibold text-foreground">Unit Cost (₱)</label>
                 <Input 
                   type="number"
                   min="0"
@@ -202,7 +202,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Primary Supplier</label>
+                <label className="text-sm font-semibold text-foreground">Primary Supplier</label>
                 <Input 
                   list="registered-suppliers"
                   value={formData.supplier_a}
@@ -212,7 +212,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Secondary Supplier</label>
+                <label className="text-sm font-semibold text-foreground">Secondary Supplier</label>
                 <Input 
                   list="registered-suppliers"
                   value={formData.supplier_b}
@@ -232,7 +232,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
           </form>
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-border bg-muted/40 rounded-b-xl flex justify-end gap-3">
           <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
@@ -240,7 +240,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
             type="submit" 
             form="item-form" 
             disabled={isSubmitting}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
           >
             {isSubmitting ? 'Saving...' : 'Save Item'}
           </Button>

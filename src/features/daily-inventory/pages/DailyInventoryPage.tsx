@@ -38,26 +38,26 @@ export function DailyInventoryPage() {
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 uppercase">INVENTORY KIOSK AND BODEGA</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase">INVENTORY KIOSK AND BODEGA</h1>
             {record && (
               isFinalized ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/25">
                   <Lock size={12} /> Finalized & Locked
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/25">
                   <CheckCircle2 size={12} /> Live Autosave
                 </span>
               )
             )}
           </div>
 
-          <div className="flex items-center text-sm text-slate-600 mt-2 gap-3">
+          <div className="flex items-center text-sm text-muted-foreground mt-2 gap-3">
             <div className="flex items-center">
-              <span className="font-semibold mr-2">Worksheet Date:</span>
-              <div className="flex items-center border border-slate-200 rounded px-2.5 py-1 bg-white relative hover:border-slate-300 transition-colors">
-                <span className="mr-2 font-medium">{format(new Date(date + 'T00:00:00'), 'MMM dd, yyyy')}</span>
-                <CalendarIcon className="w-4 h-4 text-slate-400 cursor-pointer" />
+              <span className="font-semibold mr-2 text-foreground">Worksheet Date:</span>
+              <div className="flex items-center border border-border rounded-lg px-2.5 py-1 bg-card relative hover:border-muted-foreground/40 transition-colors">
+                <span className="mr-2 font-medium text-foreground">{format(new Date(date + 'T00:00:00'), 'MMM dd, yyyy')}</span>
+                <CalendarIcon className="w-4 h-4 text-muted-foreground cursor-pointer" />
                 <input 
                   type="date"
                   value={date}
@@ -72,7 +72,7 @@ export function DailyInventoryPage() {
               size="sm"
               onClick={handleRefresh}
               disabled={isRefreshing || isLoading}
-              className="text-slate-500 hover:text-slate-800 h-8 px-2"
+              className="text-muted-foreground hover:text-foreground h-8 px-2"
               title="Refresh sheet data from database"
             >
               <RefreshCw size={14} className={`mr-1.5 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -91,7 +91,7 @@ export function DailyInventoryPage() {
                 navigate('/reports');
               }
             }}
-            className="border-slate-300 text-slate-700 bg-white font-semibold hover:bg-slate-50"
+            className="border-border text-foreground bg-card font-semibold hover:bg-muted"
           >
             Preview Report
           </Button>
@@ -99,7 +99,7 @@ export function DailyInventoryPage() {
           {!isFinalized && (
             <Button 
               onClick={() => setShowFinalizeDialog(true)}
-              className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-xs"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
               disabled={isLoading || !record}
             >
               Finalize Day
@@ -109,19 +109,19 @@ export function DailyInventoryPage() {
       </div>
 
       {isLoading && (
-        <div className="flex flex-col items-center justify-center p-16 text-slate-500 space-y-3 bg-white rounded-lg border border-slate-100 shadow-xs">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <div className="flex flex-col items-center justify-center p-16 text-muted-foreground space-y-3 bg-card rounded-xl border border-border shadow-xs">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
           <p className="text-sm font-medium">Loading daily inventory worksheet...</p>
         </div>
       )}
       
       {error && (
-        <div className="p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 shadow-sm flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
+        <div className="p-4 bg-rose-500/10 text-rose-500 rounded-xl border border-rose-500/20 shadow-sm flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-rose-500 mt-0.5 shrink-0" />
           <div>
             <p className="font-semibold">Error loading inventory worksheet</p>
             <p className="text-sm opacity-90">{(error as Error).message}</p>
-            <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-2 text-xs bg-white">
+            <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-2 text-xs bg-card border-border">
               Try Again
             </Button>
           </div>
@@ -137,24 +137,24 @@ export function DailyInventoryPage() {
       )}
 
       <Dialog open={showFinalizeDialog} onOpenChange={setShowFinalizeDialog}>
-        <DialogContent>
+        <DialogContent className="bg-card text-card-foreground border-border">
           <DialogHeader>
-            <DialogTitle>Finalize Daily Inventory for {format(new Date(date + 'T00:00:00'), 'MMMM dd, yyyy')}?</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-foreground">Finalize Daily Inventory for {format(new Date(date + 'T00:00:00'), 'MMMM dd, yyyy')}?</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               Finalizing permanently locks this day's record, generates an immutable official daily snapshot report, and executes FEFO stock deductions.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg my-2">
-            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
-            <p className="text-sm text-amber-900">
+          <div className="flex items-start gap-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg my-2">
+            <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
+            <p className="text-sm text-amber-600 dark:text-amber-400">
               This action locks the sheet. Double-check your BEG, ADD, SALES AM, and SALES PM quantities before proceeding.
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowFinalizeDialog(false)} disabled={finalizeMutation.isPending}>
+            <Button variant="outline" onClick={() => setShowFinalizeDialog(false)} disabled={finalizeMutation.isPending} className="border-border text-foreground">
               Cancel
             </Button>
-            <Button onClick={handleFinalize} disabled={finalizeMutation.isPending} className="bg-emerald-700 hover:bg-emerald-800 text-white">
+            <Button onClick={handleFinalize} disabled={finalizeMutation.isPending} className="bg-emerald-600 hover:bg-emerald-700 text-white">
               {finalizeMutation.isPending ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Finalizing...</>
               ) : (

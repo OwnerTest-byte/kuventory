@@ -94,33 +94,33 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
   };
 
   return (
-    <div className={embedded ? "space-y-4 max-w-4xl" : "p-4 md:p-8 max-w-4xl mx-auto space-y-6 animate-in fade-in"}>
+    <div className={embedded ? "space-y-4 max-w-4xl" : "p-4 md:p-8 max-w-4xl mx-auto space-y-6 animate-in fade-in text-foreground"}>
       {!embedded ? (
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-              <Tags className="w-8 h-8 text-blue-500" />
+            <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <Tags className="w-8 h-8 text-primary" />
               Categories
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-1">Manage inventory categories and groupings.</p>
+            <p className="text-muted-foreground mt-1 text-sm">Manage inventory categories and groupings.</p>
           </div>
           
-          <Button onClick={() => setIsAdding(true)} disabled={isAdding}>
+          <Button onClick={() => setIsAdding(true)} disabled={isAdding} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
             <Plus className="w-4 h-4 mr-2" /> Add Category
           </Button>
         </div>
       ) : (
         <div className="flex items-center justify-between gap-4">
-          <p className="text-xs text-slate-500 font-medium">Manage inventory item categories, sections, and groupings.</p>
-          <Button onClick={() => setIsAdding(true)} disabled={isAdding} size="sm" className="h-8 text-xs bg-blue-600 text-white hover:bg-blue-700">
+          <p className="text-xs text-muted-foreground font-medium">Manage inventory item categories, sections, and groupings.</p>
+          <Button onClick={() => setIsAdding(true)} disabled={isAdding} size="sm" className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
             <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Category
           </Button>
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div className="bg-card rounded-xl shadow-xs border border-border overflow-hidden">
         {isAdding && (
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+          <div className="p-4 border-b border-border bg-muted/40">
             <form onSubmit={handleAdd} className="flex items-center gap-3">
               <input
                 autoFocus
@@ -128,9 +128,9 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
                 placeholder="Category Name (e.g. PORTION STOCK)"
                 value={newCatName}
                 onChange={e => setNewCatName(e.target.value)}
-                className="flex-1 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 rounded shadow-sm px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 border border-border bg-card text-foreground rounded shadow-xs px-3 py-2 text-sm focus:ring-1 focus:ring-primary outline-none"
               />
-              <Button type="submit" disabled={!newCatName.trim() || addMutation.isPending}>
+              <Button type="submit" disabled={!newCatName.trim() || addMutation.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
                 {addMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
               </Button>
               <Button type="button" variant="ghost" onClick={() => setIsAdding(false)}>Cancel</Button>
@@ -139,25 +139,25 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
         )}
 
         {deleteError && (
-          <div className="p-3 mx-4 mt-4 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 text-xs font-semibold flex items-center justify-between">
+          <div className="p-3 mx-4 mt-4 rounded-lg bg-destructive/15 border border-destructive/20 text-destructive text-xs font-semibold flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+              <AlertCircle className="w-4 h-4 shrink-0 text-destructive" />
               <span>{deleteError}</span>
             </div>
-            <button onClick={() => setDeleteError(null)} className="text-rose-600 hover:text-rose-900 dark:hover:text-rose-200 font-bold ml-2">×</button>
+            <button onClick={() => setDeleteError(null)} className="text-destructive font-bold ml-2">×</button>
           </div>
         )}
 
-        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+        <div className="divide-y divide-border">
           {isLoading ? (
-            <div className="p-8 text-center text-slate-500">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+            <div className="p-8 text-center text-muted-foreground">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
             </div>
           ) : categories?.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">No categories found.</div>
+            <div className="p-8 text-center text-muted-foreground">No categories found.</div>
           ) : (
             categories?.map(cat => (
-              <div key={cat.id} className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+              <div key={cat.id} className="p-4 flex items-center justify-between hover:bg-muted/40 transition-colors">
                 {editingId === cat.id ? (
                   <form onSubmit={(e) => handleEditSave(e, cat.id)} className="flex items-center gap-3 w-full">
                     <input
@@ -165,19 +165,19 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
                       type="text"
                       value={editName}
                       onChange={e => setEditName(e.target.value)}
-                      className="flex-1 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 rounded shadow-sm px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                      className="flex-1 border border-border bg-card text-foreground rounded shadow-xs px-3 py-2 text-sm focus:ring-1 focus:ring-primary outline-none"
                     />
-                    <Button type="submit" disabled={!editName.trim() || updateMutation.isPending}>
+                    <Button type="submit" disabled={!editName.trim() || updateMutation.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
                       {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
                     </Button>
                     <Button type="button" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
                   </form>
                 ) : (
                   <>
-                    <span className="font-medium text-slate-900 dark:text-slate-100">{cat.name}</span>
+                    <span className="font-medium text-foreground">{cat.name}</span>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => { setEditingId(cat.id); setEditName(cat.name); }}>
-                        <Edit2 className="w-4 h-4 text-slate-500" />
+                      <Button variant="ghost" size="sm" onClick={() => { setEditingId(cat.id); setEditName(cat.name); }} className="text-muted-foreground hover:text-foreground">
+                        <Edit2 className="w-4 h-4" />
                       </Button>
                       <Button 
                         variant="ghost" 
@@ -185,10 +185,10 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
                         title="Delete Category"
                         onClick={() => handleDelete(cat.id, cat.name)}
                         disabled={deletingId === cat.id}
-                        className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       >
                         {deletingId === cat.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
+                          <Loader2 className="w-4 h-4 animate-spin text-destructive" />
                         ) : (
                           <Trash2 className="w-4 h-4" />
                         )}

@@ -54,23 +54,23 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
           <h2 className={`text-sm font-bold uppercase tracking-widest ${colorClass}`}>
             {title}
           </h2>
-          <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+          <span className="text-xs font-semibold text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full border border-border">
             {tableItems.length} items
           </span>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-card rounded-xl shadow-xs border border-border overflow-hidden">
           <div className="table-slider-container max-h-[550px] relative overscroll-contain">
             <Table className="w-full text-left border-collapse">
-              <TableHeader className="sticky top-0 z-20 bg-slate-100 shadow-xs">
-                <TableRow className="border-b border-slate-200">
-                  <TableHead className="w-12 text-center text-xs font-bold text-slate-600 uppercase tracking-wider sticky left-0 z-30 bg-slate-100 border-r border-slate-200">#</TableHead>
-                  <TableHead className="text-xs font-bold text-slate-600 uppercase tracking-wider sticky left-12 z-30 bg-slate-100 border-r border-slate-200 min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">ITEM</TableHead>
-                  <TableHead className="text-center w-24 text-xs font-bold text-slate-600 uppercase tracking-wider">BEG</TableHead>
-                  <TableHead className="text-center w-24 text-xs font-bold text-slate-600 uppercase tracking-wider">ADD</TableHead>
-                  <TableHead className="text-center w-32 text-xs font-bold text-slate-600 uppercase tracking-wider bg-slate-100/80">TOTAL STOCK</TableHead>
-                  <TableHead className="text-center w-24 text-xs font-bold text-slate-600 uppercase tracking-wider">SALES AM</TableHead>
-                  <TableHead className="text-center w-24 text-xs font-bold text-slate-600 uppercase tracking-wider">SALES PM</TableHead>
-                  <TableHead className="text-center w-32 text-xs font-bold text-slate-600 uppercase tracking-wider bg-slate-100/80">ENDING QTY</TableHead>
+              <TableHeader className="sticky top-0 z-20 bg-muted/90 backdrop-blur-xs shadow-2xs">
+                <TableRow className="border-b border-border">
+                  <TableHead className="w-12 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider sticky left-0 z-30 bg-muted border-r border-border">#</TableHead>
+                  <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider sticky left-12 z-30 bg-muted border-r border-border min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">ITEM</TableHead>
+                  <TableHead className="text-center w-24 text-xs font-bold text-muted-foreground uppercase tracking-wider">BEG</TableHead>
+                  <TableHead className="text-center w-24 text-xs font-bold text-muted-foreground uppercase tracking-wider">ADD</TableHead>
+                  <TableHead className="text-center w-32 text-xs font-bold text-muted-foreground uppercase tracking-wider bg-muted/60">TOTAL STOCK</TableHead>
+                  <TableHead className="text-center w-24 text-xs font-bold text-muted-foreground uppercase tracking-wider">SALES AM</TableHead>
+                  <TableHead className="text-center w-24 text-xs font-bold text-muted-foreground uppercase tracking-wider">SALES PM</TableHead>
+                  <TableHead className="text-center w-32 text-xs font-bold text-muted-foreground uppercase tracking-wider bg-muted/60">ENDING QTY</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -85,18 +85,18 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
                 ))}
               </TableBody>
               {/* Grand Total Row */}
-              <TableBody className="sticky bottom-0 z-20 bg-slate-100 border-t-2 border-slate-300 shadow-[0_-2px_4px_-1px_rgba(0,0,0,0.05)]">
-                <TableRow className="hover:bg-slate-100 font-bold">
-                  <TableCell className="sticky left-0 z-30 bg-slate-100 text-center font-bold text-xs text-slate-500 border-r border-slate-200">Σ</TableCell>
-                  <TableCell className="sticky left-12 z-30 bg-slate-100 border-r border-slate-200 text-left text-slate-700 uppercase tracking-wider text-xs font-black shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+              <TableBody className="sticky bottom-0 z-20 bg-muted border-t-2 border-border shadow-[0_-2px_4px_-1px_rgba(0,0,0,0.05)]">
+                <TableRow className="hover:bg-muted font-bold">
+                  <TableCell className="sticky left-0 z-30 bg-muted text-center font-bold text-xs text-muted-foreground border-r border-border">Σ</TableCell>
+                  <TableCell className="sticky left-12 z-30 bg-muted border-r border-border text-left text-foreground uppercase tracking-wider text-xs font-black shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                     TOTAL {title}
                   </TableCell>
-                  <TableCell className="text-center text-slate-700 font-mono font-bold text-xs">{totals.beg}</TableCell>
-                  <TableCell className="text-center text-slate-700 font-mono font-bold text-xs">{totals.add}</TableCell>
-                  <TableCell className="text-center text-blue-800 bg-blue-100/40 font-mono font-black text-xs">{totals.total}</TableCell>
-                  <TableCell className="text-center text-slate-700 font-mono font-bold text-xs">{totals.am}</TableCell>
-                  <TableCell className="text-center text-slate-700 font-mono font-bold text-xs">{totals.pm}</TableCell>
-                  <TableCell className="text-center text-blue-800 bg-blue-100/40 font-mono font-black text-xs">{totals.end}</TableCell>
+                  <TableCell className="text-center text-foreground font-mono font-bold text-xs">{totals.beg}</TableCell>
+                  <TableCell className="text-center text-foreground font-mono font-bold text-xs">{totals.add}</TableCell>
+                  <TableCell className="text-center text-primary bg-primary/10 font-mono font-black text-xs">{totals.total}</TableCell>
+                  <TableCell className="text-center text-foreground font-mono font-bold text-xs">{totals.am}</TableCell>
+                  <TableCell className="text-center text-foreground font-mono font-bold text-xs">{totals.pm}</TableCell>
+                  <TableCell className="text-center text-primary bg-primary/10 font-mono font-black text-xs">{totals.end}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -108,13 +108,13 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
 
   return (
     <div className="space-y-4">
-      {renderTable(grilledItems, 'GRILLED STOCK', 'text-amber-700')}
-      {renderTable(portionItems, 'PORTION STOCK', 'text-blue-800')}
-      {renderTable(caseItems, 'PER CASES', 'text-emerald-700')}
-      {renderTable(otherItems, 'OTHER SUPPLIES', 'text-slate-700')}
+      {renderTable(grilledItems, 'GRILLED STOCK', 'text-amber-500')}
+      {renderTable(portionItems, 'PORTION STOCK', 'text-blue-500')}
+      {renderTable(caseItems, 'PER CASES', 'text-emerald-500')}
+      {renderTable(otherItems, 'OTHER SUPPLIES', 'text-muted-foreground')}
       
       {items.length === 0 && (
-        <div className="text-center py-12 text-slate-500 bg-slate-50 rounded-lg border border-slate-200 border-dashed">
+        <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-border border-dashed">
           No active items found for this date. Ensure items exist in catalog.
         </div>
       )}

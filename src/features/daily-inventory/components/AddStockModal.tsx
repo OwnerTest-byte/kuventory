@@ -65,38 +65,38 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold mb-4">Receive Delivery: {item.items?.item_name}</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-card text-card-foreground rounded-xl shadow-xl p-6 w-full max-w-md border border-border">
+        <h2 className="text-lg font-bold text-foreground mb-4">Receive Delivery: {item.items?.item_name}</h2>
         
         {errorMsg && (
-          <div className="mb-4 p-3 bg-red-50 text-red-700 rounded border border-red-200 text-sm">
+          <div className="mb-4 p-3 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 text-sm font-medium">
             {errorMsg}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Quantity to Add ({item.items?.unit})</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Quantity to Add ({item.items?.unit})</label>
             <input 
               type="number" 
               required
               min="1"
               value={qty}
               onChange={e => setQty(e.target.value)}
-              className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-background border border-input rounded-lg p-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               placeholder="e.g. 10"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Expiry Date</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Expiry Date</label>
             <input 
               type="date" 
               required
               value={expiry}
               onChange={e => setExpiry(e.target.value)}
-              className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-background border border-input rounded-lg p-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
             />
           </div>
 
@@ -104,7 +104,7 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
             <Button type="button" variant="outline" onClick={onClose} disabled={stockMutations.add.isPending}>
               Cancel
             </Button>
-            <Button type="submit" disabled={stockMutations.add.isPending} className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button type="submit" disabled={stockMutations.add.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
               {stockMutations.add.isPending ? 'Adding...' : 'Add Stock'}
             </Button>
           </div>

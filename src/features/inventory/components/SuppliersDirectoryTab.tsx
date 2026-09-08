@@ -157,30 +157,30 @@ export const SuppliersDirectoryTab: React.FC = () => {
   return (
     <div className="space-y-4">
       {/* Top Header Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-card p-4 rounded-xl border border-border shadow-xs">
         <div>
-          <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-blue-600" />
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary" />
             Verified Suppliers Directory
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Registered food &amp; beverage vendors, contact hotlines, logistics locations, and lead times
           </p>
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative w-full sm:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
             <Input 
               placeholder="Search vendor, contact, phone..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="pl-9 h-9 text-xs"
+              className="pl-9 h-9 text-xs bg-card border-border"
             />
           </div>
           <Button
             onClick={handleNewClick}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-9 shrink-0 gap-1.5"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs h-9 shrink-0 gap-1.5"
           >
             <Plus className="w-4 h-4" /> Add Vendor
           </Button>
@@ -188,39 +188,39 @@ export const SuppliersDirectoryTab: React.FC = () => {
       </div>
 
       {/* Directory Table with Responsive Slider Container */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+      <div className="bg-card rounded-xl border border-border shadow-xs overflow-hidden">
         <div className="table-slider-container max-h-[calc(100dvh-320px)] min-h-[350px] relative overscroll-contain">
           <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-slate-950/80 sticky top-0 z-20 border-b border-slate-200 dark:border-slate-800 shadow-xs">
+            <thead className="bg-muted/60 sticky top-0 z-20 border-b border-border shadow-xs">
               <tr>
-                <th className="px-4 py-3 font-bold text-slate-700 dark:text-slate-200 min-w-[200px] sticky left-0 z-30 bg-slate-50 dark:bg-slate-950 border-r border-slate-200/80 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                <th className="px-4 py-3 font-bold text-foreground min-w-[200px] sticky left-0 z-30 bg-muted/95 border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                   Vendor Name
                 </th>
-                <th className="px-4 py-3 font-bold text-slate-700 dark:text-slate-200 min-w-[150px]">Primary Contact</th>
-                <th className="px-4 py-3 font-bold text-slate-700 dark:text-slate-200 min-w-[190px]">Contact Hotline &amp; Email</th>
-                <th className="px-4 py-3 font-bold text-slate-700 dark:text-slate-200 min-w-[220px]">Logistics / Address</th>
-                <th className="px-4 py-3 font-bold text-slate-700 dark:text-slate-200 text-center min-w-[100px]">Lead Time</th>
-                <th className="px-4 py-3 font-bold text-slate-700 dark:text-slate-200 text-center min-w-[100px]">Items Linked</th>
-                <th className="px-4 py-3 font-bold text-slate-700 dark:text-slate-200 text-right min-w-[120px]">Actions</th>
+                <th className="px-4 py-3 font-bold text-foreground min-w-[150px]">Primary Contact</th>
+                <th className="px-4 py-3 font-bold text-foreground min-w-[190px]">Contact Hotline &amp; Email</th>
+                <th className="px-4 py-3 font-bold text-foreground min-w-[220px]">Logistics / Address</th>
+                <th className="px-4 py-3 font-bold text-foreground text-center min-w-[100px]">Lead Time</th>
+                <th className="px-4 py-3 font-bold text-foreground text-center min-w-[100px]">Items Linked</th>
+                <th className="px-4 py-3 font-bold text-foreground text-right min-w-[120px]">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-border bg-card">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-slate-400">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
+                  <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
                     Loading verified supplier network...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-rose-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-destructive">
                     Failed to load supplier records.
                   </td>
                 </tr>
               ) : filteredSuppliers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-slate-400">
+                  <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
                     No suppliers matching &quot;{searchQuery}&quot;
                   </td>
                 </tr>
@@ -230,24 +230,24 @@ export const SuppliersDirectoryTab: React.FC = () => {
                   return (
                     <tr 
                       key={s.id} 
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group cursor-pointer"
+                      className="hover:bg-muted/40 transition-colors group cursor-pointer"
                       onClick={() => handleEditClick(s)}
                     >
                       {/* Sticky Vendor Name */}
-                      <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white sticky left-0 z-10 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800/50 border-r border-slate-200/80 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                      <td className="px-4 py-3 font-semibold text-foreground sticky left-0 z-10 bg-card group-hover:bg-muted/50 border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+                          <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
                             {s.name.substring(0, 2).toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900 dark:text-white leading-tight">{s.name}</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[180px]">{s.notes || 'No description notes'}</p>
+                            <p className="font-bold text-foreground leading-tight">{s.name}</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[180px]">{s.notes || 'No description notes'}</p>
                           </div>
                         </div>
                       </td>
 
                       {/* Contact Person */}
-                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                      <td className="px-4 py-3 text-foreground">
                         <span className="font-medium">{s.contact_person || '—'}</span>
                       </td>
 
@@ -286,15 +286,15 @@ export const SuppliersDirectoryTab: React.FC = () => {
 
                       {/* Lead Time */}
                       <td className="px-4 py-3 text-center">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
-                          <Clock className="w-3 h-3 text-slate-400" />
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-muted text-foreground font-semibold text-[11px]">
+                          <Clock className="w-3 h-3 text-muted-foreground" />
                           {s.lead_time_days} {s.lead_time_days === 1 ? 'day' : 'days'}
                         </span>
                       </td>
 
                       {/* Items Linked */}
                       <td className="px-4 py-3 text-center">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-bold text-[11px] border border-blue-200/80">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold text-[11px] border border-primary/20">
                           <Package className="w-3 h-3" />
                           {linkedCount} items
                         </span>
@@ -309,7 +309,7 @@ export const SuppliersDirectoryTab: React.FC = () => {
                             e.stopPropagation();
                             handleEditClick(s);
                           }}
-                          className="h-7 text-[11px] px-2.5 font-bold gap-1 text-slate-700 hover:text-blue-600"
+                          className="h-7 text-[11px] px-2.5 font-bold gap-1 border-border text-foreground hover:bg-muted"
                         >
                           <Edit3 className="w-3 h-3" />
                           View / Edit

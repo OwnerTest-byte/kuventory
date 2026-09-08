@@ -53,25 +53,25 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit }: S
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg p-0 overflow-hidden shadow-2xl border-slate-200">
-        <DialogHeader className="p-5 bg-linear-to-r from-slate-900 to-slate-800 text-white">
+      <DialogContent className="sm:max-w-lg p-0 overflow-hidden shadow-2xl border-border bg-card text-card-foreground">
+        <DialogHeader className="p-5 bg-card border-b border-border text-card-foreground">
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-xs uppercase tracking-wider font-semibold text-blue-400 flex items-center gap-1.5">
+              <span className="text-xs uppercase tracking-wider font-semibold text-primary flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5" /> Stock Management
               </span>
-              <DialogTitle className="text-xl font-bold tracking-tight text-white mt-1">
+              <DialogTitle className="text-xl font-bold tracking-tight text-foreground mt-1">
                 UPDATE STOCK: {item.item_name}
               </DialogTitle>
             </div>
           </div>
-          <div className="flex items-center justify-between pt-2 border-t border-slate-700/60 mt-3 text-xs text-slate-300">
-            <span>Item SKU: <strong className="text-white font-mono">{item.item_code}</strong></span>
-            <span>Current Stock: <strong className="text-emerald-400 font-semibold">{item.current_qty} {item.unit}</strong></span>
+          <div className="flex items-center justify-between pt-2 border-t border-border mt-3 text-xs text-muted-foreground">
+            <span>Item SKU: <strong className="text-foreground font-mono">{item.item_code}</strong></span>
+            <span>Current Stock: <strong className="text-emerald-500 font-semibold">{item.current_qty} {item.unit}</strong></span>
           </div>
         </DialogHeader>
 
-        <div className="p-6 space-y-5 bg-white">
+        <div className="p-6 space-y-5 bg-card text-card-foreground">
           {/* Segmented Action Selector matching Mockup */}
           <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-lg">
             <button
@@ -133,41 +133,41 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit }: S
             </div>
 
             {/* Dynamic Calculated Balance Banner */}
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
+            <div className="p-3.5 bg-muted/50 border border-border rounded-lg flex items-center justify-between">
               <div>
-                <div className="text-[11px] uppercase font-bold text-slate-500 tracking-wider">Projected New Stock Balance</div>
-                <div className="text-xs text-slate-400">
+                <div className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider">Projected New Stock Balance</div>
+                <div className="text-xs text-muted-foreground">
                   {action === 'add' && `${item.current_qty} + ${numQty} ${item.unit}`}
                   {action === 'remove' && `${item.current_qty} - ${numQty} ${item.unit}`}
                   {action === 'adjust' && `Adjusted directly to ${numQty} ${item.unit}`}
                 </div>
               </div>
-              <div className="text-xl font-bold text-slate-900 font-mono">
-                {calculatedNewBalance} <span className="text-xs font-normal text-slate-500">{item.unit}</span>
+              <div className="text-xl font-bold text-foreground font-mono">
+                {calculatedNewBalance} <span className="text-xs font-normal text-muted-foreground">{item.unit}</span>
               </div>
             </div>
 
             {action === 'add' && (
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                <Label className="text-xs font-bold text-foreground uppercase tracking-wider">
                   Batch Expiry Date (Optional)
                 </Label>
                 <Input
                   type="date"
                   value={expiryDate}
                   onChange={(e) => setExpiryDate(e.target.value)}
-                  className="border-slate-300 h-10"
+                  className="border-border h-10"
                 />
               </div>
             )}
 
             {action === 'remove' && batches.length > 0 && (
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                <Label className="text-xs font-bold text-foreground uppercase tracking-wider">
                   Batch Allocation Rule
                 </Label>
                 <select 
-                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full h-10 px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   value={batchId}
                   onChange={(e) => setBatchId(e.target.value)}
                 >
@@ -182,7 +182,7 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit }: S
             )}
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <Label className="text-xs font-bold text-foreground uppercase tracking-wider">
                 Reason / Reference Note
               </Label>
               <Input
@@ -190,7 +190,7 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit }: S
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Type or select a reason below"
-                className="border-slate-300 h-10"
+                className="border-border h-10"
               />
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {quickReasons.map((r) => (
@@ -198,7 +198,7 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit }: S
                     key={r}
                     type="button"
                     onClick={() => setReason(r)}
-                    className="text-[11px] px-2 py-0.5 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors"
+                    className="text-[11px] px-2 py-0.5 rounded border border-border bg-muted hover:bg-muted/80 text-foreground transition-colors"
                   >
                     {r}
                   </button>
@@ -208,8 +208,8 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit }: S
           </form>
         </div>
         
-        <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-          <Button type="button" variant="outline" onClick={onClose} className="font-semibold text-slate-600 border-slate-300">
+        <div className="p-4 border-t border-border bg-muted/30 flex items-center justify-between">
+          <Button type="button" variant="outline" onClick={onClose} className="font-semibold text-muted-foreground border-border">
             Cancel
           </Button>
           <Button 
@@ -218,7 +218,7 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit }: S
             className={`font-semibold shadow-sm text-white ${
               action === 'add' ? 'bg-emerald-600 hover:bg-emerald-700' :
               action === 'remove' ? 'bg-rose-600 hover:bg-rose-700' :
-              'bg-blue-600 hover:bg-blue-700'
+              'bg-primary hover:bg-primary/90'
             }`}
           >
             Confirm {action.toUpperCase()}

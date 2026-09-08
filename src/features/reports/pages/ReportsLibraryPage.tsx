@@ -122,21 +122,21 @@ export function ReportsLibraryPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 animate-in fade-in">
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 border-slate-200 dark:border-slate-800">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 animate-in fade-in text-foreground">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 border-border">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-            <BarChart3 className="w-8 h-8 text-blue-600" />
+          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <BarChart3 className="w-8 h-8 text-primary" />
             Reports & Analytics Hub
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">
+          <p className="text-muted-foreground mt-1 font-medium text-sm">
             Historical daily inventory worksheets, valuation summaries, and stock audit trails.
           </p>
         </div>
       </header>
 
       <Tabs value={activeTab} onValueChange={(val) => handleTabChange(val as string)} className="space-y-6">
-        <TabsList className="bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-xl flex flex-wrap gap-1.5 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+        <TabsList className="bg-muted p-1.5 rounded-xl flex flex-wrap gap-1.5 border border-border shadow-2xs">
           <TabsTrigger value="daily-sheets" className="font-semibold text-xs sm:text-sm">
             Daily Inventory Sheets
           </TabsTrigger>
@@ -153,77 +153,77 @@ export function ReportsLibraryPage() {
 
         {/* TAB 1: DAILY INVENTORY WORKSHEETS */}
         <TabsContent value="daily-sheets" className="space-y-6">
-          <div className="flex flex-wrap gap-4 items-end bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex flex-wrap gap-4 items-end bg-card p-4 rounded-xl border border-border shadow-xs">
             <div className="space-y-1.5 flex-1 min-w-45">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">From Date</label>
+              <label className="text-xs font-bold text-foreground">From Date</label>
               <Input
                 type="date"
                 value={fromDate}
                 onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
-                className="bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700"
+                className="bg-card border-border text-foreground"
               />
             </div>
             <div className="space-y-1.5 flex-1 min-w-45">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">To Date</label>
+              <label className="text-xs font-bold text-foreground">To Date</label>
               <Input
                 type="date"
                 value={toDate}
                 onChange={(e) => { setToDate(e.target.value); setPage(1); }}
-                className="bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700"
+                className="bg-card border-border text-foreground"
               />
             </div>
             
             <Button 
               variant="outline" 
-              className="border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold"
+              className="border-border text-foreground font-bold hover:bg-muted"
               onClick={() => { setFromDate(''); setToDate(''); setPage(1); }}
             >
               Clear Filters
             </Button>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="bg-card rounded-xl border border-border shadow-xs overflow-hidden">
             <div className="table-slider-container max-h-[calc(100dvh-320px)] min-h-[300px] relative overscroll-contain">
               <Table className="border-collapse">
-                <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
+                <TableHeader className="sticky top-0 z-20 bg-muted/60 backdrop-blur-xs border-b border-border shadow-xs">
                   <TableRow>
-                    <TableHead className="font-bold text-slate-700 dark:text-slate-300 sticky left-0 z-30 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Inventory Date</TableHead>
-                    <TableHead className="font-bold text-slate-700 dark:text-slate-300">Status</TableHead>
-                    <TableHead className="font-bold text-slate-700 dark:text-slate-300">Finalized By</TableHead>
-                    <TableHead className="font-bold text-slate-700 dark:text-slate-300">Finalized At</TableHead>
-                    <TableHead className="text-right font-bold text-slate-700 dark:text-slate-300">Actions</TableHead>
+                    <TableHead className="font-bold text-foreground sticky left-0 z-30 bg-muted/95 border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Inventory Date</TableHead>
+                    <TableHead className="font-bold text-foreground">Status</TableHead>
+                    <TableHead className="font-bold text-foreground">Finalized By</TableHead>
+                    <TableHead className="font-bold text-foreground">Finalized At</TableHead>
+                    <TableHead className="text-right font-bold text-foreground">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isReportsLoading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-12 text-slate-500 font-medium">Loading reports...</TableCell>
+                      <TableCell colSpan={5} className="text-center py-12 text-muted-foreground font-medium">Loading reports...</TableCell>
                     </TableRow>
                   ) : reports.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-12 text-slate-500 font-medium">
+                      <TableCell colSpan={5} className="text-center py-12 text-muted-foreground font-medium">
                         No finalized daily inventory reports found yet. Finalize today's worksheet in Daily Inventory to create an immutable snapshot.
                       </TableCell>
                     </TableRow>
                   ) : (
                     reports.map(report => (
-                      <TableRow key={report.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 group">
-                        <TableCell className="font-semibold text-slate-900 dark:text-white sticky left-0 z-10 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                      <TableRow key={report.id} className="hover:bg-muted/40 group">
+                        <TableCell className="font-semibold text-foreground sticky left-0 z-10 bg-card group-hover:bg-muted/50 border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                           {format(new Date(report.inventory_date), 'MMMM dd, yyyy')}
                         </TableCell>
                         <TableCell>
-                          <span className="inline-flex px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                          <span className="inline-flex px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-500 border border-emerald-500/20">
                             {report.status}
                           </span>
                         </TableCell>
-                        <TableCell className="text-slate-600 dark:text-slate-400 font-medium">{report.finalized_by_name || 'Admin User'}</TableCell>
-                        <TableCell className="text-slate-600 dark:text-slate-400">
+                        <TableCell className="text-foreground font-medium">{report.finalized_by_name || 'Admin User'}</TableCell>
+                        <TableCell className="text-muted-foreground">
                           {report.finalized_at ? format(new Date(report.finalized_at), 'MMM dd, yyyy h:mm a') : '-'}
                         </TableCell>
                         <TableCell className="text-right">
                           <Link 
                             to={`/reports/${report.id}`} 
-                            className={buttonVariants({ variant: 'outline', size: 'sm', className: "font-bold border-slate-300 dark:border-slate-700 hover:bg-slate-100" })}
+                            className={buttonVariants({ variant: 'outline', size: 'sm', className: "font-bold border-border hover:bg-muted text-foreground" })}
                           >
                             <FileText className="w-4 h-4 mr-2" />
                             View & Export
@@ -236,13 +236,13 @@ export function ReportsLibraryPage() {
               </Table>
             </div>
             {totalPages > 1 && (
-              <div className="flex items-center justify-between p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
-                <span className="text-xs text-slate-500 font-medium">Page {page} of {totalPages}</span>
+              <div className="flex items-center justify-between p-4 border-t border-border bg-muted/40">
+                <span className="text-xs text-muted-foreground font-medium">Page {page} of {totalPages}</span>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
+                  <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="border-border">
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
+                  <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="border-border">
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>
@@ -254,41 +254,41 @@ export function ReportsLibraryPage() {
         {/* TAB 2: LIVE VALUATION & ASSET REPORT */}
         <TabsContent value="valuation" className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Inventory Value</span>
-              <div className="text-2xl font-black text-emerald-600 mt-2">
+            <div className="bg-card p-5 rounded-xl border border-border shadow-xs">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Inventory Value</span>
+              <div className="text-2xl font-black text-emerald-500 mt-2">
                 ₱{totalValuation.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </div>
-              <span className="text-xs text-slate-400 mt-1 block">Live aggregated asset valuation</span>
+              <span className="text-xs text-muted-foreground mt-1 block">Live aggregated asset valuation</span>
             </div>
-            <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Physical Units</span>
-              <div className="text-2xl font-black text-blue-600 mt-2">
+            <div className="bg-card p-5 rounded-xl border border-border shadow-xs">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Physical Units</span>
+              <div className="text-2xl font-black text-primary mt-2">
                 {totalUnits.toLocaleString()} units
               </div>
-              <span className="text-xs text-slate-400 mt-1 block">Across all active batches</span>
+              <span className="text-xs text-muted-foreground mt-1 block">Across all active batches</span>
             </div>
-            <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Catalog Items</span>
-              <div className="text-2xl font-black text-slate-800 dark:text-slate-100 mt-2">
+            <div className="bg-card p-5 rounded-xl border border-border shadow-xs">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Catalog Items</span>
+              <div className="text-2xl font-black text-foreground mt-2">
                 {inventory.length} SKUs
               </div>
-              <span className="text-xs text-slate-400 mt-1 block">In {categories.length} categories</span>
+              <span className="text-xs text-muted-foreground mt-1 block">In {categories.length} categories</span>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl border border-border">
             <div className="flex flex-wrap gap-3 flex-1 w-full sm:w-auto">
               <Input
                 placeholder="Search item name or code..."
                 value={valuationSearch}
                 onChange={e => setValuationSearch(e.target.value)}
-                className="max-w-xs bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-sm"
+                className="max-w-xs bg-card border-border text-foreground text-sm"
               />
               <select
                 value={valuationCat}
                 onChange={e => setValuationCat(e.target.value)}
-                className="h-10 px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md text-sm font-semibold"
+                className="h-10 px-3 py-2 bg-card border border-border text-foreground rounded-md text-sm font-semibold outline-none"
               >
                 <option value="ALL">All Categories</option>
                 {categories.map(c => (
@@ -296,33 +296,33 @@ export function ReportsLibraryPage() {
                 ))}
               </select>
             </div>
-            <Button onClick={exportValuationCSV} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm">
+            <Button onClick={exportValuationCSV} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs sm:text-sm">
               <Download className="w-4 h-4 mr-2" /> Export CSV
             </Button>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="bg-card rounded-xl border border-border shadow-xs overflow-hidden">
             <div className="table-slider-container max-h-[calc(100dvh-340px)] min-h-[300px] relative overscroll-contain">
               <Table className="border-collapse">
-                <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
+                <TableHeader className="sticky top-0 z-20 bg-muted/60 backdrop-blur-xs border-b border-border shadow-xs">
                   <TableRow>
-                    <TableHead className="font-bold sticky left-0 z-30 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item</TableHead>
-                    <TableHead className="font-bold">Category</TableHead>
-                    <TableHead className="text-center font-bold">Unit</TableHead>
-                    <TableHead className="text-right font-bold">Unit Cost</TableHead>
-                    <TableHead className="text-center font-bold">Physical Stock</TableHead>
-                    <TableHead className="text-right font-bold">Total Value</TableHead>
-                    <TableHead className="text-center font-bold">Status</TableHead>
+                    <TableHead className="font-bold text-foreground sticky left-0 z-30 bg-muted/95 border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item</TableHead>
+                    <TableHead className="font-bold text-foreground">Category</TableHead>
+                    <TableHead className="text-center font-bold text-foreground">Unit</TableHead>
+                    <TableHead className="text-right font-bold text-foreground">Unit Cost</TableHead>
+                    <TableHead className="text-center font-bold text-foreground">Physical Stock</TableHead>
+                    <TableHead className="text-right font-bold text-foreground">Total Value</TableHead>
+                    <TableHead className="text-center font-bold text-foreground">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isInvLoading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-12 text-slate-500 font-medium">Loading valuation data...</TableCell>
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground font-medium">Loading valuation data...</TableCell>
                     </TableRow>
                   ) : filteredValuation.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-12 text-slate-500 font-medium">No items match your filter.</TableCell>
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground font-medium">No items match your filter.</TableCell>
                     </TableRow>
                   ) : (
                     filteredValuation.map(item => {
@@ -330,33 +330,33 @@ export function ReportsLibraryPage() {
                       const isOOS = item.current_qty <= 0;
                       const isLow = !isOOS && item.current_qty <= item.min_qty;
                       return (
-                        <TableRow key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 group">
-                          <TableCell className="sticky left-0 z-10 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
-                          <div className="font-bold text-slate-900 dark:text-white">{item.item_name}</div>
-                          <div className="text-xs text-slate-400 font-mono">{item.item_code}</div>
+                        <TableRow key={item.id} className="hover:bg-muted/40 group">
+                          <TableCell className="sticky left-0 z-10 bg-card group-hover:bg-muted/50 border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                          <div className="font-bold text-foreground">{item.item_name}</div>
+                          <div className="text-xs text-muted-foreground font-mono">{item.item_code}</div>
                         </TableCell>
                         <TableCell>
-                          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted text-foreground">
                             {item.category_name}
                           </span>
                         </TableCell>
-                        <TableCell className="text-center text-xs font-bold text-slate-600">{item.unit}</TableCell>
-                        <TableCell className="text-right font-semibold text-slate-700 dark:text-slate-300">
+                        <TableCell className="text-center text-xs font-bold text-muted-foreground">{item.unit}</TableCell>
+                        <TableCell className="text-right font-semibold text-foreground">
                           ₱{item.unit_cost.toFixed(2)}
                         </TableCell>
-                        <TableCell className="text-center font-black text-slate-900 dark:text-white">
+                        <TableCell className="text-center font-black text-foreground">
                           {item.current_qty}
                         </TableCell>
-                        <TableCell className="text-right font-black text-emerald-600">
+                        <TableCell className="text-right font-black text-emerald-500">
                           ₱{itemValue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell className="text-center">
                           {isOOS ? (
-                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-700">Out of Stock</span>
+                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-destructive/15 text-destructive border border-destructive/20">Out of Stock</span>
                           ) : isLow ? (
-                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-700">Low Stock</span>
+                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-500/15 text-amber-500 border border-amber-500/20">Low Stock</span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-700">Optimal</span>
+                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/20">Optimal</span>
                           )}
                         </TableCell>
                       </TableRow>
@@ -371,68 +371,68 @@ export function ReportsLibraryPage() {
 
         {/* TAB 3: MOVEMENT AUDIT TRAIL */}
         <TabsContent value="movements" className="space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-4 bg-card p-4 rounded-xl border border-border">
             <div className="flex items-center gap-3">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Filter by Date:</label>
+              <label className="text-xs font-bold text-foreground">Filter by Date:</label>
               <Input
                 type="date"
                 value={movementFilterDate}
                 onChange={e => setMovementFilterDate(e.target.value)}
-                className="w-48 bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-sm"
+                className="w-48 bg-card border-border text-foreground text-sm"
               />
               {movementFilterDate && (
-                <Button variant="ghost" size="sm" onClick={() => setMovementFilterDate('')}>
+                <Button variant="ghost" size="sm" onClick={() => setMovementFilterDate('')} className="text-muted-foreground hover:text-foreground">
                   Clear
                 </Button>
               )}
             </div>
-            <span className="text-xs font-semibold text-slate-500">
+            <span className="text-xs font-semibold text-muted-foreground">
               Showing {filteredMovements.length} logged stock transactions
             </span>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="bg-card rounded-xl border border-border shadow-xs overflow-hidden">
             <div className="table-slider-container max-h-[calc(100dvh-320px)] min-h-[300px] relative overscroll-contain">
               <Table className="border-collapse">
-                <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
+                <TableHeader className="sticky top-0 z-20 bg-muted/60 backdrop-blur-xs border-b border-border shadow-xs">
                   <TableRow>
-                    <TableHead className="font-bold sticky left-0 z-30 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 min-w-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Timestamp</TableHead>
-                    <TableHead className="font-bold">Item</TableHead>
-                    <TableHead className="font-bold text-center">Action</TableHead>
-                    <TableHead className="text-center font-bold">Qty Change</TableHead>
-                    <TableHead className="text-center font-bold">Balance (Before → After)</TableHead>
-                    <TableHead className="font-bold">Performed By</TableHead>
-                    <TableHead className="font-bold">Reason / Notes</TableHead>
+                    <TableHead className="font-bold text-foreground sticky left-0 z-30 bg-muted/95 border-r border-border min-w-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Timestamp</TableHead>
+                    <TableHead className="font-bold text-foreground">Item</TableHead>
+                    <TableHead className="font-bold text-foreground text-center">Action</TableHead>
+                    <TableHead className="text-center font-bold text-foreground">Qty Change</TableHead>
+                    <TableHead className="text-center font-bold text-foreground">Balance (Before → After)</TableHead>
+                    <TableHead className="font-bold text-foreground">Performed By</TableHead>
+                    <TableHead className="font-bold text-foreground">Reason / Notes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isMovementsLoading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-12 text-slate-500 font-medium">Loading movements...</TableCell>
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground font-medium">Loading movements...</TableCell>
                     </TableRow>
                   ) : filteredMovements.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-12 text-slate-500 font-medium">No stock transactions found for this selection.</TableCell>
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground font-medium">No stock transactions found for this selection.</TableCell>
                     </TableRow>
                   ) : (
                     filteredMovements.map(m => {
                       const isAdd = m.action_type === 'ADD';
                       const isRemove = m.action_type === 'REMOVE';
                       return (
-                        <TableRow key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 text-xs group">
-                          <TableCell className="text-slate-500 font-mono sticky left-0 z-10 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 min-w-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                        <TableRow key={m.id} className="hover:bg-muted/40 text-xs group">
+                          <TableCell className="text-muted-foreground font-mono sticky left-0 z-10 bg-card group-hover:bg-muted/50 border-r border-border min-w-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                             {format(new Date(m.created_at), 'MMM dd, yyyy h:mm a')}
                           </TableCell>
-                          <TableCell className="font-bold text-slate-900 dark:text-white">
+                          <TableCell className="font-bold text-foreground">
                             {m.item_name}
                           </TableCell>
                           <TableCell className="text-center">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded font-bold ${
                               isAdd 
-                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
+                                ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/20' 
                                 : isRemove 
-                                ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' 
-                                : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                                ? 'bg-destructive/15 text-destructive border border-destructive/20' 
+                                : 'bg-primary/15 text-primary border border-primary/20'
                             }`}>
                               {isAdd && <ArrowDownRight className="w-3 h-3 mr-1" />}
                               {isRemove && <ArrowUpRight className="w-3 h-3 mr-1" />}
@@ -440,16 +440,16 @@ export function ReportsLibraryPage() {
                               {m.action_type}
                             </span>
                           </TableCell>
-                          <TableCell className={`text-center font-black ${isAdd ? 'text-emerald-600' : isRemove ? 'text-rose-600' : 'text-blue-600'}`}>
+                          <TableCell className={`text-center font-black ${isAdd ? 'text-emerald-500' : isRemove ? 'text-destructive' : 'text-primary'}`}>
                             {isAdd ? `+${m.quantity}` : isRemove ? `-${m.quantity}` : `${m.quantity}`}
                           </TableCell>
-                          <TableCell className="text-center text-slate-600 font-mono">
-                            {m.previous_balance} → <span className="font-bold text-slate-900 dark:text-white">{m.new_balance}</span>
+                          <TableCell className="text-center text-muted-foreground font-mono">
+                            {m.previous_balance} → <span className="font-bold text-foreground">{m.new_balance}</span>
                           </TableCell>
-                          <TableCell className="font-medium text-slate-700 dark:text-slate-300">
+                          <TableCell className="font-medium text-foreground">
                             {m.user_name || 'Staff User'}
                           </TableCell>
-                          <TableCell className="text-slate-500 max-w-xs truncate">
+                          <TableCell className="text-muted-foreground max-w-xs truncate">
                             {m.reason}
                           </TableCell>
                         </TableRow>
@@ -464,34 +464,34 @@ export function ReportsLibraryPage() {
 
         {/* TAB 4: LOW STOCK & REPLENISHMENT */}
         <TabsContent value="alerts" className="space-y-6">
-          <div className="bg-amber-50 dark:bg-amber-950/40 p-4 rounded-xl border border-amber-200 dark:border-amber-900 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+          <div className="bg-amber-500/10 p-4 rounded-xl border border-amber-500/30 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
             <div>
-              <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200">Reorder & Stock Replenishment Action List</h3>
-              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+              <h3 className="text-sm font-bold text-foreground">Reorder & Stock Replenishment Action List</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 The items below are currently at or below their minimum reorder point. Take action to replenish supplies to avoid stockouts during service.
               </p>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="bg-card rounded-xl border border-border shadow-xs overflow-hidden">
             <div className="table-slider-container max-h-[calc(100dvh-320px)] min-h-[300px] relative overscroll-contain">
               <Table className="border-collapse">
-                <TableHeader className="sticky top-0 z-20 bg-slate-50/95 dark:bg-slate-950 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-xs">
+                <TableHeader className="sticky top-0 z-20 bg-muted/60 backdrop-blur-xs border-b border-border shadow-xs">
                   <TableRow>
-                    <TableHead className="font-bold sticky left-0 z-30 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item Name</TableHead>
-                    <TableHead className="font-bold">Category</TableHead>
-                    <TableHead className="text-center font-bold">Current Stock</TableHead>
-                    <TableHead className="text-center font-bold">Min Threshold</TableHead>
-                    <TableHead className="text-center font-bold">Deficit</TableHead>
-                    <TableHead className="font-bold">Supplier A</TableHead>
-                    <TableHead className="text-right font-bold">Action</TableHead>
+                    <TableHead className="font-bold text-foreground sticky left-0 z-30 bg-muted/95 border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item Name</TableHead>
+                    <TableHead className="font-bold text-foreground">Category</TableHead>
+                    <TableHead className="text-center font-bold text-foreground">Current Stock</TableHead>
+                    <TableHead className="text-center font-bold text-foreground">Min Threshold</TableHead>
+                    <TableHead className="text-center font-bold text-foreground">Deficit</TableHead>
+                    <TableHead className="font-bold text-foreground">Supplier A</TableHead>
+                    <TableHead className="text-right font-bold text-foreground">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {lowStockItems.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-12 text-emerald-600 font-bold">
+                      <TableCell colSpan={7} className="text-center py-12 text-emerald-500 font-bold">
                         ✓ All catalog items are sufficiently stocked above minimum reorder points.
                       </TableCell>
                     </TableRow>
@@ -499,33 +499,33 @@ export function ReportsLibraryPage() {
                     lowStockItems.map(item => {
                       const deficit = Math.max(0, item.min_qty - item.current_qty);
                       return (
-                        <TableRow key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 group">
-                          <TableCell className="font-bold text-slate-900 dark:text-white sticky left-0 z-10 bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-800/50 border-r border-slate-200 dark:border-slate-800 min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
-                            <Link to={`/items/${item.id}`} className="hover:text-blue-600">
+                        <TableRow key={item.id} className="hover:bg-muted/40 group">
+                          <TableCell className="font-bold text-foreground sticky left-0 z-10 bg-card group-hover:bg-muted/50 border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                            <Link to={`/items/${item.id}`} className="hover:text-primary">
                               {item.item_name}
                             </Link>
                           </TableCell>
                           <TableCell>
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted text-foreground">
                               {item.category_name}
                             </span>
                           </TableCell>
-                          <TableCell className="text-center font-black text-rose-600">
+                          <TableCell className="text-center font-black text-destructive">
                             {item.current_qty} {item.unit}
                           </TableCell>
-                          <TableCell className="text-center text-slate-600 font-semibold">
+                          <TableCell className="text-center text-muted-foreground font-semibold">
                             {item.min_qty} {item.unit}
                           </TableCell>
-                          <TableCell className="text-center font-black text-amber-700 bg-amber-50 dark:bg-amber-950/30">
+                          <TableCell className="text-center font-black text-amber-500 bg-amber-500/10">
                             -{deficit} {item.unit}
                           </TableCell>
-                          <TableCell className="text-slate-600 text-xs">
+                          <TableCell className="text-muted-foreground text-xs">
                             {item.supplier_a || 'Primary Supplier'}
                           </TableCell>
                           <TableCell className="text-right">
                             <Link 
                               to={`/items/${item.id}`}
-                              className="inline-flex items-center justify-center rounded-md bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3 py-1.5 shadow-sm transition-colors"
+                              className="inline-flex items-center justify-center rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs px-3 py-1.5 shadow-xs transition-colors"
                             >
                               Restock Item
                             </Link>

@@ -7,8 +7,8 @@ export function RequireAuth() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <div className="text-slate-500">Loading...</div>
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-muted-foreground font-medium">Loading...</div>
       </div>
     );
   }
@@ -26,8 +26,8 @@ export function RequireAdmin() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <div className="text-slate-500">Loading...</div>
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-muted-foreground font-medium">Loading...</div>
       </div>
     );
   }
@@ -38,9 +38,9 @@ export function RequireAdmin() {
 
   if (role !== 'ADMIN') {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 px-4">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Access Denied</h1>
-        <p className="text-slate-600 dark:text-slate-400 text-center max-w-md">
+      <div className="flex h-screen flex-col items-center justify-center bg-background px-4">
+        <h1 className="text-2xl font-bold text-foreground mb-2">Access Denied</h1>
+        <p className="text-muted-foreground text-center max-w-md">
           You do not have the required permissions to view this page. If you believe this is an error, please contact your administrator.
         </p>
       </div>

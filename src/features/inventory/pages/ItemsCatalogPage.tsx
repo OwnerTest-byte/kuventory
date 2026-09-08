@@ -206,15 +206,15 @@ export function ItemsCatalogPage() {
       </div>
 
       {/* Unified Top Ribbon */}
-      <div className="flex items-center gap-1.5 p-1 bg-slate-200/80 rounded-xl w-fit max-w-full overflow-x-auto shadow-2xs">
+      <div className="flex items-center gap-1.5 p-1 bg-muted rounded-xl w-fit max-w-full overflow-x-auto border border-border shadow-2xs">
         <button
           type="button"
           onClick={() => setSearchParams({ tab: 'catalog' })}
           className={cn(
-            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
+            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
             currentTab === 'catalog'
-              ? "bg-white text-blue-700 shadow-xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+              ? "bg-card text-primary shadow-xs border border-border/50"
+              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
           )}
         >
           <Package className="w-3.5 h-3.5" />
@@ -224,10 +224,10 @@ export function ItemsCatalogPage() {
           type="button"
           onClick={() => setSearchParams({ tab: 'batches' })}
           className={cn(
-            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
+            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
             currentTab === 'batches'
-              ? "bg-white text-blue-700 shadow-xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+              ? "bg-card text-primary shadow-xs border border-border/50"
+              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
           )}
         >
           <Layers className="w-3.5 h-3.5" />
@@ -237,10 +237,10 @@ export function ItemsCatalogPage() {
           type="button"
           onClick={() => setSearchParams({ tab: 'history' })}
           className={cn(
-            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
+            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
             currentTab === 'history'
-              ? "bg-white text-blue-700 shadow-xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+              ? "bg-card text-primary shadow-xs border border-border/50"
+              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
           )}
         >
           <History className="w-3.5 h-3.5" />
@@ -250,10 +250,10 @@ export function ItemsCatalogPage() {
           type="button"
           onClick={() => setSearchParams({ tab: 'suppliers' })}
           className={cn(
-            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
+            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
             currentTab === 'suppliers'
-              ? "bg-white text-blue-700 shadow-xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+              ? "bg-card text-primary shadow-xs border border-border/50"
+              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
           )}
         >
           <Building2 className="w-3.5 h-3.5" />
@@ -263,10 +263,10 @@ export function ItemsCatalogPage() {
           type="button"
           onClick={() => setSearchParams({ tab: 'categories' })}
           className={cn(
-            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
+            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
             currentTab === 'categories'
-              ? "bg-white text-blue-700 shadow-xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+              ? "bg-card text-primary shadow-xs border border-border/50"
+              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
           )}
         >
           <Tags className="w-3.5 h-3.5" />
@@ -281,26 +281,26 @@ export function ItemsCatalogPage() {
       {currentTab === 'categories' && <CategoriesPage embedded />}
 
       {currentTab === 'catalog' && (
-        <Card className="shadow-xs border-slate-200 bg-white overflow-hidden">
-          <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-4 items-center justify-between bg-white rounded-t-xl">
+        <Card className="shadow-xs border-border bg-card text-card-foreground overflow-hidden">
+          <div className="p-4 border-b border-border flex flex-col sm:flex-row gap-4 items-center justify-between bg-card rounded-t-xl">
             <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
                 placeholder="Search items, description, supplier..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-10 border-slate-300 text-xs"
+                className="pl-9 h-10 border-border bg-card text-foreground text-xs"
               />
             </div>
             
             <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
               {/* Sort Selector */}
-              <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
-                  className="h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-xs shadow-xs focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700"
+                  className="h-10 px-3 py-2 bg-card border border-border rounded-lg text-xs shadow-xs focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
                 >
                   <option value="name_asc">Name (A-Z)</option>
                   <option value="name_desc">Name (Z-A)</option>
@@ -316,7 +316,7 @@ export function ItemsCatalogPage() {
               <select 
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-xs shadow-xs focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700"
+                className="h-10 px-3 py-2 bg-card border border-border rounded-lg text-xs shadow-xs focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
               >
                 <option value="All Categories">All Categories</option>
                 {uniqueCategories.map(cat => (
@@ -325,15 +325,15 @@ export function ItemsCatalogPage() {
               </select>
               
               {/* Segmented Status Filter Buttons */}
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+              <div className="flex items-center gap-1 bg-muted p-1 rounded-xl border border-border">
                 <button
                   type="button"
                   onClick={() => setStatusFilter('Active')}
                   className={cn(
-                    "px-3 py-1 text-xs font-bold rounded-md transition-all",
+                    "px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer",
                     statusFilter === 'Active'
-                      ? "bg-white text-blue-700 shadow-xs"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "bg-card text-primary shadow-xs border border-border/50"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   Active ({activeCount})
@@ -342,10 +342,10 @@ export function ItemsCatalogPage() {
                   type="button"
                   onClick={() => setStatusFilter('Archived')}
                   className={cn(
-                    "px-3 py-1 text-xs font-bold rounded-md transition-all",
+                    "px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer",
                     statusFilter === 'Archived'
                       ? "bg-amber-600 text-white shadow-xs"
-                      : "text-slate-600 hover:text-slate-900"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   Archived ({archivedCount})
@@ -354,10 +354,10 @@ export function ItemsCatalogPage() {
                   type="button"
                   onClick={() => setStatusFilter('All')}
                   className={cn(
-                    "px-3 py-1 text-xs font-bold rounded-md transition-all",
+                    "px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer",
                     statusFilter === 'All'
-                      ? "bg-white text-blue-700 shadow-xs"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "bg-card text-primary shadow-xs border border-border/50"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   All ({activeCount + archivedCount})
@@ -368,9 +368,9 @@ export function ItemsCatalogPage() {
 
           {/* Banner when viewing archived items */}
           {statusFilter === 'Archived' && (
-            <div className="p-3.5 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-3 text-xs text-amber-900">
+            <div className="p-3.5 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between gap-3 text-xs text-amber-600 dark:text-amber-400">
               <div className="flex items-center gap-2">
-                <Info className="w-4 h-4 text-amber-600 shrink-0" />
+                <Info className="w-4 h-4 text-amber-500 shrink-0" />
                 <span>
                   <strong>Archived Items:</strong> These items are hidden from daily counts and active stock balances. Click <strong>Restore</strong> to return an item to the active catalog, or <strong>Delete</strong> to permanently purge it.
                 </span>
@@ -380,9 +380,9 @@ export function ItemsCatalogPage() {
 
           <div className="table-slider-container max-h-[calc(100dvh-280px)] min-h-[350px] relative overscroll-contain">
             <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
-              <thead className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 shadow-xs">
-                <tr className="text-slate-600">
-                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs sticky left-0 z-30 bg-slate-50 border-r border-slate-200 min-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">ITEM</th>
+              <thead className="sticky top-0 z-20 bg-muted/90 backdrop-blur-xs border-b border-border shadow-2xs">
+                <tr className="text-muted-foreground">
+                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs sticky left-0 z-30 bg-muted border-r border-border min-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">ITEM</th>
                   <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs">DESCRIPTION</th>
                   <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs">SECTION</th>
                   <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs text-right">UNIT COST</th>
@@ -393,69 +393,69 @@ export function ItemsCatalogPage() {
                   <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs text-right">ACTIONS</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-slate-100">
+              <tbody className="bg-card divide-y divide-border/60">
                 {isLoadingInventory ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
+                    <td colSpan={9} className="px-6 py-12 text-center text-muted-foreground">
                       Loading items...
                     </td>
                   </tr>
                 ) : filteredItems.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
+                    <td colSpan={9} className="px-6 py-12 text-center text-muted-foreground">
                       No items found matching your criteria.
                     </td>
                   </tr>
                 ) : (
                   filteredItems.map((item) => {
                     let status = 'IN STOCK';
-                    let badgeClass = 'text-green-700 bg-green-100';
+                    let badgeClass = 'text-emerald-500 bg-emerald-500/15 border border-emerald-500/25';
                     
                     if (item.current_qty <= 0) {
                       status = 'OUT OF STOCK';
-                      badgeClass = 'text-red-700 bg-red-100';
+                      badgeClass = 'text-rose-500 bg-rose-500/15 border border-rose-500/25';
                     } else if (item.current_qty <= item.min_qty) {
                       status = 'LOW STOCK';
-                      badgeClass = 'text-amber-700 bg-amber-100';
+                      badgeClass = 'text-amber-500 bg-amber-500/15 border border-amber-500/25';
                     }
                     
                     if (item.is_archived) {
                       status = 'ARCHIVED';
-                      badgeClass = 'text-slate-700 bg-slate-200';
+                      badgeClass = 'text-muted-foreground bg-muted border border-border';
                     }
 
                     return (
-                      <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
-                        <td className="px-5 py-3.5 sticky left-0 z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200 min-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                      <tr key={item.id} className="hover:bg-muted/40 transition-colors group">
+                        <td className="px-5 py-3.5 sticky left-0 z-10 bg-card group-hover:bg-muted/60 border-r border-border min-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                           <Link 
                             to={`/items/${item.id}`} 
-                            className="text-blue-600 hover:text-blue-800 hover:underline font-bold text-xs sm:text-sm"
+                            className="text-primary hover:underline font-bold text-xs sm:text-sm"
                           >
                             {item.item_name}
                           </Link>
-                          <span className="block font-mono text-[10px] text-slate-400 font-normal">
+                          <span className="block font-mono text-[10px] text-muted-foreground font-normal">
                             {item.item_code}
                           </span>
                         </td>
-                        <td className="px-5 py-3.5 text-xs text-slate-500 max-w-40 truncate" title={item.description || ''}>
+                        <td className="px-5 py-3.5 text-xs text-muted-foreground max-w-40 truncate" title={item.description || ''}>
                           {item.description || '—'}
                         </td>
-                        <td className="px-5 py-3.5 text-xs text-slate-700">
+                        <td className="px-5 py-3.5 text-xs text-foreground">
                           <span className="font-semibold">{item.inventory_type}</span>
-                          <span className="block text-[10px] text-slate-400">{item.category_name || 'General'}</span>
+                          <span className="block text-[10px] text-muted-foreground">{item.category_name || 'General'}</span>
                         </td>
-                        <td className="px-5 py-3.5 text-right font-mono text-xs font-bold text-slate-800">
+                        <td className="px-5 py-3.5 text-right font-mono text-xs font-bold text-foreground">
                           ₱{Number(item.unit_cost || 0).toFixed(2)}
                         </td>
-                        <td className="px-5 py-3.5 text-[11px] text-slate-600">
-                          <div><span className="text-slate-400 font-medium">A:</span> {item.supplier_a || '—'}</div>
-                          {item.supplier_b && <div><span className="text-slate-400 font-medium">B:</span> {item.supplier_b}</div>}
+                        <td className="px-5 py-3.5 text-[11px] text-muted-foreground">
+                          <div><span className="text-muted-foreground/70 font-medium">A:</span> {item.supplier_a || '—'}</div>
+                          {item.supplier_b && <div><span className="text-muted-foreground/70 font-medium">B:</span> {item.supplier_b}</div>}
                         </td>
-                        <td className="px-5 py-3.5 text-center font-mono text-xs text-slate-600">
+                        <td className="px-5 py-3.5 text-center font-mono text-xs text-muted-foreground">
                           {item.min_qty} {item.unit}
                         </td>
-                        <td className="px-5 py-3.5 text-center font-mono font-bold text-slate-900 text-xs">
-                          <span className="px-2.5 py-1 rounded-md bg-slate-100 font-black">
+                        <td className="px-5 py-3.5 text-center font-mono font-bold text-foreground text-xs">
+                          <span className="px-2.5 py-1 rounded-lg bg-muted border border-border font-black">
                             {item.current_qty} {item.unit}
                           </span>
                         </td>

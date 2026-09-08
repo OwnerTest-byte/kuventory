@@ -107,17 +107,17 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
       {!embedded && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 uppercase">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground uppercase">
               Stock Batches (FEFO Tracking)
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               Automated First-Expired, First-Out queue, expiration monitoring, and batch lot tracking.
             </p>
           </div>
           <Button 
             variant="outline"
             onClick={() => refetch()}
-            className="border-slate-300 text-slate-700 bg-white hover:bg-slate-50 font-semibold text-xs flex items-center gap-1.5 self-start sm:self-auto"
+            className="border-border text-foreground bg-card hover:bg-muted font-semibold text-xs flex items-center gap-1.5 self-start sm:self-auto"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Refresh Batches
           </Button>
@@ -125,19 +125,19 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
       )}
 
       {/* Filter Toolbar with Search */}
-      <Card className="bg-white border-slate-200/90 shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-4 items-center justify-between bg-slate-50/50">
+      <Card className="bg-card border-border shadow-xs overflow-hidden">
+        <div className="p-4 border-b border-border flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/40">
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
             {/* Stock Balance Filter */}
-            <div className="flex items-center gap-1 bg-slate-200/70 p-1 rounded-lg">
+            <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
               <button
                 type="button"
                 onClick={() => setStockFilter('in_stock')}
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                   stockFilter === 'in_stock'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 In-Stock Only
@@ -147,8 +147,8 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
                 onClick={() => setStockFilter('all')}
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                   stockFilter === 'all'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 All (incl. Depleted)
@@ -159,7 +159,7 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
             <select
               value={expiryFilter}
               onChange={(e) => setExpiryFilter(e.target.value as any)}
-              className="h-9 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 shadow-xs focus:ring-1 focus:ring-blue-500"
+              className="h-9 px-3 py-1.5 bg-card border border-border rounded-lg text-xs font-semibold text-foreground shadow-xs focus:ring-1 focus:ring-primary outline-none"
             >
               <option value="all">All Expirations</option>
               <option value="expiring">Expiring Soon (≤14 days)</option>
@@ -169,12 +169,12 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
 
           {/* Search Box */}
           <div className="relative w-full sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search batch code or item..."
-              className="pl-9 h-9 border-slate-300 text-xs bg-white"
+              className="pl-9 h-9 border-border text-xs bg-card text-foreground"
             />
           </div>
         </div>
@@ -182,9 +182,9 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
         {/* Batches Table with Table Slider Container */}
         <div className="table-slider-container max-h-[calc(100dvh-320px)] min-h-[350px] relative overscroll-contain">
           <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
-            <thead className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 shadow-xs">
-              <tr className="text-slate-600">
-                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs sticky left-0 z-30 bg-slate-50 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Batch Code</th>
+            <thead className="sticky top-0 z-20 bg-muted/60 backdrop-blur-xs border-b border-border shadow-xs">
+              <tr className="text-muted-foreground">
+                <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs sticky left-0 z-30 bg-muted/95 border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Batch Code</th>
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Item Name</th>
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-center">Quantity</th>
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Received Date</th>
@@ -194,17 +194,17 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
                 <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-border bg-card">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-slate-400 text-xs">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto text-blue-600 mb-2" />
+                  <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground text-xs">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto text-primary mb-2" />
                     Loading batches...
                   </td>
                 </tr>
               ) : filteredBatches.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-slate-400 text-xs">
+                  <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground text-xs">
                     No batches match the criteria.
                   </td>
                 </tr>
@@ -233,38 +233,38 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
                   }
 
                   return (
-                    <tr key={batch.id} className="hover:bg-slate-50/60 transition-colors group">
-                      <td className="px-6 py-4 font-mono text-xs font-bold text-slate-800 sticky left-0 z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200">
+                    <tr key={batch.id} className="hover:bg-muted/40 transition-colors group">
+                      <td className="px-6 py-4 font-mono text-xs font-bold text-foreground sticky left-0 z-10 bg-card group-hover:bg-muted/50 border-r border-border">
                         {batch.batch_code}
                       </td>
-                      <td className="px-6 py-4 text-xs font-bold text-slate-900">
+                      <td className="px-6 py-4 text-xs font-bold text-foreground">
                         {batch.items?.item_name || 'Item'}
-                        <span className="block text-[10px] text-slate-400 font-normal font-mono">
+                        <span className="block text-[10px] text-muted-foreground font-normal font-mono">
                           {batch.items?.item_code}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center font-mono font-bold text-slate-900 text-xs">
-                        {batch.quantity} <span className="text-[11px] font-normal text-slate-500">{batch.items?.unit}</span>
+                      <td className="px-6 py-4 text-center font-mono font-bold text-foreground text-xs">
+                        {batch.quantity} <span className="text-[11px] font-normal text-muted-foreground">{batch.items?.unit}</span>
                       </td>
-                      <td className="px-6 py-4 text-xs text-slate-600">
+                      <td className="px-6 py-4 text-xs text-muted-foreground">
                         {batch.created_at ? format(new Date(batch.created_at), 'MMM dd, yyyy') : '—'}
                       </td>
                       <td className="px-6 py-4 text-xs font-semibold">
                         {expiryDate ? (
-                          <span className={isExpired ? 'text-rose-600' : 'text-slate-800'}>
+                          <span className={isExpired ? 'text-destructive font-bold' : 'text-foreground'}>
                             {format(expiryDate, 'MMM dd, yyyy')}
                           </span>
                         ) : (
-                          <span className="text-slate-400">N/A</span>
+                          <span className="text-muted-foreground">N/A</span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-center font-mono text-xs">
                         {daysLeft !== null ? (
-                          <span className={isExpired ? 'text-rose-600 font-bold' : daysLeft <= 7 ? 'text-amber-600 font-bold' : 'text-slate-700'}>
+                          <span className={isExpired ? 'text-destructive font-bold' : daysLeft <= 7 ? 'text-amber-500 font-bold' : 'text-foreground'}>
                             {isExpired ? 'Expired' : `${daysLeft} days`}
                           </span>
                         ) : (
-                          <span className="text-slate-400">—</span>
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -276,7 +276,7 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
                         {batch.items?.id ? (
                           <Link
                             to={`/items/${batch.items.id}`}
-                            className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                            className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
                           >
                             Inspect <ArrowRight className="w-3 h-3" />
                           </Link>
@@ -291,11 +291,11 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
         </div>
 
         {/* Informational Callout matching Mockup Screen 5 */}
-        <div className="p-4 bg-amber-50/70 border-t border-amber-200/80 flex items-start gap-3">
-          <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-          <div className="text-xs text-amber-900">
+        <div className="p-4 bg-muted/40 border-t border-border flex items-start gap-3">
+          <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+          <div className="text-xs text-foreground">
             <strong className="uppercase font-bold">FEFO (First Expire, First Out) Automated Principle:</strong>
-            <p className="mt-0.5 text-amber-800">
+            <p className="mt-0.5 text-muted-foreground">
               Stock deductions made via Daily Inventory or manual consumption are automatically allocated from the earliest expiry batch first, ensuring zero spoilage and accurate stock age tracking.
             </p>
           </div>

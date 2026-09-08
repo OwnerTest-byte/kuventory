@@ -156,21 +156,21 @@ export function ItemDetailsPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 text-foreground">
       {/* Breadcrumb matching Mockup Screen 3 */}
       <div className="flex items-center justify-between">
-        <nav className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
-          <Link to="/items" className="hover:text-blue-600 transition-colors flex items-center gap-1">
+        <nav className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground font-medium">
+          <Link to="/items" className="hover:text-primary transition-colors flex items-center gap-1">
             <ArrowLeft className="w-3.5 h-3.5" /> Inventory Items
           </Link>
           <span>/</span>
-          <span className="text-slate-900 font-bold">{item.item_name}</span>
+          <span className="text-foreground font-bold">{item.item_name}</span>
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
           <Button
             onClick={() => setIsUpdateStockOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm shadow-xs flex items-center gap-1.5"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs sm:text-sm shadow-xs flex items-center gap-1.5"
           >
             <PlusCircle className="w-4 h-4" />
             Update Stock
@@ -179,7 +179,7 @@ export function ItemDetailsPage() {
           <Button
             variant="outline"
             onClick={() => setIsEditModalOpen(true)}
-            className="border-slate-300 text-slate-700 bg-white hover:bg-slate-50 font-semibold text-xs sm:text-sm shadow-xs flex items-center gap-1.5"
+            className="border-border text-foreground bg-card hover:bg-muted font-semibold text-xs sm:text-sm shadow-xs flex items-center gap-1.5"
           >
             <Edit className="w-4 h-4" />
             Edit Item
@@ -189,7 +189,7 @@ export function ItemDetailsPage() {
             variant="outline"
             onClick={handleToggleArchive}
             disabled={isArchiving}
-            className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-semibold text-xs sm:text-sm shadow-xs flex items-center gap-1.5"
+            className="border-destructive/30 text-destructive hover:bg-destructive/10 font-semibold text-xs sm:text-sm shadow-xs flex items-center gap-1.5"
           >
             <Archive className="w-4 h-4" />
             {item.is_archived ? 'Restore' : 'Archive'}
@@ -198,10 +198,10 @@ export function ItemDetailsPage() {
       </div>
 
       {/* Main Item Hero Card matching Mockup Screen 3 */}
-      <Card className="bg-white border-slate-200/90 shadow-xs overflow-hidden">
+      <Card className="bg-card border-border shadow-xs overflow-hidden">
         <div className="p-6 flex flex-col md:flex-row gap-6 items-start">
           {/* Left: Product Image */}
-          <div className="w-full md:w-56 h-56 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center p-4 shrink-0 relative overflow-hidden">
+          <div className="w-full md:w-56 h-56 rounded-xl bg-muted/30 border border-border flex items-center justify-center p-4 shrink-0 relative overflow-hidden">
             {item.image_path ? (
               <img 
                 src={item.image_path} 
@@ -213,9 +213,9 @@ export function ItemDetailsPage() {
                 }}
               />
             ) : null}
-            <div className={`fallback-icon flex flex-col items-center justify-center text-slate-400 ${item.image_path ? 'hidden' : ''}`}>
-              <Package className="w-16 h-16 text-slate-300 mb-2" />
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">No Image</span>
+            <div className={`fallback-icon flex flex-col items-center justify-center text-muted-foreground ${item.image_path ? 'hidden' : ''}`}>
+              <Package className="w-16 h-16 text-muted-foreground/40 mb-2" />
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">No Image</span>
             </div>
           </div>
 
@@ -223,50 +223,50 @@ export function ItemDetailsPage() {
           <div className="flex-1 min-w-0 space-y-4">
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
                   {item.item_code}
                 </span>
-                <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                <span className="text-xs font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded">
                   {item.category_name || 'Uncategorized'}
                 </span>
-                <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                <span className="text-xs font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded">
                   {item.inventory_type}
                 </span>
                 {item.is_archived && (
-                  <span className="text-xs font-bold text-slate-700 bg-slate-200 px-2 py-0.5 rounded">
+                  <span className="text-xs font-bold text-foreground bg-muted px-2 py-0.5 rounded">
                     ARCHIVED
                   </span>
                 )}
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 uppercase">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground uppercase">
                 {item.item_name}
               </h1>
               {item.description && (
-                <p className="text-sm text-slate-500 mt-1">{item.description}</p>
+                <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
               )}
             </div>
 
             {/* Specifications Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50/70 border border-slate-200/80">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl bg-muted/30 border border-border">
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Unit Type</span>
-                <span className="text-sm font-bold text-slate-800 uppercase">{item.unit}</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">Unit Type</span>
+                <span className="text-sm font-bold text-foreground uppercase">{item.unit}</span>
               </div>
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Unit Cost</span>
-                <span className="text-sm font-bold text-slate-900 font-mono">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">Unit Cost</span>
+                <span className="text-sm font-bold text-foreground font-mono">
                   {item.unit_cost ? `₱${Number(item.unit_cost).toFixed(2)}` : 'N/A'}
                 </span>
               </div>
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Supplier A</span>
-                <span className="text-sm font-semibold text-slate-700 truncate block">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">Supplier A</span>
+                <span className="text-sm font-semibold text-foreground truncate block">
                   {item.supplier_a || 'None'}
                 </span>
               </div>
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Supplier B</span>
-                <span className="text-sm font-semibold text-slate-700 truncate block">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">Supplier B</span>
+                <span className="text-sm font-semibold text-foreground truncate block">
                   {item.supplier_b || 'None'}
                 </span>
               </div>
@@ -275,14 +275,14 @@ export function ItemDetailsPage() {
         </div>
 
         {/* Tab Navigation matching Mockup Screen 3 */}
-        <div className="border-t border-slate-200 px-6 flex gap-8 bg-slate-50/50">
+        <div className="border-t border-border px-6 flex gap-8 bg-muted/20">
           <button
             type="button"
             onClick={() => setActiveTab('overview')}
             className={`py-3.5 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${
               activeTab === 'overview'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-900'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
             Stock Overview
@@ -292,12 +292,12 @@ export function ItemDetailsPage() {
             onClick={() => setActiveTab('batches')}
             className={`py-3.5 text-xs font-bold uppercase tracking-wider transition-all border-b-2 flex items-center gap-1.5 ${
               activeTab === 'batches'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-900'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
             Batches / Expiry (FEFO)
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 text-slate-700">
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-muted text-foreground">
               {batches.length}
             </span>
           </button>
@@ -306,12 +306,12 @@ export function ItemDetailsPage() {
             onClick={() => setActiveTab('history')}
             className={`py-3.5 text-xs font-bold uppercase tracking-wider transition-all border-b-2 flex items-center gap-1.5 ${
               activeTab === 'history'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-900'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
             Stock History
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 text-slate-700">
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-muted text-foreground">
               {history.length}
             </span>
           </button>
@@ -322,59 +322,59 @@ export function ItemDetailsPage() {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="bg-white border-slate-200 shadow-xs">
+            <Card className="bg-card border-border shadow-xs">
               <CardContent className="p-5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Current Stock</span>
-                <div className="mt-2 text-3xl font-bold font-mono text-slate-900">
-                  {currentQty} <span className="text-xs font-normal text-slate-500 uppercase">{item.unit}</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">Current Stock</span>
+                <div className="mt-2 text-3xl font-bold font-mono text-foreground">
+                  {currentQty} <span className="text-xs font-normal text-muted-foreground uppercase">{item.unit}</span>
                 </div>
-                <div className="mt-2 text-xs text-slate-500">Active available count</div>
+                <div className="mt-2 text-xs text-muted-foreground">Active available count</div>
               </CardContent>
             </Card>
 
-            <Card className="bg-white border-slate-200 shadow-xs">
+            <Card className="bg-card border-border shadow-xs">
               <CardContent className="p-5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Minimum Threshold</span>
-                <div className="mt-2 text-3xl font-bold font-mono text-slate-700">
-                  {minQty} <span className="text-xs font-normal text-slate-500 uppercase">{item.unit}</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">Minimum Threshold</span>
+                <div className="mt-2 text-3xl font-bold font-mono text-muted-foreground">
+                  {minQty} <span className="text-xs font-normal text-muted-foreground uppercase">{item.unit}</span>
                 </div>
-                <div className="mt-2 text-xs text-slate-500">Restock trigger limit</div>
+                <div className="mt-2 text-xs text-muted-foreground">Restock trigger limit</div>
               </CardContent>
             </Card>
 
-            <Card className="bg-white border-slate-200 shadow-xs">
+            <Card className="bg-card border-border shadow-xs">
               <CardContent className="p-5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Health Status</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">Health Status</span>
                 <div className="mt-2 flex items-center">
                   <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase border ${statusBadge.className}`}>
                     {statusBadge.icon}
                     {statusBadge.label}
                   </span>
                 </div>
-                <div className="mt-2 text-xs text-slate-500">Based on minimum quota</div>
+                <div className="mt-2 text-xs text-muted-foreground">Based on minimum quota</div>
               </CardContent>
             </Card>
 
-            <Card className="bg-white border-slate-200 shadow-xs">
+            <Card className="bg-card border-border shadow-xs">
               <CardContent className="p-5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Last Updated</span>
-                <div className="mt-2 text-base font-bold text-slate-800">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">Last Updated</span>
+                <div className="mt-2 text-base font-bold text-foreground">
                   {item.updated_at ? format(new Date(item.updated_at), 'MMM dd, yyyy h:mm a') : 'N/A'}
                 </div>
-                <div className="mt-2 text-xs text-slate-500">Timestamp of last transaction</div>
+                <div className="mt-2 text-xs text-muted-foreground">Timestamp of last transaction</div>
               </CardContent>
             </Card>
           </div>
 
           {/* Quick FEFO advice banner */}
-          <div className="p-4 rounded-xl bg-blue-50/80 border border-blue-200 flex items-center justify-between">
+          <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-600 text-white rounded-lg">
+              <div className="p-2 bg-primary text-primary-foreground rounded-lg">
                 <Layers className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-blue-900 uppercase tracking-wider">FEFO Automatic Consumption Active</h4>
-                <p className="text-xs text-blue-700 mt-0.5">
+                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">FEFO Automatic Consumption Active</h4>
+                <p className="text-xs text-muted-foreground mt-0.5">
                   When stock is removed from this item, the system automatically pulls from the oldest expiring batch first.
                 </p>
               </div>
@@ -382,7 +382,7 @@ export function ItemDetailsPage() {
             <Button
               size="sm"
               onClick={() => setActiveTab('batches')}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs"
             >
               Inspect Batches
             </Button>
@@ -392,18 +392,18 @@ export function ItemDetailsPage() {
 
       {/* Tab 2: Batches / Expiry (FEFO) */}
       {activeTab === 'batches' && (
-        <Card className="bg-white border-slate-200 shadow-xs">
-          <CardHeader className="p-5 border-b border-slate-100 flex flex-row items-center justify-between">
+        <Card className="bg-card border-border shadow-xs">
+          <CardHeader className="p-5 border-b border-border flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+              <CardTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
                 Batches &amp; FEFO Allocation Queue
               </CardTitle>
-              <span className="text-xs text-slate-500">Sorted by earliest expiration date</span>
+              <span className="text-xs text-muted-foreground">Sorted by earliest expiration date</span>
             </div>
             <Button
               size="sm"
               onClick={() => setIsUpdateStockOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs"
             >
               <PlusCircle className="w-3.5 h-3.5 mr-1" /> Add New Batch
             </Button>
@@ -411,7 +411,7 @@ export function ItemDetailsPage() {
           <CardContent className="p-0">
             <div className="max-h-[420px] overflow-y-auto overflow-x-auto relative overscroll-contain">
               <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
-                <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 text-slate-500 shadow-xs">
+                <thead className="sticky top-0 z-10 bg-muted/60 backdrop-blur-xs border-b border-border text-muted-foreground shadow-xs">
                   <tr>
                     <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Batch Code</th>
                     <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-center">Quantity</th>
@@ -421,16 +421,16 @@ export function ItemDetailsPage() {
                     <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-border">
                   {isLoadingBatches ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-slate-400 text-xs">
+                      <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground text-xs">
                         Loading batches...
                       </td>
                     </tr>
                   ) : batches.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-slate-400 text-xs">
+                      <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground text-xs">
                         No active stock batches recorded for this item.
                       </td>
                     </tr>
@@ -456,23 +456,23 @@ export function ItemDetailsPage() {
                       }
 
                       return (
-                        <tr key={b.id} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="px-6 py-4 font-mono text-xs font-semibold text-slate-800">
+                        <tr key={b.id} className="hover:bg-muted/40 transition-colors">
+                          <td className="px-6 py-4 font-mono text-xs font-semibold text-foreground">
                             {b.batch_code}
                           </td>
-                          <td className="px-6 py-4 text-center font-mono font-bold text-slate-900">
-                            {b.quantity} <span className="text-xs font-normal text-slate-500">{item.unit}</span>
+                          <td className="px-6 py-4 text-center font-mono font-bold text-foreground">
+                            {b.quantity} <span className="text-xs font-normal text-muted-foreground">{item.unit}</span>
                           </td>
-                          <td className="px-6 py-4 text-xs font-medium text-slate-700">
+                          <td className="px-6 py-4 text-xs font-medium text-foreground">
                             {expiryDate ? format(expiryDate, 'MMM dd, yyyy') : 'No Expiry'}
                           </td>
                           <td className="px-6 py-4 text-center font-mono text-xs">
                             {daysLeft !== null ? (
-                              <span className={isExpired ? 'text-rose-600 font-bold' : daysLeft <= 7 ? 'text-amber-600 font-bold' : 'text-slate-700'}>
+                              <span className={isExpired ? 'text-destructive font-bold' : daysLeft <= 7 ? 'text-amber-500 font-bold' : 'text-foreground'}>
                                 {isExpired ? 'Expired' : `${daysLeft} days`}
                               </span>
                             ) : (
-                              <span className="text-slate-400">—</span>
+                              <span className="text-muted-foreground">—</span>
                             )}
                           </td>
                           <td className="px-6 py-4 text-center">
@@ -485,7 +485,7 @@ export function ItemDetailsPage() {
                               size="sm"
                               variant="outline"
                               onClick={() => setIsUpdateStockOpen(true)}
-                              className="h-7 text-xs font-semibold border-slate-300"
+                              className="h-7 text-xs font-semibold border-border text-foreground hover:bg-muted"
                             >
                               Update
                             </Button>
@@ -503,16 +503,16 @@ export function ItemDetailsPage() {
 
       {/* Tab 3: Stock History */}
       {activeTab === 'history' && (
-        <Card className="bg-white border-slate-200 shadow-xs">
-          <CardHeader className="p-5 border-b border-slate-100">
-            <CardTitle className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+        <Card className="bg-card border-border shadow-xs">
+          <CardHeader className="p-5 border-b border-border">
+            <CardTitle className="text-sm font-bold text-foreground uppercase tracking-wider">
               Item Movement &amp; Audit Log
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="max-h-[420px] overflow-y-auto overflow-x-auto relative overscroll-contain">
               <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
-                <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 text-slate-500 shadow-xs">
+                <thead className="sticky top-0 z-10 bg-muted/60 backdrop-blur-xs border-b border-border text-muted-foreground shadow-xs">
                   <tr>
                     <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Date / Time</th>
                     <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">User</th>
@@ -521,34 +521,34 @@ export function ItemDetailsPage() {
                     <th className="px-6 py-3 font-bold uppercase tracking-wider text-xs">Reason / Note</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-border">
                   {isLoadingHistory ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-slate-400 text-xs">
+                      <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground text-xs">
                         Loading transaction history...
                       </td>
                     </tr>
                   ) : history.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-slate-400 text-xs">
+                      <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground text-xs">
                         No transactions recorded for this item.
                       </td>
                     </tr>
                   ) : (
                     history.map((tx) => {
-                      let badgeStyle = 'bg-slate-100 text-slate-700';
-                      if (tx.action_type === 'ADD') badgeStyle = 'bg-emerald-100 text-emerald-800';
-                      if (tx.action_type === 'REMOVE') badgeStyle = 'bg-rose-100 text-rose-800';
-                      if (tx.action_type === 'ADJUST') badgeStyle = 'bg-blue-100 text-blue-800';
+                      let badgeStyle = 'bg-muted text-foreground border border-border';
+                      if (tx.action_type === 'ADD') badgeStyle = 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/20';
+                      if (tx.action_type === 'REMOVE') badgeStyle = 'bg-destructive/15 text-destructive border border-destructive/20';
+                      if (tx.action_type === 'ADJUST') badgeStyle = 'bg-primary/15 text-primary border border-primary/20';
 
                       const prefix = tx.action_type === 'REMOVE' ? '-' : tx.action_type === 'ADD' ? '+' : '';
 
                       return (
-                        <tr key={tx.id} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="px-6 py-3.5 text-xs text-slate-500 font-medium">
+                        <tr key={tx.id} className="hover:bg-muted/40 transition-colors">
+                          <td className="px-6 py-3.5 text-xs text-muted-foreground font-medium">
                             {format(new Date(tx.created_at), 'MMM dd, yyyy h:mm a')}
                           </td>
-                          <td className="px-6 py-3.5 text-xs font-semibold text-slate-800">
+                          <td className="px-6 py-3.5 text-xs font-semibold text-foreground">
                             {tx.user_name || 'Staff User'}
                           </td>
                           <td className="px-6 py-3.5 text-center">
@@ -556,10 +556,10 @@ export function ItemDetailsPage() {
                               {tx.action_type}
                             </span>
                           </td>
-                          <td className="px-6 py-3.5 text-center font-mono text-xs font-bold text-slate-900">
+                          <td className="px-6 py-3.5 text-center font-mono text-xs font-bold text-foreground">
                             {prefix}{Math.abs(tx.quantity)} {item.unit}
                           </td>
-                          <td className="px-6 py-3.5 text-xs text-slate-600">
+                          <td className="px-6 py-3.5 text-xs text-muted-foreground">
                             {tx.reason || 'Routine operation'}
                           </td>
                         </tr>
