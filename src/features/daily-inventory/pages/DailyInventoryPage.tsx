@@ -37,8 +37,8 @@ export function DailyInventoryPage() {
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase">INVENTORY KIOSK AND BODEGA</h1>
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground uppercase">INVENTORY KIOSK AND BODEGA</h1>
             {record && (
               isFinalized ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/25">
@@ -52,11 +52,11 @@ export function DailyInventoryPage() {
             )}
           </div>
 
-          <div className="flex items-center text-sm text-muted-foreground mt-2 gap-3">
+          <div className="flex flex-wrap items-center text-sm text-muted-foreground mt-2 gap-3">
             <div className="flex items-center">
-              <span className="font-semibold mr-2 text-foreground">Worksheet Date:</span>
+              <span className="font-semibold mr-2 text-foreground text-xs sm:text-sm">Worksheet Date:</span>
               <div className="flex items-center border border-border rounded-lg px-2.5 py-1 bg-card relative hover:border-muted-foreground/40 transition-colors">
-                <span className="mr-2 font-medium text-foreground">{format(new Date(date + 'T00:00:00'), 'MMM dd, yyyy')}</span>
+                <span className="mr-2 font-medium text-foreground text-xs sm:text-sm">{format(new Date(date + 'T00:00:00'), 'MMM dd, yyyy')}</span>
                 <CalendarIcon className="w-4 h-4 text-muted-foreground cursor-pointer" />
                 <input 
                   type="date"
@@ -81,7 +81,7 @@ export function DailyInventoryPage() {
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Button 
             variant="outline" 
             onClick={() => {

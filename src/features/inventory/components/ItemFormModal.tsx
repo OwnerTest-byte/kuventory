@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useQuery } from '@tanstack/react-query';
@@ -42,18 +42,15 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
 
   const { data: registeredSuppliers } = useSuppliers();
 
-  // Default to first category if not set
-  useEffect(() => {
-    if (categories && categories.length > 0 && !formData.category_id) {
-      setFormData(prev => ({ ...prev, category_id: categories[0].id }));
-    }
-  }, [categories, formData.category_id]);
+  // Derive effective category ID directly to avoid unnecessary state renders
+  const effectiveCategoryId = formData.category_id || categories?.[0]?.id || '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!formData.item_name || !formData.category_id || !formData.item_code) {
+    const categoryIdToUse = formData.category_id || effectiveCategoryId;
+    if (!formData.item_name || !categoryIdToUse || !formData.item_code) {
       setError("Item code, Name and category are required");
       return;
     }
@@ -62,7 +59,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
       await onSubmit({
         item_code: formData.item_code,
         item_name: formData.item_name,
-        category_id: formData.category_id,
+        category_id: categoryIdToUse,
         description: formData.description,
         inventory_type: formData.inventory_type as any,
         supplier_a: formData.supplier_a,
@@ -71,7 +68,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
         unit_cost: parseFloat(formData.unit_cost) || 0,
         min_qty: parseInt(formData.min_qty, 10) || 0,
         image_path: formData.image_path || null,
-        category_name: categories?.find(c => c.id === formData.category_id)?.name
+        category_name: categories?.find(c => c.id === categoryIdToUse)?.name
       }, !item ? parseFloat(formData.initial_qty) || 0 : undefined);
     } catch (err: any) {
       setError(err.message || 'Failed to save item');
@@ -121,7 +118,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground">Category *</label>
                 <select
-                  value={formData.category_id}
+                  value={formData.category_id || effectiveCategoryId}
                   onChange={e => setFormData({ ...formData, category_id: e.target.value })}
                   className="w-full h-10 px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   required

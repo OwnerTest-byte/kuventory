@@ -3,6 +3,8 @@ import type { DailyInventorySessionWithEntries } from '../api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { InventoryRow } from './InventoryRow';
 
+type DailyEntry = DailyInventorySessionWithEntries['daily_inventory_entries'][number];
+
 interface InventorySheetProps {
   session: DailyInventorySessionWithEntries;
   isReadOnly: boolean;
@@ -14,10 +16,10 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
   
   // Group into GRILLED STOCK, PORTION STOCK, PER CASES, and OTHER
   const { grilledItems, portionItems, caseItems, otherItems } = useMemo(() => {
-    const grilledItems: typeof items = [];
-    const portionItems: typeof items = [];
-    const caseItems: typeof items = [];
-    const otherItems: typeof items = [];
+    const grilledItems: DailyEntry[] = [];
+    const portionItems: DailyEntry[] = [];
+    const caseItems: DailyEntry[] = [];
+    const otherItems: DailyEntry[] = [];
 
     items.forEach(item => {
       const sec = (item.section || '').toUpperCase();
@@ -33,9 +35,9 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
     });
 
     return { grilledItems, portionItems, caseItems, otherItems };
-  }, [items]);
+  }, [session.daily_inventory_entries]);
 
-  const renderTable = (tableItems: typeof items, title: string, colorClass = 'text-blue-800') => {
+  const renderTable = (tableItems: DailyEntry[], title: string, colorClass = 'text-blue-800') => {
     if (tableItems.length === 0) return null;
     
     // Calculate totals

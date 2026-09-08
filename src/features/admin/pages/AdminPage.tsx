@@ -137,16 +137,20 @@ export function AdminPage() {
 
   useEffect(() => {
     if (dbEst) {
-      setRestaurantInfo({
-        name: dbEst.name || 'KUVENTORY KIOSK & BODEGA',
-        branch: dbEst.branch || 'Central Bodega & Kiosk Operations',
-        address: dbEst.address || '',
-        phone: dbEst.phone || dbEst.contact_number || '',
-        email: dbEst.email || '',
-        hours: dbEst.hours || dbEst.operating_hours || '',
-        currency: dbEst.currency || 'PHP (₱)',
-        tax_rate: dbEst.tax_rate ?? 12,
-        receipt_footer: dbEst.receipt_footer || ''
+      setRestaurantInfo(prev => {
+        const next = {
+          name: dbEst.name || 'KUVENTORY KIOSK & BODEGA',
+          branch: dbEst.branch || 'Central Bodega & Kiosk Operations',
+          address: dbEst.address || '',
+          phone: dbEst.phone || dbEst.contact_number || '',
+          email: dbEst.email || '',
+          hours: dbEst.hours || dbEst.operating_hours || '',
+          currency: dbEst.currency || 'PHP (₱)',
+          tax_rate: dbEst.tax_rate ?? 12,
+          receipt_footer: dbEst.receipt_footer || ''
+        };
+        if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+        return next;
       });
     }
   }, [dbEst]);
@@ -190,14 +194,18 @@ export function AdminPage() {
 
   useEffect(() => {
     if (dbNotifs) {
-      setNotifPrefs({
-        lowStockThreshold: dbNotifs.lowStockThreshold ?? dbNotifs.low_stock_threshold ?? 20,
-        expiryNoticeDays: dbNotifs.expiryNoticeDays ?? dbNotifs.expiry_warning_days ?? 14,
-        emailAlerts: dbNotifs.emailAlerts ?? dbNotifs.email_alerts ?? true,
-        soundAlerts: dbNotifs.soundAlerts ?? false,
-        fefoAutoAllocation: dbNotifs.fefoAutoAllocation ?? true,
-        autoDailyReminder: dbNotifs.autoDailyReminder ?? dbNotifs.auto_daily_reminder ?? true,
-        sms_alerts: dbNotifs.sms_alerts ?? false,
+      setNotifPrefs(prev => {
+        const next = {
+          lowStockThreshold: dbNotifs.lowStockThreshold ?? dbNotifs.low_stock_threshold ?? 20,
+          expiryNoticeDays: dbNotifs.expiryNoticeDays ?? dbNotifs.expiry_warning_days ?? 14,
+          emailAlerts: dbNotifs.emailAlerts ?? dbNotifs.email_alerts ?? true,
+          soundAlerts: dbNotifs.soundAlerts ?? false,
+          fefoAutoAllocation: dbNotifs.fefoAutoAllocation ?? true,
+          autoDailyReminder: dbNotifs.autoDailyReminder ?? dbNotifs.auto_daily_reminder ?? true,
+          sms_alerts: dbNotifs.sms_alerts ?? false,
+        };
+        if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+        return next;
       });
     }
   }, [dbNotifs]);

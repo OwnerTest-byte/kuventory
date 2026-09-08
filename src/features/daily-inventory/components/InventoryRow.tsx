@@ -24,18 +24,21 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
   const [isModalOpen, setIsModalOpen] = useState(false);
   const mutation = useUpsertDailyItem(date);
 
-  // Sync state when date or item.id changes
-  useEffect(() => {
-    setBeg(item.beginning_qty.toString());
-    setAdd(item.add_qty.toString());
-    setAm(item.sales_am.toString());
-    setPm(item.sales_pm.toString());
-  }, [item.id, date]);
+  const lastSyncedRef = useRef({ id: item.id, date, add: item.add_qty });
 
-  // When item.add_qty changes externally (e.g. from AddStockModal), update add
+  // Sync state when date, item, or external add changes
   useEffect(() => {
-    setAdd(item.add_qty.toString());
-  }, [item.add_qty]);
+    if (lastSyncedRef.current.id !== item.id || lastSyncedRef.current.date !== date) {
+      lastSyncedRef.current = { id: item.id, date, add: item.add_qty };
+      setBeg(item.beginning_qty.toString());
+      setAdd(item.add_qty.toString());
+      setAm(item.sales_am.toString());
+      setPm(item.sales_pm.toString());
+    } else if (lastSyncedRef.current.add !== item.add_qty) {
+      lastSyncedRef.current.add = item.add_qty;
+      setAdd(item.add_qty.toString());
+    }
+  }, [item.id, date, item.beginning_qty, item.add_qty, item.sales_am, item.sales_pm]);
 
   const saveRow = async (newBeg: string, newAdd: string, newAm: string, newPm: string) => {
     if (isReadOnly) return;
@@ -103,7 +106,7 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
   const optTotal = numBeg + numAdd;
   const optEnding = optTotal - numAm - numPm;
 
-  const inputClass = `w-full text-center p-2 text-sm font-semibold border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+  const inputClass = `w-full text-center p-2 text-base sm:text-sm font-semibold border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
     isReadOnly 
       ? 'bg-muted/50 text-muted-foreground cursor-not-allowed border-border' 
       : 'bg-card text-foreground border-border hover:border-muted-foreground/40'

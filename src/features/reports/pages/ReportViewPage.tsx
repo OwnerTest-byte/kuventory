@@ -90,17 +90,17 @@ export function ReportViewPage() {
     if (tableItems.length === 0) return null;
     return (
       <div className="mb-8">
-        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900 mb-2">{title}</h3>
+        <h3 className="text-sm font-bold uppercase tracking-widest text-foreground mb-2 print:text-black">{title}</h3>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs sm:text-sm border-collapse border border-slate-300">
+          <table className="w-full text-left text-xs sm:text-sm border-collapse border border-border print:border-slate-300">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-300">
-                <th className="py-2 px-3 font-bold border-r border-slate-300">ITEM</th>
-                <th className="py-2 px-3 font-bold text-center border-r border-slate-300">BEG</th>
-                <th className="py-2 px-3 font-bold text-center border-r border-slate-300">ADD</th>
-                <th className="py-2 px-3 font-bold text-center border-r border-slate-300">TOTAL STOCK</th>
-                <th className="py-2 px-3 font-bold text-center border-r border-slate-300">SALES AM</th>
-                <th className="py-2 px-3 font-bold text-center border-r border-slate-300">SALES PM</th>
+              <tr className="bg-muted/40 print:bg-slate-100 border-b border-border print:border-slate-300">
+                <th className="py-2 px-3 font-bold border-r border-border print:border-slate-300">ITEM</th>
+                <th className="py-2 px-3 font-bold text-center border-r border-border print:border-slate-300">BEG</th>
+                <th className="py-2 px-3 font-bold text-center border-r border-border print:border-slate-300">ADD</th>
+                <th className="py-2 px-3 font-bold text-center border-r border-border print:border-slate-300">TOTAL STOCK</th>
+                <th className="py-2 px-3 font-bold text-center border-r border-border print:border-slate-300">SALES AM</th>
+                <th className="py-2 px-3 font-bold text-center border-r border-border print:border-slate-300">SALES PM</th>
                 <th className="py-2 px-3 font-bold text-center">ENDING</th>
               </tr>
             </thead>
@@ -108,13 +108,13 @@ export function ReportViewPage() {
               {tableItems.map((item, idx) => {
                 const totalStock = (item.beginning_qty || 0) + (item.add_qty || 0);
                 return (
-                  <tr key={idx} className="border-b border-slate-200">
-                    <td className="py-2 px-3 border-r border-slate-200">{item.items?.item_name}</td>
-                    <td className="py-2 px-3 text-center border-r border-slate-200">{item.beginning_qty}</td>
-                    <td className="py-2 px-3 text-center border-r border-slate-200">{item.add_qty}</td>
-                    <td className="py-2 px-3 text-center border-r border-slate-200 font-medium">{totalStock}</td>
-                    <td className="py-2 px-3 text-center border-r border-slate-200">{item.sales_am}</td>
-                    <td className="py-2 px-3 text-center border-r border-slate-200">{item.sales_pm}</td>
+                  <tr key={idx} className="border-b border-border/60 print:border-slate-200">
+                    <td className="py-2 px-3 border-r border-border/60 print:border-slate-200">{item.items?.item_name}</td>
+                    <td className="py-2 px-3 text-center border-r border-border/60 print:border-slate-200">{item.beginning_qty}</td>
+                    <td className="py-2 px-3 text-center border-r border-border/60 print:border-slate-200">{item.add_qty}</td>
+                    <td className="py-2 px-3 text-center border-r border-border/60 print:border-slate-200 font-medium">{totalStock}</td>
+                    <td className="py-2 px-3 text-center border-r border-border/60 print:border-slate-200">{item.sales_am}</td>
+                    <td className="py-2 px-3 text-center border-r border-border/60 print:border-slate-200">{item.sales_pm}</td>
                     <td className="py-2 px-3 text-center font-medium">{item.ending_qty}</td>
                   </tr>
                 );
@@ -129,24 +129,24 @@ export function ReportViewPage() {
   return (
     <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6 animate-in fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
-        <Link to="/reports" className="inline-flex items-center text-sm font-semibold text-slate-600 hover:text-slate-900">
+        <Link to="/reports" className="inline-flex items-center text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Reports Library
         </Link>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={handlePrint} className="border-slate-300 text-slate-700 font-bold hover:bg-slate-50">
+          <Button variant="outline" onClick={handlePrint} className="border-border text-foreground font-semibold hover:bg-muted">
             <Printer className="w-4 h-4 mr-2" />
             Print
           </Button>
-          <Button variant="outline" onClick={handleExportPdf} className="bg-red-600 hover:bg-red-700 text-white border-transparent" disabled={isExportingPdf}>
+          <Button variant="outline" onClick={handleExportPdf} className="bg-rose-600 hover:bg-rose-700 text-white border-transparent font-semibold" disabled={isExportingPdf}>
             {isExportingPdf ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
             PDF
           </Button>
-          <Button variant="outline" onClick={handleExportXlsx} className="bg-emerald-600 hover:bg-emerald-700 text-white border-transparent" disabled={isExportingXlsx}>
+          <Button variant="outline" onClick={handleExportXlsx} className="bg-emerald-600 hover:bg-emerald-700 text-white border-transparent font-semibold" disabled={isExportingXlsx}>
             {isExportingXlsx ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
             EXCEL
           </Button>
-          <Button variant="outline" onClick={handleExportCsv} className="bg-blue-600 hover:bg-blue-700 text-white border-transparent" disabled={isExportingCsv}>
+          <Button variant="outline" onClick={handleExportCsv} className="bg-primary hover:bg-primary/90 text-primary-foreground border-transparent font-semibold" disabled={isExportingCsv}>
             {isExportingCsv ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
             CSV
           </Button>
@@ -154,16 +154,16 @@ export function ReportViewPage() {
       </div>
 
       {/* Printable Report Document */}
-      <div className="bg-white border border-slate-300 p-8 sm:p-12 shadow-sm rounded-sm print:shadow-none print:border-none print:p-0 font-mono" id="printable-report">
-        <div className="text-center mb-10 border-b border-slate-300 pb-6">
-          <h1 className="text-2xl font-bold tracking-widest mb-1 uppercase">KUVENTORY</h1>
-          <h2 className="text-lg font-bold text-slate-700 mb-4 uppercase">Daily Inventory Report</h2>
-          <div className="flex flex-col sm:flex-row justify-center gap-4 text-sm">
-            <p><span className="font-bold">DATE:</span> {format(new Date(report.inventory_date), 'MMMM dd, yyyy')}</p>
+      <div className="bg-card text-card-foreground border border-border p-6 sm:p-10 shadow-xs rounded-xl print:bg-white print:text-black print:shadow-none print:border-none print:p-0 font-mono" id="printable-report">
+        <div className="text-center mb-10 border-b border-border print:border-slate-300 pb-6">
+          <h1 className="text-2xl font-bold tracking-widest mb-1 uppercase text-foreground print:text-black">KUVENTORY</h1>
+          <h2 className="text-lg font-bold text-muted-foreground print:text-slate-700 mb-4 uppercase">Daily Inventory Report</h2>
+          <div className="flex flex-col sm:flex-row justify-center gap-4 text-sm text-muted-foreground print:text-slate-600">
+            <p><span className="font-bold text-foreground print:text-black">DATE:</span> {format(new Date(report.inventory_date), 'MMMM dd, yyyy')}</p>
             <p className="hidden sm:block">|</p>
-            <p><span className="font-bold">STATUS:</span> {report.status}</p>
+            <p><span className="font-bold text-foreground print:text-black">STATUS:</span> {report.status}</p>
             <p className="hidden sm:block">|</p>
-            <p><span className="font-bold">ID:</span> {report.id.split('-')[0].toUpperCase()}</p>
+            <p><span className="font-bold text-foreground print:text-black">ID:</span> {report.id.split('-')[0].toUpperCase()}</p>
           </div>
         </div>
 
@@ -171,16 +171,16 @@ export function ReportViewPage() {
         {renderPrintableTable(portionItems, 'PORTION STOCK')}
         {renderPrintableTable(perCaseItems, 'PER CASES')}
 
-        <div className="mt-12 pt-8 border-t border-slate-300 grid grid-cols-2 gap-8 text-sm">
+        <div className="mt-12 pt-8 border-t border-border print:border-slate-300 grid grid-cols-2 gap-8 text-sm">
           <div>
-            <p className="mb-8 font-bold">PREPARED BY:</p>
-            <div className="border-b border-slate-800 w-3/4 mb-1"></div>
-            <p className="text-slate-600">Name & Signature</p>
+            <p className="mb-8 font-bold text-foreground print:text-black">PREPARED BY:</p>
+            <div className="border-b border-border print:border-slate-800 w-3/4 mb-1"></div>
+            <p className="text-muted-foreground print:text-slate-600 text-xs">Name &amp; Signature</p>
           </div>
           <div>
-            <p className="mb-8 font-bold">FINALIZED BY:</p>
-            <div className="border-b border-slate-800 w-3/4 mb-1"></div>
-            <p className="text-slate-600">Supervisor Signature</p>
+            <p className="mb-8 font-bold text-foreground print:text-black">FINALIZED BY:</p>
+            <div className="border-b border-border print:border-slate-800 w-3/4 mb-1"></div>
+            <p className="text-muted-foreground print:text-slate-600 text-xs">Supervisor Signature</p>
           </div>
         </div>
       </div>
