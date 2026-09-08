@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LogOut, 
   Package, 
@@ -84,6 +84,44 @@ function SidebarNavigation({
 }: SidebarNavigationProps) {
   const { role, profile, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const currentTab = searchParams.get('tab');
+
+  const isItemActive = (to: string) => {
+    const [path, query] = to.split('?');
+    const targetParams = new URLSearchParams(query || '');
+    const targetTab = targetParams.get('tab');
+
+    // Handle /categories alias -> /items?tab=categories
+    if (to === '/categories') {
+      return location.pathname === '/categories' || (location.pathname === '/items' && currentTab === 'categories');
+    }
+
+    // If path doesn't match, return false
+    if (location.pathname !== path) {
+      return false;
+    }
+
+    // If path is /items:
+    if (path === '/items') {
+      if (targetTab) {
+        return currentTab === targetTab;
+      }
+      // If no target query param (Stock & Items), only active if no tab or tab is 'catalog'
+      return !currentTab || currentTab === 'catalog';
+    }
+
+    if (path === '/reports') {
+      return location.pathname.startsWith('/reports');
+    }
+
+    if (path === '/settings') {
+      return location.pathname === '/settings' || location.pathname === '/admin';
+    }
+
+    return true;
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -146,6 +184,17 @@ function SidebarNavigation({
                 className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors hidden md:flex items-center justify-center cursor-pointer"
               >
                 <SidebarToggleIcon className="w-4 h-4" />
+              </button>
+            )}
+
+            {closeMobileMenu && (
+              <button
+                type="button"
+                onClick={closeMobileMenu}
+                title="Close menu"
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors md:hidden flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-5 h-5" />
               </button>
             )}
           </div>
@@ -217,26 +266,27 @@ function SidebarNavigation({
             </div>
           )}
           <nav className="space-y-1">
-            {operationsNav.map((item) => (
-              <NavLink
-                key={item.name}
-                to={item.to}
-                onClick={closeMobileMenu}
-                title={isCollapsed ? item.name : undefined}
-                className={({ isActive }) =>
-                  cn(
+            {operationsNav.map((item) => {
+              const active = isItemActive(item.to);
+              return (
+                <Link
+                  key={item.name}
+                  to={item.to}
+                  onClick={closeMobileMenu}
+                  title={isCollapsed ? item.name : undefined}
+                  className={cn(
                     "flex items-center rounded-xl text-xs font-medium transition-all group",
                     isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
-                    isActive
+                    active
                       ? "bg-primary/15 text-primary font-semibold border-l-2 border-primary"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )
-                }
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                {!isCollapsed && <span className="truncate">{item.name}</span>}
-              </NavLink>
-            ))}
+                  )}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  {!isCollapsed && <span className="truncate">{item.name}</span>}
+                </Link>
+              );
+            })}
           </nav>
         </div>
 
@@ -248,27 +298,27 @@ function SidebarNavigation({
             </div>
           )}
           <nav className="space-y-1">
-            {reportsNav.map((item) => (
-              <NavLink
-                key={item.name}
-                to={item.to}
-                end={item.to === '/reports'}
-                onClick={closeMobileMenu}
-                title={isCollapsed ? item.name : undefined}
-                className={({ isActive }) =>
-                  cn(
+            {reportsNav.map((item) => {
+              const active = isItemActive(item.to);
+              return (
+                <Link
+                  key={item.name}
+                  to={item.to}
+                  onClick={closeMobileMenu}
+                  title={isCollapsed ? item.name : undefined}
+                  className={cn(
                     "flex items-center rounded-xl text-xs font-medium transition-all group",
                     isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
-                    isActive
+                    active
                       ? "bg-primary/15 text-primary font-semibold border-l-2 border-primary"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )
-                }
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                {!isCollapsed && <span className="truncate">{item.name}</span>}
-              </NavLink>
-            ))}
+                  )}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  {!isCollapsed && <span className="truncate">{item.name}</span>}
+                </Link>
+              );
+            })}
           </nav>
         </div>
 
@@ -280,26 +330,27 @@ function SidebarNavigation({
             </div>
           )}
           <nav className="space-y-1">
-            {preferencesNav.map((item) => (
-              <NavLink
-                key={item.name}
-                to={item.to}
-                onClick={closeMobileMenu}
-                title={isCollapsed ? item.name : undefined}
-                className={({ isActive }) =>
-                  cn(
+            {preferencesNav.map((item) => {
+              const active = isItemActive(item.to);
+              return (
+                <Link
+                  key={item.name}
+                  to={item.to}
+                  onClick={closeMobileMenu}
+                  title={isCollapsed ? item.name : undefined}
+                  className={cn(
                     "flex items-center rounded-xl text-xs font-medium transition-all group",
                     isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
-                    isActive
+                    active
                       ? "bg-primary/15 text-primary font-semibold border-l-2 border-primary"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )
-                }
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                {!isCollapsed && <span className="truncate">{item.name}</span>}
-              </NavLink>
-            ))}
+                  )}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  {!isCollapsed && <span className="truncate">{item.name}</span>}
+                </Link>
+              );
+            })}
           </nav>
         </div>
       </div>
@@ -403,6 +454,8 @@ export function AppLayout() {
   const { profile, user, role } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const searchParams = new URLSearchParams(location.search);
+  const currentTab = searchParams.get('tab');
 
   // Keyboard shortcut: Ctrl+[ to toggle sidebar
   useEffect(() => {
@@ -456,203 +509,195 @@ export function AppLayout() {
   };
 
   return (
-    <div className="flex flex-col h-dvh min-h-dvh max-h-dvh bg-background text-foreground overflow-hidden font-sans">
-      {/* Top Header Bar (Google Cloud Console Style) */}
-      <header className="h-16 shrink-0 bg-card border-b border-border flex items-center justify-between px-4 sm:px-6 z-20 shadow-2xs">
-        {/* Left Side: Mobile Menu Trigger & Warehouse Location Badge */}
-        <div className="flex items-center gap-3 sm:gap-4">
-          <Button 
-            variant="ghost" 
-            className="p-1.5 h-9 w-9 md:hidden text-muted-foreground hover:text-foreground" 
-            onClick={() => setMobileMenuOpen(true)}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
+    <div className="flex h-dvh min-h-dvh max-h-dvh bg-background text-foreground overflow-hidden font-sans">
+      {/* 1. Desktop Sidebar Navigation (ChatGPT style full-height rail) */}
+      <aside className={cn(
+        "bg-card border-r border-border flex-col hidden md:flex shrink-0 h-full transition-all duration-200 ease-in-out z-30",
+        isSidebarCollapsed ? "w-16" : "w-64"
+      )}>
+        <SidebarNavigation 
+          isCollapsed={isSidebarCollapsed} 
+          onToggleCollapse={toggleSidebar}
+          onOpenSearch={() => setIsCommandOpen(true)}
+          onOpenNewSheet={() => navigate('/daily-inventory')}
+        />
+      </aside>
 
-          {/* Location / Warehouse Badge */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-muted/60 border border-border">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-              <span className="hidden sm:inline text-muted-foreground font-normal">Location:</span>
-              <strong className="tracking-tight uppercase">KUVENTORY KIOSK & BODEGA</strong>
-            </div>
+      {/* 2. Mobile Drawer Navigation */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs" 
+            onClick={() => setMobileMenuOpen(false)} 
+          />
+          <div className="relative flex w-72 max-w-[85vw] flex-col bg-card border-r border-border h-full shadow-2xl">
+            <SidebarNavigation 
+              closeMobileMenu={() => setMobileMenuOpen(false)}
+              onOpenSearch={() => {
+                setMobileMenuOpen(false);
+                setIsCommandOpen(true);
+              }}
+              onOpenNewSheet={() => {
+                setMobileMenuOpen(false);
+                navigate('/daily-inventory');
+              }}
+            />
           </div>
         </div>
+      )}
 
-        {/* Center: Global Quick Search Button (Google Cloud Search Input style) */}
-        <div className="hidden lg:flex items-center max-w-md w-full mx-6">
-          <button
-            type="button"
-            onClick={() => setIsCommandOpen(true)}
-            className="w-full flex items-center justify-between px-3.5 py-2 text-xs text-muted-foreground bg-muted/40 hover:bg-muted/80 border border-border rounded-xl transition-all shadow-2xs group cursor-pointer"
-          >
-            <span className="flex items-center gap-2">
-              <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" />
-              <span>Search inventory, SKU, suppliers, or commands...</span>
-            </span>
-            <kbd className="px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground bg-card border border-border rounded">
-              Ctrl + K
-            </kbd>
-          </button>
-        </div>
-
-        {/* Right Side Actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Quick Search Icon for tablet/mobile */}
-          <button
-            type="button"
-            onClick={() => setIsCommandOpen(true)}
-            className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl lg:hidden cursor-pointer"
-            title="Search (Ctrl+K)"
-          >
-            <Search className="w-5 h-5" />
-          </button>
-
-          {/* Dark / Light Theme Toggle Button */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors cursor-pointer"
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
-          </button>
-
-          {/* Quick Action Dropdown (Pure Solid Blue, No Gradient) */}
-          <div className="relative">
-            <Button
-              onClick={() => setQuickActionOpen(!quickActionOpen)}
-              className="h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs px-3.5 rounded-xl shadow-xs flex items-center gap-1.5"
+      {/* 3. Right Column: Top Header + Main Viewport Area */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        {/* Top Header Bar for Main Content Area */}
+        <header className="h-16 shrink-0 bg-card border-b border-border flex items-center justify-between px-3 sm:px-6 z-20 shadow-2xs">
+          {/* Left Side: Mobile Menu Button (md:hidden) & Warehouse Location Badge */}
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <Button 
+              variant="ghost" 
+              className="p-1.5 h-9 w-9 md:hidden text-muted-foreground hover:text-foreground shrink-0 cursor-pointer" 
+              onClick={() => setMobileMenuOpen(true)}
+              title="Open Menu"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Quick Action</span>
-              <ChevronDown className="w-3 h-3 ml-0.5 opacity-80" />
+              <Menu className="h-5 w-5" />
             </Button>
 
-            {quickActionOpen && (
-              <>
-                <div 
-                  className="fixed inset-0 z-30" 
-                  onClick={() => setQuickActionOpen(false)} 
-                />
-                <div className="absolute right-0 mt-2 w-56 bg-card rounded-xl shadow-xl border border-border py-2 z-40">
-                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Quick Operations
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuickActionOpen(false);
-                      setIsNewItemModalOpen(true);
-                    }}
-                    className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5"
-                  >
-                    <Plus className="w-4 h-4 text-primary" />
-                    Add New Inventory Item
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuickActionOpen(false);
-                      navigate('/daily-inventory');
-                    }}
-                    className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5"
-                  >
-                    <FileText className="w-4 h-4 text-emerald-500" />
-                    Open Daily Inventory Sheet
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuickActionOpen(false);
-                      navigate('/items?tab=batches');
-                    }}
-                    className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5"
-                  >
-                    <Layers className="w-4 h-4 text-amber-500" />
-                    View Stock Batches (FEFO)
-                  </button>
-                </div>
-              </>
-            )}
+            {/* Location / Warehouse Badge */}
+            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-muted/60 border border-border shrink-0 max-w-[210px] sm:max-w-none">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground truncate">
+                <span className="hidden sm:inline text-muted-foreground font-normal">Location:</span>
+                <strong className="tracking-tight uppercase truncate">KUVENTORY KIOSK & BODEGA</strong>
+              </div>
+            </div>
           </div>
 
-          {/* Notification Bell */}
-          <NotificationBell />
-
-          {/* User Profile Pill */}
-          <div className="hidden sm:flex items-center gap-2.5 pl-3 border-l border-border">
-            <div className="flex flex-col items-end">
-              <span className="text-xs font-bold text-foreground">
-                {profile ? `${profile.first_name} ${profile.last_name || ''}`.trim() : 'User'}
-              </span>
-              <span className="text-[10px] text-muted-foreground uppercase font-semibold">
-                {role}
-              </span>
-            </div>
-            <div className="h-8 w-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs border border-primary/30">
-              <UserIcon className="w-4 h-4" />
-            </div>
+          {/* Center: Global Quick Search Button (Desktop) */}
+          <div className="hidden lg:flex items-center max-w-md w-full mx-4 xl:mx-6">
             <button
               type="button"
-              onClick={handleLogout}
-              className="p-1 text-muted-foreground hover:text-rose-500 transition-colors"
-              title="Logout"
+              onClick={() => setIsCommandOpen(true)}
+              className="w-full flex items-center justify-between px-3.5 py-2 text-xs text-muted-foreground bg-muted/40 hover:bg-muted/80 border border-border rounded-xl transition-all shadow-2xs group cursor-pointer"
             >
-              <LogOut className="w-4 h-4" />
+              <span className="flex items-center gap-2">
+                <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" />
+                <span>Search inventory, SKU, suppliers, or commands...</span>
+              </span>
+              <kbd className="px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground bg-card border border-border rounded">
+                Ctrl + K
+              </kbd>
             </button>
           </div>
-        </div>
-      </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Desktop Sidebar Navigation (ChatGPT mechanism, smoothly collapsible) */}
-        <aside className={cn(
-          "bg-card border-r border-border flex-col hidden md:flex shrink-0 transition-all duration-200 ease-in-out",
-          isSidebarCollapsed ? "w-16" : "w-64"
-        )}>
-          <SidebarNavigation 
-            isCollapsed={isSidebarCollapsed} 
-            onToggleCollapse={toggleSidebar}
-            onOpenSearch={() => setIsCommandOpen(true)}
-            onOpenNewSheet={() => navigate('/daily-inventory')}
-          />
-        </aside>
+          {/* Right Side Actions */}
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            {/* Quick Search Icon for tablet/mobile */}
+            <button
+              type="button"
+              onClick={() => setIsCommandOpen(true)}
+              className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl lg:hidden cursor-pointer"
+              title="Search (Ctrl+K)"
+            >
+              <Search className="w-5 h-5" />
+            </button>
 
-        {/* Mobile Drawer Navigation */}
-        {mobileMenuOpen && (
-          <div className="fixed inset-0 z-50 flex md:hidden">
-            <div 
-              className="fixed inset-0 bg-black/60 backdrop-blur-xs" 
-              onClick={() => setMobileMenuOpen(false)} 
-            />
-            <div className="relative flex w-72 max-w-xs flex-col bg-card border-r border-border">
-              <div className="h-16 flex items-center px-4 border-b border-border justify-between">
-                <span className="font-bold text-sm uppercase tracking-wider text-foreground">Navigation Menu</span>
-                <Button 
-                  variant="ghost" 
-                  className="p-1.5 h-8 w-8 text-muted-foreground hover:text-foreground" 
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <X className="h-5 w-5" />
-                </Button>
+            {/* Dark / Light Theme Toggle Button */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors cursor-pointer"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+            </button>
+
+            {/* Quick Action Dropdown (Pure Solid Blue, No Gradient) */}
+            <div className="relative">
+              <Button
+                onClick={() => setQuickActionOpen(!quickActionOpen)}
+                className="h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs px-2.5 sm:px-3.5 rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Quick Action</span>
+                <ChevronDown className="w-3 h-3 ml-0.5 opacity-80" />
+              </Button>
+
+              {quickActionOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-30" 
+                    onClick={() => setQuickActionOpen(false)} 
+                  />
+                  <div className="absolute right-0 mt-2 w-56 bg-card rounded-xl shadow-xl border border-border py-2 z-40">
+                    <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                       Quick Operations
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickActionOpen(false);
+                        setIsNewItemModalOpen(true);
+                      }}
+                      className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4 text-primary" />
+                      Add New Inventory Item
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickActionOpen(false);
+                        navigate('/daily-inventory');
+                      }}
+                      className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <FileText className="w-4 h-4 text-emerald-500" />
+                      Open Daily Inventory Sheet
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickActionOpen(false);
+                        navigate('/items?tab=batches');
+                      }}
+                      className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <Layers className="w-4 h-4 text-amber-500" />
+                      View Stock Batches (FEFO)
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Notification Bell */}
+            <NotificationBell />
+
+            {/* User Profile Pill */}
+            <div className="hidden sm:flex items-center gap-2.5 pl-3 border-l border-border">
+              <div className="flex flex-col items-end">
+                <span className="text-xs font-bold text-foreground">
+                  {profile ? `${profile.first_name} ${profile.last_name || ''}`.trim() : 'User'}
+                </span>
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">
+                  {role}
+                </span>
               </div>
-              <SidebarNavigation 
-                closeMobileMenu={() => setMobileMenuOpen(false)}
-                onOpenSearch={() => {
-                  setMobileMenuOpen(false);
-                  setIsCommandOpen(true);
-                }}
-                onOpenNewSheet={() => {
-                  setMobileMenuOpen(false);
-                  navigate('/daily-inventory');
-                }}
-              />
+              <div className="h-8 w-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs border border-primary/30">
+                <UserIcon className="w-4 h-4" />
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="p-1 text-muted-foreground hover:text-rose-500 transition-colors cursor-pointer"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           </div>
-        )}
+        </header>
 
-        {/* Main Content Area */}
+        {/* Main Content Viewport */}
         <main className="flex-1 flex flex-col min-w-0 h-full relative bg-background overflow-hidden">
           <div className="flex-1 overflow-y-auto pb-20 md:pb-8 overscroll-none scroll-smooth">
             <Outlet />
@@ -684,7 +729,7 @@ export function AppLayout() {
               to="/items" 
               className={cn(
                 "flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors", 
-                location.pathname === '/items' ? "text-primary font-bold" : "text-muted-foreground"
+                location.pathname === '/items' && (!currentTab || currentTab === 'catalog') ? "text-primary font-bold" : "text-muted-foreground"
               )}
             >
               <Package className="w-5 h-5" />
@@ -703,7 +748,7 @@ export function AppLayout() {
             <button 
               type="button" 
               onClick={() => setMobileMenuOpen(true)} 
-              className="flex flex-col items-center justify-center w-16 h-full gap-1 text-muted-foreground hover:text-foreground"
+              className="flex flex-col items-center justify-center w-16 h-full gap-1 text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <Menu className="w-5 h-5" />
               <span className="text-[10px]">More</span>
