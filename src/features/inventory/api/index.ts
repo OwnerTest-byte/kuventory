@@ -35,7 +35,7 @@ export async function getInventory(): Promise<InventoryItem[]> {
       supplier_b: row.supplier_b || '',
       min_qty: Number(row.min_quantity || 0),
       current_qty: Number(row.total_quantity || 0),
-      image_path: null,
+      image_path: row.image_path || null,
       is_archived: !row.is_active || !!row.is_archived,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -81,7 +81,7 @@ export async function getItemById(id: string): Promise<InventoryItem> {
     supplier_b: data.supplier_b || '',
     min_qty: Number(data.min_quantity || 0),
     current_qty: Number(data.total_quantity || 0),
-    image_path: null,
+    image_path: data.image_path || null,
     is_archived: !data.is_active || !!data.is_archived,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -241,6 +241,7 @@ export async function createItem(data: Omit<InventoryItem, 'id' | 'is_archived' 
       supplier_a: data.supplier_a || '',
       supplier_b: data.supplier_b || '',
       min_quantity: data.min_qty,
+      image_path: (data as any).image_path || null,
       is_active: true,
       is_archived: false,
     })
@@ -268,6 +269,7 @@ export async function updateItem(id: string, updates: Partial<Omit<InventoryItem
   if (updates.supplier_a !== undefined) mapped.supplier_a = updates.supplier_a || '';
   if (updates.supplier_b !== undefined) mapped.supplier_b = updates.supplier_b || '';
   if (updates.min_qty !== undefined) mapped.min_quantity = updates.min_qty;
+  if (updates.image_path !== undefined) mapped.image_path = updates.image_path || null;
   if (updates.is_archived !== undefined) {
     mapped.is_archived = updates.is_archived;
     mapped.is_active = !updates.is_archived;

@@ -7,7 +7,8 @@ import { useStockMutations } from '../hooks/useStockMutations';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { 
-  Package, 
+  Package,
+  Camera, 
   ArrowLeft, 
   Edit, 
   Archive, 
@@ -158,7 +159,7 @@ export function ItemDetailsPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 text-foreground">
       {/* Breadcrumb matching Mockup Screen 3 */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <nav className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground font-medium">
           <Link to="/items" className="hover:text-primary transition-colors flex items-center gap-1">
             <ArrowLeft className="w-3.5 h-3.5" /> Inventory Items
@@ -167,7 +168,7 @@ export function ItemDetailsPage() {
           <span className="text-foreground font-bold">{item.item_name}</span>
         </nav>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Button
             onClick={() => setIsUpdateStockOpen(true)}
             className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs sm:text-sm shadow-xs flex items-center gap-1.5"
@@ -200,13 +201,13 @@ export function ItemDetailsPage() {
       {/* Main Item Hero Card matching Mockup Screen 3 */}
       <Card className="bg-card border-border shadow-xs overflow-hidden">
         <div className="p-6 flex flex-col md:flex-row gap-6 items-start">
-          {/* Left: Product Image */}
-          <div className="w-full md:w-56 h-56 rounded-xl bg-muted/30 border border-border flex items-center justify-center p-4 shrink-0 relative overflow-hidden">
+          {/* Left: Product Image with Quick Photo Upload / Edit */}
+          <div className="w-full sm:w-56 h-56 rounded-xl bg-muted/30 border border-border flex flex-col items-center justify-center p-3 shrink-0 relative overflow-hidden group">
             {item.image_path ? (
               <img 
                 src={item.image_path} 
                 alt={item.item_name} 
-                className="max-h-full max-w-full object-contain"
+                className="max-h-full max-w-full object-contain rounded-lg"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                   e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
@@ -217,6 +218,17 @@ export function ItemDetailsPage() {
               <Package className="w-16 h-16 text-muted-foreground/40 mb-2" />
               <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">No Image</span>
             </div>
+
+            {/* Quick Upload / Edit Button Overlay */}
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(true)}
+              className="absolute inset-x-2 bottom-2 py-1.5 px-2.5 bg-background/90 hover:bg-background text-foreground text-xs font-semibold rounded-lg shadow-sm border border-border/80 flex items-center justify-center gap-1.5 transition-all opacity-95 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+              title="Change or upload item photo"
+            >
+              <Camera className="w-3.5 h-3.5 text-primary" />
+              <span>{item.image_path ? 'Change Photo' : 'Upload Photo'}</span>
+            </button>
           </div>
 
           {/* Right: Item Metadata & Specs */}

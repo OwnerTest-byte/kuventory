@@ -765,9 +765,9 @@ export function AppLayout() {
       {/* 3. Right Column: Top Header + Main Viewport Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Top Header Bar for Main Content Area */}
-        <header className="h-16 shrink-0 bg-card border-b border-border flex items-center justify-between px-3 sm:px-6 z-20 shadow-2xs">
+        <header className="h-16 shrink-0 bg-card border-b border-border flex items-center justify-between px-2.5 sm:px-6 z-20 shadow-2xs gap-2">
           {/* Left Side: Mobile Menu Button (md:hidden) & Warehouse Location Badge */}
-          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-4 min-w-0 shrink-0">
             <Button 
               variant="ghost" 
               className="p-1.5 h-9 w-9 md:hidden text-muted-foreground hover:text-foreground shrink-0 cursor-pointer" 
@@ -777,12 +777,15 @@ export function AppLayout() {
               <Menu className="h-5 w-5" />
             </Button>
 
-            {/* Location / Warehouse Badge */}
-            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-muted/60 border border-border shrink-0 max-w-[210px] sm:max-w-none">
+            {/* Location / Warehouse Badge - Auto-compact on mobile */}
+            <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg sm:rounded-xl bg-muted/60 border border-border shrink-0 max-w-[125px] sm:max-w-none" title="Location: KUVENTORY KIOSK & BODEGA">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground truncate">
+              <div className="flex items-center gap-1 text-[11px] sm:text-xs font-semibold text-foreground truncate">
                 <span className="hidden sm:inline text-muted-foreground font-normal">Location:</span>
-                <strong className="tracking-tight uppercase truncate">KUVENTORY KIOSK & BODEGA</strong>
+                <strong className="tracking-tight uppercase truncate">
+                  <span className="sm:hidden">BODEGA</span>
+                  <span className="hidden sm:inline">KUVENTORY KIOSK & BODEGA</span>
+                </strong>
               </div>
             </div>
           </div>
@@ -804,16 +807,16 @@ export function AppLayout() {
             </button>
           </div>
 
-          {/* Right Side Actions */}
-          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          {/* Right Side Actions - Compact gap on mobile to prevent collision */}
+          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
             {/* Quick Search Icon for tablet/mobile */}
             <button
               type="button"
               onClick={() => setIsCommandOpen(true)}
-              className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl lg:hidden cursor-pointer"
+              className="p-1.5 sm:p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl lg:hidden cursor-pointer"
               title="Search (Ctrl+K)"
             >
-              <Search className="w-5 h-5" />
+              <Search className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
             {/* Dark / Light Theme Toggle Button */}
@@ -821,20 +824,21 @@ export function AppLayout() {
               type="button"
               onClick={toggleTheme}
               title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors cursor-pointer"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
             </button>
 
-            {/* Quick Action Dropdown (Focused on Core Inventory Operations) */}
+            {/* Quick Action Dropdown (Compact icon-only on mobile, full button on desktop) */}
             <div className="relative">
               <Button
                 onClick={() => setQuickActionOpen(!quickActionOpen)}
-                className="h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs px-2.5 sm:px-3.5 rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+                title="Quick Actions"
+                className="h-9 w-9 sm:w-auto p-0 sm:px-3.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs rounded-xl shadow-xs flex items-center justify-center sm:gap-1.5 cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                 <span className="hidden sm:inline">Quick Action</span>
-                <ChevronDown className="w-3 h-3 ml-0.5 opacity-80" />
+                <ChevronDown className="hidden sm:inline w-3 h-3 ml-0.5 opacity-80" />
               </Button>
 
               {quickActionOpen && (
@@ -912,7 +916,7 @@ export function AppLayout() {
             <NotificationBell />
 
             {/* User Profile Pill */}
-            <div className="hidden sm:flex items-center gap-2.5 pl-3 border-l border-border">
+            <div className="hidden sm:flex items-center gap-2.5 pl-2.5 border-l border-border">
               <div className="flex flex-col items-end">
                 <span className="text-xs font-bold text-foreground">
                   {profile ? `${profile.first_name} ${profile.last_name || ''}`.trim() : 'User'}

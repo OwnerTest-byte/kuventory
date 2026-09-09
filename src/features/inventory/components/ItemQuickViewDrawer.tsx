@@ -108,6 +108,24 @@ export function ItemQuickViewDrawer({
 
         {/* Scrollable Content Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {/* Item Image Preview */}
+          <div className="w-full h-44 rounded-xl bg-muted/30 border border-border flex items-center justify-center p-3 relative overflow-hidden">
+            {item.image_path ? (
+              <img 
+                src={item.image_path} 
+                alt={item.item_name} 
+                className="max-h-full max-w-full object-contain rounded-lg"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement?.querySelector('.fallback-drawer-icon')?.classList.remove('hidden');
+                }}
+              />
+            ) : null}
+            <div className={`fallback-drawer-icon flex flex-col items-center justify-center text-muted-foreground ${item.image_path ? 'hidden' : ''}`}>
+              <Package className="w-12 h-12 text-muted-foreground/40 mb-1.5" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">No Photo Available</span>
+            </div>
+          </div>
           {/* Key Metrics Grid */}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3.5 rounded-xl bg-muted/40 border border-border">
