@@ -37,7 +37,7 @@ import { useItems } from '@/features/inventory/hooks/useItems';
 import { useStockMutations } from '@/features/inventory/hooks/useStockMutations';
 import type { InventoryItem } from '@/features/inventory/types';
 
-// Custom SVG icon matching ChatGPT's exact sidebar toggle [ | ] icon
+// SVG icon for desktop sidebar toggle
 function SidebarToggleIcon({ className }: { className?: string }) {
   return (
     <svg 
@@ -55,7 +55,7 @@ function SidebarToggleIcon({ className }: { className?: string }) {
   );
 }
 
-// Navigation definitions matching Section 1 & 2 requirements
+// Navigation route groupings
 const overviewNav = [
   { name: 'Dashboard', to: '/inventory', icon: LayoutDashboard },
 ];
@@ -226,7 +226,7 @@ function SidebarNavigation({
       {/* Top Header / Brand or Collapsed Toggle Rail */}
       {isCollapsed ? (
         <div className="h-16 shrink-0 flex flex-col items-center justify-center border-b border-border px-2">
-          {/* Top Toggle Button in Collapsed Mode matching ChatGPT (Image 3) */}
+          {/* Top Toggle Button in Collapsed Rail Mode */}
           <button
             type="button"
             onClick={onToggleCollapse}
@@ -292,7 +292,7 @@ function SidebarNavigation({
         "flex-1 overflow-y-auto py-3 space-y-4 scrollbar-thin",
         isCollapsed ? "px-2" : "px-3"
       )}>
-        {/* Top Primary Quick Action (Inspired by ChatGPT 'New chat' button) */}
+        {/* Primary Quick Action Button */}
         {!isCollapsed ? (
           <div className="space-y-2">
             <button
@@ -571,7 +571,7 @@ function SidebarNavigation({
         </div>
       </div>
 
-      {/* User Profile & Theme Footer Card (Matching Image 1 & 3 bottom) */}
+      {/* User Profile & Theme Footer Card */}
       <div className={cn(
         "border-t border-border bg-muted/20 shrink-0",
         isCollapsed ? "p-2" : "p-3"
@@ -726,7 +726,7 @@ export function AppLayout() {
 
   return (
     <div className="flex h-dvh min-h-dvh max-h-dvh bg-background text-foreground overflow-hidden font-sans">
-      {/* 1. Desktop Sidebar Navigation (ChatGPT style full-height rail) */}
+      {/* Desktop Sidebar Navigation Rail */}
       <aside className={cn(
         "bg-card border-r border-border flex-col hidden md:flex shrink-0 h-full transition-all duration-200 ease-in-out z-30",
         isSidebarCollapsed ? "w-16" : "w-64"

@@ -158,7 +158,7 @@ export function ItemDetailsPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 text-foreground">
-      {/* Breadcrumb matching Mockup Screen 3 */}
+      {/* Breadcrumb Navigation */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <nav className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground font-medium">
           <Link to="/items" className="hover:text-primary transition-colors flex items-center gap-1">
@@ -198,7 +198,7 @@ export function ItemDetailsPage() {
         </div>
       </div>
 
-      {/* Main Item Hero Card matching Mockup Screen 3 */}
+      {/* Main Item Hero Card */}
       <Card className="bg-card border-border shadow-xs overflow-hidden">
         <div className="p-6 flex flex-col md:flex-row gap-6 items-start">
           {/* Left: Product Image with Quick Photo Upload / Edit */}
@@ -286,7 +286,7 @@ export function ItemDetailsPage() {
           </div>
         </div>
 
-        {/* Tab Navigation matching Mockup Screen 3 */}
+        {/* Detail Tabs Navigation */}
         <div className="border-t border-border px-6 flex gap-8 bg-muted/20">
           <button
             type="button"

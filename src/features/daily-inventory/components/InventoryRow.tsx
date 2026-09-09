@@ -42,10 +42,10 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
 
   const saveRow = async (newBeg: string, newAdd: string, newAm: string, newPm: string) => {
     if (isReadOnly) return;
-    const numBeg = parseFloat(newBeg) || 0;
-    const numAdd = parseFloat(newAdd) || 0;
-    const numAm = parseFloat(newAm) || 0;
-    const numPm = parseFloat(newPm) || 0;
+    const numBeg = Math.max(0, parseFloat(newBeg) || 0);
+    const numAdd = Math.max(0, parseFloat(newAdd) || 0);
+    const numAm = Math.max(0, parseFloat(newAm) || 0);
+    const numPm = Math.max(0, parseFloat(newPm) || 0);
 
     if (
       numBeg === item.beginning_qty &&

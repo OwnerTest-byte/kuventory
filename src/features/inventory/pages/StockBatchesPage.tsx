@@ -290,7 +290,7 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
           </table>
         </div>
 
-        {/* Informational Callout matching Mockup Screen 5 */}
+        {/* FEFO Policy Information Callout */}
         <div className="p-4 bg-muted/40 border-t border-border flex items-start gap-3">
           <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
           <div className="text-xs text-foreground">

@@ -72,7 +72,7 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit }: S
         </DialogHeader>
 
         <div className="p-6 space-y-5 bg-card text-card-foreground">
-          {/* Segmented Action Selector matching Mockup */}
+          {/* Stock Adjustment Action Selector */}
           <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-lg">
             <button
               type="button"

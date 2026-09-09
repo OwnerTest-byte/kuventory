@@ -13,15 +13,16 @@ interface InventorySheetProps {
 
 export function InventorySheet({ session, isReadOnly, date }: InventorySheetProps) {
   const items = session.daily_inventory_entries || [];
-  
+
   // Group into GRILLED STOCK, PORTION STOCK, PER CASES, and OTHER
   const { grilledItems, portionItems, caseItems, otherItems } = useMemo(() => {
+    const list = session.daily_inventory_entries || [];
     const grilledItems: DailyEntry[] = [];
     const portionItems: DailyEntry[] = [];
     const caseItems: DailyEntry[] = [];
     const otherItems: DailyEntry[] = [];
 
-    items.forEach(item => {
+    list.forEach(item => {
       const sec = (item.section || '').toUpperCase();
       if (sec.includes('GRILL')) {
         grilledItems.push(item);

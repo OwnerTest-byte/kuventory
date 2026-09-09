@@ -11,7 +11,7 @@ export type InventoryItem = {
   description: string | null;
   category_id: string;
   category_name?: string;
-  inventory_type: 'PORTION STOCK' | 'PER CASES';
+  inventory_type: 'GRILLED STOCK' | 'PORTION STOCK' | 'PER CASES';
   unit: string;
   unit_cost: number;
   supplier_a: string | null;
