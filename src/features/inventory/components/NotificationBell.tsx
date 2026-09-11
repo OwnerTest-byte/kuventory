@@ -61,7 +61,7 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
     
     // Navigate based on type
     if (notification.type === 'LOW_STOCK' || notification.type === 'OUT_OF_STOCK') {
-      navigate('/reports/low-stock');
+      navigate('/reports?tab=alerts');
     } else if (notification.type === 'EXPIRING_SOON' || notification.type === 'EXPIRED') {
       navigate('/items?tab=batches');
     } else {
@@ -169,7 +169,7 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
           <div className="p-2.5 border-t border-border text-center bg-muted/40">
             <button 
               type="button"
-              onClick={() => { setIsOpen(false); navigate('/notifications'); }}
+              onClick={() => { setIsOpen(false); navigate('/settings?tab=notifications'); }}
               className="text-xs text-primary hover:text-primary/80 font-bold hover:underline"
             >
               View All in Notification Center →

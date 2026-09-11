@@ -7,7 +7,6 @@ import { useStockMutations } from '../hooks/useStockMutations';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { 
-  Package, 
   ArrowLeft, 
   Edit, 
   Archive, 
@@ -197,30 +196,11 @@ export function ItemDetailsPage() {
         </div>
       </div>
 
-      {/* Main Item Hero Card matching Mockup Screen 3 */}
+      {/* Main Item Hero Card */}
       <Card className="bg-card border-border shadow-xs overflow-hidden">
-        <div className="p-6 flex flex-col md:flex-row gap-6 items-start">
-          {/* Left: Product Image */}
-          <div className="w-full md:w-56 h-56 rounded-xl bg-muted/30 border border-border flex items-center justify-center p-4 shrink-0 relative overflow-hidden">
-            {item.image_path ? (
-              <img 
-                src={item.image_path} 
-                alt={item.item_name} 
-                className="max-h-full max-w-full object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
-                }}
-              />
-            ) : null}
-            <div className={`fallback-icon flex flex-col items-center justify-center text-muted-foreground ${item.image_path ? 'hidden' : ''}`}>
-              <Package className="w-16 h-16 text-muted-foreground/40 mb-2" />
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">No Image</span>
-            </div>
-          </div>
-
-          {/* Right: Item Metadata & Specs */}
-          <div className="flex-1 min-w-0 space-y-4">
+        <div className="p-6 space-y-5">
+          {/* Item Metadata & Specs */}
+          <div className="space-y-3">
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">

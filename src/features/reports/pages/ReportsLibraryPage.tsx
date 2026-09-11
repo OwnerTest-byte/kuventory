@@ -88,7 +88,9 @@ export function ReportsLibraryPage() {
 
   // Tab 4: Low Stock & Expiry alerts
   const lowStockItems = useMemo(() => {
-    return inventory.filter(i => i.current_qty <= i.min_qty);
+    return inventory
+      .filter(i => i.current_qty <= i.min_qty)
+      .sort((a, b) => (b.min_qty - b.current_qty) - (a.min_qty - a.current_qty));
   }, [inventory]);
 
   const categories = useMemo(() => {
@@ -516,8 +518,12 @@ export function ReportsLibraryPage() {
                           <TableCell className="text-center text-muted-foreground font-semibold">
                             {item.min_qty} {item.unit}
                           </TableCell>
-                          <TableCell className="text-center font-black text-amber-500 bg-amber-500/10">
-                            -{deficit} {item.unit}
+                          <TableCell className={`text-center font-bold text-xs ${
+                            deficit > 0 
+                              ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10' 
+                              : 'text-amber-600 dark:text-amber-400 bg-amber-500/10'
+                          }`}>
+                            {deficit > 0 ? `-${deficit} ${item.unit}` : `At Min (0 ${item.unit})`}
                           </TableCell>
                           <TableCell className="text-muted-foreground text-xs">
                             {item.supplier_a || 'Primary Supplier'}

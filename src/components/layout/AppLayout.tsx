@@ -616,10 +616,12 @@ export function AppLayout() {
                         setQuickActionOpen(false);
                         setIsNewItemModalOpen(true);
                       }}
-                      className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 cursor-pointer"
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/80 rounded-lg mx-auto flex items-center gap-2.5 transition-colors cursor-pointer"
                     >
-                      <Plus className="w-4 h-4 text-primary" />
-                      + Add Item
+                      <span className="p-1 rounded-md bg-primary/10 text-primary">
+                        <Plus className="w-3.5 h-3.5" />
+                      </span>
+                      Add New Item
                     </button>
                     <button
                       type="button"
@@ -627,10 +629,12 @@ export function AppLayout() {
                         setQuickActionOpen(false);
                         navigate('/items?tab=batches&action=add');
                       }}
-                      className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 cursor-pointer"
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/80 rounded-lg mx-auto flex items-center gap-2.5 transition-colors cursor-pointer"
                     >
-                      <Plus className="w-4 h-4 text-emerald-500" />
-                      + Receive Stock
+                      <span className="p-1 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                        <Plus className="w-3.5 h-3.5" />
+                      </span>
+                      Receive Stock
                     </button>
                     <button
                       type="button"
@@ -638,10 +642,12 @@ export function AppLayout() {
                         setQuickActionOpen(false);
                         navigate('/items?quick=adjust');
                       }}
-                      className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 cursor-pointer"
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/80 rounded-lg mx-auto flex items-center gap-2.5 transition-colors cursor-pointer"
                     >
-                      <RefreshCw className="w-4 h-4 text-amber-500" />
-                      + Adjust Stock
+                      <span className="p-1 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                        <RefreshCw className="w-3.5 h-3.5" />
+                      </span>
+                      Adjust Stock
                     </button>
                     <button
                       type="button"
@@ -649,21 +655,25 @@ export function AppLayout() {
                         setQuickActionOpen(false);
                         navigate('/items?tab=suppliers&action=new');
                       }}
-                      className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 cursor-pointer"
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/80 rounded-lg mx-auto flex items-center gap-2.5 transition-colors cursor-pointer"
                     >
-                      <Truck className="w-4 h-4 text-blue-500" />
-                      + Add Supplier
+                      <span className="p-1 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                        <Truck className="w-3.5 h-3.5" />
+                      </span>
+                      Add Supplier
                     </button>
-                    <div className="h-px bg-border/60 my-1" />
+                    <div className="h-px bg-border/60 my-1 mx-2" />
                     <button
                       type="button"
                       onClick={() => {
                         setQuickActionOpen(false);
                         navigate('/daily-inventory');
                       }}
-                      className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-muted flex items-center gap-2.5 cursor-pointer"
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/80 rounded-lg mx-auto flex items-center gap-2.5 transition-colors cursor-pointer"
                     >
-                      <FileText className="w-4 h-4 text-emerald-600" />
+                      <span className="p-1 rounded-md bg-emerald-600/10 text-emerald-600 dark:text-emerald-400">
+                        <FileText className="w-3.5 h-3.5" />
+                      </span>
                       Open Daily Inventory
                     </button>
                   </div>
