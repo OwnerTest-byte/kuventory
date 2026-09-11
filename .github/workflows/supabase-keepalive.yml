@@ -1,0 +1,28 @@
+name: Supabase Inactivity Keepalive
+
+on:
+  schedule:
+    # Runs at 00:00 UTC every 2 days to prevent Supabase 7-day free tier pause
+    - cron: '0 0 */2 * *'
+  workflow_dispatch: # Allows manual trigger anytime from GitHub Actions UI
+
+jobs:
+  ping-supabase:
+    name: Heartbeat Ping
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Keepalive Ping to PostgREST
+        run: |
+          echo "Sending keepalive request to Supabase to reset 7-day inactivity timer..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_sww0L_JeH4y7i0Zq5kX0Xg_ZWhJ7PsN' }}" \
+            -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_sww0L_JeH4y7i0Zq5kX0Xg_ZWhJ7PsN' }}" \
+            "https://stotgoylyzltzpahuglc.supabase.co/rest/v1/system_settings?select=key&limit=1")
+          echo "Supabase HTTP Response Status: $STATUS"
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
+            echo "Successfully pinged Supabase. Inactivity pause prevented."
+            exit 0
+          else
+            echo "Unexpected status code: $STATUS"
+            exit 1
+          fi

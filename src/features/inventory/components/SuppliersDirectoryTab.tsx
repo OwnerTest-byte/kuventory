@@ -1,8 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useSuppliers, useSupplierMutations, type Supplier } from '../api/suppliers';
 import { useItems } from '../hooks/useItems';
-import { useAuth } from '@/features/auth/context/AuthContext';
-import { Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -27,8 +25,6 @@ export const SuppliersDirectoryTab: React.FC = () => {
   const { data: suppliers = [], isLoading, error } = useSuppliers();
   const { items = [] } = useItems();
   const { createSupplier, updateSupplier, deleteSupplier } = useSupplierMutations();
-  const { role } = useAuth();
-  const isAdmin = role === 'ADMIN';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
@@ -182,23 +178,14 @@ export const SuppliersDirectoryTab: React.FC = () => {
               className="pl-9 h-9 text-xs bg-card border-border"
             />
           </div>
-          {isAdmin && (
-            <Button
-              onClick={handleNewClick}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs h-9 shrink-0 gap-1.5"
-            >
-              <Plus className="w-4 h-4" /> Add Vendor
-            </Button>
-          )}
+          <Button
+            onClick={handleNewClick}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs h-9 shrink-0 gap-1.5"
+          >
+            <Plus className="w-4 h-4" /> Add Vendor
+          </Button>
         </div>
       </div>
-
-      {!isAdmin && (
-        <div className="bg-muted/60 border border-border/80 rounded-xl px-4 py-3 text-xs text-muted-foreground flex items-center gap-2.5">
-          <Info className="w-4 h-4 text-primary shrink-0" />
-          <span>Vendor directory is in read-only view for Staff accounts. Contact an Administrator to register new suppliers or modify contact logistics.</span>
-        </div>
-      )}
 
       {/* Directory Table with Responsive Slider Container */}
       <div className="bg-card rounded-xl border border-border shadow-xs overflow-hidden">
@@ -265,7 +252,7 @@ export const SuppliersDirectoryTab: React.FC = () => {
                       </td>
 
                       {/* Hotline & Email */}
-                      <td className="px-4 py-3 text-muted-foreground space-y-1">
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400 space-y-1">
                         {s.phone ? (
                           <a 
                             href={`tel:${s.phone.replace(/[^0-9+]/g, '')}`} 
@@ -280,19 +267,19 @@ export const SuppliersDirectoryTab: React.FC = () => {
                           <a 
                             href={`mailto:${s.email}`} 
                             onClick={e => e.stopPropagation()}
-                            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors truncate max-w-[180px]"
+                            className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors truncate max-w-[180px]"
                           >
                             <Mail className="w-3 h-3 shrink-0" />
                             <span className="truncate">{s.email}</span>
                           </a>
                         ) : null}
-                        {!s.phone && !s.email && <span className="text-muted-foreground">—</span>}
+                        {!s.phone && !s.email && <span className="text-slate-400">—</span>}
                       </td>
 
                       {/* Address */}
-                      <td className="px-4 py-3 text-muted-foreground">
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
                         <div className="flex items-start gap-1.5 max-w-[220px]">
-                          <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                           <span className="text-[11px] leading-relaxed truncate">{s.address || 'Metro Manila'}</span>
                         </div>
                       </td>
@@ -325,7 +312,7 @@ export const SuppliersDirectoryTab: React.FC = () => {
                           className="h-7 text-[11px] px-2.5 font-bold gap-1 border-border text-foreground hover:bg-muted"
                         >
                           <Edit3 className="w-3 h-3" />
-                          {isAdmin ? 'Edit' : 'View'}
+                          View / Edit
                         </Button>
                       </td>
                     </tr>

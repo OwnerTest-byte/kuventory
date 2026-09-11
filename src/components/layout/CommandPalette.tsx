@@ -13,7 +13,9 @@ import {
   Users, 
   Settings, 
   ArrowRight, 
-  Plus
+  Plus,
+  Store,
+  Info
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getInventory } from '@/features/inventory/api';
@@ -61,8 +63,11 @@ export function CommandPalette({ isOpen, onClose, onOpenNewItem }: CommandPalett
     { label: 'Stock Movement Reports', path: '/reports/movement', icon: FileBarChart, category: 'Reports' },
     { label: 'Low Stock Alerts Report', path: '/reports/low-stock', icon: AlertTriangle, category: 'Reports' },
     { label: 'Expiry & FEFO Report', path: '/reports/expiry', icon: AlertTriangle, category: 'Reports' },
-    { label: 'System Users', path: '/admin', icon: Users, category: 'System' },
     { label: 'System Settings', path: '/settings', icon: Settings, category: 'System' },
+    { label: 'Staff & Users Management', path: '/settings?tab=users', icon: Users, category: 'System' },
+    { label: 'Restaurant & Bodega Profile', path: '/settings?tab=restaurant', icon: Store, category: 'System' },
+    { label: 'My Account & Password', path: '/settings?tab=account', icon: Settings, category: 'System' },
+    { label: 'About & Database Diagnostics', path: '/settings?tab=about', icon: Info, category: 'System' },
   ];
 
   const filteredLinks = navLinks.filter(l => 

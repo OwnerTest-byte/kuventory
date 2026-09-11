@@ -1,14 +1,14 @@
-import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/features/auth/context/AuthContext';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
-import { RequireAuth, RequireAdmin } from '@/features/auth/components/RequireAuth';
+import { RequireAuth } from '@/features/auth/components/RequireAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { InventoryLandingPage } from '@/features/inventory/pages/InventoryLandingPage';
 import { Loader2 } from 'lucide-react';
 
 import { useRealtimeSync } from '@/features/inventory/hooks/useRealtimeSync';
+import { initKeepaliveHeartbeat } from '@/lib/keepalive';
 
 // Code Splitting for heavy or secondary routes
 const DailyInventoryPage = lazy(() => import('@/features/daily-inventory/pages/DailyInventoryPage').then(module => ({ default: module.DailyInventoryPage })));
@@ -18,6 +18,7 @@ const ReportViewPage = lazy(() => import('@/features/reports/pages/ReportViewPag
 const ReportsLibraryPage = lazy(() => import('@/features/reports/pages/ReportsLibraryPage').then(module => ({ default: module.ReportsLibraryPage })));
 const AdminPage = lazy(() => import('@/features/admin/pages/AdminPage').then(module => ({ default: module.AdminPage })));
 const NotificationCenter = lazy(() => import('@/features/inventory/pages/NotificationCenter').then(module => ({ default: module.NotificationCenter })));
+const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage').then(module => ({ default: module.ResetPasswordPage })));
 
 const FallbackLoader = () => (
   <div className="flex h-full w-full items-center justify-center p-8">
@@ -28,12 +29,17 @@ const FallbackLoader = () => (
 export function App() {
   useRealtimeSync();
 
+  // Automatic background keepalive to protect Supabase free tier from 7-day pause
+  initKeepaliveHeartbeat();
+
   return (
     <AuthProvider>
-      <ErrorBoundary>
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/reset-password" element={
+          <Suspense fallback={<FallbackLoader />}><ResetPasswordPage /></Suspense>
+        } />
 
         {/* Protected Routes (USER + ADMIN) */}
         <Route element={<RequireAuth />}>
@@ -70,17 +76,11 @@ export function App() {
             <Route path="/stock" element={<Navigate to="/items?tab=batches" replace />} />
             <Route path="/history" element={<Navigate to="/items?tab=history" replace />} />
             
-            {/* Settings accessible to all authenticated users (Staff & Admin) */}
+            {/* Unified Settings & Administration (Adaptive role-based views for Staff and Admins) */}
             <Route path="/settings" element={
               <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
             } />
-
-            {/* Admin-only Routes */}
-            <Route element={<RequireAdmin />}>
-              <Route path="/admin" element={
-                <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
-              } />
-            </Route>
+            <Route path="/admin" element={<Navigate to="/settings" replace />} />
 
             {/* Fallback for authenticated users */}
             <Route path="*" element={<Navigate to="/inventory" replace />} />
@@ -90,7 +90,6 @@ export function App() {
         {/* Global Fallback */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-    </ErrorBoundary>
     </AuthProvider>
   );
 }

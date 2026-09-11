@@ -1,49 +1,61 @@
 import type { Report } from '../types';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
-export function exportToXlsx(report: Report): void {
-  const items = report.report_items || [];
+export async function exportToXlsx(report: Report): Promise<void> {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'KUVENTORY';
+  workbook.created = new Date();
 
-  const data = items.map(item => ({
-    'Date': report.report_date,
-    'Category': item.category_name,
-    'Item': item.item_name,
-    'Description': item.description || '',
-    'Unit': item.unit || '',
-    'Unit Cost': item.unit_cost,
-    'Supplier A': item.supplier_a || '',
-    'Supplier B': item.supplier_b || '',
-    'Beginning': item.beg,
-    'Add': item.add,
-    'Total': item.total,
-    'AM': item.am,
-    'PM': item.pm,
-    'Ending': item.ending
-  }));
+  const worksheet = workbook.addWorksheet('Daily Inventory');
 
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  const workbook = XLSX.utils.book_new();
-  
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Daily Inventory');
-
-  // Adjust column widths roughly based on content
-  const columnWidths = [
-    { wch: 12 }, // Date
-    { wch: 15 }, // Category
-    { wch: 25 }, // Item
-    { wch: 20 }, // Description
-    { wch: 10 }, // Unit
-    { wch: 12 }, // Unit Cost
-    { wch: 15 }, // Supplier A
-    { wch: 15 }, // Supplier B
-    { wch: 10 }, // Beginning
-    { wch: 10 }, // Add
-    { wch: 10 }, // Total
-    { wch: 10 }, // AM
-    { wch: 10 }, // PM
-    { wch: 10 }, // Ending
+  worksheet.columns = [
+    { header: 'Date', key: 'date', width: 14 },
+    { header: 'Category', key: 'category', width: 16 },
+    { header: 'Item', key: 'item', width: 26 },
+    { header: 'Description', key: 'description', width: 22 },
+    { header: 'Unit', key: 'unit', width: 10 },
+    { header: 'Unit Cost', key: 'unit_cost', width: 12 },
+    { header: 'Supplier A', key: 'supplier_a', width: 16 },
+    { header: 'Supplier B', key: 'supplier_b', width: 16 },
+    { header: 'Beginning', key: 'beg', width: 12 },
+    { header: 'Add', key: 'add', width: 10 },
+    { header: 'Total', key: 'total', width: 10 },
+    { header: 'AM', key: 'am', width: 10 },
+    { header: 'PM', key: 'pm', width: 10 },
+    { header: 'Ending', key: 'ending', width: 12 },
   ];
-  worksheet['!cols'] = columnWidths;
 
-  XLSX.writeFile(workbook, `KUVENTORY_Daily_Report_${report.report_date}.xlsx`);
+  const items = report.report_items || [];
+  items.forEach(item => {
+    worksheet.addRow({
+      date: report.report_date,
+      category: item.category_name,
+      item: item.item_name,
+      description: item.description || '',
+      unit: item.unit || '',
+      unit_cost: item.unit_cost,
+      supplier_a: item.supplier_a || '',
+      supplier_b: item.supplier_b || '',
+      beg: item.beg,
+      add: item.add,
+      total: item.total,
+      am: item.am,
+      pm: item.pm,
+      ending: item.ending,
+    });
+  });
+
+  const headerRow = worksheet.getRow(1);
+  headerRow.font = { bold: true };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `KUVENTORY_Daily_Report_${report.report_date}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
 }

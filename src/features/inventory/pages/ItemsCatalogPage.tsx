@@ -21,7 +21,7 @@ import {
   Building2,
   RotateCcw,
   Info,
-  Eye,
+  Eye
 } from 'lucide-react';
 import { ItemFormModal } from '../components/ItemFormModal';
 import { StockUpdateModal } from '../components/StockUpdateModal';
@@ -194,30 +194,27 @@ export function ItemsCatalogPage() {
   };
 
   return (
-    <div className="p-3 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-4 sm:space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground uppercase">INVENTORY &amp; STOCK MANAGEMENT</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground uppercase">INVENTORY &amp; STOCK MANAGEMENT</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Master items catalog, FEFO stock batches, movement audit logs, and categories.</p>
         </div>
         {currentTab === 'catalog' && (
-          <Button 
-            onClick={() => { setEditingItem(undefined); setIsModalOpen(true); }} 
-            className="h-9 sm:h-10 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs font-bold text-xs shrink-0 self-start sm:self-auto"
-          >
-            <Plus className="w-4 h-4 mr-1.5" /> Add New Item
+          <Button onClick={() => { setEditingItem(undefined); setIsModalOpen(true); }} className="h-10 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs font-bold text-xs shrink-0">
+            <Plus className="w-4 h-4 mr-2" /> Add New Item
           </Button>
         )}
       </div>
 
-      {/* Unified Top Ribbon - Smooth horizontal scroll on mobile */}
-      <div className="flex items-center gap-1.5 p-1 bg-muted rounded-xl w-full sm:w-fit overflow-x-auto border border-border shadow-2xs scrollbar-none">
+      {/* Unified Top Ribbon */}
+      <div className="flex items-center gap-1.5 p-1 bg-muted rounded-xl w-fit max-w-full overflow-x-auto border border-border shadow-2xs">
         <button
           type="button"
           onClick={() => setSearchParams({ tab: 'catalog' })}
           className={cn(
-            "flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0",
+            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
             currentTab === 'catalog'
               ? "bg-card text-primary shadow-xs border border-border/50"
               : "text-muted-foreground hover:text-foreground hover:bg-card/50"
@@ -230,7 +227,7 @@ export function ItemsCatalogPage() {
           type="button"
           onClick={() => setSearchParams({ tab: 'batches' })}
           className={cn(
-            "flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0",
+            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
             currentTab === 'batches'
               ? "bg-card text-primary shadow-xs border border-border/50"
               : "text-muted-foreground hover:text-foreground hover:bg-card/50"
@@ -243,7 +240,7 @@ export function ItemsCatalogPage() {
           type="button"
           onClick={() => setSearchParams({ tab: 'history' })}
           className={cn(
-            "flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0",
+            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
             currentTab === 'history'
               ? "bg-card text-primary shadow-xs border border-border/50"
               : "text-muted-foreground hover:text-foreground hover:bg-card/50"
@@ -256,7 +253,7 @@ export function ItemsCatalogPage() {
           type="button"
           onClick={() => setSearchParams({ tab: 'suppliers' })}
           className={cn(
-            "flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0",
+            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
             currentTab === 'suppliers'
               ? "bg-card text-primary shadow-xs border border-border/50"
               : "text-muted-foreground hover:text-foreground hover:bg-card/50"
@@ -269,7 +266,7 @@ export function ItemsCatalogPage() {
           type="button"
           onClick={() => setSearchParams({ tab: 'categories' })}
           className={cn(
-            "flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0",
+            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
             currentTab === 'categories'
               ? "bg-card text-primary shadow-xs border border-border/50"
               : "text-muted-foreground hover:text-foreground hover:bg-card/50"
@@ -288,60 +285,55 @@ export function ItemsCatalogPage() {
 
       {currentTab === 'catalog' && (
         <Card className="shadow-xs border-border bg-card text-card-foreground overflow-hidden">
-          {/* Filters Bar: Adaptive Grid on Mobile, Flex Row on Desktop */}
-          <div className="p-3 sm:p-4 border-b border-border flex flex-col gap-3 bg-card rounded-t-xl">
-            {/* Search Input */}
-            <div className="relative w-full">
+          <div className="p-4 border-b border-border flex flex-col sm:flex-row gap-4 items-center justify-between bg-card rounded-t-xl">
+            <div className="relative w-full sm:max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Search items, code, description, supplier..." 
+                placeholder="Search items, description, supplier..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 h-10 border-border bg-card text-foreground text-xs"
               />
             </div>
             
-            {/* Filter & Sort Controls */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
-              <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-3">
-                {/* Sort Selector */}
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0 hidden sm:inline" />
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    className="w-full sm:w-auto h-9 sm:h-10 px-2 sm:px-3 py-1.5 bg-card border border-border rounded-lg text-xs shadow-xs focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
-                  >
-                    <option value="name_asc">Name (A-Z)</option>
-                    <option value="name_desc">Name (Z-A)</option>
-                    <option value="cost_desc">Unit Cost (High-Low)</option>
-                    <option value="cost_asc">Unit Cost (Low-High)</option>
-                    <option value="qty_desc">Stock Balance (High-Low)</option>
-                    <option value="qty_asc">Stock Balance (Low-High)</option>
-                    <option value="category">Category</option>
-                  </select>
-                </div>
-
-                {/* Category Filter */}
-                <select 
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="w-full sm:w-auto h-9 sm:h-10 px-2 sm:px-3 py-1.5 bg-card border border-border rounded-lg text-xs shadow-xs focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+              {/* Sort Selector */}
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="h-10 px-3 py-2 bg-card border border-border rounded-lg text-xs shadow-xs focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
                 >
-                  <option value="All Categories">All Categories</option>
-                  {uniqueCategories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
+                  <option value="name_asc">Name (A-Z)</option>
+                  <option value="name_desc">Name (Z-A)</option>
+                  <option value="cost_desc">Unit Cost (High-Low)</option>
+                  <option value="cost_asc">Unit Cost (Low-High)</option>
+                  <option value="qty_desc">Stock Balance (High-Low)</option>
+                  <option value="qty_asc">Stock Balance (Low-High)</option>
+                  <option value="category">Category</option>
                 </select>
               </div>
+
+              {/* Category Filter */}
+              <select 
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="h-10 px-3 py-2 bg-card border border-border rounded-lg text-xs shadow-xs focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+              >
+                <option value="All Categories">All Categories</option>
+                {uniqueCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
               
               {/* Segmented Status Filter Buttons */}
-              <div className="flex items-center gap-1 bg-muted p-1 rounded-xl border border-border overflow-x-auto shrink-0 scrollbar-none">
+              <div className="flex items-center gap-1 bg-muted p-1 rounded-xl border border-border">
                 <button
                   type="button"
                   onClick={() => setStatusFilter('Active')}
                   className={cn(
-                    "px-2.5 sm:px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap",
+                    "px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer",
                     statusFilter === 'Active'
                       ? "bg-card text-primary shadow-xs border border-border/50"
                       : "text-muted-foreground hover:text-foreground"
@@ -353,7 +345,7 @@ export function ItemsCatalogPage() {
                   type="button"
                   onClick={() => setStatusFilter('Archived')}
                   className={cn(
-                    "px-2.5 sm:px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap",
+                    "px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer",
                     statusFilter === 'Archived'
                       ? "bg-amber-600 text-white shadow-xs"
                       : "text-muted-foreground hover:text-foreground"
@@ -365,7 +357,7 @@ export function ItemsCatalogPage() {
                   type="button"
                   onClick={() => setStatusFilter('All')}
                   className={cn(
-                    "px-2.5 sm:px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap",
+                    "px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer",
                     statusFilter === 'All'
                       ? "bg-card text-primary shadow-xs border border-border/50"
                       : "text-muted-foreground hover:text-foreground"
@@ -379,7 +371,7 @@ export function ItemsCatalogPage() {
 
           {/* Banner when viewing archived items */}
           {statusFilter === 'Archived' && (
-            <div className="p-3 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between gap-3 text-xs text-amber-600 dark:text-amber-400">
+            <div className="p-3.5 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between gap-3 text-xs text-amber-600 dark:text-amber-400">
               <div className="flex items-center gap-2">
                 <Info className="w-4 h-4 text-amber-500 shrink-0" />
                 <span>
@@ -389,208 +381,19 @@ export function ItemsCatalogPage() {
             </div>
           )}
 
-          {/* VIEW 1: Mobile & Small Screen Native Cards List (< 768px) */}
-          <div className="md:hidden divide-y divide-border/60">
-            {isLoadingInventory ? (
-              <div className="p-8 text-center text-muted-foreground text-xs">
-                Loading items...
-              </div>
-            ) : filteredItems.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground text-xs">
-                No items found matching your criteria.
-              </div>
-            ) : (
-              filteredItems.map((item) => {
-                let status = 'IN STOCK';
-                let badgeClass = 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
-                
-                if (item.current_qty <= 0) {
-                  status = 'OUT OF STOCK';
-                  badgeClass = 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20';
-                } else if (item.current_qty <= item.min_qty) {
-                  status = 'LOW STOCK';
-                  badgeClass = 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20';
-                }
-                
-                if (item.is_archived) {
-                  status = 'ARCHIVED';
-                  badgeClass = 'text-muted-foreground bg-muted border-border';
-                }
-
-                return (
-                  <div key={item.id} className="p-3.5 space-y-2.5 bg-card hover:bg-muted/30 transition-colors">
-                    {/* Card Header: Thumbnail + Title + Code + Status */}
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-muted/60 border border-border overflow-hidden shrink-0 flex items-center justify-center">
-                        {item.image_path ? (
-                          <img 
-                            src={item.image_path} 
-                            alt={item.item_name} 
-                            className="w-full h-full object-cover"
-                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                          />
-                        ) : (
-                          <Package className="w-6 h-6 text-muted-foreground/50" />
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <Link 
-                            to={`/items/${item.id}`} 
-                            className="text-primary hover:underline font-bold text-sm leading-snug line-clamp-2"
-                          >
-                            {item.item_name}
-                          </Link>
-                          <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border shrink-0", badgeClass)}>
-                            {status}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className="font-mono text-[10px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted border border-border">
-                            {item.item_code}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground font-medium">
-                            {item.category_name || 'General'} • {item.inventory_type}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Card Metrics Row: Balance + Unit Cost + Min */}
-                    <div className="grid grid-cols-3 gap-2 p-2 rounded-lg bg-muted/30 border border-border/60 text-center">
-                      <div>
-                        <div className="text-[10px] text-muted-foreground uppercase font-semibold">Balance</div>
-                        <div className="text-xs font-mono font-black text-foreground mt-0.5">
-                          {item.current_qty} <span className="text-[10px] font-normal text-muted-foreground">{item.unit}</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-[10px] text-muted-foreground uppercase font-semibold">Unit Cost</div>
-                        <div className="text-xs font-mono font-bold text-foreground mt-0.5">
-                          ₱{Number(item.unit_cost || 0).toFixed(2)}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-[10px] text-muted-foreground uppercase font-semibold">Min Qty</div>
-                        <div className="text-xs font-mono text-muted-foreground mt-0.5">
-                          {item.min_qty} {item.unit}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Suppliers (if any) */}
-                    {(item.supplier_a || item.supplier_b) && (
-                      <div className="text-[10px] text-muted-foreground flex items-center gap-2 truncate">
-                        <span className="font-semibold text-foreground/80">Suppliers:</span>
-                        <span className="truncate">{[item.supplier_a, item.supplier_b].filter(Boolean).join(', ')}</span>
-                      </div>
-                    )}
-
-                    {/* Card Actions Footer */}
-                    <div className="flex items-center justify-between gap-2 pt-1">
-                      <div className="flex items-center gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 px-2 text-muted-foreground hover:text-foreground text-xs gap-1"
-                          onClick={() => setQuickViewItem(item as InventoryItem)}
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>View</span>
-                        </Button>
-
-                        {!item.is_archived && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-8 px-2.5 border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 font-semibold text-xs"
-                            onClick={() => setStockUpdateItem(item as InventoryStock)}
-                          >
-                            Update Stock
-                          </Button>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        {item.is_archived ? (
-                          <>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="h-8 px-2 border-emerald-300 text-emerald-600 hover:bg-emerald-50 text-xs gap-1"
-                              onClick={() => handleToggleArchive(item)}
-                              title="Restore SKU"
-                            >
-                              <RotateCcw className="w-3.5 h-3.5" />
-                              <span>Restore</span>
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-8 w-8 p-0 text-rose-500 hover:text-rose-600"
-                              onClick={() => handleDelete(item)}
-                              title="Delete permanently"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                              onClick={() => { setEditingItem(item as InventoryItem); setIsModalOpen(true); }}
-                              title="Edit Details"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-amber-600"
-                              onClick={() => handleToggleArchive(item)}
-                              title="Archive SKU"
-                            >
-                              <Archive className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-rose-600"
-                              onClick={() => handleDelete(item)}
-                              title="Delete permanently"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* VIEW 2: Desktop High-Density Data Table (>= 768px) */}
-          <div className="hidden md:block table-slider-container max-h-[calc(100dvh-280px)] min-h-[350px] relative overscroll-contain">
+          <div className="table-slider-container max-h-[calc(100dvh-280px)] min-h-[350px] relative overscroll-contain">
             <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
               <thead className="sticky top-0 z-20 bg-muted/90 backdrop-blur-xs border-b border-border shadow-2xs">
                 <tr className="text-muted-foreground">
-                  <th className="px-4 py-3 font-bold uppercase tracking-wider text-xs sticky left-0 z-30 bg-muted border-r border-border min-w-[220px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">ITEM</th>
-                  <th className="px-4 py-3 font-bold uppercase tracking-wider text-xs">DESCRIPTION</th>
-                  <th className="px-4 py-3 font-bold uppercase tracking-wider text-xs">SECTION</th>
-                  <th className="px-4 py-3 font-bold uppercase tracking-wider text-xs text-right">UNIT COST</th>
-                  <th className="px-4 py-3 font-bold uppercase tracking-wider text-xs">SUPPLIERS</th>
-                  <th className="px-4 py-3 font-bold uppercase tracking-wider text-xs text-center">MIN</th>
-                  <th className="px-4 py-3 font-bold uppercase tracking-wider text-xs text-center">QUANTITY BALANCE</th>
-                  <th className="px-4 py-3 font-bold uppercase tracking-wider text-xs text-center">STATUS</th>
-                  <th className="px-4 py-3 font-bold uppercase tracking-wider text-xs text-right">ACTIONS</th>
+                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs sticky left-0 z-30 bg-muted border-r border-border min-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">ITEM</th>
+                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs">DESCRIPTION</th>
+                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs">SECTION</th>
+                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs text-right">UNIT COST</th>
+                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs">SUPPLIERS</th>
+                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs text-center">MIN</th>
+                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs text-center">QUANTITY BALANCE</th>
+                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs text-center">STATUS</th>
+                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs text-right">ACTIONS</th>
                 </tr>
               </thead>
               <tbody className="bg-card divide-y divide-border/60">
@@ -626,61 +429,45 @@ export function ItemsCatalogPage() {
 
                     return (
                       <tr key={item.id} className="hover:bg-muted/40 transition-colors group">
-                        <td className="px-4 py-3 sticky left-0 z-10 bg-card group-hover:bg-muted/60 border-r border-border min-w-[220px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-muted/60 border border-border overflow-hidden shrink-0 flex items-center justify-center">
-                              {item.image_path ? (
-                                <img 
-                                  src={item.image_path} 
-                                  alt={item.item_name} 
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                />
-                              ) : (
-                                <Package className="w-5 h-5 text-muted-foreground/50" />
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <Link 
-                                to={`/items/${item.id}`} 
-                                className="text-primary hover:underline font-bold text-xs sm:text-sm block truncate"
-                              >
-                                {item.item_name}
-                              </Link>
-                              <span className="block font-mono text-[10px] text-muted-foreground font-normal">
-                                {item.item_code}
-                              </span>
-                            </div>
-                          </div>
+                        <td className="px-5 py-3.5 sticky left-0 z-10 bg-card group-hover:bg-muted/60 border-r border-border min-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                          <Link 
+                            to={`/items/${item.id}`} 
+                            className="text-primary hover:underline font-bold text-xs sm:text-sm"
+                          >
+                            {item.item_name}
+                          </Link>
+                          <span className="block font-mono text-[10px] text-muted-foreground font-normal">
+                            {item.item_code}
+                          </span>
                         </td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground max-w-40 truncate" title={item.description || ''}>
+                        <td className="px-5 py-3.5 text-xs text-muted-foreground max-w-40 truncate" title={item.description || ''}>
                           {item.description || '—'}
                         </td>
-                        <td className="px-4 py-3 text-xs text-foreground">
+                        <td className="px-5 py-3.5 text-xs text-foreground">
                           <span className="font-semibold">{item.inventory_type}</span>
                           <span className="block text-[10px] text-muted-foreground">{item.category_name || 'General'}</span>
                         </td>
-                        <td className="px-4 py-3 text-right font-mono text-xs font-bold text-foreground">
+                        <td className="px-5 py-3.5 text-right font-mono text-xs font-bold text-foreground">
                           ₱{Number(item.unit_cost || 0).toFixed(2)}
                         </td>
-                        <td className="px-4 py-3 text-[11px] text-muted-foreground">
+                        <td className="px-5 py-3.5 text-[11px] text-muted-foreground">
                           <div><span className="text-muted-foreground/70 font-medium">A:</span> {item.supplier_a || '—'}</div>
                           {item.supplier_b && <div><span className="text-muted-foreground/70 font-medium">B:</span> {item.supplier_b}</div>}
                         </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs text-muted-foreground">
+                        <td className="px-5 py-3.5 text-center font-mono text-xs text-muted-foreground">
                           {item.min_qty} {item.unit}
                         </td>
-                        <td className="px-4 py-3 text-center font-mono font-bold text-foreground text-xs">
+                        <td className="px-5 py-3.5 text-center font-mono font-bold text-foreground text-xs">
                           <span className="px-2.5 py-1 rounded-lg bg-muted border border-border font-black">
                             {item.current_qty} {item.unit}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-5 py-3.5 text-center">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${badgeClass}`}>
                             {status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-5 py-3.5 text-right">
                           <div className="flex justify-end items-center gap-1.5">
                             {item.is_archived ? (
                               <>

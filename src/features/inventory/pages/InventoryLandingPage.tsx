@@ -440,9 +440,9 @@ export function InventoryLandingPage() {
             <Button
               size="sm"
               onClick={() => navigate('/daily-inventory')}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-xs hidden sm:flex items-center gap-1.5"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 shrink-0 cursor-pointer h-9 px-3.5"
             >
-              {todayProgress.exists ? "Open Worksheet" : "Start Session"}
+              <span>{todayProgress.exists ? "Open Sheet" : "Start Session"}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Button>
           </CardHeader>

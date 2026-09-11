@@ -12,16 +12,11 @@ import {
   User as UserIcon,
   Search,
   Plus,
-  Layers,
   ChevronDown,
   Sun,
   Moon,
   PenSquare,
   Truck,
-  Tags,
-  History,
-  Users,
-  Activity,
   RefreshCw,
   ChevronRight
 } from 'lucide-react';
@@ -37,7 +32,7 @@ import { useItems } from '@/features/inventory/hooks/useItems';
 import { useStockMutations } from '@/features/inventory/hooks/useStockMutations';
 import type { InventoryItem } from '@/features/inventory/types';
 
-// SVG icon for desktop sidebar toggle
+// Custom SVG icon matching ChatGPT's exact sidebar toggle [ | ] icon
 function SidebarToggleIcon({ className }: { className?: string }) {
   return (
     <svg 
@@ -55,38 +50,13 @@ function SidebarToggleIcon({ className }: { className?: string }) {
   );
 }
 
-// Navigation route groupings
-const overviewNav = [
+// Unified Primary Navigation (Simple, dedicated 5 core destinations)
+const primaryNav = [
   { name: 'Dashboard', to: '/inventory', icon: LayoutDashboard },
-];
-
-const inventoryNav = [
-  { name: 'Items', to: '/items', icon: Package },
-  { name: 'Batches', to: '/items?tab=batches', icon: Layers },
-  { name: 'Movements', to: '/items?tab=history', icon: History },
-];
-
-const operationsNav = [
+  { name: 'Inventory', to: '/items', icon: Package },
   { name: 'Daily Inventory', to: '/daily-inventory', icon: FileText },
-];
-
-const referenceNav = [
-  { name: 'Suppliers', to: '/items?tab=suppliers', icon: Truck },
-];
-
-const reportsNav = [
   { name: 'Reports', to: '/reports', icon: FileBarChart },
-];
-
-const adminNav = [
-  { name: 'Users', to: '/admin?tab=users', icon: Users },
-  { name: 'Categories', to: '/items?tab=categories', icon: Tags },
-  { name: 'Audit Logs', to: '/admin?tab=logs', icon: Activity },
-  { name: 'Settings', to: '/admin?tab=settings', icon: Settings },
-];
-
-const accountNav = [
-  { name: 'My Account', to: '/settings', icon: UserIcon },
+  { name: 'Settings', to: '/settings', icon: Settings },
 ];
 
 // Collapsible breadcrumb component
@@ -117,7 +87,7 @@ function AppBreadcrumbs() {
       section = 'Administration';
       page = 'Categories';
     } else {
-      page = 'Items';
+      page = 'Items Catalog';
     }
   } else if (location.pathname.startsWith('/items/')) {
     section = 'Inventory';
@@ -129,12 +99,15 @@ function AppBreadcrumbs() {
     else if (location.pathname === '/reports/low-stock') page = 'Low Stock Report';
     else if (location.pathname === '/reports/expiry') page = 'Expiry & Waste Report';
     else page = 'Reports Library';
-  } else if (location.pathname === '/settings') {
-    section = 'Account';
-    page = 'My Account';
-  } else if (location.pathname === '/admin') {
-    section = 'Administration';
-    page = tab === 'logs' ? 'Audit Logs' : tab === 'settings' ? 'System Settings' : 'Users & Roles';
+  } else if (location.pathname === '/settings' || location.pathname === '/admin') {
+    section = 'Settings';
+    if (tab === 'account') page = 'My Account & Password';
+    else if (tab === 'restaurant' || tab === 'settings') page = 'Restaurant Profile';
+    else if (tab === 'users') page = 'Staff & Users';
+    else if (tab === 'notifications' || tab === 'preferences') page = 'Preferences & Alerts';
+    else if (tab === 'activity' || tab === 'logs') page = 'Activity Audit Trail';
+    else if (tab === 'about') page = 'About & Diagnostics';
+    else page = 'System Settings';
   }
 
   return (
@@ -164,49 +137,33 @@ function SidebarNavigation({
   const { role, profile, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const currentTab = searchParams.get('tab');
 
   const isItemActive = (to: string) => {
-    const [path, query] = to.split('?');
-    const targetParams = new URLSearchParams(query || '');
-    const targetTab = targetParams.get('tab');
-
-    // Handle /categories alias -> /items?tab=categories
-    if (to === '/categories' || to === '/items?tab=categories') {
-      return (location.pathname === '/items' && currentTab === 'categories') || location.pathname === '/categories';
+    if (to === '/inventory') {
+      return location.pathname === '/inventory';
     }
 
-    // If path doesn't match, return false
-    if (location.pathname !== path) {
-      return false;
+    if (to === '/items') {
+      return location.pathname === '/items' || 
+             location.pathname.startsWith('/items/') || 
+             location.pathname === '/categories' || 
+             location.pathname === '/stock' || 
+             location.pathname === '/history';
     }
 
-    // If path is /items:
-    if (path === '/items') {
-      if (targetTab) {
-        return currentTab === targetTab;
-      }
-      return !currentTab || currentTab === 'catalog';
+    if (to === '/daily-inventory') {
+      return location.pathname === '/daily-inventory';
     }
 
-    // If path is /admin:
-    if (path === '/admin') {
-      if (targetTab) {
-        return currentTab === targetTab;
-      }
-      return !currentTab || currentTab === 'users';
-    }
-
-    if (path === '/reports') {
+    if (to === '/reports') {
       return location.pathname.startsWith('/reports');
     }
 
-    if (path === '/settings') {
-      return location.pathname === '/settings';
+    if (to === '/settings') {
+      return location.pathname === '/settings' || location.pathname === '/admin';
     }
 
-    return true;
+    return location.pathname === to;
   };
 
   const handleLogout = async () => {
@@ -226,7 +183,7 @@ function SidebarNavigation({
       {/* Top Header / Brand or Collapsed Toggle Rail */}
       {isCollapsed ? (
         <div className="h-16 shrink-0 flex flex-col items-center justify-center border-b border-border px-2">
-          {/* Top Toggle Button in Collapsed Rail Mode */}
+          {/* Top Toggle Button in Collapsed Mode matching ChatGPT (Image 3) */}
           <button
             type="button"
             onClick={onToggleCollapse}
@@ -292,7 +249,7 @@ function SidebarNavigation({
         "flex-1 overflow-y-auto py-3 space-y-4 scrollbar-thin",
         isCollapsed ? "px-2" : "px-3"
       )}>
-        {/* Primary Quick Action Button */}
+        {/* Top Primary Quick Action (Inspired by ChatGPT 'New chat' button) */}
         {!isCollapsed ? (
           <div className="space-y-2">
             <button
@@ -344,234 +301,33 @@ function SidebarNavigation({
           </div>
         )}
 
-        {/* OVERVIEW Section */}
-        <div>
-          {!isCollapsed && (
-            <div className="px-3 pb-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              Overview
-            </div>
-          )}
-          <nav className="space-y-1">
-            {overviewNav.map((item) => {
-              const active = isItemActive(item.to);
-              return (
-                <Link
-                  key={item.name}
-                  to={item.to}
-                  onClick={closeMobileMenu}
-                  title={isCollapsed ? item.name : undefined}
-                  className={cn(
-                    "flex items-center rounded-xl text-xs font-medium transition-all group",
-                    isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
-                    active
-                      ? "bg-primary/15 text-primary font-semibold border-l-2 border-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {!isCollapsed && <span className="truncate">{item.name}</span>}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* INVENTORY Section */}
-        <div>
-          {!isCollapsed && (
-            <div className="px-3 pb-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              Inventory
-            </div>
-          )}
-          <nav className="space-y-1">
-            {inventoryNav.map((item) => {
-              const active = isItemActive(item.to);
-              return (
-                <Link
-                  key={item.name}
-                  to={item.to}
-                  onClick={closeMobileMenu}
-                  title={isCollapsed ? item.name : undefined}
-                  className={cn(
-                    "flex items-center rounded-xl text-xs font-medium transition-all group",
-                    isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
-                    active
-                      ? "bg-primary/15 text-primary font-semibold border-l-2 border-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {!isCollapsed && <span className="truncate">{item.name}</span>}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* OPERATIONS Section */}
-        <div>
-          {!isCollapsed && (
-            <div className="px-3 pb-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              Operations
-            </div>
-          )}
-          <nav className="space-y-1">
-            {operationsNav.map((item) => {
-              const active = isItemActive(item.to);
-              return (
-                <Link
-                  key={item.name}
-                  to={item.to}
-                  onClick={closeMobileMenu}
-                  title={isCollapsed ? item.name : undefined}
-                  className={cn(
-                    "flex items-center rounded-xl text-xs font-medium transition-all group",
-                    isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
-                    active
-                      ? "bg-primary/15 text-primary font-semibold border-l-2 border-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {!isCollapsed && <span className="truncate">{item.name}</span>}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* REFERENCE Section */}
-        <div>
-          {!isCollapsed && (
-            <div className="px-3 pb-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              Reference
-            </div>
-          )}
-          <nav className="space-y-1">
-            {referenceNav.map((item) => {
-              const active = isItemActive(item.to);
-              return (
-                <Link
-                  key={item.name}
-                  to={item.to}
-                  onClick={closeMobileMenu}
-                  title={isCollapsed ? item.name : undefined}
-                  className={cn(
-                    "flex items-center rounded-xl text-xs font-medium transition-all group",
-                    isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
-                    active
-                      ? "bg-primary/15 text-primary font-semibold border-l-2 border-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {!isCollapsed && <span className="truncate">{item.name}</span>}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* REPORTS Section */}
-        <div>
-          {!isCollapsed && (
-            <div className="px-3 pb-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              Reports
-            </div>
-          )}
-          <nav className="space-y-1">
-            {reportsNav.map((item) => {
-              const active = isItemActive(item.to);
-              return (
-                <Link
-                  key={item.name}
-                  to={item.to}
-                  onClick={closeMobileMenu}
-                  title={isCollapsed ? item.name : undefined}
-                  className={cn(
-                    "flex items-center rounded-xl text-xs font-medium transition-all group",
-                    isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
-                    active
-                      ? "bg-primary/15 text-primary font-semibold border-l-2 border-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {!isCollapsed && <span className="truncate">{item.name}</span>}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* ADMINISTRATION Section (Admin Only) */}
-        {role === 'ADMIN' && (
-          <div>
-            {!isCollapsed && (
-              <div className="px-3 pb-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                Administration
-              </div>
-            )}
-            <nav className="space-y-1">
-              {adminNav.map((item) => {
-                const active = isItemActive(item.to);
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.to}
-                    onClick={closeMobileMenu}
-                    title={isCollapsed ? item.name : undefined}
-                    className={cn(
-                      "flex items-center rounded-xl text-xs font-medium transition-all group",
-                      isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
-                      active
-                        ? "bg-primary/15 text-primary font-semibold border-l-2 border-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    {!isCollapsed && <span className="truncate">{item.name}</span>}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-        )}
-
-        {/* ACCOUNT Section */}
-        <div>
-          {!isCollapsed && (
-            <div className="px-3 pb-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              Account
-            </div>
-          )}
-          <nav className="space-y-1">
-            {accountNav.map((item) => {
-              const active = isItemActive(item.to);
-              return (
-                <Link
-                  key={item.name}
-                  to={item.to}
-                  onClick={closeMobileMenu}
-                  title={isCollapsed ? item.name : undefined}
-                  className={cn(
-                    "flex items-center rounded-xl text-xs font-medium transition-all group",
-                    isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3 py-2",
-                    active
-                      ? "bg-primary/15 text-primary font-semibold border-l-2 border-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {!isCollapsed && <span className="truncate">{item.name}</span>}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
+        {/* Unified Primary Navigation List (Simple 5 core destinations) */}
+        <nav className="space-y-1.5 pt-1">
+          {primaryNav.map((item) => {
+            const active = isItemActive(item.to);
+            return (
+              <Link
+                key={item.name}
+                to={item.to}
+                onClick={closeMobileMenu}
+                title={isCollapsed ? item.name : undefined}
+                className={cn(
+                  "flex items-center rounded-xl text-xs font-semibold transition-all group",
+                  isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3.5 py-2.5",
+                  active
+                    ? "bg-primary/15 text-primary font-bold border-l-2 border-primary shadow-2xs"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <item.icon className={cn("h-4 w-4 shrink-0 transition-transform group-hover:scale-105", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+                {!isCollapsed && <span className="truncate">{item.name}</span>}
+              </Link>
+            );
+          })}
+        </nav>
       </div>
 
-      {/* User Profile & Theme Footer Card */}
+      {/* User Profile & Theme Footer Card (Matching Image 1 & 3 bottom) */}
       <div className={cn(
         "border-t border-border bg-muted/20 shrink-0",
         isCollapsed ? "p-2" : "p-3"
@@ -589,12 +345,14 @@ function SidebarNavigation({
             </button>
 
             {/* Avatar Pill */}
-            <div 
-              title={`${userDisplayName} (${role === 'ADMIN' ? 'Administrator' : 'Staff'})`}
-              className="h-9 w-9 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/30 cursor-pointer shadow-xs"
+            <Link
+              to="/settings?tab=account"
+              onClick={closeMobileMenu}
+              title={`${userDisplayName} (${role === 'ADMIN' ? 'Administrator' : 'Staff'}) - Account & Password`}
+              className="h-9 w-9 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/30 cursor-pointer shadow-xs hover:ring-2 hover:ring-primary/40 transition-all"
             >
               {userInitials}
-            </div>
+            </Link>
 
             <button
               type="button"
@@ -607,19 +365,24 @@ function SidebarNavigation({
           </div>
         ) : (
           <div className="flex items-center justify-between p-2 rounded-xl bg-card border border-border/70 shadow-2xs">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="h-9 w-9 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/30 shadow-xs">
+            <Link 
+              to="/settings?tab=account" 
+              onClick={closeMobileMenu}
+              title="Manage Account & Password"
+              className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-80 transition-opacity cursor-pointer group"
+            >
+              <div className="h-9 w-9 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/30 shadow-xs group-hover:ring-2 group-hover:ring-primary/40 transition-all">
                 {userInitials}
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-semibold text-foreground truncate">
+                <span className="text-xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                   {userDisplayName}
                 </span>
                 <span className="text-[10px] text-muted-foreground uppercase font-medium tracking-wide">
                   {role === 'ADMIN' ? 'Administrator' : 'Staff Member'}
                 </span>
               </div>
-            </div>
+            </Link>
 
             <div className="flex items-center gap-1">
               <button
@@ -726,7 +489,7 @@ export function AppLayout() {
 
   return (
     <div className="flex h-dvh min-h-dvh max-h-dvh bg-background text-foreground overflow-hidden font-sans">
-      {/* Desktop Sidebar Navigation Rail */}
+      {/* 1. Desktop Sidebar Navigation (ChatGPT style full-height rail) */}
       <aside className={cn(
         "bg-card border-r border-border flex-col hidden md:flex shrink-0 h-full transition-all duration-200 ease-in-out z-30",
         isSidebarCollapsed ? "w-16" : "w-64"
@@ -765,9 +528,9 @@ export function AppLayout() {
       {/* 3. Right Column: Top Header + Main Viewport Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Top Header Bar for Main Content Area */}
-        <header className="h-16 shrink-0 bg-card border-b border-border flex items-center justify-between px-2.5 sm:px-6 z-20 shadow-2xs gap-2">
+        <header className="h-16 shrink-0 bg-card border-b border-border flex items-center justify-between px-3 sm:px-6 z-20 shadow-2xs">
           {/* Left Side: Mobile Menu Button (md:hidden) & Warehouse Location Badge */}
-          <div className="flex items-center gap-1.5 sm:gap-4 min-w-0 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <Button 
               variant="ghost" 
               className="p-1.5 h-9 w-9 md:hidden text-muted-foreground hover:text-foreground shrink-0 cursor-pointer" 
@@ -777,15 +540,12 @@ export function AppLayout() {
               <Menu className="h-5 w-5" />
             </Button>
 
-            {/* Location / Warehouse Badge - Auto-compact on mobile */}
-            <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg sm:rounded-xl bg-muted/60 border border-border shrink-0 max-w-[125px] sm:max-w-none" title="Location: KUVENTORY KIOSK & BODEGA">
+            {/* Location / Warehouse Badge */}
+            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-muted/60 border border-border shrink-0 max-w-[210px] sm:max-w-none">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              <div className="flex items-center gap-1 text-[11px] sm:text-xs font-semibold text-foreground truncate">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground truncate">
                 <span className="hidden sm:inline text-muted-foreground font-normal">Location:</span>
-                <strong className="tracking-tight uppercase truncate">
-                  <span className="sm:hidden">BODEGA</span>
-                  <span className="hidden sm:inline">KUVENTORY KIOSK & BODEGA</span>
-                </strong>
+                <strong className="tracking-tight uppercase truncate">KUVENTORY KIOSK & BODEGA</strong>
               </div>
             </div>
           </div>
@@ -807,16 +567,16 @@ export function AppLayout() {
             </button>
           </div>
 
-          {/* Right Side Actions - Compact gap on mobile to prevent collision */}
-          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
+          {/* Right Side Actions */}
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Quick Search Icon for tablet/mobile */}
             <button
               type="button"
               onClick={() => setIsCommandOpen(true)}
-              className="p-1.5 sm:p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl lg:hidden cursor-pointer"
+              className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl lg:hidden cursor-pointer"
               title="Search (Ctrl+K)"
             >
-              <Search className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Search className="w-5 h-5" />
             </button>
 
             {/* Dark / Light Theme Toggle Button */}
@@ -824,21 +584,20 @@ export function AppLayout() {
               type="button"
               onClick={toggleTheme}
               title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              className="p-1.5 sm:p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors cursor-pointer"
+              className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors cursor-pointer"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
             </button>
 
-            {/* Quick Action Dropdown (Compact icon-only on mobile, full button on desktop) */}
+            {/* Quick Action Dropdown (Focused on Core Inventory Operations) */}
             <div className="relative">
               <Button
                 onClick={() => setQuickActionOpen(!quickActionOpen)}
-                title="Quick Actions"
-                className="h-9 w-9 sm:w-auto p-0 sm:px-3.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs rounded-xl shadow-xs flex items-center justify-center sm:gap-1.5 cursor-pointer"
+                className="h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs px-2.5 sm:px-3.5 rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
-                <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                <Plus className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Quick Action</span>
-                <ChevronDown className="hidden sm:inline w-3 h-3 ml-0.5 opacity-80" />
+                <ChevronDown className="w-3 h-3 ml-0.5 opacity-80" />
               </Button>
 
               {quickActionOpen && (
@@ -916,7 +675,7 @@ export function AppLayout() {
             <NotificationBell />
 
             {/* User Profile Pill */}
-            <div className="hidden sm:flex items-center gap-2.5 pl-2.5 border-l border-border">
+            <div className="hidden sm:flex items-center gap-2.5 pl-3 border-l border-border">
               <div className="flex flex-col items-end">
                 <span className="text-xs font-bold text-foreground">
                   {profile ? `${profile.first_name} ${profile.last_name || ''}`.trim() : 'User'}

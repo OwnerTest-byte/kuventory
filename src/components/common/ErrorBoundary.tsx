@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface Props {
@@ -22,7 +22,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Uncaught error in UI boundary:', error, errorInfo);
+    console.error('KUVENTORY application error caught by boundary:', error.message, errorInfo.componentStack);
   }
 
   private handleReload = () => {
@@ -30,47 +30,38 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   private handleGoHome = () => {
-    window.location.href = '/';
+    window.location.href = '/inventory';
   };
 
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-card border border-border rounded-xl p-6 text-center space-y-4 shadow-sm">
-            <div className="w-12 h-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
-              <AlertTriangle className="w-6 h-6" />
+        <div className="min-h-screen flex items-center justify-center bg-background p-4 text-foreground">
+          <div className="max-w-md w-full bg-card p-6 sm:p-8 rounded-2xl border border-border shadow-lg text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-destructive/15 text-destructive mx-auto flex items-center justify-center">
+              <AlertCircle className="w-6 h-6" />
             </div>
             
             <div className="space-y-1">
-              <h1 className="text-xl font-bold tracking-tight text-foreground">
-                Something went wrong
-              </h1>
+              <h2 className="text-xl font-bold tracking-tight">Something unexpected happened</h2>
               <p className="text-sm text-muted-foreground">
-                An unexpected application error occurred. Your inventory ledger is safe and changes were not corrupted.
+                We encountered an error while rendering this page. Your inventory data is safe.
               </p>
             </div>
 
-            {this.state.error?.message && (
-              <div className="p-3 bg-muted rounded-lg text-left text-xs font-mono text-muted-foreground overflow-auto max-h-32">
-                {this.state.error.message}
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <div className="flex flex-col sm:flex-row gap-2 pt-2 justify-center">
               <Button 
                 onClick={this.handleReload} 
-                className="flex-1 gap-2"
+                className="font-semibold gap-2"
               >
                 <RefreshCw className="w-4 h-4" />
                 Reload Page
               </Button>
               <Button 
-                onClick={this.handleGoHome} 
-                variant="outline"
-                className="flex-1 gap-2"
+                variant="outline" 
+                onClick={this.handleGoHome}
+                className="border-border font-semibold"
               >
-                <Home className="w-4 h-4" />
                 Return to Dashboard
               </Button>
             </div>

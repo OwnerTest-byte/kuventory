@@ -42,10 +42,10 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
 
   const saveRow = async (newBeg: string, newAdd: string, newAm: string, newPm: string) => {
     if (isReadOnly) return;
-    const numBeg = Math.max(0, parseFloat(newBeg) || 0);
-    const numAdd = Math.max(0, parseFloat(newAdd) || 0);
-    const numAm = Math.max(0, parseFloat(newAm) || 0);
-    const numPm = Math.max(0, parseFloat(newPm) || 0);
+    const numBeg = parseFloat(newBeg) || 0;
+    const numAdd = parseFloat(newAdd) || 0;
+    const numAm = parseFloat(newAm) || 0;
+    const numPm = parseFloat(newPm) || 0;
 
     if (
       numBeg === item.beginning_qty &&
@@ -91,12 +91,21 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
       saveRow(nextBeg, nextAdd, nextAm, nextPm);
-    }, 600);
+    }, 350);
   };
 
   const handleBlur = () => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     saveRow(beg, add, am, pm);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      saveRow(beg, add, am, pm);
+      // Move focus or blur
+      (e.target as HTMLInputElement).blur();
+    }
   };
 
   const numBeg = parseFloat(beg) || 0;
@@ -106,7 +115,7 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
   const optTotal = numBeg + numAdd;
   const optEnding = optTotal - numAm - numPm;
 
-  const inputClass = `w-full text-center p-2 h-10 min-h-[40px] text-base sm:text-sm font-semibold border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary ${
+  const inputClass = `w-full text-center p-2 h-10 min-h-[40px] text-base sm:text-sm font-semibold border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary font-mono ${
     isReadOnly 
       ? 'bg-muted/50 text-muted-foreground cursor-not-allowed border-border' 
       : 'bg-card text-foreground border-border hover:border-muted-foreground/40'
@@ -121,10 +130,10 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
         <TableCell className="p-3 align-middle sticky left-12 z-10 bg-card group-hover:bg-muted/60 border-r border-border min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
           <div className="font-bold text-foreground text-xs sm:text-sm">{item.items?.item_name}</div>
           <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
-            <span>{item.items?.unit}</span>
-            {saveStatus === 'saving' && <span className="text-amber-500 font-medium">Saving...</span>}
-            {saveStatus === 'saved' && <span className="text-emerald-500 font-medium">Saved</span>}
-            {saveStatus === 'error' && <span className="text-rose-500 font-medium">Save failed</span>}
+            <span className="font-medium">{item.items?.unit}</span>
+            {saveStatus === 'saving' && <span className="text-amber-500 font-semibold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />Saving...</span>}
+            {saveStatus === 'saved' && <span className="text-emerald-500 font-bold">✓ Saved</span>}
+            {saveStatus === 'error' && <span className="text-rose-500 font-bold">⚠️ Save failed</span>}
           </div>
         </TableCell>
         
@@ -137,8 +146,10 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
             value={beg} 
             onChange={e => handleInputChange('beg', e.target.value)}
             onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
             disabled={isReadOnly}
             className={inputClass}
+            aria-label={`${item.items?.item_name} Beginning Quantity`}
           />
         </TableCell>
 
@@ -152,17 +163,20 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
               value={add} 
               onChange={e => handleInputChange('add', e.target.value)}
               onBlur={handleBlur}
+              onKeyDown={handleKeyDown}
               disabled={isReadOnly}
-              className={`${inputClass} pr-7 font-bold text-primary`}
+              className={`${inputClass} pr-9 font-bold text-primary`}
+              aria-label={`${item.items?.item_name} Add Quantity`}
             />
             {!isReadOnly && (
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
-                title="Receive Delivery with Expiry Date"
-                className="absolute right-1 text-muted-foreground hover:text-primary p-1 transition-colors"
+                title="Receive Batch Delivery with Expiry Date"
+                className="absolute right-1 w-8 h-8 rounded-md flex items-center justify-center text-primary/70 hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                aria-label={`Receive delivery batch for ${item.items?.item_name}`}
               >
-                <PlusCircle size={15} />
+                <PlusCircle size={18} />
               </button>
             )}
           </div>
@@ -170,7 +184,7 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
 
         {/* TOTAL STOCK */}
         <TableCell className="p-2 bg-blue-500/[0.06] border-r border-border/60">
-          <div className="w-full text-center p-2 h-10 flex items-center justify-center rounded-lg bg-blue-500/15 text-blue-700 dark:text-blue-300 font-bold border border-blue-500/25 text-sm">
+          <div className="w-full text-center p-2 h-10 min-h-[40px] flex items-center justify-center rounded-lg bg-blue-500/15 text-blue-700 dark:text-blue-300 font-bold border border-blue-500/25 text-sm font-mono">
             {optTotal}
           </div>
         </TableCell>
@@ -184,8 +198,10 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
             value={am} 
             onChange={e => handleInputChange('am', e.target.value)}
             onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
             disabled={isReadOnly}
             className={inputClass}
+            aria-label={`${item.items?.item_name} Sales AM`}
           />
         </TableCell>
 
@@ -198,18 +214,23 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
             value={pm} 
             onChange={e => handleInputChange('pm', e.target.value)}
             onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
             disabled={isReadOnly}
             className={inputClass}
+            aria-label={`${item.items?.item_name} Sales PM`}
           />
         </TableCell>
 
         {/* ENDING QTY */}
         <TableCell className="p-2 bg-emerald-500/[0.04]">
-          <div className={`w-full text-center p-2 h-10 flex items-center justify-center rounded-lg font-bold border text-sm transition-colors ${
+          <div 
+            title={optEnding < 0 ? 'Warning: Ending stock is negative! Please check AM/PM sales entries.' : undefined}
+            className={`w-full text-center p-2 h-10 min-h-[40px] flex items-center justify-center rounded-lg font-bold border text-sm transition-all font-mono ${
             optEnding < 0 
-              ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/25' 
+              ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/40 ring-1 ring-rose-500/50 animate-pulse' 
               : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/25'
           }`}>
+            {optEnding < 0 && <span className="mr-1 text-xs">⚠️</span>}
             {optEnding}
           </div>
         </TableCell>

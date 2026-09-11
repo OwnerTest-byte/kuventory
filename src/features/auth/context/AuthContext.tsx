@@ -85,7 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return {
           id: user.id,
           role: (user.user_metadata?.role as Role) || 'USER',
-          first_name: user.email?.split('@')[0] || 'Admin',
+          first_name: user.email?.split('@')[0] || 'User',
           last_name: '',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()

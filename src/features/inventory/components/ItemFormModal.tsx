@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase';
 import { X } from 'lucide-react';
 import type { InventoryItem } from '../types';
 import { useSuppliers } from '../api/suppliers';
-import { ImageUploadInput } from './ImageUploadInput';
 
 interface Props {
   item?: InventoryItem; // If undefined, it's a create action
@@ -143,13 +142,6 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
                   <option value="PORTION STOCK">PORTION STOCK</option>
                   <option value="PER CASES">PER CASES</option>
                 </select>
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <ImageUploadInput
-                  value={formData.image_path}
-                  onChange={(val) => setFormData({ ...formData, image_path: val || "" })}
-                />
               </div>
 
               <div className="space-y-2 md:col-span-2">

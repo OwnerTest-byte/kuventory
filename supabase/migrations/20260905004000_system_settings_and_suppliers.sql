@@ -14,20 +14,17 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
 
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Anyone authenticated can view system settings" ON public.system_settings;
 CREATE POLICY "Anyone authenticated can view system settings"
   ON public.system_settings FOR SELECT
   TO authenticated
   USING (true);
 
-DROP POLICY IF EXISTS "Admins can update system settings" ON public.system_settings;
 CREATE POLICY "Admins can update system settings"
   ON public.system_settings FOR UPDATE
   TO authenticated
   USING (is_admin())
   WITH CHECK (is_admin());
 
-DROP POLICY IF EXISTS "Admins can insert system settings" ON public.system_settings;
 CREATE POLICY "Admins can insert system settings"
   ON public.system_settings FOR INSERT
   TO authenticated
@@ -72,26 +69,22 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
 
 ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Anyone authenticated can view suppliers" ON public.suppliers;
 CREATE POLICY "Anyone authenticated can view suppliers"
   ON public.suppliers FOR SELECT
   TO authenticated
   USING (true);
 
-DROP POLICY IF EXISTS "Admins can insert suppliers" ON public.suppliers;
 CREATE POLICY "Admins can insert suppliers"
   ON public.suppliers FOR INSERT
   TO authenticated
   WITH CHECK (is_admin());
 
-DROP POLICY IF EXISTS "Admins can update suppliers" ON public.suppliers;
 CREATE POLICY "Admins can update suppliers"
   ON public.suppliers FOR UPDATE
   TO authenticated
   USING (is_admin())
   WITH CHECK (is_admin());
 
-DROP POLICY IF EXISTS "Admins can delete suppliers" ON public.suppliers;
 CREATE POLICY "Admins can delete suppliers"
   ON public.suppliers FOR DELETE
   TO authenticated

@@ -68,10 +68,10 @@ export function ReportViewPage() {
     }
   };
 
-  const handleExportXlsx = () => {
+  const handleExportXlsx = async () => {
     try {
       setIsExportingXlsx(true);
-      exportToXlsx(getReportPayload());
+      await exportToXlsx(getReportPayload());
     } finally {
       setIsExportingXlsx(false);
     }

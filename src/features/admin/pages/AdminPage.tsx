@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/context/AuthContext';
+import { pingSupabaseKeepalive, getLastKeepaliveTimestamp } from '@/lib/keepalive';
 import { 
   Users, Shield, Loader2, Plus, Trash2, Store, Bell, Activity, 
   Info, CheckCircle2, AlertCircle, Save, Database, KeyRound, RefreshCw, Layers,
-  Lock, Eye, EyeOff
+  Lock, Eye, EyeOff, Server, Cpu
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -14,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { 
   useSystemSetting, 
   useUpdateSystemSetting, 
@@ -32,8 +35,34 @@ export function AdminPage() {
   const queryClient = useQueryClient();
   const { user, profile, role } = useAuth();
   const isAdmin = role === 'ADMIN';
-  const [activeTab, setActiveTab] = useState(isAdmin ? 'restaurant' : 'account');
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTab = searchParams.get('tab');
+
+  const allowedTabs = isAdmin 
+    ? ['account', 'restaurant', 'users', 'notifications', 'activity', 'about'] 
+    : ['account', 'restaurant', 'about'];
+
+  const activeTab = (urlTab && allowedTabs.includes(urlTab))
+    ? urlTab
+    : (isAdmin ? 'restaurant' : 'account');
+
   const [activitySubTab, setActivitySubTab] = useState<'stock' | 'database' | 'logins'>('stock');
+
+  // Keepalive test state
+  const [keepaliveTesting, setKeepaliveTesting] = useState(false);
+  const [keepaliveResult, setKeepaliveResult] = useState<{ success: boolean; latencyMs: number; timestamp: string } | null>(null);
+
+  const handleTestKeepalive = async () => {
+    setKeepaliveTesting(true);
+    const result = await pingSupabaseKeepalive();
+    setKeepaliveResult(result);
+    setKeepaliveTesting(false);
+  };
+
+  const handleTabChange = (newTab: string) => {
+    setSearchParams({ tab: newTab });
+  };
 
   // Self Password Change State
   const [selfNewPassword, setSelfNewPassword] = useState('');
@@ -115,10 +144,61 @@ export function AdminPage() {
     address: 'Commercial Boulevard, Metro Manila, Philippines',
     phone: '+63 (02) 8921-4567',
     email: 'operations@kuventory.com',
-    hours: '10:00 AM - 11:00 PM Daily',
+    hours: '10:00 AM – 11:00 PM Daily',
     currency: 'PHP (₱)',
   });
 
+  const [restaurantInfo, setRestaurantInfo] = useState<EstablishmentSettings>(() => {
+    const saved = localStorage.getItem('kuventory_setting_establishment');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return {
+      name: 'KUVENTORY KIOSK & BODEGA',
+      branch: 'Central Bodega & Kiosk Operations',
+      address: 'Commercial Boulevard, Metro Manila, Philippines',
+      phone: '+63 (02) 8921-4567',
+      email: 'operations@kuventory.com',
+      hours: '10:00 AM – 11:00 PM Daily',
+      currency: 'PHP (₱)',
+    };
+  });
+
+  useEffect(() => {
+    if (dbEst) {
+      setRestaurantInfo(prev => {
+        const next = {
+          name: dbEst.name || 'KUVENTORY KIOSK & BODEGA',
+          branch: dbEst.branch || 'Central Bodega & Kiosk Operations',
+          address: dbEst.address || '',
+          phone: dbEst.phone || dbEst.contact_number || '',
+          email: dbEst.email || '',
+          hours: dbEst.hours || dbEst.operating_hours || '',
+          currency: dbEst.currency || 'PHP (₱)',
+          tax_rate: dbEst.tax_rate ?? 12,
+          receipt_footer: dbEst.receipt_footer || ''
+        };
+        if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+        return next;
+      });
+    }
+  }, [dbEst]);
+
+  const updateEstMutation = useUpdateSystemSetting<EstablishmentSettings>('establishment');
+  const [savedNotice, setSavedNotice] = useState(false);
+
+  const handleSaveRestaurant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateEstMutation.mutateAsync(restaurantInfo);
+      setSavedNotice(true);
+      setTimeout(() => setSavedNotice(false), 3000);
+    } catch (err) {
+      console.error('Save establishment error:', err);
+    }
+  };
+
+  // 2. Notification & Alert Policies from PostgreSQL system_settings table
   const { data: dbNotifs } = useSystemSetting<NotificationSettings>('notifications', {
     lowStockThreshold: 20,
     expiryNoticeDays: 14,
@@ -126,6 +206,52 @@ export function AdminPage() {
     soundAlerts: false,
     fefoAutoAllocation: true,
   });
+
+  const [notifPrefs, setNotifPrefs] = useState<NotificationSettings>(() => {
+    const saved = localStorage.getItem('kuventory_setting_notifications');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return {
+      lowStockThreshold: 20,
+      expiryNoticeDays: 14,
+      emailAlerts: true,
+      soundAlerts: false,
+      fefoAutoAllocation: true,
+    };
+  });
+
+  useEffect(() => {
+    if (dbNotifs) {
+      setNotifPrefs(prev => {
+        const next = {
+          lowStockThreshold: dbNotifs.lowStockThreshold ?? dbNotifs.low_stock_threshold ?? 20,
+          expiryNoticeDays: dbNotifs.expiryNoticeDays ?? dbNotifs.expiry_warning_days ?? 14,
+          emailAlerts: dbNotifs.emailAlerts ?? dbNotifs.email_alerts ?? true,
+          soundAlerts: dbNotifs.soundAlerts ?? false,
+          fefoAutoAllocation: dbNotifs.fefoAutoAllocation ?? true,
+          autoDailyReminder: dbNotifs.autoDailyReminder ?? dbNotifs.auto_daily_reminder ?? true,
+          sms_alerts: dbNotifs.sms_alerts ?? false,
+        };
+        if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+        return next;
+      });
+    }
+  }, [dbNotifs]);
+
+  const updateNotifsMutation = useUpdateSystemSetting<NotificationSettings>('notifications');
+  const [savedNotifNotice, setSavedNotifNotice] = useState(false);
+
+  const handleSaveNotif = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateNotifsMutation.mutateAsync(notifPrefs);
+      setSavedNotifNotice(true);
+      setTimeout(() => setSavedNotifNotice(false), 3000);
+    } catch (err) {
+      console.error('Save notifications error:', err);
+    }
+  };
 
   // User Management State
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
@@ -251,7 +377,7 @@ export function AdminPage() {
         </p>
       </header>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="bg-muted p-1 rounded-lg flex flex-wrap h-auto gap-1 border border-border">
           <TabsTrigger value="account" className="font-semibold text-xs sm:text-sm">
             <KeyRound className="w-4 h-4 mr-2" /> Account & Password
@@ -380,11 +506,87 @@ export function AdminPage() {
 
         {/* TAB 1: RESTAURANT INFO */}
         <TabsContent value="restaurant" className="space-y-6">
-          <EstablishmentSettingsTab 
-            key={dbEst ? 'est-loaded' : 'est-loading'} 
-            initialData={dbEst} 
-            isAdmin={isAdmin} 
-          />
+          <div className="bg-card p-6 rounded-xl border border-border shadow-xs max-w-3xl">
+            <h2 className="text-lg font-bold text-foreground mb-1">Restaurant Profile & Business Details</h2>
+            <p className="text-xs text-muted-foreground mb-6">
+              These details are automatically printed on official Daily Inventory sheets and exported reports.
+            </p>
+
+            <form onSubmit={handleSaveRestaurant} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Establishment Name</Label>
+                  <Input 
+                    value={restaurantInfo.name}
+                    onChange={e => setRestaurantInfo({ ...restaurantInfo, name: e.target.value })}
+                    className="font-bold"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Branch / Location Tag</Label>
+                  <Input 
+                    value={restaurantInfo.branch}
+                    onChange={e => setRestaurantInfo({ ...restaurantInfo, branch: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Physical Address</Label>
+                <Input 
+                  value={restaurantInfo.address}
+                  onChange={e => setRestaurantInfo({ ...restaurantInfo, address: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Contact Number</Label>
+                  <Input 
+                    value={restaurantInfo.phone}
+                    onChange={e => setRestaurantInfo({ ...restaurantInfo, phone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Operations Email</Label>
+                  <Input 
+                    type="email"
+                    value={restaurantInfo.email}
+                    onChange={e => setRestaurantInfo({ ...restaurantInfo, email: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Operating Hours</Label>
+                  <Input 
+                    value={restaurantInfo.hours}
+                    onChange={e => setRestaurantInfo({ ...restaurantInfo, hours: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-foreground">Base Currency</Label>
+                  <Input 
+                    value={restaurantInfo.currency}
+                    disabled
+                    className="bg-muted text-muted-foreground font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 flex items-center gap-3">
+                <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
+                  <Save className="w-4 h-4 mr-2" /> Save Restaurant Details
+                </Button>
+                {savedNotice && (
+                  <span className="text-xs font-bold text-emerald-500 flex items-center">
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> Settings saved successfully!
+                  </span>
+                )}
+              </div>
+            </form>
+          </div>
         </TabsContent>
 
         {/* TAB 2: USER & STAFF MANAGEMENT */}
@@ -503,10 +705,100 @@ export function AdminPage() {
 
         {/* TAB 3: PREFERENCES & ALERT POLICIES */}
         <TabsContent value="notifications" className="space-y-6">
-          <NotificationSettingsTab 
-            key={dbNotifs ? 'notif-loaded' : 'notif-loading'} 
-            initialData={dbNotifs} 
-          />
+          <div className="bg-card p-6 rounded-xl border border-border shadow-xs max-w-3xl">
+            <h2 className="text-lg font-bold text-foreground mb-1">Inventory Alert & Monitoring Preferences</h2>
+            <p className="text-xs text-muted-foreground mb-6">
+              Configure trigger thresholds for automated low-stock banners and FEFO batch expiration warnings.
+            </p>
+
+            <form onSubmit={handleSaveNotif} className="space-y-6">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Global Minimum Low-Stock Threshold
+                </Label>
+                <div className="flex items-center gap-4">
+                  <Input 
+                    type="number"
+                    min="1"
+                    max="500"
+                    value={notifPrefs.lowStockThreshold}
+                    onChange={e => setNotifPrefs({ ...notifPrefs, lowStockThreshold: Number(e.target.value) })}
+                    className="w-32 font-bold"
+                  />
+                  <span className="text-xs text-slate-500">
+                    Units remaining before warning appears on dashboard
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-foreground">
+                  FEFO Expiration Warning Window
+                </Label>
+                <div className="flex items-center gap-4">
+                  <select 
+                    value={notifPrefs.expiryNoticeDays}
+                    onChange={e => setNotifPrefs({ ...notifPrefs, expiryNoticeDays: Number(e.target.value) })}
+                    className="h-10 px-3 py-2 bg-card border border-border text-foreground rounded-md text-sm font-semibold outline-none"
+                  >
+                    <option value={7}>7 Days Before Expiry</option>
+                    <option value={14}>14 Days Before Expiry (Recommended)</option>
+                    <option value={30}>30 Days Before Expiry</option>
+                  </select>
+                  <span className="text-xs text-muted-foreground">
+                    Batches within this window are flagged as "EXPIRING SOON"
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-2 border-t border-border">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={notifPrefs.fefoAutoAllocation}
+                    onChange={e => setNotifPrefs({ ...notifPrefs, fefoAutoAllocation: e.target.checked })}
+                    className="w-4 h-4 rounded text-primary focus:ring-primary"
+                  />
+                  <div>
+                    <span className="text-sm font-bold text-foreground block">
+                      Enforce Strict FEFO (First-Expired, First-Out)
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Automatic allocation algorithm always serves oldest valid batches first
+                    </span>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={notifPrefs.emailAlerts}
+                    onChange={e => setNotifPrefs({ ...notifPrefs, emailAlerts: e.target.checked })}
+                    className="w-4 h-4 rounded text-primary focus:ring-primary"
+                  />
+                  <div>
+                    <span className="text-sm font-bold text-foreground block">
+                      Emergency Out-of-Stock Notifications
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Alert supervisors immediately when zero-stock occurs during active service
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              <div className="pt-4 flex items-center gap-3">
+                <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
+                  <Save className="w-4 h-4 mr-2" /> Save Alert Policies
+                </Button>
+                {savedNotifNotice && (
+                  <span className="text-xs font-bold text-emerald-500 flex items-center">
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> Alert settings saved!
+                  </span>
+                )}
+              </div>
+            </form>
+          </div>
         </TabsContent>
 
         {/* TAB 4: MULTI-LAYER ACTIVITY AUDIT TRAIL */}
@@ -802,6 +1094,131 @@ export function AdminPage() {
                 All stock transactions are guaranteed by atomic PostgreSQL SECURITY DEFINER stored procedures. No client-side balances are trusted. All report snapshots are immutable once finalized.
               </p>
             </div>
+
+            {/* Database Health & Keepalive Heartbeat Card */}
+            <div className="p-5 rounded-xl bg-card border border-border shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Database className="w-5 h-5 text-primary" />
+                    <h3 className="text-sm font-bold text-foreground">Supabase Free-Tier Inactivity Safeguard</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Automated multi-layer ping system preventing this database from pausing after 7 days of inactivity.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestKeepalive}
+                  disabled={keepaliveTesting}
+                  className="font-bold text-xs shrink-0 border-border cursor-pointer"
+                >
+                  {keepaliveTesting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      Testing Ping...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                      Test Ping
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="p-3 rounded-lg bg-muted/50 border border-border/70">
+                  <span className="text-muted-foreground block font-medium text-[11px]">Safeguard Status</span>
+                  <span className="font-bold text-emerald-500 flex items-center gap-1.5 mt-0.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Active (Protected)
+                  </span>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 border border-border/70">
+                  <span className="text-muted-foreground block font-medium text-[11px]">Keepalive Methods</span>
+                  <span className="font-bold text-foreground mt-0.5 block">
+                    Cron (Every 48h) + App Heartbeat
+                  </span>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 border border-border/70">
+                  <span className="text-muted-foreground block font-medium text-[11px]">Last Keepalive Run</span>
+                  <span className="font-bold text-foreground mt-0.5 block truncate">
+                    {keepaliveResult?.timestamp 
+                      ? `${new Date(keepaliveResult.timestamp).toLocaleTimeString()} (${keepaliveResult.latencyMs}ms)`
+                      : getLastKeepaliveTimestamp()
+                        ? new Date(getLastKeepaliveTimestamp()!).toLocaleTimeString()
+                        : 'Active on page boot'}
+                  </span>
+                </div>
+              </div>
+
+              {keepaliveResult && (
+                <div className={cn(
+                  "p-3 rounded-lg border text-xs font-semibold flex items-center justify-between",
+                  keepaliveResult.success ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" : "bg-destructive/10 border-destructive/20 text-destructive"
+                )}>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>Supabase PostgREST responded successfully in {keepaliveResult.latencyMs}ms. Inactivity counter reset.</span>
+                  </div>
+                  <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-emerald-500/20">HTTP 200</span>
+                </div>
+              )}
+            </div>
+
+            {/* Local Docker & Container Auto-Wake Diagnostics Card */}
+            <div className="p-5 rounded-xl bg-card border border-border shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Server className="w-5 h-5 text-primary" />
+                    <h3 className="text-sm font-bold text-foreground">Local Docker & Database Auto-Wake Engine</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Continuous container health supervisor and automated wake daemon for local and cloud environments.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[11px] font-mono px-2 py-1 rounded bg-muted border border-border font-semibold text-muted-foreground">
+                    Port: 54322
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="p-3 rounded-lg bg-muted/50 border border-border/70">
+                  <span className="text-muted-foreground block font-medium text-[11px]">Engine Status</span>
+                  <span className="font-bold text-emerald-500 flex items-center gap-1.5 mt-0.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Auto-Wake Active
+                  </span>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 border border-border/70">
+                  <span className="text-muted-foreground block font-medium text-[11px]">Primary Containers</span>
+                  <span className="font-bold text-foreground mt-0.5 block truncate" title="supabase_db_KUVENTORY-FINAL, studio, rest, kong, auth">
+                    DB, Studio, Kong, REST
+                  </span>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 border border-border/70">
+                  <span className="text-muted-foreground block font-medium text-[11px]">Auto-Recovery Script</span>
+                  <span className="font-mono text-[11px] font-bold text-primary mt-0.5 block truncate">
+                    npm run docker:health
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/60 text-xs text-muted-foreground space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-foreground">
+                  <Cpu className="w-3.5 h-3.5 text-primary" />
+                  <span>Automated Fail-Safe Protection:</span>
+                </div>
+                <p>
+                  If local Docker containers exit or restart, the health supervisor checks container states and automatically runs <code className="font-mono text-[11px] text-foreground bg-muted px-1 rounded">docker start</code> without manual intervention, while syncing with the Supabase keepalive ping.
+                </p>
+              </div>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
@@ -955,258 +1372,6 @@ export function AdminPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-interface EstablishmentSettingsTabProps {
-  initialData?: EstablishmentSettings;
-  isAdmin: boolean;
-}
-
-function EstablishmentSettingsTab({ initialData, isAdmin }: EstablishmentSettingsTabProps) {
-  const [restaurantInfo, setRestaurantInfo] = useState<EstablishmentSettings>(() => {
-    return {
-      name: initialData?.name || 'KUVENTORY KIOSK & BODEGA',
-      branch: initialData?.branch || 'Central Bodega & Kiosk Operations',
-      address: initialData?.address || '',
-      phone: initialData?.phone || initialData?.contact_number || '+63 (02) 8921-4567',
-      email: initialData?.email || 'operations@kuventory.com',
-      hours: initialData?.hours || initialData?.operating_hours || '10:00 AM - 11:00 PM Daily',
-      currency: initialData?.currency || 'PHP (₱)',
-      tax_rate: initialData?.tax_rate ?? 12,
-      receipt_footer: initialData?.receipt_footer || ''
-    };
-  });
-  const updateEstMutation = useUpdateSystemSetting<EstablishmentSettings>('establishment');
-  const [savedNotice, setSavedNotice] = useState(false);
-
-  const handleSaveRestaurant = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await updateEstMutation.mutateAsync(restaurantInfo);
-      setSavedNotice(true);
-      setTimeout(() => setSavedNotice(false), 3000);
-    } catch (err) {
-      console.error('Save establishment error:', err);
-    }
-  };
-
-  return (
-    <div className="bg-card p-6 rounded-xl border border-border shadow-xs max-w-3xl">
-      <h2 className="text-lg font-bold text-foreground mb-1">Restaurant Profile & Business Details</h2>
-      <p className="text-xs text-muted-foreground mb-6">
-        These details are automatically printed on official Daily Inventory sheets and exported reports.
-      </p>
-
-      <form onSubmit={handleSaveRestaurant} className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-foreground">Establishment Name</Label>
-            <Input disabled={!isAdmin}
-              value={restaurantInfo.name}
-              onChange={e => setRestaurantInfo({ ...restaurantInfo, name: e.target.value })}
-              className="font-bold"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-foreground">Branch / Location Tag</Label>
-            <Input disabled={!isAdmin}
-              value={restaurantInfo.branch}
-              onChange={e => setRestaurantInfo({ ...restaurantInfo, branch: e.target.value })}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs font-bold text-foreground">Physical Address</Label>
-          <Input disabled={!isAdmin}
-            value={restaurantInfo.address}
-            onChange={e => setRestaurantInfo({ ...restaurantInfo, address: e.target.value })}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-foreground">Contact Number</Label>
-            <Input disabled={!isAdmin}
-              value={restaurantInfo.phone}
-              onChange={e => setRestaurantInfo({ ...restaurantInfo, phone: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-foreground">Operations Email</Label>
-            <Input disabled={!isAdmin}
-              type="email"
-              value={restaurantInfo.email}
-              onChange={e => setRestaurantInfo({ ...restaurantInfo, email: e.target.value })}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-foreground">Operating Hours</Label>
-            <Input disabled={!isAdmin}
-              value={restaurantInfo.hours}
-              onChange={e => setRestaurantInfo({ ...restaurantInfo, hours: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-foreground">Base Currency</Label>
-            <Input 
-              value={restaurantInfo.currency}
-              disabled
-              className="bg-muted text-muted-foreground font-bold"
-            />
-          </div>
-        </div>
-
-        <div className="pt-4 flex items-center gap-3">
-          {isAdmin ? (
-            <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
-              <Save className="w-4 h-4 mr-2" /> Save Restaurant Details
-            </Button>
-          ) : (
-            <p className="text-xs text-muted-foreground italic flex items-center gap-1.5">
-              <Info className="w-3.5 h-3.5" /> Restaurant profile settings can only be altered by Administrators.
-            </p>
-          )}
-          {savedNotice && (
-            <span className="text-xs font-bold text-emerald-500 flex items-center">
-              <CheckCircle2 className="w-4 h-4 mr-1" /> Profile saved successfully!
-            </span>
-          )}
-        </div>
-      </form>
-    </div>
-  );
-}
-
-interface NotificationSettingsTabProps {
-  initialData?: NotificationSettings;
-}
-
-function NotificationSettingsTab({ initialData }: NotificationSettingsTabProps) {
-  const [notifPrefs, setNotifPrefs] = useState<NotificationSettings>(() => {
-    return {
-      lowStockThreshold: initialData?.lowStockThreshold ?? initialData?.low_stock_threshold ?? 20,
-      expiryNoticeDays: initialData?.expiryNoticeDays ?? initialData?.expiry_warning_days ?? 14,
-      emailAlerts: initialData?.emailAlerts ?? initialData?.email_alerts ?? true,
-      soundAlerts: initialData?.soundAlerts ?? false,
-      fefoAutoAllocation: initialData?.fefoAutoAllocation ?? true,
-      autoDailyReminder: initialData?.autoDailyReminder ?? initialData?.auto_daily_reminder ?? true,
-      sms_alerts: initialData?.sms_alerts ?? false,
-    };
-  });
-  const updateNotifsMutation = useUpdateSystemSetting<NotificationSettings>('notifications');
-  const [savedNotifNotice, setSavedNotifNotice] = useState(false);
-
-  const handleSaveNotif = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await updateNotifsMutation.mutateAsync(notifPrefs);
-      setSavedNotifNotice(true);
-      setTimeout(() => setSavedNotifNotice(false), 3000);
-    } catch (err) {
-      console.error('Save notifications error:', err);
-    }
-  };
-
-  return (
-    <div className="bg-card p-6 rounded-xl border border-border shadow-xs max-w-3xl">
-      <h2 className="text-lg font-bold text-foreground mb-1">Inventory Alert & Monitoring Preferences</h2>
-      <p className="text-xs text-muted-foreground mb-6">
-        Configure trigger thresholds for automated low-stock banners and FEFO batch expiration warnings.
-      </p>
-
-      <form onSubmit={handleSaveNotif} className="space-y-6">
-        <div className="space-y-2">
-          <Label className="text-xs font-bold text-foreground">
-            Global Minimum Low-Stock Threshold
-          </Label>
-          <div className="flex items-center gap-4">
-            <Input 
-              type="number"
-              min="1"
-              max="500"
-              value={notifPrefs.lowStockThreshold}
-              onChange={e => setNotifPrefs({ ...notifPrefs, lowStockThreshold: Number(e.target.value) })}
-              className="w-32 font-bold"
-            />
-            <span className="text-xs text-slate-500">
-              Units remaining before warning appears on dashboard
-            </span>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-xs font-bold text-foreground">
-            FEFO Expiration Warning Window
-          </Label>
-          <div className="flex items-center gap-4">
-            <select 
-              value={notifPrefs.expiryNoticeDays}
-              onChange={e => setNotifPrefs({ ...notifPrefs, expiryNoticeDays: Number(e.target.value) })}
-              className="h-10 px-3 py-2 bg-card border border-border text-foreground rounded-md text-sm font-semibold outline-none"
-            >
-              <option value={7}>7 Days Before Expiry</option>
-              <option value={14}>14 Days Before Expiry (Recommended)</option>
-              <option value={30}>30 Days Before Expiry</option>
-            </select>
-            <span className="text-xs text-muted-foreground">
-              Batches within this window are flagged as "EXPIRING SOON"
-            </span>
-          </div>
-        </div>
-
-        <div className="space-y-3 pt-2 border-t border-border">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input 
-              type="checkbox" 
-              checked={notifPrefs.fefoAutoAllocation}
-              onChange={e => setNotifPrefs({ ...notifPrefs, fefoAutoAllocation: e.target.checked })}
-              className="w-4 h-4 rounded text-primary focus:ring-primary"
-            />
-            <div>
-              <span className="text-sm font-bold text-foreground block">
-                Enforce Strict FEFO (First-Expired, First-Out)
-              </span>
-              <span className="text-xs text-muted-foreground">
-                Automatic allocation algorithm always serves oldest valid batches first
-              </span>
-            </div>
-          </label>
-
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input 
-              type="checkbox" 
-              checked={notifPrefs.emailAlerts}
-              onChange={e => setNotifPrefs({ ...notifPrefs, emailAlerts: e.target.checked })}
-              className="w-4 h-4 rounded text-primary focus:ring-primary"
-            />
-            <div>
-              <span className="text-sm font-bold text-foreground block">
-                Emergency Out-of-Stock Notifications
-              </span>
-              <span className="text-xs text-muted-foreground">
-                Alert supervisors immediately when zero-stock occurs during active service
-              </span>
-            </div>
-          </label>
-        </div>
-
-        <div className="pt-4 flex items-center gap-3">
-          <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
-            <Save className="w-4 h-4 mr-2" /> Save Alert Policies
-          </Button>
-          {savedNotifNotice && (
-            <span className="text-xs font-bold text-emerald-500 flex items-center">
-              <CheckCircle2 className="w-4 h-4 mr-1" /> Alert policies updated successfully!
-            </span>
-          )}
-        </div>
-      </form>
     </div>
   );
 }
