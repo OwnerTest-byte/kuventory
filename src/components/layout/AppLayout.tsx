@@ -111,7 +111,7 @@ function AppBreadcrumbs() {
   }
 
   return (
-    <div className="px-4 sm:px-6 py-2 border-b border-border/50 bg-card/30 flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0 select-none">
+    <div className="px-4 sm:px-6 py-2 border-b border-border/50 bg-card/30 flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0 select-none relative z-10">
       <span className="hidden sm:inline font-medium hover:text-foreground transition-colors">{section}</span>
       <ChevronRight className="hidden sm:inline w-3 h-3 text-muted-foreground/60 shrink-0" />
       <span className="font-semibold text-foreground truncate">{page}</span>
@@ -528,7 +528,7 @@ export function AppLayout() {
       {/* 3. Right Column: Top Header + Main Viewport Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Top Header Bar for Main Content Area */}
-        <header className="h-16 shrink-0 bg-card border-b border-border flex items-center justify-between px-3 sm:px-6 z-20 shadow-2xs">
+        <header className="h-16 shrink-0 bg-card border-b border-border flex items-center justify-between px-3 sm:px-6 relative z-40 shadow-2xs">
           {/* Left Side: Mobile Menu Button (md:hidden) & Warehouse Location Badge */}
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <Button 
@@ -603,10 +603,10 @@ export function AppLayout() {
               {quickActionOpen && (
                 <>
                   <div 
-                    className="fixed inset-0 z-30" 
+                    className="fixed inset-0 z-40" 
                     onClick={() => setQuickActionOpen(false)} 
                   />
-                  <div className="absolute right-0 mt-2 w-56 bg-card rounded-xl shadow-xl border border-border py-2 z-40">
+                  <div className="absolute right-0 mt-2 w-56 bg-card rounded-xl shadow-2xl border border-border py-2 z-50 ring-1 ring-border/50">
                     <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                        Inventory Actions
                     </div>
@@ -713,7 +713,7 @@ export function AppLayout() {
         <AppBreadcrumbs />
 
         {/* Main Content Viewport */}
-        <main className="flex-1 flex flex-col min-w-0 h-full relative bg-background overflow-hidden">
+        <main className="flex-1 flex flex-col min-w-0 h-full relative z-0 isolate bg-background overflow-hidden">
           <div className="flex-1 overflow-y-auto pb-20 md:pb-8 overscroll-none scroll-smooth">
             <Outlet />
           </div>

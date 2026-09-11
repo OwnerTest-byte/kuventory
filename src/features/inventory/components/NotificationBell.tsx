@@ -84,7 +84,7 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
       <button 
         data-testid="notification-bell"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
       >
         <Bell className="h-5 w-5 text-slate-600 dark:text-slate-300" />
         {unreadCount > 0 && (
@@ -93,12 +93,18 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
       </button>
 
       {isOpen && (
-        <div 
-          className={cn(
-            "absolute w-80 sm:w-96 bg-card text-card-foreground border border-border rounded-xl shadow-xl overflow-hidden z-100 flex flex-col max-h-[70vh]",
-            placement === 'bottom-right' ? "right-0 top-full mt-2" : "left-0 bottom-full mb-2"
-          )}
-        >
+        <>
+          {/* Invisible Backdrop for click-outside dismissal */}
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setIsOpen(false)} 
+          />
+          <div 
+            className={cn(
+              "absolute w-80 sm:w-96 max-w-[calc(100vw-1.5rem)] bg-card text-card-foreground border border-border rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col max-h-[70vh] ring-1 ring-border/50",
+              placement === 'bottom-right' ? "right-0 top-full mt-2" : "left-0 bottom-full mb-2"
+            )}
+          >
           <div className="p-4 border-b border-border flex items-center justify-between bg-muted/40">
             <h3 className="font-semibold text-foreground flex items-center gap-2">
               Notifications
@@ -176,6 +182,7 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
             </button>
           </div>
         </div>
+      </>
       )}
     </div>
   );
