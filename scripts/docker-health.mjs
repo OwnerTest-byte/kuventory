@@ -100,20 +100,24 @@ async function checkAndWakeDocker() {
       console.log('[Port Ping] Port 54322 is not actively listening (database container starting or paused).');
     }
 
-    // 4. Ping Supabase Cloud keepalive to ensure continuous cloud sync
-    console.log('\n[Cloud Keepalive] Pinging production Supabase endpoint...');
-    const cloudUrl = process.env.VITE_SUPABASE_URL || 'https://stotgoylyzltzpahuglc.supabase.co';
-    const cloudKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_sww0L_JeH4y7i0Zq5kX0Xg_ZWhJ7PsN';
+    // 4. Ping Supabase Cloud keepalive if credentials exist in environment
+    console.log('\n[Cloud Keepalive] Checking production Supabase endpoint...');
+    const cloudUrl = process.env.VITE_SUPABASE_URL;
+    const cloudKey = process.env.VITE_SUPABASE_ANON_KEY;
     
-    const start = Date.now();
-    const res = await fetch(`${cloudUrl}/rest/v1/system_settings?select=key&limit=1`, {
-      headers: {
-        'apikey': cloudKey,
-        'Authorization': `Bearer ${cloudKey}`
-      }
-    });
-    const latency = Date.now() - start;
-    console.log(`[Cloud Keepalive] HTTP ${res.status} in ${latency}ms - Supabase 7-Day Inactivity Timer Reset.`);
+    if (cloudUrl && cloudKey) {
+      const start = Date.now();
+      const res = await fetch(`${cloudUrl}/rest/v1/system_settings?select=key&limit=1`, {
+        headers: {
+          'apikey': cloudKey,
+          'Authorization': `Bearer ${cloudKey}`
+        }
+      });
+      const latency = Date.now() - start;
+      console.log(`[Cloud Keepalive] HTTP ${res.status} in ${latency}ms - Supabase 7-Day Inactivity Timer Reset.`);
+    } else {
+      console.log('[Cloud Keepalive] Skipped cloud ping (configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to ping).');
+    }
 
     console.log('\n====================================================');
     console.log('  Health check complete: Local & Cloud Active!      ');

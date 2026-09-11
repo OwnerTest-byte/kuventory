@@ -10,10 +10,15 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+
+# Environment Variables (Ignore all real secrets, allow example templates)
 .env
 .env.*
-!.env.example
+*.env
 *.local
+!.env.example
+!.env.local.example
+!env.local.example
 
 # Supabase
 .supabase/

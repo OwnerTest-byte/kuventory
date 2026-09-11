@@ -1,8 +1,13 @@
 // Standalone Supabase Keepalive Ping Script
 // Run via: node scripts/ping-supabase.mjs
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://stotgoylyzltzpahuglc.supabase.co';
-const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_sww0L_JeH4y7i0Zq5kX0Xg_ZWhJ7PsN';
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.log('[Keepalive] VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set in environment to ping.');
+  process.exit(0);
+}
 
 console.log(`[Keepalive] Pinging Supabase at: ${SUPABASE_URL}`);
 const start = Date.now();

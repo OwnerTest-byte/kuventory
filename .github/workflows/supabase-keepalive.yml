@@ -15,9 +15,9 @@ jobs:
         run: |
           echo "Sending keepalive request to Supabase to reset 7-day inactivity timer..."
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_sww0L_JeH4y7i0Zq5kX0Xg_ZWhJ7PsN' }}" \
-            -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_sww0L_JeH4y7i0Zq5kX0Xg_ZWhJ7PsN' }}" \
-            "https://stotgoylyzltzpahuglc.supabase.co/rest/v1/system_settings?select=key&limit=1")
+            -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+            "${{ secrets.VITE_SUPABASE_URL || 'https://stotgoylyzltzpahuglc.supabase.co' }}/rest/v1/system_settings?select=key&limit=1")
           echo "Supabase HTTP Response Status: $STATUS"
           if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
             echo "Successfully pinged Supabase. Inactivity pause prevented."
