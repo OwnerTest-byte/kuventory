@@ -84,11 +84,12 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
       <button 
         data-testid="notification-bell"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+        className="relative h-8 w-8 sm:h-9 sm:w-9 p-1.5 sm:p-2 rounded-xl sm:rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer flex items-center justify-center"
+        aria-label="View notifications"
       >
-        <Bell className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+        <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 dark:text-slate-300" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-destructive rounded-full border-2 border-background"></span>
+          <span className="absolute top-1 right-1 h-2 w-2 sm:h-2.5 sm:w-2.5 bg-destructive rounded-full border-2 border-background"></span>
         )}
       </button>
 

@@ -367,7 +367,7 @@ export function DailyInventoryPage() {
       </Dialog>
 
       {/* Mobile Sticky Action Bar (Fitts's Law - Thumb Zone for Mobile Devices) */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 bg-card/95 backdrop-blur-md border-t border-border flex items-center justify-between gap-3 sm:hidden z-30 shadow-lg">
+      <div className="fixed bottom-16 left-0 right-0 p-3 bg-card/95 backdrop-blur-md border-t border-border flex items-center justify-between gap-3 sm:hidden z-30 shadow-lg">
         <div className="flex items-center gap-2 min-w-0">
           <div className="text-xs font-bold text-foreground truncate">
             {isFinalized ? 'Finalized' : `${completionPct}% Reconciled`}

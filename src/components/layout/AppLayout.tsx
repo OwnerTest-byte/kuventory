@@ -528,24 +528,27 @@ export function AppLayout() {
       {/* 3. Right Column: Top Header + Main Viewport Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Top Header Bar for Main Content Area */}
-        <header className="h-16 shrink-0 bg-card border-b border-border flex items-center justify-between px-3 sm:px-6 relative z-40 shadow-2xs">
+        <header className="h-16 shrink-0 bg-card border-b border-border flex items-center justify-between px-2.5 sm:px-6 relative z-40 shadow-2xs gap-2">
           {/* Left Side: Mobile Menu Button (md:hidden) & Warehouse Location Badge */}
-          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 max-w-fit">
             <Button 
               variant="ghost" 
-              className="p-1.5 h-9 w-9 md:hidden text-muted-foreground hover:text-foreground shrink-0 cursor-pointer" 
+              className="p-1.5 h-8 w-8 sm:h-9 sm:w-9 md:hidden text-muted-foreground hover:text-foreground shrink-0 cursor-pointer" 
               onClick={() => setMobileMenuOpen(true)}
               title="Open Menu"
+              aria-label="Open navigation menu"
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
 
             {/* Location / Warehouse Badge */}
-            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-muted/60 border border-border shrink-0 max-w-[210px] sm:max-w-none">
+            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-muted/60 border border-border min-w-0 max-w-[125px] xs:max-w-[170px] sm:max-w-none overflow-hidden select-none">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground truncate">
+              <div className="flex items-center gap-1 text-xs font-semibold text-foreground min-w-0 overflow-hidden">
                 <span className="hidden sm:inline text-muted-foreground font-normal">Location:</span>
-                <strong className="tracking-tight uppercase truncate">KUVENTORY KIOSK & BODEGA</strong>
+                <strong className="tracking-tight uppercase truncate min-w-0">
+                  <span className="hidden sm:inline">KUVENTORY </span>KIOSK & BODEGA
+                </strong>
               </div>
             </div>
           </div>
@@ -568,15 +571,16 @@ export function AppLayout() {
           </div>
 
           {/* Right Side Actions */}
-          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0 ml-auto">
             {/* Quick Search Icon for tablet/mobile */}
             <button
               type="button"
               onClick={() => setIsCommandOpen(true)}
-              className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl lg:hidden cursor-pointer"
+              className="h-8 w-8 sm:h-9 sm:w-9 p-1.5 sm:p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl flex items-center justify-center cursor-pointer transition-colors lg:hidden"
               title="Search (Ctrl+K)"
+              aria-label="Search items"
             >
-              <Search className="w-5 h-5" />
+              <Search className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
             {/* Dark / Light Theme Toggle Button */}
@@ -584,7 +588,8 @@ export function AppLayout() {
               type="button"
               onClick={toggleTheme}
               title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors cursor-pointer"
+              className="h-8 w-8 sm:h-9 sm:w-9 p-1.5 sm:p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl flex items-center justify-center transition-colors cursor-pointer"
+              aria-label="Toggle dark/light theme"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
             </button>
@@ -593,7 +598,8 @@ export function AppLayout() {
             <div className="relative">
               <Button
                 onClick={() => setQuickActionOpen(!quickActionOpen)}
-                className="h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs px-2.5 sm:px-3.5 rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+                className="h-8 sm:h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs px-2 sm:px-3.5 rounded-xl shadow-xs flex items-center gap-1 sm:gap-1.5 cursor-pointer"
+                aria-label="Quick Action Menu"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Quick Action</span>
