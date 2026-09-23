@@ -11,13 +11,13 @@ export default defineConfig({
       '@': path.resolve(import.meta.dirname, './src'),
     },
   },
-  base: process.env.VITE_BASE_PATH || '/',
+  base: process.env.VITE_BASE_PATH || '/KUVENTORY/',
   build: {
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('jspdf') || id.includes('xlsx')) {
+            if (id.includes('jspdf') || id.includes('exceljs') || id.includes('jspdf-autotable')) {
               return 'vendor-export';
             }
             if (id.includes('recharts')) {

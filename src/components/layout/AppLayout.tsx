@@ -283,6 +283,7 @@ function SidebarNavigation({
               type="button"
               onClick={onOpenNewSheet}
               title="Daily Worksheet"
+              aria-label="Open Daily Worksheet"
               className="w-10 h-10 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
             >
               <PenSquare className="w-4 h-4" />
@@ -292,6 +293,7 @@ function SidebarNavigation({
                 type="button"
                 onClick={onOpenSearch}
                 title="Search & Commands (Ctrl+K)"
+                aria-label="Search and Commands"
                 className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center transition-colors cursor-pointer"
               >
                 <Search className="w-4 h-4" />
@@ -339,6 +341,7 @@ function SidebarNavigation({
               type="button"
               onClick={toggleTheme}
               title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              aria-label={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
               className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center transition-colors cursor-pointer"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
@@ -389,6 +392,7 @@ function SidebarNavigation({
                 type="button"
                 onClick={toggleTheme}
                 title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                aria-label={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
               >
                 {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
@@ -397,6 +401,7 @@ function SidebarNavigation({
                 type="button"
                 onClick={handleLogout}
                 title="Sign Out"
+                aria-label="Sign Out"
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />

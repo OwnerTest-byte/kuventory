@@ -68,7 +68,7 @@ export function StockHistoryPage({ embedded }: { embedded?: boolean } = {}) {
 
                   return (
                     <tr key={move.id} className="hover:bg-muted/40 transition-colors group">
-                      <td className="px-6 py-4 text-muted-foreground text-xs font-mono sticky left-0 z-10 bg-card group-hover:bg-muted/50 border-r border-border">
+                      <td className="px-6 py-4 text-muted-foreground text-xs font-mono sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border">
                         {format(new Date(move.created_at), 'MMM dd, yyyy h:mm a')}
                       </td>
                       <td className="px-6 py-4 font-bold text-foreground">

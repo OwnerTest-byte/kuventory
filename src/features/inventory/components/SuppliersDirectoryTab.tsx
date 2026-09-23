@@ -193,7 +193,7 @@ export const SuppliersDirectoryTab: React.FC = () => {
           <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
             <thead className="bg-muted/60 sticky top-0 z-20 border-b border-border shadow-xs">
               <tr>
-                <th className="px-4 py-3 font-bold text-foreground min-w-[200px] sticky left-0 z-30 bg-muted/95 border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                <th className="px-4 py-3 font-bold text-foreground min-w-[200px] sticky left-0 z-30 bg-muted border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                   Vendor Name
                 </th>
                 <th className="px-4 py-3 font-bold text-foreground min-w-[150px]">Primary Contact</th>
@@ -234,7 +234,7 @@ export const SuppliersDirectoryTab: React.FC = () => {
                       onClick={() => handleEditClick(s)}
                     >
                       {/* Sticky Vendor Name */}
-                      <td className="px-4 py-3 font-semibold text-foreground sticky left-0 z-10 bg-card group-hover:bg-muted/50 border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                      <td className="px-4 py-3 font-semibold text-foreground sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
                             {s.name.substring(0, 2).toUpperCase()}

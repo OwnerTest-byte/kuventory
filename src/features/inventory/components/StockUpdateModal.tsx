@@ -53,7 +53,7 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit }: S
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg p-0 overflow-hidden shadow-2xl border-border bg-card text-card-foreground">
+      <DialogContent className="sm:max-w-lg w-[95vw] max-h-[90vh] overflow-y-auto p-0 shadow-2xl border-border bg-card text-card-foreground">
         <DialogHeader className="p-5 bg-card border-b border-border text-card-foreground">
           <div className="flex items-center justify-between">
             <div>

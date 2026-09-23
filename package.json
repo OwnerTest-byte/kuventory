@@ -8,8 +8,14 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "typecheck": "tsc --noEmit",
-    "docker:health": "node scripts/docker-health.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "docker:health": "node ../scripts/docker-health.mjs",
     "preview": "vite preview"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

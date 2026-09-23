@@ -124,10 +124,10 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
   return (
     <>
       <TableRow className="hover:bg-muted/40 group border-b border-border/60 last:border-0 transition-colors">
-        <TableCell className="p-3 text-center text-xs font-medium text-muted-foreground sticky left-0 z-10 bg-card group-hover:bg-muted/60 border-r border-border">
+        <TableCell className="p-3 text-center text-xs font-medium text-muted-foreground sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border">
           {index + 1}
         </TableCell>
-        <TableCell className="p-3 align-middle sticky left-12 z-10 bg-card group-hover:bg-muted/60 border-r border-border min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+        <TableCell className="p-3 align-middle sticky left-12 z-10 bg-card group-hover:bg-muted border-r border-border min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
           <div className="font-bold text-foreground text-xs sm:text-sm">{item.items?.item_name}</div>
           <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
             <span className="font-medium">{item.items?.unit}</span>

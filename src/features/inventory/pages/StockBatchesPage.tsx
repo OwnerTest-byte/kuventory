@@ -234,7 +234,7 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
 
                   return (
                     <tr key={batch.id} className="hover:bg-muted/40 transition-colors group">
-                      <td className="px-6 py-4 font-mono text-xs font-bold text-foreground sticky left-0 z-10 bg-card group-hover:bg-muted/50 border-r border-border">
+                      <td className="px-6 py-4 font-mono text-xs font-bold text-foreground sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border">
                         {batch.batch_code}
                       </td>
                       <td className="px-6 py-4 text-xs font-bold text-foreground">

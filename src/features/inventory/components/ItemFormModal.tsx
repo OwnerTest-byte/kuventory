@@ -80,7 +80,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
       <div className="bg-card rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh] border border-border">
         <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/40 rounded-t-xl">
           <h2 className="text-xl font-bold text-foreground">{item ? 'Edit Item' : 'Add New Item'}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close dialog" className="text-muted-foreground hover:text-foreground cursor-pointer">
             <X className="w-5 h-5" />
           </Button>
         </div>

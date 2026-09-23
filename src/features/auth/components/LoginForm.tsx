@@ -9,9 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Eye, EyeOff, KeyRound, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
-const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+export const loginSchema = z.object({
+  email: z.string().min(1, 'invalid email address').email('invalid email address'),
+  password: z.string().min(6, 'password must be at least 6 characters long'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -46,7 +46,11 @@ export function LoginForm() {
     });
 
     if (error) {
-      setAuthError(error.message);
+      const isInvalidCreds = 
+        error.message.toLowerCase().includes('invalid') || 
+        error.message.toLowerCase().includes('credential') || 
+        error.message.toLowerCase().includes('user not found');
+      setAuthError(isInvalidCreds ? 'invalid credentials' : error.message);
       setIsLoading(false);
     }
   };
@@ -119,7 +123,8 @@ export function LoginForm() {
               />
               <button
                 type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded p-1 cursor-pointer"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}

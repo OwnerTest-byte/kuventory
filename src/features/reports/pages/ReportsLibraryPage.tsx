@@ -189,7 +189,7 @@ export function ReportsLibraryPage() {
               <Table className="border-collapse">
                 <TableHeader className="sticky top-0 z-20 bg-muted/60 backdrop-blur-xs border-b border-border shadow-xs">
                   <TableRow>
-                    <TableHead className="font-bold text-foreground sticky left-0 z-30 bg-muted/95 border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Inventory Date</TableHead>
+                    <TableHead className="font-bold text-foreground sticky left-0 z-30 bg-muted border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Inventory Date</TableHead>
                     <TableHead className="font-bold text-foreground">Status</TableHead>
                     <TableHead className="font-bold text-foreground">Finalized By</TableHead>
                     <TableHead className="font-bold text-foreground">Finalized At</TableHead>
@@ -210,7 +210,7 @@ export function ReportsLibraryPage() {
                   ) : (
                     reports.map(report => (
                       <TableRow key={report.id} className="hover:bg-muted/40 group">
-                        <TableCell className="font-semibold text-foreground sticky left-0 z-10 bg-card group-hover:bg-muted/50 border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                        <TableCell className="font-semibold text-foreground sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                           {format(new Date(report.inventory_date), 'MMMM dd, yyyy')}
                         </TableCell>
                         <TableCell>
@@ -308,7 +308,7 @@ export function ReportsLibraryPage() {
               <Table className="border-collapse">
                 <TableHeader className="sticky top-0 z-20 bg-muted/60 backdrop-blur-xs border-b border-border shadow-xs">
                   <TableRow>
-                    <TableHead className="font-bold text-foreground sticky left-0 z-30 bg-muted/95 border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item</TableHead>
+                    <TableHead className="font-bold text-foreground sticky left-0 z-30 bg-muted border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item</TableHead>
                     <TableHead className="font-bold text-foreground">Category</TableHead>
                     <TableHead className="text-center font-bold text-foreground">Unit</TableHead>
                     <TableHead className="text-right font-bold text-foreground">Unit Cost</TableHead>
@@ -333,7 +333,7 @@ export function ReportsLibraryPage() {
                       const isLow = !isOOS && item.current_qty <= item.min_qty;
                       return (
                         <TableRow key={item.id} className="hover:bg-muted/40 group">
-                          <TableCell className="sticky left-0 z-10 bg-card group-hover:bg-muted/50 border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                          <TableCell className="sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                           <div className="font-bold text-foreground">{item.item_name}</div>
                           <div className="text-xs text-muted-foreground font-mono">{item.item_code}</div>
                         </TableCell>
@@ -398,7 +398,7 @@ export function ReportsLibraryPage() {
               <Table className="border-collapse">
                 <TableHeader className="sticky top-0 z-20 bg-muted/60 backdrop-blur-xs border-b border-border shadow-xs">
                   <TableRow>
-                    <TableHead className="font-bold text-foreground sticky left-0 z-30 bg-muted/95 border-r border-border min-w-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Timestamp</TableHead>
+                    <TableHead className="font-bold text-foreground sticky left-0 z-30 bg-muted border-r border-border min-w-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Timestamp</TableHead>
                     <TableHead className="font-bold text-foreground">Item</TableHead>
                     <TableHead className="font-bold text-foreground text-center">Action</TableHead>
                     <TableHead className="text-center font-bold text-foreground">Qty Change</TableHead>
@@ -422,7 +422,7 @@ export function ReportsLibraryPage() {
                       const isRemove = m.action_type === 'REMOVE';
                       return (
                         <TableRow key={m.id} className="hover:bg-muted/40 text-xs group">
-                          <TableCell className="text-muted-foreground font-mono sticky left-0 z-10 bg-card group-hover:bg-muted/50 border-r border-border min-w-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                          <TableCell className="text-muted-foreground font-mono sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border min-w-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                             {format(new Date(m.created_at), 'MMM dd, yyyy h:mm a')}
                           </TableCell>
                           <TableCell className="font-bold text-foreground">
@@ -481,7 +481,7 @@ export function ReportsLibraryPage() {
               <Table className="border-collapse">
                 <TableHeader className="sticky top-0 z-20 bg-muted/60 backdrop-blur-xs border-b border-border shadow-xs">
                   <TableRow>
-                    <TableHead className="font-bold text-foreground sticky left-0 z-30 bg-muted/95 border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item Name</TableHead>
+                    <TableHead className="font-bold text-foreground sticky left-0 z-30 bg-muted border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item Name</TableHead>
                     <TableHead className="font-bold text-foreground">Category</TableHead>
                     <TableHead className="text-center font-bold text-foreground">Current Stock</TableHead>
                     <TableHead className="text-center font-bold text-foreground">Min Threshold</TableHead>
@@ -502,7 +502,7 @@ export function ReportsLibraryPage() {
                       const deficit = Math.max(0, item.min_qty - item.current_qty);
                       return (
                         <TableRow key={item.id} className="hover:bg-muted/40 group">
-                          <TableCell className="font-bold text-foreground sticky left-0 z-10 bg-card group-hover:bg-muted/50 border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                          <TableCell className="font-bold text-foreground sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                             <Link to={`/items/${item.id}`} className="hover:text-primary">
                               {item.item_name}
                             </Link>

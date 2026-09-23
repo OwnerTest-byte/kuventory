@@ -429,7 +429,7 @@ export function ItemsCatalogPage() {
 
                     return (
                       <tr key={item.id} className="hover:bg-muted/40 transition-colors group">
-                        <td className="px-5 py-3.5 sticky left-0 z-10 bg-card group-hover:bg-muted/60 border-r border-border min-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                        <td className="px-5 py-3.5 sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border min-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                           <Link 
                             to={`/items/${item.id}`} 
                             className="text-primary hover:underline font-bold text-xs sm:text-sm"
