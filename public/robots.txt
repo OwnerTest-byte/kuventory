@@ -1,0 +1,7 @@
+# KUVENTORY - Production robots.txt
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://kuventory.netlify.app/sitemap.xml

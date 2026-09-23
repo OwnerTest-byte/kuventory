@@ -13,14 +13,28 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'Desktop (Laptop 1280x800)',
+      name: 'Chrome / Edge (Desktop 1280x800)',
       use: {
         browserName: 'chromium',
         viewport: { width: 1280, height: 800 },
       },
     },
     {
-      name: 'Mobile Phone (iPhone 16 / Pixel 393x852)',
+      name: 'Firefox (Desktop 1280x800)',
+      use: {
+        browserName: 'firefox',
+        viewport: { width: 1280, height: 800 },
+      },
+    },
+    {
+      name: 'Safari / WebKit (Desktop 1280x800)',
+      use: {
+        browserName: 'webkit',
+        viewport: { width: 1280, height: 800 },
+      },
+    },
+    {
+      name: 'Mobile Phone (iPhone / Android 393x852)',
       use: {
         browserName: 'chromium',
         viewport: { width: 393, height: 852 },

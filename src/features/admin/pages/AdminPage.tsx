@@ -304,14 +304,26 @@ export function AdminPage() {
   const createUserMutation = useMutation({
     mutationFn: async (data: typeof newUser) => {
       setAddError(null);
+      const cleanEmail = data.email.trim().toLowerCase();
+      if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        throw new Error('Please enter a valid email address.');
+      }
+      if (!data.password || data.password.length < 6) {
+        throw new Error('Password must be at least 6 characters long.');
+      }
       const { error } = await supabase.rpc('admin_create_user', {
-        p_email: data.email,
+        p_email: cleanEmail,
         p_password: data.password,
-        p_first_name: data.displayName,
+        p_first_name: data.displayName.trim() || cleanEmail.split('@')[0],
         p_last_name: '',
         p_role: data.role,
       });
-      if (error) throw error;
+      if (error) {
+        if (error.message.toLowerCase().includes('already exists')) {
+          throw new Error('A user with this email address already exists.');
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles-admin'] });

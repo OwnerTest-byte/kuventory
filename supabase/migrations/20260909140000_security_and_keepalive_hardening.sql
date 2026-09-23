@@ -64,7 +64,7 @@ CREATE POLICY "Enable delete for admins" ON public.stock_batches FOR DELETE TO a
 DROP POLICY IF EXISTS "Enable update for authenticated users" ON public.daily_inventory;
 CREATE POLICY "Staff update unfinalized or own daily inventory" ON public.daily_inventory 
   FOR UPDATE TO authenticated 
-  USING (status = 'draft' OR created_by = auth.uid() OR public.is_admin());
+  USING (state = 'DRAFT' OR created_by = auth.uid() OR public.is_admin());
 
 -- ==============================================================================
 -- 4. PREVENT ROLE TAMPERING ON PROFILES TABLE (CHECKS 05, 34, 51)
