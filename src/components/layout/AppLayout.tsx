@@ -730,11 +730,11 @@ export function AppLayout() {
           </div>
           
           {/* Mobile Bottom Navigation Bar */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-card border-t border-border flex items-center justify-around px-2 z-40 shadow-lg">
+          <nav aria-label="Mobile Navigation" className="md:hidden fixed bottom-0 left-0 right-0 h-16 pb-[env(safe-area-inset-bottom,0px)] bg-card border-t border-border flex items-center justify-around px-2 z-40 shadow-lg">
             <Link 
               to="/inventory" 
               className={cn(
-                "flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors", 
+                "flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors min-h-[44px]", 
                 location.pathname === '/inventory' ? "text-primary font-bold" : "text-muted-foreground"
               )}
             >
@@ -744,7 +744,7 @@ export function AppLayout() {
             <Link 
               to="/daily-inventory" 
               className={cn(
-                "flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors", 
+                "flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors min-h-[44px]", 
                 location.pathname === '/daily-inventory' ? "text-primary font-bold" : "text-muted-foreground"
               )}
             >
@@ -754,7 +754,7 @@ export function AppLayout() {
             <Link 
               to="/items" 
               className={cn(
-                "flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors", 
+                "flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors min-h-[44px]", 
                 location.pathname === '/items' && (!currentTab || currentTab === 'catalog') ? "text-primary font-bold" : "text-muted-foreground"
               )}
             >
@@ -764,7 +764,7 @@ export function AppLayout() {
             <Link 
               to="/reports" 
               className={cn(
-                "flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors", 
+                "flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors min-h-[44px]", 
                 location.pathname.startsWith('/reports') ? "text-primary font-bold" : "text-muted-foreground"
               )}
             >
@@ -774,12 +774,13 @@ export function AppLayout() {
             <button 
               type="button" 
               onClick={() => setMobileMenuOpen(true)} 
-              className="flex flex-col items-center justify-center w-16 h-full gap-1 text-muted-foreground hover:text-foreground cursor-pointer"
+              className="flex flex-col items-center justify-center w-16 h-full gap-1 text-muted-foreground hover:text-foreground cursor-pointer min-h-[44px]"
+              aria-label="Open more menu options"
             >
               <Menu className="w-5 h-5" />
               <span className="text-[10px]">More</span>
             </button>
-          </div>
+          </nav>
         </main>
       </div>
 

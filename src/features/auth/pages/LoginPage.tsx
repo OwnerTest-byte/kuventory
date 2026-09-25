@@ -10,9 +10,9 @@ export function LoginPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
+      <main id="main-content" className="flex h-screen items-center justify-center bg-background">
+        <div className="text-muted-foreground font-medium">Loading...</div>
+      </main>
     );
   }
 
@@ -23,51 +23,90 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <main id="main-content" className="flex min-h-screen bg-background login-container safe-top safe-bottom">
       {/* Left Branding Panel (Hidden on mobile) */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-center items-center bg-slate-950 text-white p-12 relative overflow-hidden">
+      <aside aria-label="Brand Overview" className="hidden lg:flex lg:w-1/2 flex-col justify-center items-center bg-slate-950 text-white p-12 relative overflow-hidden">
         
         <div className="relative z-10 flex flex-col items-center gap-6">
-          <img src="/pics/logo-transparent.png" alt="KUVENTORY Logo" className="h-48 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          <img 
+            src="/pics/logo-transparent.png" 
+            alt="KUVENTORY Logo" 
+            width={240}
+            height={192}
+            className="h-48 w-auto object-contain" 
+            onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+          />
           <div className="text-center">
             <h1 className="text-3xl font-bold tracking-widest text-slate-100">KUVENTORY</h1>
-            <p className="text-lg text-slate-400 mt-2 font-light">Inventory Management System</p>
+            <p className="text-lg text-slate-300 mt-2 font-light">Inventory Management System</p>
           </div>
         </div>
 
-        <div className="absolute bottom-8 flex flex-col items-center gap-2 text-xs text-slate-500">
+        <footer aria-label="Site Information Desktop" className="absolute bottom-8 flex flex-col items-center gap-2 text-xs text-slate-300">
           <div>&copy; {new Date().getFullYear()} KUVENTORY. All rights reserved.</div>
-          <div className="flex items-center gap-4 text-slate-400">
-            <button onClick={() => setLegalType('privacy')} className="hover:text-white transition-colors underline-offset-4 hover:underline">Privacy Policy</button>
-            <span>•</span>
-            <button onClick={() => setLegalType('terms')} className="hover:text-white transition-colors underline-offset-4 hover:underline">Terms of Service</button>
-          </div>
-        </div>
-      </div>
+          <nav aria-label="Legal Desktop" className="flex items-center gap-4 text-slate-200">
+            <button 
+              type="button"
+              onClick={() => setLegalType('privacy')} 
+              className="hover:text-white transition-colors underline-offset-4 hover:underline min-h-[44px] px-2 py-2 flex items-center cursor-pointer"
+            >
+              Privacy Policy
+            </button>
+            <span aria-hidden="true">•</span>
+            <button 
+              type="button"
+              onClick={() => setLegalType('terms')} 
+              className="hover:text-white transition-colors underline-offset-4 hover:underline min-h-[44px] px-2 py-2 flex items-center cursor-pointer"
+            >
+              Terms of Service
+            </button>
+          </nav>
+        </footer>
+      </aside>
 
       {/* Right Login Panel */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 bg-background relative z-10 py-12">
-        {/* Mobile Logo */}
-        <div className="lg:hidden mb-8 flex flex-col items-center gap-2">
-          <img src="/pics/logo-icon.png" alt="Logo" className="h-16 w-auto" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-          <span className="font-bold text-2xl text-foreground tracking-tight">KUVENTORY</span>
+      <section aria-label="Authentication" className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 bg-background relative z-10 py-8 sm:py-12">
+        {/* Mobile Logo & Heading */}
+        <div className="lg:hidden mb-6 flex flex-col items-center gap-2">
+          <img 
+            src="/pics/logo-icon.png" 
+            alt="KUVENTORY Icon" 
+            width={64}
+            height={64}
+            className="h-16 w-auto object-contain" 
+            onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+          />
+          <h1 className="font-bold text-2xl text-foreground tracking-tight">KUVENTORY</h1>
+          <p className="text-sm text-muted-foreground font-medium">Inventory Management System</p>
         </div>
         
-        <div className="w-full max-w-md bg-card p-8 rounded-xl shadow-sm border border-border">
+        <div className="w-full max-w-md bg-card p-6 sm:p-8 rounded-xl shadow-sm border border-border">
           <LoginForm />
         </div>
 
-        <div className="lg:hidden mt-8 flex flex-col items-center gap-2 text-xs text-muted-foreground">
+        <footer aria-label="Site Information Mobile" className="lg:hidden mt-8 flex flex-col items-center gap-2 text-xs text-slate-600 dark:text-slate-300 font-medium">
           <div>&copy; {new Date().getFullYear()} KUVENTORY. All rights reserved.</div>
-          <div className="flex items-center gap-4">
-            <button onClick={() => setLegalType('privacy')} className="hover:text-foreground transition-colors underline-offset-4 hover:underline">Privacy Policy</button>
-            <span>•</span>
-            <button onClick={() => setLegalType('terms')} className="hover:text-foreground transition-colors underline-offset-4 hover:underline">Terms of Service</button>
-          </div>
-        </div>
-      </div>
+          <nav aria-label="Legal Mobile" className="flex items-center gap-4">
+            <button 
+              type="button"
+              onClick={() => setLegalType('privacy')} 
+              className="hover:text-foreground text-slate-700 dark:text-slate-200 transition-colors underline-offset-4 hover:underline min-h-[44px] px-2 py-2 flex items-center cursor-pointer"
+            >
+              Privacy Policy
+            </button>
+            <span aria-hidden="true">•</span>
+            <button 
+              type="button"
+              onClick={() => setLegalType('terms')} 
+              className="hover:text-foreground text-slate-700 dark:text-slate-200 transition-colors underline-offset-4 hover:underline min-h-[44px] px-2 py-2 flex items-center cursor-pointer"
+            >
+              Terms of Service
+            </button>
+          </nav>
+        </footer>
+      </section>
 
       <LegalModal type={legalType} onClose={() => setLegalType(null)} />
-    </div>
+    </main>
   );
 }

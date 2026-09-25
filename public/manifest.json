@@ -1,0 +1,25 @@
+{
+  "short_name": "KUVENTORY",
+  "name": "KUVENTORY - Inventory Management System",
+  "description": "Real-time inventory management and FEFO batch tracking for micro-SMEs and restaurants.",
+  "icons": [
+    {
+      "src": "/pics/logo-icon.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pics/logo-original.png",
+      "type": "image/png",
+      "sizes": "480x480",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#020817",
+  "theme_color": "#020817",
+  "display": "standalone",
+  "orientation": "any",
+  "scope": "/"
+}

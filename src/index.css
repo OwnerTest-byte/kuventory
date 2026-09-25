@@ -62,6 +62,12 @@
     
     --ring: 217 91% 60%;
     --radius: 0.5rem;
+
+    /* Safe Area Variables */
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
   }
 
   .dark {
@@ -109,6 +115,13 @@
     overscroll-behavior: none;
   }
 
+  /* Safe Fallback for CSS Smooth Scrolling (Safari < 15.4 compatibility) */
+  @supports (scroll-behavior: smooth) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
@@ -134,7 +147,14 @@
     box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring));
   }
 
-  /* Scrollbar Styling */
+  /* Standard & Webkit Scrollbar Styling (Cross-browser Firefox + Safari + Chrome) */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+  }
+  .dark * {
+    scrollbar-color: #334155 #0f172a;
+  }
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -149,6 +169,36 @@
   }
   ::-webkit-scrollbar-thumb:hover {
     background-color: #94a3b8;
+  }
+
+  /* Standard background-clip fallback for -webkit-background-clip */
+  .bg-clip-text {
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+}
+
+/* Safe Area Inset Support for iPhone Dynamic Island and notches */
+.safe-top {
+  padding-top: max(1.25rem, env(safe-area-inset-top, 0px));
+}
+
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Orientation Media Queries */
+@media (orientation: landscape) and (max-height: 520px) {
+  .login-container {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    overflow-y: auto !important;
+  }
+}
+
+@media (orientation: portrait) {
+  .login-container {
+    min-height: 100dvh;
   }
 }
 

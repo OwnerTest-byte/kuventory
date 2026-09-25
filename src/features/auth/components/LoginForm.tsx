@@ -83,24 +83,27 @@ export function LoginForm() {
         </p>
       </div>
       
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" aria-label="Sign In Form" noValidate>
         {authError && (
-          <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+          <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md" role="alert">
             {authError}
           </div>
         )}
 
         <div className="space-y-4">
           <div className="space-y-2 text-left">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-sm font-semibold">Email</Label>
             <Input
               id="email"
               type="email"
               placeholder="Enter your email"
               autoComplete="email"
+              aria-required="true"
               {...register('email')}
+              name="email"
+              required
               aria-invalid={!!errors.email}
-              className="h-11"
+              className="h-12 text-base"
             />
             {errors.email && (
               <p className="text-sm text-destructive" id="email-error">
@@ -110,24 +113,27 @@ export function LoginForm() {
           </div>
 
           <div className="space-y-2 text-left relative">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
+            <Label htmlFor="password" className="text-sm font-semibold">Password</Label>
+            <div className="relative flex items-center">
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
                 autoComplete="current-password"
+                aria-required="true"
                 {...register('password')}
+                name="password"
+                required
                 aria-invalid={!!errors.password}
-                className="h-11 pr-10"
+                className="h-12 text-base pr-12"
               />
               <button
                 type="button"
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded p-1 cursor-pointer"
+                className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md p-2 cursor-pointer"
                 onClick={() => setShowPassword(!showPassword)}
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
             {errors.password && (
@@ -138,10 +144,17 @@ export function LoginForm() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <div className="flex items-center space-x-2">
-            <input type="checkbox" id="remember" className="rounded border-input text-primary focus:ring-primary h-4 w-4" />
-            <label htmlFor="remember" className="font-medium cursor-pointer">Remember me</label>
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 gap-6">
+          <div className="flex items-center space-x-2 min-h-[44px]">
+            <input 
+              type="checkbox" 
+              id="remember" 
+              name="remember" 
+              className="rounded border-input text-primary focus:ring-primary h-5 w-5 cursor-pointer" 
+            />
+            <label htmlFor="remember" className="font-medium cursor-pointer select-none py-2 text-xs sm:text-sm">
+              Remember me
+            </label>
           </div>
           <button
             type="button"
@@ -151,7 +164,7 @@ export function LoginForm() {
               setForgotError(null);
               setIsForgotModalOpen(true);
             }}
-            className="text-primary hover:underline font-medium"
+            className="text-primary hover:underline font-medium min-h-[44px] px-2 py-2 flex items-center text-xs sm:text-sm cursor-pointer"
           >
             Forgot password?
           </button>
@@ -159,7 +172,7 @@ export function LoginForm() {
 
         <Button
           type="submit"
-          className="w-full h-11 text-base font-semibold"
+          className="w-full h-12 text-base font-semibold cursor-pointer"
           disabled={isLoading}
         >
           {isLoading ? "Signing in..." : "Sign In"}
@@ -179,49 +192,54 @@ export function LoginForm() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleForgotSubmit} className="space-y-4 py-2">
+          <form onSubmit={handleForgotSubmit} className="space-y-4 py-2" aria-label="Password Reset Form">
             {forgotError && (
-              <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md flex items-center gap-2">
+              <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md flex items-center gap-2" role="alert">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 {forgotError}
               </div>
             )}
             {forgotMessage && (
-              <div className="p-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md font-bold flex items-center gap-2">
+              <div className="p-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md font-bold flex items-center gap-2" role="status">
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
                 {forgotMessage}
               </div>
             )}
 
             <div className="space-y-2">
-              <Label className="text-xs font-bold">Your Email Address</Label>
+              <Label htmlFor="forgot-email" className="text-xs font-bold">Your Email Address</Label>
               <Input
+                id="forgot-email"
+                name="forgotEmail"
                 type="email"
                 value={forgotEmail}
                 onChange={e => setForgotEmail(e.target.value)}
                 placeholder="e.g. staff@kuventory.com"
                 required
+                aria-required="true"
+                className="h-11"
               />
             </div>
 
-            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold text-slate-800">Admin Hotline Assistance:</p>
-              <p>Email: <span className="font-mono text-slate-900">operations@kuventory.com</span></p>
-              <p>Warehouse Tel: <span className="font-mono text-slate-900">+63 (02) 8921-4567</span></p>
+            <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 space-y-1">
+              <p className="font-semibold text-slate-800 dark:text-slate-200">Admin Hotline Assistance:</p>
+              <p>Email: <span className="font-mono text-slate-900 dark:text-slate-100">operations@kuventory.com</span></p>
+              <p>Warehouse Tel: <span className="font-mono text-slate-900 dark:text-slate-100">+63 (02) 8921-4567</span></p>
             </div>
 
-            <DialogFooter className="pt-2">
+            <DialogFooter className="pt-2 gap-2 sm:gap-0">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsForgotModalOpen(false)}
+                className="min-h-[44px]"
               >
                 Close
               </Button>
               <Button
                 type="submit"
                 disabled={isSendingReset || !forgotEmail}
-                className="font-bold"
+                className="font-bold min-h-[44px]"
               >
                 {isSendingReset ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <KeyRound className="w-4 h-4 mr-2" />}
                 Send Reset Link

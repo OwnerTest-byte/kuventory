@@ -17,6 +17,12 @@ test.describe('KUVENTORY End-to-End QA Verification Suite', () => {
     await expect(passwordInput).toBeVisible();
     await expect(submitButton).toBeVisible();
 
+    // Verify required and name attributes (Form Quality Audit)
+    await expect(emailInput).toHaveAttribute('required', '');
+    await expect(emailInput).toHaveAttribute('name', 'email');
+    await expect(passwordInput).toHaveAttribute('required', '');
+    await expect(passwordInput).toHaveAttribute('name', 'password');
+
     // 3. Check Password Visibility Toggle has accessible aria-label
     const passwordToggle = page.locator('button[aria-label="Show password"]');
     await expect(passwordToggle).toBeVisible();
@@ -30,6 +36,36 @@ test.describe('KUVENTORY End-to-End QA Verification Suite', () => {
 
     await expect(emailError).toHaveText('invalid email address');
     await expect(passwordError).toHaveText('password must be at least 6 characters long');
+  });
+
+  test('Accessibility Landmarks & Headings: Semantic main, aside, section, and H1 heading exist', async ({ page }) => {
+    await page.goto('login');
+
+    // Verify main landmark
+    const mainLandmark = page.locator('main#main-content');
+    await expect(mainLandmark).toBeVisible();
+
+    // Verify visible H1 heading exists on current viewport
+    const h1Heading = page.locator('h1:visible');
+    await expect(h1Heading).toBeVisible();
+    await expect(h1Heading).toHaveText(/KUVENTORY/i);
+
+    // Verify semantic landmarks
+    await expect(page.locator('section[aria-label="Authentication"]')).toBeVisible();
+    await expect(page.locator('footer:visible')).toBeVisible();
+  });
+
+  test('PWA & SEO Metadata: Manifest, Apple Touch Icon, and Safe Area viewport are configured', async ({ page }) => {
+    await page.goto('login');
+
+    const manifestLink = page.locator('link[rel="manifest"]');
+    await expect(manifestLink).toHaveAttribute('href', '/manifest.json');
+
+    const appleTouchIcon = page.locator('link[rel="apple-touch-icon"]');
+    await expect(appleTouchIcon).toHaveAttribute('href', '/apple-touch-icon.png');
+
+    const viewportMeta = page.locator('meta[name="viewport"]');
+    await expect(viewportMeta).toHaveAttribute('content', /viewport-fit=cover/);
   });
 
   test('Accessibility & Controls: Password toggle switches input type and updates aria-label', async ({ page }) => {
@@ -97,13 +133,22 @@ test.describe('KUVENTORY End-to-End QA Verification Suite', () => {
     expect(isHorizontallyScrollable).toBeFalsy();
   });
 
-  test('Mobile Usability: Interactive touch targets meet minimum accessible height', async ({ page }) => {
+  test('Mobile Usability: Interactive touch targets meet minimum accessible 44-48px height', async ({ page }) => {
     await page.goto('login');
 
     const submitButton = page.locator('button[type="submit"]');
-    const box = await submitButton.boundingBox();
-    expect(box).not.toBeNull();
-    // Buttons should have comfortable touch height (>= 36px, preferably 40px+)
-    expect(box!.height).toBeGreaterThanOrEqual(36);
+    const submitBox = await submitButton.boundingBox();
+    expect(submitBox).not.toBeNull();
+    expect(submitBox!.height).toBeGreaterThanOrEqual(44);
+
+    const emailInput = page.locator('#email');
+    const emailBox = await emailInput.boundingBox();
+    expect(emailBox).not.toBeNull();
+    expect(emailBox!.height).toBeGreaterThanOrEqual(44);
+
+    const passwordInput = page.locator('#password');
+    const passwordBox = await passwordInput.boundingBox();
+    expect(passwordBox).not.toBeNull();
+    expect(passwordBox!.height).toBeGreaterThanOrEqual(44);
   });
 });
