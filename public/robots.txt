@@ -5,3 +5,4 @@ Disallow: /admin
 Disallow: /api/
 
 Sitemap: https://kuventory.netlify.app/sitemap.xml
+Sitemap: https://main--kuventory.netlify.app/sitemap-main.xml
