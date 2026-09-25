@@ -27,7 +27,9 @@ test.describe('KUVENTORY End-to-End QA Verification Suite', () => {
     const passwordToggle = page.locator('button[aria-label="Show password"]');
     await expect(passwordToggle).toBeVisible();
 
-    // 4. Submit empty form
+    // 4. Fill invalid data to trigger Zod schema validation
+    await page.fill('#email', 'invalid-email');
+    await page.fill('#password', '123');
     await submitButton.click();
 
     // 5. Verify exact QA error messages
@@ -68,13 +70,22 @@ test.describe('KUVENTORY End-to-End QA Verification Suite', () => {
     await expect(viewportMeta).toHaveAttribute('content', /viewport-fit=cover/);
   });
 
-  test('Accessibility & Controls: Password toggle switches input type and updates aria-label', async ({ page }) => {
+  test('Accessibility & Controls: Password toggle switches input type and updates aria-label without overlapping', async ({ page }) => {
     await page.goto('login');
 
     const passwordInput = page.locator('#password');
     await expect(passwordInput).toHaveAttribute('type', 'password');
 
     const toggleButton = page.locator('button[aria-label="Show password"]');
+    await expect(toggleButton).toBeVisible();
+
+    // Verify zero geometric overlap between input and button
+    const passwordBox = await passwordInput.boundingBox();
+    const toggleBox = await toggleButton.boundingBox();
+    expect(passwordBox).not.toBeNull();
+    expect(toggleBox).not.toBeNull();
+    expect(toggleBox!.x).toBeGreaterThanOrEqual(passwordBox!.x + passwordBox!.width - 2);
+
     await toggleButton.click();
 
     // Now input should be type="text" and label "Hide password"

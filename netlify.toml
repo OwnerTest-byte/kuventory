@@ -19,10 +19,11 @@
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
     Cross-Origin-Opener-Policy = "same-origin"
     Cross-Origin-Resource-Policy = "same-origin"
+    Cross-Origin-Embedder-Policy = "credentialless"
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization, apikey, x-client-info"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data: blob: https:; frame-ancestors 'none';"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data: blob: https:; frame-ancestors 'none';"
 
 # Cache optimization for hashed production assets
 [[headers]]

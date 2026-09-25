@@ -42,7 +42,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 14% 12%;
 
-    --primary: 217 91% 60%;          /* #1a73e8 Google Blue */
+    --primary: 217 88% 46%;          /* #155fce High-Contrast Blue (WCAG AA 5.8:1) */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 94%;        /* #f1f3f4 */
@@ -60,12 +60,12 @@
     --border: 218 17% 88%;           /* #dadce0 */
     --input: 218 17% 88%;            /* #dadce0 */
     
-    --ring: 217 91% 60%;
+    --ring: 217 88% 46%;
     --radius: 0.5rem;
 
     /* Safe Area Variables */
-    --sat: env(safe-area-inset-top, 0px);
-    --sab: env(safe-area-inset-bottom, 0px);
+    --sat: env(safe-area-inset-top, 60px);
+    --sab: env(safe-area-inset-bottom, 20px);
     --sal: env(safe-area-inset-left, 0px);
     --sar: env(safe-area-inset-right, 0px);
   }
@@ -81,7 +81,7 @@
     --popover: 225 10% 11%;          /* #18191d */
     --popover-foreground: 216 12% 95%;
 
-    --primary: 217 91% 60%;          /* #1a73e8 / #388bfd Google Blue */
+    --primary: 217 88% 48%;          /* #1a67dc High-Contrast Blue on dark (WCAG AA 5.2:1) */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 224 10% 16%;        /* #22242c */
@@ -180,11 +180,11 @@
 
 /* Safe Area Inset Support for iPhone Dynamic Island and notches */
 .safe-top {
-  padding-top: max(1.25rem, env(safe-area-inset-top, 0px));
+  padding-top: max(4rem, env(safe-area-inset-top, 60px));
 }
 
 .safe-bottom {
-  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 20px));
 }
 
 /* Orientation Media Queries */

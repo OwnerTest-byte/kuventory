@@ -10,7 +10,7 @@ export function LoginPage() {
 
   if (isLoading) {
     return (
-      <main id="main-content" className="flex h-screen items-center justify-center bg-background">
+      <main id="main-content" className="flex h-screen items-center justify-center bg-background safe-top safe-bottom">
         <div className="text-muted-foreground font-medium">Loading...</div>
       </main>
     );
@@ -44,11 +44,11 @@ export function LoginPage() {
 
         <footer aria-label="Site Information Desktop" className="absolute bottom-8 flex flex-col items-center gap-2 text-xs text-slate-300">
           <div>&copy; {new Date().getFullYear()} KUVENTORY. All rights reserved.</div>
-          <nav aria-label="Legal Desktop" className="flex items-center gap-4 text-slate-200">
+          <nav aria-label="Legal Desktop" className="flex items-center gap-6 text-slate-200">
             <button 
               type="button"
               onClick={() => setLegalType('privacy')} 
-              className="hover:text-white transition-colors underline-offset-4 hover:underline min-h-[44px] px-2 py-2 flex items-center cursor-pointer"
+              className="hover:text-white transition-colors underline-offset-4 hover:underline min-h-[48px] min-w-[48px] px-3 py-3 flex items-center cursor-pointer"
             >
               Privacy Policy
             </button>
@@ -56,7 +56,7 @@ export function LoginPage() {
             <button 
               type="button"
               onClick={() => setLegalType('terms')} 
-              className="hover:text-white transition-colors underline-offset-4 hover:underline min-h-[44px] px-2 py-2 flex items-center cursor-pointer"
+              className="hover:text-white transition-colors underline-offset-4 hover:underline min-h-[48px] min-w-[48px] px-3 py-3 flex items-center cursor-pointer"
             >
               Terms of Service
             </button>
@@ -65,7 +65,7 @@ export function LoginPage() {
       </aside>
 
       {/* Right Login Panel */}
-      <section aria-label="Authentication" className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 bg-background relative z-10 py-8 sm:py-12">
+      <section aria-label="Authentication" className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 bg-background relative z-10 pt-16 pb-8 sm:py-12">
         {/* Mobile Logo & Heading */}
         <div className="lg:hidden mb-6 flex flex-col items-center gap-2">
           <img 
@@ -86,11 +86,11 @@ export function LoginPage() {
 
         <footer aria-label="Site Information Mobile" className="lg:hidden mt-8 flex flex-col items-center gap-2 text-xs text-slate-600 dark:text-slate-300 font-medium">
           <div>&copy; {new Date().getFullYear()} KUVENTORY. All rights reserved.</div>
-          <nav aria-label="Legal Mobile" className="flex items-center gap-4">
+          <nav aria-label="Legal Mobile" className="flex items-center gap-6">
             <button 
               type="button"
               onClick={() => setLegalType('privacy')} 
-              className="hover:text-foreground text-slate-700 dark:text-slate-200 transition-colors underline-offset-4 hover:underline min-h-[44px] px-2 py-2 flex items-center cursor-pointer"
+              className="hover:text-foreground text-slate-700 dark:text-slate-200 transition-colors underline-offset-4 hover:underline min-h-[48px] min-w-[48px] px-3 py-3 flex items-center cursor-pointer"
             >
               Privacy Policy
             </button>
@@ -98,7 +98,7 @@ export function LoginPage() {
             <button 
               type="button"
               onClick={() => setLegalType('terms')} 
-              className="hover:text-foreground text-slate-700 dark:text-slate-200 transition-colors underline-offset-4 hover:underline min-h-[44px] px-2 py-2 flex items-center cursor-pointer"
+              className="hover:text-foreground text-slate-700 dark:text-slate-200 transition-colors underline-offset-4 hover:underline min-h-[48px] min-w-[48px] px-3 py-3 flex items-center cursor-pointer"
             >
               Terms of Service
             </button>

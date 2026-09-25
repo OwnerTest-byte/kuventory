@@ -83,7 +83,7 @@ export function LoginForm() {
         </p>
       </div>
       
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" aria-label="Sign In Form" noValidate>
+      <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-5" aria-label="Sign In Form">
         {authError && (
           <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md" role="alert">
             {authError}
@@ -92,7 +92,7 @@ export function LoginForm() {
 
         <div className="space-y-4">
           <div className="space-y-2 text-left">
-            <Label htmlFor="email" className="text-sm font-semibold">Email</Label>
+            <Label htmlFor="email" className="text-sm font-semibold inline-block py-1">Email</Label>
             <Input
               id="email"
               type="email"
@@ -103,7 +103,7 @@ export function LoginForm() {
               name="email"
               required
               aria-invalid={!!errors.email}
-              className="h-12 text-base"
+              className="h-12 min-h-[48px] text-base"
             />
             {errors.email && (
               <p className="text-sm text-destructive" id="email-error">
@@ -112,10 +112,10 @@ export function LoginForm() {
             )}
           </div>
 
-          <div className="space-y-2 text-left relative">
-            <Label htmlFor="password" className="text-sm font-semibold">Password</Label>
-            <div className="relative flex items-center">
-              <Input
+          <div className="space-y-2 text-left">
+            <Label htmlFor="password" className="text-sm font-semibold inline-block py-1">Password</Label>
+            <div className="flex items-center h-12 min-h-[48px] w-full rounded-md border border-input bg-card shadow-2xs focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+              <input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
@@ -125,12 +125,12 @@ export function LoginForm() {
                 name="password"
                 required
                 aria-invalid={!!errors.password}
-                className="h-12 text-base pr-12"
+                className="flex-1 h-full px-3 py-2 bg-transparent text-base text-foreground placeholder:text-muted-foreground focus:outline-none min-w-0"
               />
               <button
                 type="button"
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md p-2 cursor-pointer"
+                className="h-12 w-12 min-h-[48px] min-w-[48px] flex items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none rounded-r-md cursor-pointer shrink-0"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -144,15 +144,15 @@ export function LoginForm() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 gap-6">
-          <div className="flex items-center space-x-2 min-h-[44px]">
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 gap-8">
+          <div className="flex items-center space-x-2.5 min-h-[48px] py-1">
             <input 
               type="checkbox" 
               id="remember" 
               name="remember" 
-              className="rounded border-input text-primary focus:ring-primary h-5 w-5 cursor-pointer" 
+              className="rounded border-input text-primary focus:ring-primary h-5 w-5 min-h-[20px] min-w-[20px] cursor-pointer" 
             />
-            <label htmlFor="remember" className="font-medium cursor-pointer select-none py-2 text-xs sm:text-sm">
+            <label htmlFor="remember" className="font-medium cursor-pointer select-none py-3 text-sm min-h-[48px] flex items-center">
               Remember me
             </label>
           </div>
@@ -164,7 +164,7 @@ export function LoginForm() {
               setForgotError(null);
               setIsForgotModalOpen(true);
             }}
-            className="text-primary hover:underline font-medium min-h-[44px] px-2 py-2 flex items-center text-xs sm:text-sm cursor-pointer"
+            className="text-primary hover:underline font-semibold min-h-[48px] px-3 py-3 flex items-center text-sm cursor-pointer"
           >
             Forgot password?
           </button>
@@ -172,7 +172,7 @@ export function LoginForm() {
 
         <Button
           type="submit"
-          className="w-full h-12 text-base font-semibold cursor-pointer"
+          className="w-full h-12 min-h-[48px] text-base font-bold cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
           disabled={isLoading}
         >
           {isLoading ? "Signing in..." : "Sign In"}

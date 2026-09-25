@@ -71,6 +71,9 @@ export function AdminPage() {
   const [selfPasswordSuccess, setSelfPasswordSuccess] = useState<string | null>(null);
   const [selfPasswordError, setSelfPasswordError] = useState<string | null>(null);
   const [showSelfPass, setShowSelfPass] = useState(false);
+  const [showSelfConfirmPass, setShowSelfConfirmPass] = useState(false);
+  const [showNewUserPassword, setShowNewUserPassword] = useState(false);
+  const [showTargetNewPassword, setShowTargetNewPassword] = useState(false);
 
   // Admin Reset Password State for Staff
   const [resetPasswordTarget, setResetPasswordTarget] = useState<ProfileRow | null>(null);
@@ -483,8 +486,9 @@ export function AdminPage() {
                     />
                     <button
                       type="button"
+                      aria-label={showSelfPass ? "Hide password" : "Show password"}
                       onClick={() => setShowSelfPass(!showSelfPass)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer rounded"
                     >
                       {showSelfPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -493,14 +497,24 @@ export function AdminPage() {
 
                 <div className="space-y-1.5">
                   <Label className="text-xs font-bold text-foreground">Confirm New Password</Label>
-                  <Input 
-                    type={showSelfPass ? "text" : "password"}
-                    value={selfConfirmPassword}
-                    onChange={e => setSelfConfirmPassword(e.target.value)}
-                    placeholder="Re-type new password"
-                    required
-                    className="bg-card border-border"
-                  />
+                  <div className="relative flex items-center">
+                    <Input 
+                      type={showSelfConfirmPass ? "text" : "password"}
+                      value={selfConfirmPassword}
+                      onChange={e => setSelfConfirmPassword(e.target.value)}
+                      placeholder="Re-type new password"
+                      required
+                      className="pr-10 bg-card border-border h-11"
+                    />
+                    <button
+                      type="button"
+                      aria-label={showSelfConfirmPass ? "Hide password" : "Show password"}
+                      onClick={() => setShowSelfConfirmPass(!showSelfConfirmPass)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer rounded"
+                    >
+                      {showSelfConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1273,13 +1287,25 @@ export function AdminPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold">Password</Label>
-              <Input 
-                type="password"
-                placeholder="Minimum 6 characters"
-                value={newUser.password}
-                onChange={e => setNewUser({ ...newUser, password: e.target.value })}
-              />
+              <Label className="text-xs font-bold text-foreground">Password</Label>
+              <div className="relative flex items-center">
+                <Input 
+                  type={showNewUserPassword ? "text" : "password"}
+                  placeholder="Minimum 6 characters"
+                  value={newUser.password}
+                  onChange={e => setNewUser({ ...newUser, password: e.target.value })}
+                  className="pr-10 bg-card border-border text-foreground h-11"
+                  required
+                />
+                <button
+                  type="button"
+                  aria-label={showNewUserPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowNewUserPassword(!showNewUserPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer rounded"
+                >
+                  {showNewUserPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -1287,7 +1313,7 @@ export function AdminPage() {
               <select 
                 value={newUser.role}
                 onChange={e => setNewUser({ ...newUser, role: e.target.value })}
-                className="w-full h-10 px-3 py-2 bg-card border border-border text-foreground rounded-md text-sm font-semibold outline-none"
+                className="w-full h-11 px-3 py-2 bg-card border border-border text-foreground rounded-md text-sm font-semibold outline-none"
               >
                 <option value="USER">Staff / Operator (Worksheet entry)</option>
                 <option value="ADMIN">System Administrator (Full access)</option>
@@ -1295,14 +1321,21 @@ export function AdminPage() {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddUserOpen(false)} disabled={createUserMutation.isPending} className="border-border">
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button 
+              type="button"
+              variant="outline" 
+              onClick={() => setIsAddUserOpen(false)} 
+              disabled={createUserMutation.isPending} 
+              className="border-border min-h-[44px] h-11 px-4 cursor-pointer"
+            >
               Cancel
             </Button>
             <Button 
+              type="button"
               onClick={() => createUserMutation.mutate(newUser)} 
               disabled={!newUser.email || !newUser.password || createUserMutation.isPending}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold min-h-[44px] h-11 px-5 cursor-pointer shadow-xs disabled:opacity-60"
             >
               {createUserMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : 'Create Account'}
             </Button>
@@ -1348,19 +1381,29 @@ export function AdminPage() {
                     for (let i = 0; i < 10; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
                     setTargetNewPassword(pass);
                   }}
-                  className="text-[11px] font-semibold text-primary hover:underline"
+                  className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
                 >
                   Generate Random
                 </button>
               </div>
-              <Input
-                type="text"
-                value={targetNewPassword}
-                onChange={(e) => setTargetNewPassword(e.target.value)}
-                placeholder="Enter at least 6 characters..."
-                className="font-mono text-sm bg-card border-border text-foreground"
-                required
-              />
+              <div className="relative flex items-center">
+                <Input
+                  type={showTargetNewPassword ? "text" : "password"}
+                  value={targetNewPassword}
+                  onChange={(e) => setTargetNewPassword(e.target.value)}
+                  placeholder="Enter at least 6 characters..."
+                  className="font-mono text-sm bg-card border-border text-foreground pr-10 h-11"
+                  required
+                />
+                <button
+                  type="button"
+                  aria-label={showTargetNewPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowTargetNewPassword(!showTargetNewPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer rounded"
+                >
+                  {showTargetNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <DialogFooter className="pt-2">
