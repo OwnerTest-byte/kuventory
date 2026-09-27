@@ -94,10 +94,8 @@ export function useReport(reportId: string | undefined) {
       }
 
       const mappedEntries = (data.daily_inventory_items || []).map((entry: any) => {
-        const catName = (entry.inventory_items?.categories?.name || '').toUpperCase();
-        let section: 'GRILLED STOCK' | 'PORTION STOCK' | 'PER CASES' = 'PORTION STOCK';
-        if (catName.includes('GRILL')) section = 'GRILLED STOCK';
-        else if (catName.includes('CASE')) section = 'PER CASES';
+        const catName = entry.inventory_items?.categories?.name || 'General';
+        const section = catName.toUpperCase();
 
         return {
           id: entry.id,

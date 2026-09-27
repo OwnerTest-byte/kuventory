@@ -114,8 +114,8 @@ export function LoginForm() {
 
           <div className="space-y-2 text-left">
             <Label htmlFor="password" className="text-sm font-semibold inline-block py-1">Password</Label>
-            <div className="flex items-center h-12 min-h-[48px] w-full rounded-md border border-input bg-card shadow-2xs focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-              <input
+            <div className="relative flex items-center">
+              <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
@@ -125,12 +125,12 @@ export function LoginForm() {
                 name="password"
                 required
                 aria-invalid={!!errors.password}
-                className="flex-1 h-full px-3 py-2 bg-transparent text-base text-foreground placeholder:text-muted-foreground focus:outline-none min-w-0"
+                className="h-12 min-h-[48px] pr-12 text-base bg-card text-foreground"
               />
               <button
                 type="button"
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="h-12 w-12 min-h-[48px] min-w-[48px] flex items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none rounded-r-md cursor-pointer shrink-0"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10 min-h-[40px] min-w-[40px] flex items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none rounded-md cursor-pointer shrink-0"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}

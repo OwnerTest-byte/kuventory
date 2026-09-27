@@ -68,13 +68,15 @@ export type DailyInventoryEntry = {
   item_id: string;
   item_name?: string;
   unit?: string;
-  section: 'GRILLED STOCK' | 'PORTION STOCK' | 'PER CASES' | string;
+  section: string;
   beginning_qty: number;
   add_qty: number;
   total_stock: number;
   sales_am: number;
   sales_pm: number;
   ending_qty: number;
+  category_id?: string | null;
+  category_name?: string;
 };export type AppNotification = {
   id: string;
   title: string;

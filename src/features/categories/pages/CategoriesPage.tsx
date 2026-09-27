@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Plus, Edit2, Trash2, Loader2, Tags, AlertCircle } from 'lucide-react';
 import type { Database } from '@/types/supabase';
 
@@ -27,11 +28,13 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
 
   const addMutation = useMutation({
     mutationFn: async (name: string) => {
-      const { error } = await supabase.from('categories').insert({ name });
+      const { error } = await supabase.from('categories').insert({ name: name.trim().toUpperCase() });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
       setIsAdding(false);
       setNewCatName('');
     }
@@ -39,11 +42,13 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, name }: { id: string, name: string }) => {
-      const { error } = await supabase.from('categories').update({ name }).eq('id', id);
+      const { error } = await supabase.from('categories').update({ name: name.trim().toUpperCase() }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
       setEditingId(null);
     }
   });
@@ -65,6 +70,8 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
       setDeletingId(null);
       setDeleteError(null);
     },
@@ -121,19 +128,21 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
       <div className="bg-card rounded-xl shadow-xs border border-border overflow-hidden">
         {isAdding && (
           <div className="p-4 border-b border-border bg-muted/40">
-            <form onSubmit={handleAdd} className="flex items-center gap-3">
-              <input
+            <form onSubmit={handleAdd} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
+              <Input
                 autoFocus
                 type="text"
-                placeholder="Category Name (e.g. PORTION STOCK)"
+                placeholder="Station / Category Name (e.g. BEVERAGES, PORTION STOCK, DESSERTS)"
                 value={newCatName}
                 onChange={e => setNewCatName(e.target.value)}
-                className="flex-1 border border-border bg-card text-foreground rounded shadow-xs px-3 py-2 text-sm focus:ring-1 focus:ring-primary outline-none"
+                className="flex-1 bg-card text-foreground h-10 border-border text-sm"
               />
-              <Button type="submit" disabled={!newCatName.trim() || addMutation.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
-                {addMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => setIsAdding(false)}>Cancel</Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button type="submit" disabled={!newCatName.trim() || addMutation.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-10 px-4">
+                  {addMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Station'}
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setIsAdding(false)} className="h-10 px-3">Cancel</Button>
+              </div>
             </form>
           </div>
         )}
@@ -159,18 +168,20 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
             categories?.map(cat => (
               <div key={cat.id} className="p-4 flex items-center justify-between hover:bg-muted/40 transition-colors">
                 {editingId === cat.id ? (
-                  <form onSubmit={(e) => handleEditSave(e, cat.id)} className="flex items-center gap-3 w-full">
-                    <input
+                  <form onSubmit={(e) => handleEditSave(e, cat.id)} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full">
+                    <Input
                       autoFocus
                       type="text"
                       value={editName}
                       onChange={e => setEditName(e.target.value)}
-                      className="flex-1 border border-border bg-card text-foreground rounded shadow-xs px-3 py-2 text-sm focus:ring-1 focus:ring-primary outline-none"
+                      className="flex-1 bg-card text-foreground h-10 border-border text-sm"
                     />
-                    <Button type="submit" disabled={!editName.trim() || updateMutation.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
-                      {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
-                    </Button>
-                    <Button type="button" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button type="submit" disabled={!editName.trim() || updateMutation.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-10 px-4">
+                        {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
+                      </Button>
+                      <Button type="button" variant="ghost" onClick={() => setEditingId(null)} className="h-10 px-3">Cancel</Button>
+                    </div>
                   </form>
                 ) : (
                   <>

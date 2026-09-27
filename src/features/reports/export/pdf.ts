@@ -44,15 +44,15 @@ export function exportToPdf(report: Report): void {
   
   const items = report.report_items || [];
   
-  const grilledItems = items.filter(item => 
-    item.category_name?.toUpperCase().includes('GRILL')
-  );
-  const perCaseItems = items.filter(item => 
-    item.unit?.toUpperCase().includes('CASE') || item.category_name?.toUpperCase().includes('CASE')
-  );
-  const portionItems = items.filter(item => 
-    !grilledItems.includes(item) && !perCaseItems.includes(item)
-  );
+  // Group items dynamically by category
+  const categoriesMap: Record<string, ReportItem[]> = {};
+  items.forEach(item => {
+    const cat = (item.category_name || 'GENERAL').toUpperCase();
+    if (!categoriesMap[cat]) categoriesMap[cat] = [];
+    categoriesMap[cat].push(item);
+  });
+
+  const sortedCategories = Object.keys(categoriesMap).sort();
 
   let finalY = 70;
 
@@ -76,16 +76,24 @@ export function exportToPdf(report: Report): void {
     item.ending
   ]);
 
-  // 1. GRILLED STOCK
-  if (grilledItems.length > 0) {
+  sortedCategories.forEach(catName => {
+    const catItems = categoriesMap[catName];
+    if (!catItems || catItems.length === 0) return;
+
+    // Check if new page is needed before section title
+    if (finalY > doc.internal.pageSize.getHeight() - 40) {
+      doc.addPage();
+      finalY = 20;
+    }
+
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('GRILLED STOCK', 14, finalY);
+    doc.text(catName, 14, finalY);
     
     autoTable(doc, {
       startY: finalY + 5,
       head: [tableColumn],
-      body: createTableBody(grilledItems),
+      body: createTableBody(catItems),
       theme: 'grid',
       headStyles: { fillColor: [40, 40, 40], textColor: 255 },
       styles: { fontSize: 9 },
@@ -101,59 +109,7 @@ export function exportToPdf(report: Report): void {
     });
     
     finalY = (doc as any).lastAutoTable.finalY + 15;
-  }
-
-  // 2. PORTION STOCK
-  if (portionItems.length > 0) {
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('PORTION STOCK', 14, finalY);
-    
-    autoTable(doc, {
-      startY: finalY + 5,
-      head: [tableColumn],
-      body: createTableBody(portionItems),
-      theme: 'grid',
-      headStyles: { fillColor: [40, 40, 40], textColor: 255 },
-      styles: { fontSize: 9 },
-      columnStyles: {
-        0: { cellWidth: 'auto' },
-        1: { halign: 'right', cellWidth: 15 },
-        2: { halign: 'right', cellWidth: 15 },
-        3: { halign: 'right', cellWidth: 15, fontStyle: 'bold' },
-        4: { halign: 'right', cellWidth: 15 },
-        5: { halign: 'right', cellWidth: 15 },
-        6: { halign: 'right', cellWidth: 15, fontStyle: 'bold' }
-      }
-    });
-    
-    finalY = (doc as any).lastAutoTable.finalY + 15;
-  }
-
-  // 3. PER CASES
-  if (perCaseItems.length > 0) {
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('PER CASES', 14, finalY);
-    
-    autoTable(doc, {
-      startY: finalY + 5,
-      head: [tableColumn],
-      body: createTableBody(perCaseItems),
-      theme: 'grid',
-      headStyles: { fillColor: [40, 40, 40], textColor: 255 },
-      styles: { fontSize: 9 },
-      columnStyles: {
-        0: { cellWidth: 'auto' },
-        1: { halign: 'right', cellWidth: 15 },
-        2: { halign: 'right', cellWidth: 15 },
-        3: { halign: 'right', cellWidth: 15, fontStyle: 'bold' },
-        4: { halign: 'right', cellWidth: 15 },
-        5: { halign: 'right', cellWidth: 15 },
-        6: { halign: 'right', cellWidth: 15, fontStyle: 'bold' }
-      }
-    });
-  }
+  });
 
   // Footer
   const pageCount = (doc as any).internal.getNumberOfPages();

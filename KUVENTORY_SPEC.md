@@ -31,7 +31,7 @@ KUVENTORY is a practical inventory management system designed to digitize daily 
 - Create, Read, Update, Archive (CRUA) for Inventory Items and Categories.
 - Stock additions, deductions, and physical count adjustments via Atomic Transactions.
 - First Expire, First Out (FEFO) logic to automatically prioritize stock consumption.
-- A "Daily Inventory" module matching a physical paper worksheet logic (Portion Stock / Per Cases, AM/PM Out).
+- A "Daily Inventory" module matching a physical paper worksheet logic with dynamic category-driven stations/tables (e.g., Grilled Stock, Portion Stock, Per Cases, Beverages, Snacks, or custom user-defined stations), tracking AM/PM Out and stock reconciliations.
 - An automated immutable snapshot system for Daily Reports.
 - Role-based access (Admin vs User) enforced via Database RLS.
 - PDF/XLSX/CSV report generation and previews.

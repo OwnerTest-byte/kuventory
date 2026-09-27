@@ -16,10 +16,7 @@ export async function getInventory(): Promise<InventoryItem[]> {
   }
   
   return (data || []).map((row: any) => {
-    const cat = (row.category_name || '').toUpperCase();
-    let section: 'GRILLED STOCK' | 'PORTION STOCK' | 'PER CASES' = 'PORTION STOCK';
-    if (cat.includes('GRILL')) section = 'GRILLED STOCK';
-    else if (cat.includes('CASE')) section = 'PER CASES';
+    const section = row.category_name || 'General';
 
     return {
       id: row.id,
@@ -62,10 +59,7 @@ export async function getItemById(id: string): Promise<InventoryItem> {
     throw error;
   }
 
-  const cat = (data.category_name || '').toUpperCase();
-  let section: 'GRILLED STOCK' | 'PORTION STOCK' | 'PER CASES' = 'PORTION STOCK';
-  if (cat.includes('GRILL')) section = 'GRILLED STOCK';
-  else if (cat.includes('CASE')) section = 'PER CASES';
+  const section = data.category_name || 'General';
 
   return {
     id: data.id,

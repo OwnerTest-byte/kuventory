@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useReport } from '../api/reports';
 import { Download, FileSpreadsheet, FileText, ArrowLeft, Loader2, Printer } from 'lucide-react';
@@ -16,17 +16,21 @@ export function ReportViewPage() {
   const [isExportingXlsx, setIsExportingXlsx] = useState(false);
   const [isExportingCsv, setIsExportingCsv] = useState(false);
 
+  // Dynamically group items by category/section
+  const items = useMemo(() => report?.daily_inventory_entries || [], [report?.daily_inventory_entries]);
+  
+  const categorizedGroups = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    items.forEach((item: any) => {
+      const sec = (item.section || item.items?.categories?.name || 'GENERAL').toUpperCase();
+      if (!groups[sec]) groups[sec] = [];
+      groups[sec].push(item);
+    });
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [items]);
+
   if (isLoading) return <div className="p-8 flex items-center"><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Loading report...</div>;
   if (error || !report) return <div className="p-8 text-red-500">Failed to load report.</div>;
-
-  const items = report.daily_inventory_entries || [];
-  
-  // Categorize items
-  const grilledItems = items.filter((item: any) => (item.section || '').toUpperCase().includes('GRILL'));
-  const perCaseItems = items.filter((item: any) => (item.section || '').toUpperCase().includes('CASE'));
-  const portionItems = items.filter((item: any) => 
-    !grilledItems.includes(item) && !perCaseItems.includes(item)
-  );
 
   const handlePrint = () => {
     window.print();
@@ -167,9 +171,11 @@ export function ReportViewPage() {
           </div>
         </div>
 
-        {renderPrintableTable(grilledItems, 'GRILLED STOCK')}
-        {renderPrintableTable(portionItems, 'PORTION STOCK')}
-        {renderPrintableTable(perCaseItems, 'PER CASES')}
+        {categorizedGroups.map(([groupName, groupItems]) => (
+          <div key={groupName}>
+            {renderPrintableTable(groupItems, groupName)}
+          </div>
+        ))}
 
         <div className="mt-12 pt-8 border-t border-border print:border-slate-300 grid grid-cols-2 gap-8 text-sm">
           <div>

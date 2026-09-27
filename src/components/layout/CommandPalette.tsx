@@ -15,7 +15,8 @@ import {
   ArrowRight, 
   Plus,
   Store,
-  Info
+  Info,
+  X
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getInventory } from '@/features/inventory/api';
@@ -90,21 +91,32 @@ export function CommandPalette({ isOpen, onClose, onOpenNewItem }: CommandPalett
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-xl p-0 overflow-hidden border border-border bg-card shadow-2xl rounded-xl text-foreground">
+      <DialogContent 
+        showCloseButton={false} 
+        className="sm:max-w-xl p-0 overflow-hidden border border-border bg-card shadow-2xl rounded-xl text-foreground"
+      >
         {/* Search Input Bar */}
-        <div className="flex items-center px-4 py-3.5 border-b border-border bg-card">
-          <Search className="w-5 h-5 text-muted-foreground shrink-0 mr-3" />
+        <div className="flex items-center px-4 py-3.5 border-b border-border bg-card gap-2">
+          <Search className="w-5 h-5 text-muted-foreground shrink-0" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Type a command, page, or search items..."
-            className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+            className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none border-0 shadow-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
             autoFocus
           />
-          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono font-semibold text-muted-foreground bg-muted border border-border rounded">
+          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono font-semibold text-muted-foreground bg-muted border border-border rounded shrink-0">
             ESC
           </kbd>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="sm:hidden p-1 text-muted-foreground hover:text-foreground rounded cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Results List */}

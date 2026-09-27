@@ -9,16 +9,17 @@ import { useSuppliers } from '../api/suppliers';
 
 interface Props {
   item?: InventoryItem; // If undefined, it's a create action
+  defaultCategoryId?: string;
   onClose: () => void;
   onSubmit: (data: Omit<InventoryItem, 'id' | 'is_archived' | 'created_at' | 'updated_at' | 'current_qty'>, initialQty?: number) => Promise<void>;
   isSubmitting: boolean;
 }
 
-export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) {
+export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSubmitting }: Props) {
   const [formData, setFormData] = useState({
     item_code: item?.item_code || '',
     item_name: item?.item_name || '',
-    category_id: item?.category_id || '',
+    category_id: item?.category_id || defaultCategoryId || '',
     description: item?.description || '',
     inventory_type: item?.inventory_type || 'PORTION STOCK',
     supplier_a: item?.supplier_a || '',
@@ -43,7 +44,7 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
   const { data: registeredSuppliers } = useSuppliers();
 
   // Derive effective category ID directly to avoid unnecessary state renders
-  const effectiveCategoryId = formData.category_id || categories?.[0]?.id || '';
+  const effectiveCategoryId = formData.category_id || defaultCategoryId || categories?.[0]?.id || '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,20 +56,22 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
       return;
     }
 
+    const selectedCategoryName = categories?.find(c => c.id === categoryIdToUse)?.name || 'General';
+
     try {
       await onSubmit({
         item_code: formData.item_code,
         item_name: formData.item_name,
         category_id: categoryIdToUse,
         description: formData.description,
-        inventory_type: formData.inventory_type as any,
+        inventory_type: selectedCategoryName as any,
         supplier_a: formData.supplier_a,
         supplier_b: formData.supplier_b,
         unit: formData.unit,
         unit_cost: parseFloat(formData.unit_cost) || 0,
         min_qty: parseInt(formData.min_qty, 10) || 0,
         image_path: formData.image_path || null,
-        category_name: categories?.find(c => c.id === categoryIdToUse)?.name
+        category_name: selectedCategoryName
       }, !item ? parseFloat(formData.initial_qty) || 0 : undefined);
     } catch (err: any) {
       setError(err.message || 'Failed to save item');
@@ -115,32 +118,21 @@ export function ItemFormModal({ item, onClose, onSubmit, isSubmitting }: Props) 
                 />
               </div>
               
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground">Category *</label>
+              <div className="space-y-2 md:col-span-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-foreground">Category / Station *</label>
+                  <span className="text-[11px] text-muted-foreground">Assigns item to station table in Daily Inventory</span>
+                </div>
                 <select
                   value={formData.category_id || effectiveCategoryId}
                   onChange={e => setFormData({ ...formData, category_id: e.target.value })}
                   className="w-full h-10 px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   required
                 >
-                  <option value="" disabled>Select a category</option>
+                  <option value="" disabled>Select a category / station</option>
                   {categories?.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground">Inventory Section *</label>
-                <select
-                  value={formData.inventory_type}
-                  onChange={e => setFormData({ ...formData, inventory_type: e.target.value as any })}
-                  className="w-full h-10 px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  required
-                >
-                  <option value="GRILLED STOCK">GRILLED STOCK</option>
-                  <option value="PORTION STOCK">PORTION STOCK</option>
-                  <option value="PER CASES">PER CASES</option>
                 </select>
               </div>
 

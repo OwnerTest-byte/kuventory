@@ -5,6 +5,23 @@ All notable changes to KUVENTORY will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-RC3] - 2026-09-27
+
+### Added
+
+- **Dynamic Station & Category Unification**: Stations in the Daily Inventory Worksheet (`/daily-inventory`) and Reports are now fully dynamic and driven by `categories`. Any category created via the Categories management page or directly via the worksheet generates its own station pill, dedicated table, and quick item actions.
+- **Direct "+ Add Station / Table" Action**: Added a modal action directly within the Daily Inventory Worksheet enabling operators to define new station tables instantly without leaving the worksheet.
+- **Station-Specific Item Addition**: Added "+ Add Item" per station table header and empty-state "+ Add First Item" prompts with automatic category pre-selection.
+- **Unit Test Suite**: Added comprehensive Vitest tests (`src/features/daily-inventory/__tests__/stationGrouping.test.ts`) testing dynamic station groupings, multi-category calculations, and grand total aggregations.
+
+### Fixed
+
+- **Global Focus Rings & Highlight Outlines**: Replaced aggressive global `:focus-visible` dual box-shadow rings with clean, standard outline rules and explicit `.outline-none:focus-visible` resets to eliminate double blue borders.
+- **Password Input Border Glitch**: Refactored `LoginForm` password input into a unified single `<Input>` element with overlaid toggle button, removing inner border clips and split focus outlines.
+- **Command Palette Overlap**: Removed redundant close 'X' button conflicting with the 'ESC' badge on desktop screens, improved mobile drawer layout, and polished focus states.
+- **Cross-Device Responsiveness**: Optimized table sticky column offsets (`left-10 sm:left-12`), horizontal scrolling containers, flexible buttons, and touch accessibility across mobile phones, tablets, laptops, and ultra-wide desktops.
+- **Reports & PDF Export Parity**: Updated report data grouping and PDF exporter to dynamically iterate through all available categories instead of restricting to 3 legacy sections.
+
 ## [1.0.0-RC2] - 2026-09-03
 
 ### Changed

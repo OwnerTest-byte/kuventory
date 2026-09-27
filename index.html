@@ -2,26 +2,39 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo-icon.png" />
+    <!-- Standard, Search Engine & Multi-Size Favicons -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/logo-icon.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="KUVENTORY - Enterprise-grade, real-time inventory management and FEFO batch tracking system for micro-SMEs and restaurants." />
     <meta name="theme-color" content="#020817" />
+    <meta name="application-name" content="KUVENTORY" />
+    <meta name="apple-mobile-web-app-title" content="KUVENTORY" />
     <meta name="google-site-verification" content="EVPkQ1nnFhkSLZo5g-4GbsH_rzrkTcObtNSIgdN_0zU" />
     <link rel="canonical" href="https://kuventory.netlify.app/" />
 
     <!-- PWA Manifest & iOS Meta Tags -->
     <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="KUVENTORY" />
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="KUVENTORY" />
     <meta property="og:url" content="https://kuventory.netlify.app/" />
     <meta property="og:title" content="KUVENTORY - Small Business Inventory Management System" />
     <meta property="og:description" content="Track stock batches, FEFO expirations, daily inventory shifts, and audit logs with enterprise precision." />
     <meta property="og:image" content="https://kuventory.netlify.app/pics/logo-transparent.png" />
+    <meta property="og:image:width" content="480" />
+    <meta property="og:image:height" content="349" />
+    <meta property="og:image:alt" content="KUVENTORY Brand Logo" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
@@ -34,20 +47,35 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <title>KUVENTORY - Small Business Inventory Management</title>
 
-    <!-- Schema.org JSON-LD Structured Data -->
+    <!-- Schema.org JSON-LD Structured Data with WebSite identity & Application details -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "KUVENTORY",
-      "operatingSystem": "All Web Platforms, Mobile, Tablet, Desktop",
-      "applicationCategory": "BusinessApplication",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "PHP"
-      },
-      "description": "Enterprise-grade inventory management and FEFO batch expiration tracking designed for micro-SMEs and dining bistros."
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://kuventory.netlify.app/#website",
+          "url": "https://kuventory.netlify.app/",
+          "name": "KUVENTORY",
+          "alternateName": ["Kuventory", "KUVENTORY Bistro Inventory"],
+          "description": "Enterprise-grade, real-time inventory management and FEFO batch tracking system for micro-SMEs and restaurants.",
+          "inLanguage": "en"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://kuventory.netlify.app/#software",
+          "name": "KUVENTORY",
+          "operatingSystem": "All Web Platforms, Mobile, Tablet, Desktop",
+          "applicationCategory": "BusinessApplication",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "PHP"
+          },
+          "image": "https://kuventory.netlify.app/pics/logo-transparent.png",
+          "description": "Enterprise-grade inventory management and FEFO batch expiration tracking designed for micro-SMEs and dining bistros."
+        }
+      ]
     }
     </script>
   </head>

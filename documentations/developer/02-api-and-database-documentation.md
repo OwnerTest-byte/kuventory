@@ -9,8 +9,8 @@ Master catalog table containing all inventory items.
 | `id` | `UUID` | `PRIMARY KEY DEFAULT gen_random_uuid()` | Unique item identifier |
 | `item_code` | `TEXT` | `UNIQUE NOT NULL` | Stock Keeping Unit (e.g., `SKU-001`) |
 | `item_name` | `TEXT` | `NOT NULL` | Display name (e.g., `Chicken Breast`) |
-| `category_id` | `UUID` | `REFERENCES categories(id)` | Category classification |
-| `inventory_type` | `TEXT` | `NOT NULL` | Section: `GRILLED STOCK`, `PORTION STOCK`, `PER CASES` |
+| `category_id` | `UUID` | `REFERENCES categories(id)` | Category classification & Daily Worksheet Station grouping |
+| `inventory_type` | `TEXT` | `NULL` | Station / section mapping derived dynamically from `categories.name` |
 | `unit` | `TEXT` | `NOT NULL DEFAULT 'pcs'` | Unit of measure (`kg`, `pcs`, `pack`, `box`) |
 | `unit_cost` | `NUMERIC(10,2)` | `DEFAULT 0.00` | Purchase cost per unit in PHP |
 | `min_qty` | `NUMERIC(10,2)` | `DEFAULT 0.00` | Reorder / Low stock threshold |

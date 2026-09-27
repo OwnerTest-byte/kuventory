@@ -143,8 +143,18 @@
 
   /* Accessibility & Focus States */
   :focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring));
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Prevent outline/box-shadow leaks on elements that explicitly suppress outline */
+  .outline-none,
+  .outline-none:focus,
+  .outline-none:focus-visible,
+  input.outline-none:focus-visible,
+  button.outline-none:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
   }
 
   /* Standard & Webkit Scrollbar Styling (Cross-browser Firefox + Safari + Chrome) */

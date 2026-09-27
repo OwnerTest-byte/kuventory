@@ -6,7 +6,7 @@ export type DailyInventorySessionWithEntries = DailyInventorySession & {
     items: {
       item_name: string;
       unit: string;
-      categories: { name: string } | null;
+      categories: { id?: string; name: string } | null;
     } | null;
   })[];
 };
@@ -48,9 +48,12 @@ export async function fetchOrCreateDailyInventory(date: string): Promise<DailyIn
         pm,
         ending,
         inventory_items (
+          id,
           name,
           unit,
+          category_id,
           categories (
+            id,
             name
           )
         )
@@ -77,20 +80,14 @@ export async function fetchOrCreateDailyInventory(date: string): Promise<DailyIn
     items: {
       item_name: string;
       unit: string;
-      categories: { name: string } | null;
+      categories: { id?: string; name: string } | null;
     } | null;
   })[] = rawItems.map((entry: any) => {
     const itemName = entry.inventory_items?.name || 'Unknown Item';
     const unit = entry.inventory_items?.unit || 'pcs';
     const catName = entry.inventory_items?.categories?.name || 'General';
-    let section: 'GRILLED STOCK' | 'PORTION STOCK' | 'PER CASES' = 'PORTION STOCK';
-    if (catName.toUpperCase().includes('GRILL')) {
-      section = 'GRILLED STOCK';
-    } else if (catName.toUpperCase().includes('CASE')) {
-      section = 'PER CASES';
-    } else {
-      section = 'PORTION STOCK';
-    }
+    const catId = entry.inventory_items?.categories?.id || entry.inventory_items?.category_id || null;
+    const section = catName.trim() || 'General';
 
     return {
       id: entry.id,
@@ -99,6 +96,8 @@ export async function fetchOrCreateDailyInventory(date: string): Promise<DailyIn
       item_name: itemName,
       unit: unit,
       section: section,
+      category_id: catId,
+      category_name: catName,
       beginning_qty: Number(entry.beg || 0),
       add_qty: Number(entry.add || 0),
       total_stock: Number(entry.total ?? (Number(entry.beg || 0) + Number(entry.add || 0))),
@@ -108,7 +107,10 @@ export async function fetchOrCreateDailyInventory(date: string): Promise<DailyIn
       items: {
         item_name: itemName,
         unit: unit,
-        categories: { name: catName }
+        categories: entry.inventory_items?.categories ? {
+          id: entry.inventory_items.categories.id,
+          name: entry.inventory_items.categories.name
+        } : null
       }
     };
   });
