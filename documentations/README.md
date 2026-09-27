@@ -8,12 +8,12 @@ Welcome to the central technical and architectural documentation for **KUVENTORY
 
 ### 📖 User Documentation & Operational Manuals (NEW)
 
-Standard Operating Procedures (SOPs) and task-oriented user guides designed according to the **TechSmith User Documentation Standards**:
+Task-oriented operating guides designed specifically for **KUVENTORY** staff and administrators:
 
-- 📄 [**KUVENTORY Enterprise User Manual (Microsoft Word .docx)**](./KUVENTORY_USER_DOCUMENTATION_MANUAL.docx)  
-  *Official printable Word document with complete SOPs, quick-start guide, RBAC permissions matrix, mathematical formulas, and troubleshooting playbooks.*
-- 📝 [**KUVENTORY Enterprise User Manual (Markdown Companion)**](./KUVENTORY_USER_DOCUMENTATION_MANUAL.md)  
-  *Searchable in-repository markdown edition formatted for instant reading and web browsing.*
+- 📄 [**KUVENTORY User Guide & Operating Manual (Microsoft Word .docx)**](./KUVENTORY_USER_GUIDE.docx)  
+  *Official Word document containing step-by-step instructions for Daily Inventory, Station Categories, FEFO Batches, Reports, and Admin settings.*
+- 📝 [**KUVENTORY User Guide & Operating Manual (Markdown Edition)**](./KUVENTORY_USER_GUIDE.md)  
+  *Searchable markdown version formatted for instant in-editor reading and GitHub viewing.*
 
 ---
 
