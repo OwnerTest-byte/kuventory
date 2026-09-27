@@ -6,7 +6,19 @@ Welcome to the central technical and architectural documentation for **KUVENTORY
 
 ## 📁 Documentation Roadmap
 
+### 📖 User Documentation & Operational Manuals (NEW)
+
+Standard Operating Procedures (SOPs) and task-oriented user guides designed according to the **TechSmith User Documentation Standards**:
+
+- 📄 [**KUVENTORY Enterprise User Manual (Microsoft Word .docx)**](./KUVENTORY_USER_DOCUMENTATION_MANUAL.docx)  
+  *Official printable Word document with complete SOPs, quick-start guide, RBAC permissions matrix, mathematical formulas, and troubleshooting playbooks.*
+- 📝 [**KUVENTORY Enterprise User Manual (Markdown Companion)**](./KUVENTORY_USER_DOCUMENTATION_MANUAL.md)  
+  *Searchable in-repository markdown edition formatted for instant reading and web browsing.*
+
+---
+
 ### 🎨 Essential UI/UX Designer Documentation
+
 Detailed specifications, research, user journeys, wireframes, and design guidelines:
 
 1. [**User Personas and Research**](./ui-ux/01-user-personas-and-research.md)
