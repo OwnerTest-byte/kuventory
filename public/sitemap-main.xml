@@ -7,14 +7,14 @@
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
     <image:image>
-      <image:loc>https://main--kuventory.netlify.app/pics/logo-transparent.png</image:loc>
-      <image:title>KUVENTORY Restaurant Inventory Management System</image:title>
-      <image:caption>KUVENTORY brand logo and inventory dashboard interface</image:caption>
+      <image:loc>https://main--kuventory.netlify.app/pics/logo-original.png</image:loc>
+      <image:title>KUVENTORY Coffee Bistro Logo</image:title>
+      <image:caption>Official KUVENTORY coffee logo and inventory branding</image:caption>
     </image:image>
     <image:image>
       <image:loc>https://main--kuventory.netlify.app/pics/logo-icon.png</image:loc>
-      <image:title>KUVENTORY Logo Icon</image:title>
-      <image:caption>Official KUVENTORY application icon</image:caption>
+      <image:title>KUVENTORY Coffee Cup Icon</image:title>
+      <image:caption>KUVENTORY coffee icon badge</image:caption>
     </image:image>
   </url>
   <url>
@@ -23,8 +23,13 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
     <image:image>
-      <image:loc>https://main--kuventory.netlify.app/pics/logo-transparent.png</image:loc>
-      <image:title>KUVENTORY Staff Login</image:title>
+      <image:loc>https://main--kuventory.netlify.app/pics/logo-original.png</image:loc>
+      <image:title>KUVENTORY Coffee Bistro Login</image:title>
+      <image:caption>KUVENTORY secure authentication portal</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://main--kuventory.netlify.app/pics/logo-icon.png</image:loc>
+      <image:title>KUVENTORY Coffee Cup Icon</image:title>
     </image:image>
   </url>
   <url>
@@ -32,17 +37,44 @@
     <lastmod>2026-09-27</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://main--kuventory.netlify.app/pics/logo-original.png</image:loc>
+      <image:title>KUVENTORY Master Items Catalog</image:title>
+      <image:caption>Inventory items, batches, and supplier records</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://main--kuventory.netlify.app/pics/logo-icon.png</image:loc>
+      <image:title>KUVENTORY Coffee Cup Icon</image:title>
+    </image:image>
   </url>
   <url>
     <loc>https://main--kuventory.netlify.app/daily-inventory</loc>
     <lastmod>2026-09-27</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://main--kuventory.netlify.app/pics/logo-original.png</image:loc>
+      <image:title>KUVENTORY Daily Shift Inventory Worksheet</image:title>
+      <image:caption>Shift reconciliation and stock worksheet</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://main--kuventory.netlify.app/pics/logo-icon.png</image:loc>
+      <image:title>KUVENTORY Coffee Cup Icon</image:title>
+    </image:image>
   </url>
   <url>
     <loc>https://main--kuventory.netlify.app/reports</loc>
     <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://main--kuventory.netlify.app/pics/logo-original.png</image:loc>
+      <image:title>KUVENTORY Historical Audit Reports</image:title>
+      <image:caption>Immutable reports and daily shift logs</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://main--kuventory.netlify.app/pics/logo-icon.png</image:loc>
+      <image:title>KUVENTORY Coffee Cup Icon</image:title>
+    </image:image>
   </url>
 </urlset>
