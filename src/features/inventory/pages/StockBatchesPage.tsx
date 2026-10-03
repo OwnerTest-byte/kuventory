@@ -89,10 +89,12 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
     }
 
     if (expiryFilter === 'expired') {
-      list = list.filter(b => b.expiry_date && new Date(b.expiry_date) < now);
+      // Business Rule: Depleted batches (quantity <= 0) must never appear in active expired stock
+      list = list.filter(b => b.quantity > 0 && b.expiry_date && new Date(b.expiry_date) < now);
     } else if (expiryFilter === 'expiring') {
+      // Business Rule: Depleted batches (quantity <= 0) must never appear in active expiring soon
       list = list.filter(b => {
-        if (!b.expiry_date) return false;
+        if (b.quantity <= 0 || !b.expiry_date) return false;
         const d = differenceInDays(new Date(b.expiry_date), now);
         return d >= 0 && d <= 14;
       });
@@ -218,14 +220,17 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
                   let priorityBadge = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
                   let priorityText = 'NORMAL';
 
-                  if (isExpired) {
+                  if (batch.quantity <= 0) {
+                    priorityBadge = 'bg-muted text-muted-foreground border-border font-medium';
+                    priorityText = 'DEPLETED';
+                  } else if (isExpired) {
                     priorityBadge = 'bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold border-rose-500/20';
                     priorityText = 'EXPIRED';
-                  } else if (batch.quantity <= 0) {
-                    priorityBadge = 'bg-muted text-muted-foreground border-border';
-                    priorityText = 'DEPLETED';
+                  } else if (daysLeft !== null && daysLeft <= 14) {
+                    priorityBadge = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border-amber-500/20';
+                    priorityText = daysLeft <= 3 ? 'CRITICAL EXPIRY' : 'EXPIRING SOON';
                   } else if (index === 0) {
-                    priorityBadge = 'bg-rose-600 text-white font-bold animate-pulse border-rose-600';
+                    priorityBadge = 'bg-rose-600 text-white font-bold border-rose-600';
                     priorityText = 'USE FIRST';
                   } else if (index === 1) {
                     priorityBadge = 'bg-amber-500 text-white font-bold border-amber-500';

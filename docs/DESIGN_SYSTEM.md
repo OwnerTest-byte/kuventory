@@ -1,46 +1,55 @@
-# Design System
+# KUVENTORY Design System & Visual Specification
 
-**Kuventory v2.0.0**
+**Artisanal Bistro Aesthetic · Kape Uno Bistro**  
+**Version:** 2.0.0  
 
-Kuventory utilizes **shadcn/ui** combined with **Tailwind CSS** to create a cohesive design system. The components are not installed as NPM packages, but rather copied into the `components/ui` directory, allowing for full customization.
+---
 
-## Base Configuration
-The design tokens are defined in `index.css` via CSS variables and mapped in `tailwind.config.ts`.
+## 1. Design Philosophy & Visual Language
 
-## Components
+The KUVENTORY interface is crafted around a warm, artisanal coffee and bistro visual language. It balances refined hospitality aesthetics with worker-first operational speed:
+- **Low Cognitive Load:** High-contrast data grids, bold variance indicators, and large touch targets (`min-h-[44px]`).
+- **Warm & Artisanal Mood:** Elegant serif headers (`Playfair Display`) paired with clean sans-serif UI elements (`Inter` / `Plus Jakarta Sans`).
+- **Adaptable Dark & Light Mode:** Tailored HSL color tokens that remain warm, grounded, and legible in both bright daytime and low-lit bistro environments.
 
-### Cards (`Card`, `CardHeader`, `CardTitle`, `CardContent`)
-- Used for grouping related metrics or forms.
-- Inherit a subtle border and background color (`bg-card`).
-- Shadows are kept minimal (`shadow-sm`) to keep the UI flat and modern.
+---
 
-### Buttons (`Button`)
-- **Primary**: `bg-primary text-primary-foreground`. Used for primary actions (Submit, Save, Create).
-- **Secondary**: `bg-secondary text-secondary-foreground`. Used for alternate actions.
-- **Destructive**: `bg-destructive text-destructive-foreground`. Used for delete/remove actions.
-- **Outline**: `border border-input bg-background`. Used for neutral actions (Cancel).
-- **Ghost**: `hover:bg-accent hover:text-accent-foreground`. Used for icon buttons or low-priority actions.
+## 2. Color Palette & Design Tokens
 
-### Tables (`Table`, `DataTable`)
-- Powered by `@tanstack/react-table` for headless logic.
-- Row hover states (`hover:bg-muted/50`) ensure clarity when scanning large data sets.
-- Fixed header rows for long scrolling data sets.
+### Core Bistro Palette
+| Role | Color Name | Hex Code | HSL Value | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **Primary** | Burgundy / Wine | `#611A1F` | `355 58% 24%` | Primary buttons, active navigation pills, brand accents |
+| **Accent** | Brushed Gold | `#D4AF37` | `43 55% 52%` | High-value badges, Master Admin highlights, stars |
+| **Sidebar Rail** | Espresso | `#1F1816` | `15 18% 10%` | Deep roasted espresso sidebar rail and desktop panels |
+| **Light BG** | Warm Ivory | `#F6F1EC` | `34 25% 96%` | Canvas background in light mode |
+| **Light Card** | Cream Biscuit | `#FAF7F2` | `36 33% 98%` | Card surfaces and elevation containers |
+| **Dark BG** | Charcoal Espresso | `#16100E` | `15 20% 8%` | Canvas background in dark mode |
+| **Dark Card** | Roasted Taupe | `#221A17` | `16 18% 12%` | Card surfaces in dark mode |
 
-### Forms (`Form`, `Input`, `Select`, `Label`)
-- All form elements utilize `react-hook-form` adapters.
-- **Validation**: Error states render the input border red (`border-destructive`) and display small helper text below the field.
-- **Selects**: Utilize Radix UI primitives for accessible, stylable dropdowns.
+---
 
-### Dialogs / Modals (`Dialog`)
-- Used exclusively for complex data entry (e.g., adding an inventory item or recording a sale).
-- Modals trap focus and close upon outside click or hitting `ESC`.
+## 3. Typography Hierarchy
 
-### Charts (`Recharts`)
-- Used heavily in Dashboards and Report pages.
-- Tooltips are strictly styled to ensure text visibility across both light and dark themes (e.g., `#1F1F1F` backgrounds in Dark mode).
+| Style | Font Family | Weight | Tracking | Usage |
+| :--- | :--- | :--- | :--- | :--- |
+| **Headings (H1/H2)** | Playfair Display | 700 / 800 | Tight | Page titles, Brand hero, Master Admin banners |
+| **Body & UI** | Inter / System Sans | 400 / 500 | Normal | Form inputs, table cells, general labels |
+| **Numeric & Codes** | JetBrains Mono | 600 / 700 | Normal | SKU codes, variances, batch lot numbers, timestamps |
 
-### Status Badges (`StatusBadge`)
-- A custom component mapping statuses to specific colors:
-  - `Completed`, `Delivered`, `Active`: Green/Success
-  - `Pending`, `Low Stock`: Yellow/Warning
-  - `Cancelled`, `Refunded`, `Out of Stock`: Red/Destructive
+---
+
+## 4. Responsive Viewport Adaptations
+
+KUVENTORY is engineered and tested across 5 distinct viewport form factors:
+
+1. **Mobile Phones (390x844 / 393x852):**
+   - Fixed bottom navigation bar with 44px touch targets.
+   - Horizontal scrolling category filters.
+   - Collapsible search drawer and stackable summary metrics.
+2. **Tablets & iPads (768x1024 / 820x1180):**
+   - Adaptive 2-column dashboard grids.
+   - Collapsible side navigation rail.
+3. **Laptops & Desktops (1280x800 / 1920x1080):**
+   - Full 60-character sidebar with expanded navigation.
+   - Comprehensive multi-column inventory and audit tables.

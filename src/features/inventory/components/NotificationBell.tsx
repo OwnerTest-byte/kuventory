@@ -2,8 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { Bell, Check, AlertTriangle, Info, Clock, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from '../hooks/useNotifications';
-import { supabase } from '@/lib/supabase';
-import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -14,7 +12,6 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const { data: notifications = [], isLoading } = useNotifications();
   const markAsRead = useMarkNotificationAsRead();
@@ -32,26 +29,6 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  useEffect(() => {
-    // Subscribe to realtime notifications
-    // Use a unique channel name to avoid StrictMode issues where channel is reused
-    const channel = supabase
-      .channel(`notifications-${Math.random()}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications' },
-        () => {
-          // Refetch notifications on new insert
-          queryClient.invalidateQueries({ queryKey: ['notifications'] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
 
   const handleNotificationClick = (notification: any) => {
     if (!notification.is_read) {
@@ -176,7 +153,7 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
           <div className="p-2.5 border-t border-border text-center bg-muted/40">
             <button 
               type="button"
-              onClick={() => { setIsOpen(false); navigate('/settings?tab=notifications'); }}
+              onClick={() => { setIsOpen(false); navigate('/notifications'); }}
               className="text-xs text-primary hover:text-primary/80 font-bold hover:underline"
             >
               View All in Notification Center →

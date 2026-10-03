@@ -1,9 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, AlertTriangle, Info, Clock, AlertCircle, CheckCheck, Loader2, RefreshCw, BellOff } from 'lucide-react';
 import { useNotifications, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from '../hooks/useNotifications';
-import { supabase } from '@/lib/supabase';
-import { useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { AppNotification } from '../types';
@@ -40,29 +38,15 @@ function typeLabel(type: string) {
 
 export function NotificationCenter() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<'ALL' | 'UNREAD' | 'WARNINGS' | 'CRITICAL'>('ALL');
   const { data: notifications = [], isLoading, isError, refetch } = useNotifications();
   const markAsRead = useMarkNotificationAsRead();
   const markAllAsRead = useMarkAllNotificationsAsRead();
-  const subRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel(`notifications-page-${Math.random()}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      })
-      .subscribe();
-    subRef.current = channel;
-    return () => {
-      if (subRef.current) supabase.removeChannel(subRef.current);
-    };
-  }, [queryClient]);
 
   const handleOpen = (n: AppNotification) => {
     if (!n.is_read) markAsRead.mutate(n.id);
     if (n.type === 'LOW_STOCK' || n.type === 'OUT_OF_STOCK') {
-      navigate('/reports/low-stock');
+      navigate('/items');
     } else if (n.type === 'EXPIRING_SOON' || n.type === 'EXPIRED') {
       navigate('/items?tab=batches');
     } else {
@@ -72,8 +56,15 @@ export function NotificationCenter() {
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
+  const filteredNotifications = notifications.filter(n => {
+    if (filter === 'UNREAD') return !n.is_read;
+    if (filter === 'WARNINGS') return n.type === 'LOW_STOCK' || n.type === 'EXPIRING_SOON';
+    if (filter === 'CRITICAL') return n.type === 'OUT_OF_STOCK' || n.type === 'EXPIRED';
+    return true;
+  });
+
   return (
-    <div className="max-w-3xl mx-auto p-4 md:p-8 space-y-6 animate-in fade-in">
+    <div className="max-w-3xl mx-auto p-4 md:p-8 space-y-6">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-6">
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -85,20 +76,38 @@ export function NotificationCenter() {
             )}
           </div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Notifications</h1>
-            <p className="text-muted-foreground mt-1">Stock alerts and system notifications.</p>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Notification Center</h1>
+            <p className="text-muted-foreground mt-1">Operational alerts, stock events, and batch status notifications.</p>
           </div>
         </div>
-        {unreadCount > 0 && (
-          <button
-            onClick={() => markAllAsRead.mutate()}
-            disabled={markAllAsRead.isPending}
-            className="inline-flex items-center justify-center text-sm font-medium text-primary hover:text-primary/80 bg-primary/10 border border-primary/20 rounded-md h-9 px-3 disabled:opacity-50"
-          >
-            <CheckCheck className="w-4 h-4 mr-1" /> Mark all read
-          </button>
-        )}
+        <button
+          onClick={() => markAllAsRead.mutate()}
+          disabled={unreadCount === 0 || markAllAsRead.isPending}
+          className="inline-flex items-center justify-center text-sm font-medium text-primary hover:text-primary/80 bg-primary/10 border border-primary/20 rounded-md h-9 px-3 disabled:opacity-50"
+        >
+          <CheckCheck className="w-4 h-4 mr-1" /> Mark all as read
+        </button>
       </header>
+
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-lg w-fit border border-border">
+        {(['ALL', 'UNREAD', 'WARNINGS', 'CRITICAL'] as const).map((tab) => {
+          const label = tab === 'ALL' ? 'All' : tab === 'UNREAD' ? 'Unread' : tab === 'WARNINGS' ? 'Warnings' : 'Critical';
+          return (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setFilter(tab)}
+              className={cn(
+                "px-3 py-1 text-xs font-semibold rounded-md transition-colors",
+                filter === tab ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
 
       {isLoading ? (
         <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
@@ -112,15 +121,15 @@ export function NotificationCenter() {
             <RefreshCw className="w-4 h-4 mr-1" /> Try Again
           </button>
         </div>
-      ) : notifications.length === 0 ? (
+      ) : filteredNotifications.length === 0 ? (
         <div className="bg-card border border-border rounded-xl p-12 text-center text-muted-foreground">
           <BellOff className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">No notifications.</p>
+          <p className="text-sm">No notifications found.</p>
         </div>
       ) : (
         <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
           <ul className="divide-y divide-border">
-            {notifications.map((n) => (
+            {filteredNotifications.map((n) => (
               <li key={n.id}>
                 <button
                   onClick={() => handleOpen(n)}

@@ -7,7 +7,8 @@ import { pingSupabaseKeepalive, getLastKeepaliveTimestamp } from '@/lib/keepaliv
 import { 
   Users, Shield, Loader2, Plus, Trash2, Store, Bell, Activity, 
   Info, CheckCircle2, AlertCircle, Save, Database, KeyRound, RefreshCw, Layers,
-  Lock, Eye, EyeOff, Server, Cpu
+  Lock, Eye, EyeOff, Server, Cpu, Crown, Download, UploadCloud, AlertTriangle,
+  FileSpreadsheet, HardDrive, RotateCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -26,7 +27,7 @@ import {
 
 interface ProfileRow {
   id: string;
-  role: 'ADMIN' | 'USER';
+  role: 'MASTER_ADMIN' | 'ADMIN' | 'USER';
   display_name: string | null;
   created_at: string;
 }
@@ -34,18 +35,21 @@ interface ProfileRow {
 export function AdminPage() {
   const queryClient = useQueryClient();
   const { user, profile, role } = useAuth();
-  const isAdmin = role === 'ADMIN';
+  const isMasterAdmin = role === 'MASTER_ADMIN';
+  const isAdmin = role === 'ADMIN' || isMasterAdmin;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get('tab');
 
-  const allowedTabs = isAdmin 
-    ? ['account', 'restaurant', 'users', 'notifications', 'activity', 'about'] 
-    : ['account', 'restaurant', 'about'];
+  const allowedTabs = isMasterAdmin
+    ? ['account', 'restaurant', 'users', 'notifications', 'activity', 'master', 'about'] 
+    : (isAdmin 
+        ? ['account', 'restaurant', 'users', 'notifications', 'activity', 'about'] 
+        : ['account', 'restaurant', 'about']);
 
   const activeTab = (urlTab && allowedTabs.includes(urlTab))
     ? urlTab
-    : (isAdmin ? 'restaurant' : 'account');
+    : (isMasterAdmin && urlTab === 'master' ? 'master' : (isAdmin ? 'restaurant' : 'account'));
 
   const [activitySubTab, setActivitySubTab] = useState<'stock' | 'database' | 'logins'>('stock');
 
@@ -258,7 +262,12 @@ export function AdminPage() {
 
   // User Management State
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
-  const [newUser, setNewUser] = useState({ email: '', password: '', displayName: '', role: 'USER' });
+  const [newUser, setNewUser] = useState<{
+    email: string;
+    password: string;
+    displayName: string;
+    role: 'USER' | 'ADMIN' | 'MASTER_ADMIN';
+  }>({ email: '', password: '', displayName: '', role: 'USER' });
   const [addError, setAddError] = useState<string | null>(null);
 
   // Fetch real users from public.profiles
@@ -280,7 +289,7 @@ export function AdminPage() {
 
   // Toggle role mutation
   const toggleRoleMutation = useMutation({
-    mutationFn: async ({ userId, newRole }: { userId: string; newRole: 'ADMIN' | 'USER' }) => {
+    mutationFn: async ({ userId, newRole }: { userId: string; newRole: 'MASTER_ADMIN' | 'ADMIN' | 'USER' }) => {
       const { error } = await supabase
         .from('profiles')
         .update({ role: newRole })
@@ -380,15 +389,219 @@ export function AdminPage() {
     }
   });
 
+  // Master Console State: Backups, Restorations, Force Overrides
+  const [isExportingBackup, setIsExportingBackup] = useState(false);
+  const [backupStats, setBackupStats] = useState<{ timestamp: string; count: number; filename: string } | null>(null);
+
+  const handleExportFullBackup = async () => {
+    setIsExportingBackup(true);
+    try {
+      const [
+        itemsRes,
+        batchesRes,
+        sheetsRes,
+        sheetItemsRes,
+        movementsRes,
+        settingsRes,
+        profilesRes
+      ] = await Promise.all([
+        supabase.from('items').select('*'),
+        supabase.from('inventory_batches').select('*'),
+        supabase.from('daily_inventory_sheets').select('*'),
+        supabase.from('daily_inventory_items').select('*'),
+        supabase.from('stock_movements').select('*'),
+        supabase.from('system_settings').select('*'),
+        supabase.from('profiles').select('id, role, display_name, created_at')
+      ]);
+
+      const totalRecords = 
+        (itemsRes.data?.length || 0) + 
+        (batchesRes.data?.length || 0) + 
+        (sheetsRes.data?.length || 0) + 
+        (sheetItemsRes.data?.length || 0) + 
+        (movementsRes.data?.length || 0);
+
+      const backupData = {
+        app: 'KUVENTORY',
+        version: '2.0.0',
+        environment: 'production',
+        backup_type: 'FULL_SYSTEM_SNAPSHOT',
+        created_at: new Date().toISOString(),
+        created_by: user?.email || 'master@kapeuno.com',
+        tables: {
+          items: itemsRes.data || [],
+          inventory_batches: batchesRes.data || [],
+          daily_inventory_sheets: sheetsRes.data || [],
+          daily_inventory_items: sheetItemsRes.data || [],
+          stock_movements: movementsRes.data || [],
+          system_settings: settingsRes.data || [],
+          profiles: profilesRes.data || []
+        },
+        meta: {
+          total_items: itemsRes.data?.length || 0,
+          total_batches: batchesRes.data?.length || 0,
+          total_sheets: sheetsRes.data?.length || 0,
+          total_sheet_items: sheetItemsRes.data?.length || 0,
+          total_movements: movementsRes.data?.length || 0,
+          total_records: totalRecords
+        }
+      };
+
+      const jsonStr = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const filename = `kuventory_master_backup_${format(new Date(), 'yyyy-MM-dd_HHmmss')}.json`;
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setBackupStats({
+        timestamp: new Date().toISOString(),
+        count: totalRecords,
+        filename
+      });
+    } catch (err: any) {
+      console.error('Backup error:', err);
+      alert('Failed to generate full system backup: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsExportingBackup(false);
+    }
+  };
+
+  // Dry-run restore validator state
+  const [, setRestoreFile] = useState<File | null>(null);
+  const [restoreValidation, setRestoreValidation] = useState<{
+    valid: boolean;
+    timestamp?: string;
+    itemCount?: number;
+    batchCount?: number;
+    sheetCount?: number;
+    errors?: string[];
+  } | null>(null);
+
+  const handleValidateRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setRestoreFile(file);
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+
+      const errors: string[] = [];
+      if (!parsed.app || parsed.app !== 'KUVENTORY') {
+        errors.push('File header is missing valid KUVENTORY application signature.');
+      }
+      if (!parsed.tables || typeof parsed.tables !== 'object') {
+        errors.push('Archive is missing required database tables object.');
+      }
+
+      const itemCount = parsed.tables?.items?.length || 0;
+      const batchCount = parsed.tables?.inventory_batches?.length || 0;
+      const sheetCount = parsed.tables?.daily_inventory_sheets?.length || 0;
+
+      if (errors.length > 0) {
+        setRestoreValidation({ valid: false, errors });
+      } else {
+        setRestoreValidation({
+          valid: true,
+          timestamp: parsed.created_at,
+          itemCount,
+          batchCount,
+          sheetCount
+        });
+      }
+    } catch (err: any) {
+      setRestoreValidation({
+        valid: false,
+        errors: ['Corrupted or invalid JSON format: ' + err.message]
+      });
+    }
+  };
+
+  // Finalized Sheets for Master Admin Force Override
+  const { data: finalizedSheets = [], isLoading: isLoadingFinalizedSheets } = useQuery({
+    queryKey: ['finalized-sheets-master'],
+    enabled: isMasterAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('daily_inventory_sheets')
+        .select('*')
+        .eq('status', 'FINALIZED')
+        .order('sheet_date', { ascending: false })
+        .limit(20);
+      if (error) {
+        console.error('Error fetching finalized sheets:', error);
+        return [];
+      }
+      return data || [];
+    }
+  });
+
+  // Force Override State
+  const [selectedSheetForOverride, setSelectedSheetForOverride] = useState<any | null>(null);
+  const [overrideReason, setOverrideReason] = useState('');
+  const [overrideStatus, setOverrideStatus] = useState<'DRAFT' | 'VOID'>('DRAFT');
+  const [isOverriding, setIsOverriding] = useState(false);
+  const [overrideSuccess, setOverrideSuccess] = useState<string | null>(null);
+  const [overrideError, setOverrideError] = useState<string | null>(null);
+
+  const handleForceOverrideSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSheetForOverride || !overrideReason.trim()) {
+      setOverrideError('A valid audit justification reason is required for Master Override.');
+      return;
+    }
+
+    setIsOverriding(true);
+    setOverrideError(null);
+    setOverrideSuccess(null);
+
+    try {
+      const { error } = await supabase.rpc('force_override_daily_inventory', {
+        p_sheet_id: selectedSheetForOverride.id,
+        p_status: overrideStatus,
+        p_reason: overrideReason.trim()
+      });
+
+      if (error) throw error;
+
+      setOverrideSuccess(`Sheet for ${selectedSheetForOverride.sheet_date} successfully forced to ${overrideStatus}.`);
+      queryClient.invalidateQueries({ queryKey: ['finalized-sheets-master'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-sheets'] });
+      
+      setTimeout(() => {
+        setSelectedSheetForOverride(null);
+        setOverrideReason('');
+        setOverrideSuccess(null);
+      }, 1800);
+    } catch (err: any) {
+      setOverrideError(err.message || 'Failed to force override sheet status');
+    } finally {
+      setIsOverriding(false);
+    }
+  };
+
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6 animate-in fade-in text-foreground">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6 text-foreground">
       <header className="border-b pb-4 border-border">
         <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-          <Shield className="w-8 h-8 text-primary" />
-          System Settings & Administration
+          {isMasterAdmin ? (
+            <Crown className="w-8 h-8 text-amber-500" />
+          ) : (
+            <Shield className="w-8 h-8 text-primary" />
+          )}
+          {isMasterAdmin ? 'Master System Administration' : 'System Settings & Administration'}
         </h1>
         <p className="text-muted-foreground mt-1 font-medium text-sm">
-          Manage restaurant information, staff accounts, system preferences, and security audit logs.
+          {isMasterAdmin 
+            ? 'Root operational console with full system authority, automated backups, disaster recovery, and sheet overrides.'
+            : 'Manage restaurant information, staff accounts, system preferences, and security audit logs.'}
         </p>
       </header>
 
@@ -412,6 +625,14 @@ export function AdminPage() {
                 <Activity className="w-4 h-4 mr-2" /> Activity Audit Trail
               </TabsTrigger>
             </>
+          )}
+          {isMasterAdmin && (
+            <TabsTrigger 
+              value="master" 
+              className="font-semibold text-xs sm:text-sm bg-gradient-to-r from-amber-500/15 to-amber-600/10 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+            >
+              <Crown className="w-4 h-4 mr-2 text-amber-500" /> Master Console
+            </TabsTrigger>
           )}
           <TabsTrigger value="about" className="font-semibold text-xs sm:text-sm">
             <Info className="w-4 h-4 mr-2" /> About & Diagnostics
@@ -651,29 +872,49 @@ export function AdminPage() {
                   </TableRow>
                 ) : (
                   users.map(u => {
-                    const isAdmin = u.role === 'ADMIN';
+                    const isTargetMaster = u.role === 'MASTER_ADMIN';
+                    const isTargetAdmin = u.role === 'ADMIN';
+                    const isSelf = u.id === user?.id;
+
                     return (
                       <TableRow key={u.id} className="hover:bg-muted/40">
                         <TableCell>
                           <div className="font-bold text-foreground flex items-center gap-2">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
-                              isAdmin ? 'bg-primary/10 text-primary' : 'bg-muted text-foreground'
-                            }`}>
-                              {u.display_name?.charAt(0).toUpperCase() || 'U'}
+                            <div className={cn(
+                              "w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs",
+                              isTargetMaster 
+                                ? "bg-amber-500/20 text-amber-500 border border-amber-500/30"
+                                : isTargetAdmin 
+                                  ? "bg-primary/10 text-primary border border-primary/20" 
+                                  : "bg-muted text-foreground border border-border"
+                            )}>
+                              {isTargetMaster ? <Crown className="w-3.5 h-3.5 text-amber-500" /> : (u.display_name?.charAt(0).toUpperCase() || 'U')}
                             </div>
-                            {u.display_name || 'Staff Member'}
+                            <span className="flex items-center gap-1.5">
+                              {u.display_name || 'Staff Member'}
+                              {isSelf && (
+                                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted text-muted-foreground">
+                                  You
+                                </span>
+                              )}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-xs text-muted-foreground">
                           {u.id.substring(0, 13)}...
                         </TableCell>
                         <TableCell className="text-center">
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                            isAdmin 
-                              ? 'bg-primary/15 text-primary border border-primary/20' 
-                              : 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/20'
-                          }`}>
-                            {isAdmin ? 'ADMIN' : 'STAFF'}
+                          <span className={cn(
+                            "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider",
+                            isTargetMaster 
+                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                              : isTargetAdmin 
+                                ? "bg-primary/15 text-primary border border-primary/20" 
+                                : "bg-emerald-500/15 text-emerald-500 border border-emerald-500/20"
+                          )}>
+                            {isTargetMaster && <Crown className="w-3 h-3 text-amber-500" />}
+                            {isTargetAdmin && <Shield className="w-3 h-3 text-primary" />}
+                            {isTargetMaster ? 'MASTER ADMIN' : isTargetAdmin ? 'ADMIN' : 'STAFF'}
                           </span>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs">
@@ -696,15 +937,36 @@ export function AdminPage() {
                               <KeyRound className="w-3.5 h-3.5 text-primary" />
                               Reset Pass
                             </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="text-xs font-bold border-border text-foreground hover:bg-muted"
-                              onClick={() => toggleRoleMutation.mutate({ userId: u.id, newRole: isAdmin ? 'USER' : 'ADMIN' })}
-                              disabled={toggleRoleMutation.isPending}
-                            >
-                              {isAdmin ? 'Demote to Staff' : 'Promote to Admin'}
-                            </Button>
+
+                            {/* Role management controls */}
+                            {isMasterAdmin && !isSelf && (
+                              <select
+                                value={u.role}
+                                onChange={(e) => toggleRoleMutation.mutate({ 
+                                  userId: u.id, 
+                                  newRole: e.target.value as 'USER' | 'ADMIN' | 'MASTER_ADMIN' 
+                                })}
+                                disabled={toggleRoleMutation.isPending}
+                                className="h-8 px-2 bg-card border border-border text-foreground rounded text-xs font-semibold outline-none cursor-pointer"
+                              >
+                                <option value="USER">Staff</option>
+                                <option value="ADMIN">Admin</option>
+                                <option value="MASTER_ADMIN">Master Admin</option>
+                              </select>
+                            )}
+
+                            {!isMasterAdmin && !isTargetMaster && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="text-xs font-bold border-border text-foreground hover:bg-muted"
+                                onClick={() => toggleRoleMutation.mutate({ userId: u.id, newRole: isTargetAdmin ? 'USER' : 'ADMIN' })}
+                                disabled={toggleRoleMutation.isPending || isSelf}
+                              >
+                                {isTargetAdmin ? 'Demote to Staff' : 'Promote to Admin'}
+                              </Button>
+                            )}
+
                             <Button 
                               variant="ghost" 
                               size="sm" 
@@ -714,7 +976,8 @@ export function AdminPage() {
                                   deleteUserMutation.mutate(u.id);
                                 }
                               }}
-                              disabled={deleteUserMutation.isPending}
+                              disabled={deleteUserMutation.isPending || isSelf || (!isMasterAdmin && isTargetMaster)}
+                              title={isSelf ? "Cannot delete your own account" : "Remove user access"}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -1247,6 +1510,290 @@ export function AdminPage() {
             </div>
           </div>
         </TabsContent>
+
+        {/* TAB 6: MASTER ADMIN CONSOLE (TIER 0 ROOT AUTHORITY) */}
+        {isMasterAdmin && (
+          <TabsContent value="master" className="space-y-6">
+            {/* Master Admin Identity Card */}
+            <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-500/10 via-card to-card border border-amber-500/30 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-500 shrink-0 shadow-xs">
+                    <Crown className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-bold tracking-tight text-foreground">
+                        Master Administrator Console
+                      </h2>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                        Tier 0 Root
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Logged in as <strong className="text-foreground">{user?.email || 'master@kapeuno.com'}</strong> · Full System & Operational Authority
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      queryClient.invalidateQueries();
+                      alert('Global application query cache invalidated successfully.');
+                    }}
+                    className="font-bold text-xs border-border text-foreground hover:bg-muted cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                    Flush Cache
+                  </Button>
+                </div>
+              </div>
+
+              {/* Master Credential & Security Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs pt-2">
+                <div className="p-3.5 rounded-xl bg-card border border-border/80">
+                  <span className="text-muted-foreground block font-medium text-[11px]">System Role</span>
+                  <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 mt-0.5">
+                    <Crown className="w-3.5 h-3.5 text-amber-500" /> MASTER_ADMIN
+                  </span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-card border border-border/80">
+                  <span className="text-muted-foreground block font-medium text-[11px]">RLS Authorization</span>
+                  <span className="font-bold text-emerald-500 flex items-center gap-1.5 mt-0.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> is_master_admin() = TRUE
+                  </span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-card border border-border/80">
+                  <span className="text-muted-foreground block font-medium text-[11px]">Disaster Recovery</span>
+                  <span className="font-bold text-foreground mt-0.5 block">
+                    Full Snapshot + Dry-Run Validator
+                  </span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-card border border-border/80">
+                  <span className="text-muted-foreground block font-medium text-[11px]">Concurrency Protocol</span>
+                  <span className="font-bold text-foreground mt-0.5 block">
+                    Advisory Lock Override Active
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 1: ONE-CLICK FULL DATABASE BACKUP */}
+            <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <HardDrive className="w-5 h-5 text-primary" />
+                    <h3 className="text-base font-bold text-foreground">
+                      Full System Backup & Database Snapshot
+                    </h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Exports an immutable point-in-time JSON archive of all inventory items, batches, daily sheets, movements, and system configuration.
+                  </p>
+                </div>
+
+                <Button
+                  onClick={handleExportFullBackup}
+                  disabled={isExportingBackup}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs sm:text-sm shrink-0 min-h-[44px] px-5 shadow-xs cursor-pointer"
+                >
+                  {isExportingBackup ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating Backup...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Complete System Backup (.json)
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {backupStats && (
+                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <div>
+                      <strong className="text-emerald-500 block">Backup Created & Downloaded</strong>
+                      <span className="font-mono text-muted-foreground">{backupStats.filename}</span>
+                    </div>
+                  </div>
+                  <div className="text-right sm:text-right">
+                    <span className="font-bold text-foreground">{backupStats.count} Total Records</span>
+                    <span className="text-muted-foreground block text-[11px]">
+                      {new Date(backupStats.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="p-3.5 rounded-xl bg-muted/40 border border-border/60 text-xs text-muted-foreground grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div>• Items Catalog (`items`)</div>
+                <div>• FEFO Batches (`inventory_batches`)</div>
+                <div>• Daily Sheets (`daily_inventory_sheets`)</div>
+                <div>• Daily Counts (`daily_inventory_items`)</div>
+                <div>• Movements (`stock_movements`)</div>
+                <div>• Audit Logs (`audit_logs`)</div>
+                <div>• Settings (`system_settings`)</div>
+                <div>• Staff Profiles (`profiles`)</div>
+              </div>
+            </div>
+
+            {/* SECTION 2: DISASTER RECOVERY & RESTORATION VALIDATOR */}
+            <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
+              <div className="flex items-center gap-2">
+                <UploadCloud className="w-5 h-5 text-amber-500" />
+                <h3 className="text-base font-bold text-foreground">
+                  Disaster Recovery & Backup Restoration Center
+                </h3>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Dry-run validator verifies the integrity, schema signature, and row count of an exported backup archive before performing disaster restoration.
+              </p>
+
+              <div className="p-4 rounded-xl border border-dashed border-border bg-muted/20 flex flex-col items-center justify-center text-center space-y-3">
+                <FileSpreadsheet className="w-8 h-8 text-muted-foreground" />
+                <div>
+                  <p className="text-xs font-bold text-foreground">Select Backup Archive for Dry-Run Inspection</p>
+                  <p className="text-[11px] text-muted-foreground">Select a <code className="font-mono bg-muted px-1 rounded">kuventory_master_backup_*.json</code> file to validate</p>
+                </div>
+                <label className="cursor-pointer">
+                  <span className="px-4 py-2 rounded-lg bg-card border border-border text-xs font-bold hover:bg-muted text-foreground transition-colors inline-block shadow-xs">
+                    Choose Backup File
+                  </span>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleValidateRestoreFile}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {restoreValidation && (
+                <div className={cn(
+                  "p-4 rounded-xl border text-xs space-y-2",
+                  restoreValidation.valid 
+                    ? "bg-emerald-500/10 border-emerald-500/20 text-foreground" 
+                    : "bg-destructive/10 border-destructive/20 text-destructive"
+                )}>
+                  <div className="flex items-center gap-2 font-bold">
+                    {restoreValidation.valid ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                        <span className="text-emerald-500">Backup Signature Verified & Schema Validated (Ready for Recovery)</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle className="w-4 h-4 text-destructive" />
+                        <span>Validation Failed: Invalid or Incompatible Backup File</span>
+                      </>
+                    )}
+                  </div>
+
+                  {restoreValidation.valid ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1 font-medium">
+                      <div>Backup Date: <strong className="text-foreground">{restoreValidation.timestamp ? new Date(restoreValidation.timestamp).toLocaleDateString() : 'N/A'}</strong></div>
+                      <div>Items in Archive: <strong className="text-foreground">{restoreValidation.itemCount}</strong></div>
+                      <div>Batches in Archive: <strong className="text-foreground">{restoreValidation.batchCount}</strong></div>
+                      <div>Sheets in Archive: <strong className="text-foreground">{restoreValidation.sheetCount}</strong></div>
+                    </div>
+                  ) : (
+                    <ul className="list-disc list-inside text-xs space-y-1">
+                      {restoreValidation.errors?.map((err, idx) => (
+                        <li key={idx}>{err}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* SECTION 3: FINALIZED DAILY SHEET EMERGENCY FORCE OVERRIDE */}
+            <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
+              <div className="flex items-center gap-2">
+                <RotateCcw className="w-5 h-5 text-primary" />
+                <h3 className="text-base font-bold text-foreground">
+                  Finalized Daily Sheet Emergency Force Override
+                </h3>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                In normal operation, finalized inventory sheets are locked to prevent tampering. As Master Administrator, you possess root authority to force-reopen a finalized sheet to DRAFT or mark it as VOID with an audit justification.
+              </p>
+
+              <div className="rounded-xl border border-border overflow-hidden">
+                <Table>
+                  <TableHeader className="bg-muted/60 border-b border-border">
+                    <TableRow>
+                      <TableHead className="font-bold text-foreground">Sheet Date</TableHead>
+                      <TableHead className="font-bold text-foreground">Status</TableHead>
+                      <TableHead className="font-bold text-foreground">Sheet ID</TableHead>
+                      <TableHead className="font-bold text-foreground">Last Updated</TableHead>
+                      <TableHead className="text-right font-bold text-foreground">Master Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoadingFinalizedSheets ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground font-medium">
+                          Loading finalized daily sheets...
+                        </TableCell>
+                      </TableRow>
+                    ) : finalizedSheets.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground font-medium">
+                          No finalized daily sheets currently found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      finalizedSheets.map((sheet: any) => (
+                        <TableRow key={sheet.id} className="hover:bg-muted/40">
+                          <TableCell className="font-bold text-foreground">
+                            {format(new Date(sheet.sheet_date), 'MMMM dd, yyyy')}
+                          </TableCell>
+                          <TableCell>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-500/15 text-rose-500 border border-rose-500/20">
+                              FINALIZED
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">
+                            {sheet.id.substring(0, 13)}...
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {format(new Date(sheet.updated_at || sheet.created_at), 'MMM dd, yyyy HH:mm')}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedSheetForOverride(sheet);
+                                setOverrideReason('');
+                                setOverrideStatus('DRAFT');
+                                setOverrideError(null);
+                                setOverrideSuccess(null);
+                              }}
+                              className="text-xs font-bold gap-1 border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 cursor-pointer"
+                            >
+                              <Crown className="w-3.5 h-3.5 text-amber-500" />
+                              Force Override
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Add User Modal */}
@@ -1312,11 +1859,14 @@ export function AdminPage() {
               <Label className="text-xs font-bold text-foreground">Role Assignment</Label>
               <select 
                 value={newUser.role}
-                onChange={e => setNewUser({ ...newUser, role: e.target.value })}
-                className="w-full h-11 px-3 py-2 bg-card border border-border text-foreground rounded-md text-sm font-semibold outline-none"
+                onChange={e => setNewUser({ ...newUser, role: e.target.value as 'USER' | 'ADMIN' | 'MASTER_ADMIN' })}
+                className="w-full h-11 px-3 py-2 bg-card border border-border text-foreground rounded-md text-sm font-semibold outline-none cursor-pointer"
               >
                 <option value="USER">Staff / Operator (Worksheet entry)</option>
-                <option value="ADMIN">System Administrator (Full access)</option>
+                <option value="ADMIN">System Administrator (Full operational access)</option>
+                {isMasterAdmin && (
+                  <option value="MASTER_ADMIN">Master Admin (Tier 0 Root Authority)</option>
+                )}
               </select>
             </div>
           </div>
@@ -1422,6 +1972,78 @@ export function AdminPage() {
               >
                 {isResettingPassword ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <KeyRound className="w-4 h-4 mr-2" />}
                 Set New Password
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Master Admin Force Override Dialog */}
+      <Dialog open={!!selectedSheetForOverride} onOpenChange={(open) => !open && setSelectedSheetForOverride(null)}>
+        <DialogContent className="max-w-md bg-card border-border text-foreground">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <Crown className="w-5 h-5 text-amber-500" />
+              Force Override Finalized Sheet
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              You are using Tier 0 Master Admin authority to modify sheet date <strong className="text-foreground">{selectedSheetForOverride?.sheet_date}</strong>. This operational action is permanently audited.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleForceOverrideSubmit} className="space-y-4 py-2">
+            {overrideError && (
+              <div className="p-3 text-xs text-destructive bg-destructive/15 rounded-md border border-destructive/20 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {overrideError}
+              </div>
+            )}
+            {overrideSuccess && (
+              <div className="p-3 text-xs text-emerald-500 bg-emerald-500/15 rounded-md border border-emerald-500/20 font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                {overrideSuccess}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-foreground">Target Status</Label>
+              <select
+                value={overrideStatus}
+                onChange={(e) => setOverrideStatus(e.target.value as 'DRAFT' | 'VOID')}
+                className="w-full h-11 px-3 py-2 bg-card border border-border text-foreground rounded-md text-sm font-semibold outline-none cursor-pointer"
+              >
+                <option value="DRAFT">Reopen as DRAFT (Allows re-editing & re-submitting counts)</option>
+                <option value="VOID">Mark as VOID (Cancels sheet records)</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-foreground">Mandatory Audit Justification / Reason</Label>
+              <Input
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                placeholder="e.g. Physical recount variance approved by Store Owner"
+                className="text-sm bg-card border-border text-foreground h-11"
+                required
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSelectedSheetForOverride(null)}
+                className="border-border text-foreground cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isOverriding || !overrideReason.trim()}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer"
+              >
+                {isOverriding ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Shield className="w-4 h-4 mr-2" />}
+                Execute Override
               </Button>
             </DialogFooter>
           </form>

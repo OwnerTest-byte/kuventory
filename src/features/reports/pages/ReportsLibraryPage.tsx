@@ -124,7 +124,7 @@ export function ReportsLibraryPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 animate-in fade-in text-foreground">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 text-foreground">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 border-border">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">

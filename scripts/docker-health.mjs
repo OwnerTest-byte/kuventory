@@ -3,7 +3,6 @@
 // Run via: node scripts/docker-health.mjs
 
 import { execSync } from 'child_process';
-import http from 'http';
 
 console.log('====================================================');
 console.log('  KUVENTORY Docker & Supabase Auto-Wake Service     ');

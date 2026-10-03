@@ -31,8 +31,9 @@ export type StockBatch = {
   item_id: string;
   batch_code: string;
   quantity: number;
-  initial_quantity: number;
-  expiry_date: string;
+  initial_quantity?: number;
+  expiry_date: string | null;
+  version?: number;
   created_at: string;
 };
 

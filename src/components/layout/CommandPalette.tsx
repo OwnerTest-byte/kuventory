@@ -78,8 +78,8 @@ export function CommandPalette({ isOpen, onClose, onOpenNewItem }: CommandPalett
   const filteredItems = items
     .filter(i => 
       !i.is_archived && 
-      (i.item_name.toLowerCase().includes(query.toLowerCase()) || 
-       i.item_code.toLowerCase().includes(query.toLowerCase()))
+      ((i.item_name?.toLowerCase().includes(query.toLowerCase()) ?? false) || 
+       (i.item_code?.toLowerCase().includes(query.toLowerCase()) ?? false))
     )
     .slice(0, 6);
 

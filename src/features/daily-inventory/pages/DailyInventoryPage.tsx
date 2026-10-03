@@ -92,7 +92,7 @@ export function DailyInventoryPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 pb-28 sm:pb-16 text-foreground animate-in fade-in">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 pb-28 sm:pb-16 text-foreground">
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
@@ -189,7 +189,7 @@ export function DailyInventoryPage() {
             </div>
 
             {discrepancies.length > 0 ? (
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 animate-pulse">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                 <span>{discrepancies.length} item(s) with negative ending balance!</span>
               </div>
@@ -302,7 +302,7 @@ export function DailyInventoryPage() {
         <DialogContent className="bg-card text-foreground border-border max-w-md text-center">
           <div className="py-2 space-y-4">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/25 mx-auto">
-              <Sparkles className="w-7 h-7 animate-bounce" />
+              <Sparkles className="w-7 h-7" />
             </div>
 
             <div>

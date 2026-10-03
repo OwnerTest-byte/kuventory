@@ -32,7 +32,7 @@ export async function getInventory(): Promise<InventoryItem[]> {
       supplier_b: row.supplier_b || '',
       min_qty: Number(row.min_quantity || 0),
       current_qty: Number(row.total_quantity || 0),
-      image_path: null,
+      image_path: row.image_path || null,
       is_archived: !row.is_active || !!row.is_archived,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -75,7 +75,7 @@ export async function getItemById(id: string): Promise<InventoryItem> {
     supplier_b: data.supplier_b || '',
     min_qty: Number(data.min_quantity || 0),
     current_qty: Number(data.total_quantity || 0),
-    image_path: null,
+    image_path: data.image_path || null,
     is_archived: !data.is_active || !!data.is_archived,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -90,6 +90,7 @@ export async function getBatches(itemId: string): Promise<StockBatch[]> {
     .from('stock_batches')
     .select('*')
     .eq('item_id', itemId)
+    .gt('quantity', 0)
     .order('expiry_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true });
 
@@ -235,6 +236,7 @@ export async function createItem(data: Omit<InventoryItem, 'id' | 'is_archived' 
       supplier_a: data.supplier_a || '',
       supplier_b: data.supplier_b || '',
       min_quantity: data.min_qty,
+      image_path: data.image_path || null,
       is_active: true,
       is_archived: false,
     })
@@ -262,6 +264,7 @@ export async function updateItem(id: string, updates: Partial<Omit<InventoryItem
   if (updates.supplier_a !== undefined) mapped.supplier_a = updates.supplier_a || '';
   if (updates.supplier_b !== undefined) mapped.supplier_b = updates.supplier_b || '';
   if (updates.min_qty !== undefined) mapped.min_quantity = updates.min_qty;
+  if (updates.image_path !== undefined) mapped.image_path = updates.image_path || null;
   if (updates.is_archived !== undefined) {
     mapped.is_archived = updates.is_archived;
     mapped.is_active = !updates.is_archived;
@@ -339,3 +342,182 @@ export async function getCategories(): Promise<Category[]> {
 
   return data as Category[];
 }
+
+export interface Top3DashboardStats {
+  best_sellers: Array<{
+    id: string;
+    item_name: string;
+    category_name: string;
+    unit: string;
+    sold_quantity: number;
+  }>;
+  most_stocked: Array<{
+    id: string;
+    item_name: string;
+    category_name: string;
+    unit: string;
+    current_stock: number;
+  }>;
+  least_stocked: Array<{
+    id: string;
+    item_name: string;
+    category_name: string;
+    unit: string;
+    current_stock: number;
+    min_quantity: number;
+  }>;
+}
+
+/**
+ * Fetch strictly active expiring batches (quantity > 0 and expiry within daysThreshold).
+ * Excludes all depleted batches (quantity <= 0).
+ */
+export async function getActiveExpiringBatches(daysThreshold = 14) {
+  const now = new Date();
+  const future = new Date();
+  future.setDate(future.getDate() + daysThreshold);
+
+  const { data, error } = await supabase
+    .from('stock_batches')
+    .select(`
+      id,
+      quantity,
+      expiry_date,
+      received_date,
+      created_at,
+      inventory_items (
+        id,
+        name,
+        unit,
+        unit_cost
+      )
+    `)
+    .gt('quantity', 0) // ZERO-STOCK EXPIRY RULE: strictly positive quantity
+    .not('expiry_date', 'is', null)
+    .gte('expiry_date', now.toISOString().split('T')[0])
+    .lte('expiry_date', future.toISOString().split('T')[0])
+    .order('expiry_date', { ascending: true });
+
+  if (error) {
+    console.error('getActiveExpiringBatches error:', error);
+    throw error;
+  }
+  return data || [];
+}
+
+/**
+ * Fetch strictly active expired batches (quantity > 0 and expiry before today).
+ * Excludes all depleted batches (quantity <= 0).
+ */
+export async function getActiveExpiredBatches() {
+  const today = new Date().toISOString().split('T')[0];
+
+  const { data, error } = await supabase
+    .from('stock_batches')
+    .select(`
+      id,
+      quantity,
+      expiry_date,
+      received_date,
+      created_at,
+      inventory_items (
+        id,
+        name,
+        unit,
+        unit_cost
+      )
+    `)
+    .gt('quantity', 0) // ZERO-STOCK EXPIRY RULE: strictly positive quantity
+    .not('expiry_date', 'is', null)
+    .lt('expiry_date', today)
+    .order('expiry_date', { ascending: true });
+
+  if (error) {
+    console.error('getActiveExpiredBatches error:', error);
+    throw error;
+  }
+  return data || [];
+}
+
+/**
+ * Fetch Top 3 statistics widget data:
+ * - Top 3 Most Outgoing / Used Items (Order by outgoing_quantity DESC LIMIT 3)
+ * - Top 3 Most Stocked (Order by current_stock DESC LIMIT 3)
+ * - Top 3 Least Stocked (Order by current_stock ASC LIMIT 3)
+ */
+export async function getDashboardTop3Stats(): Promise<Top3DashboardStats> {
+  try {
+    // Try operational RPC first
+    const { data: opData, error: opErr } = await supabase.rpc('get_operational_top3_stats');
+    if (!opErr && opData && (opData.most_outgoing || opData.best_sellers)) {
+      const best = opData.most_outgoing || opData.best_sellers;
+      return {
+        best_sellers: best.map((b: any) => ({
+          ...b,
+          sold_quantity: b.outgoing_quantity ?? b.sold_quantity ?? 0
+        })),
+        most_stocked: opData.most_stocked,
+        least_stocked: opData.least_stocked
+      };
+    }
+
+    const { data, error } = await supabase.rpc('get_dashboard_top3_stats');
+    if (!error && data && data.best_sellers) {
+      return data as Top3DashboardStats;
+    }
+  } catch (err) {
+    console.warn('RPC top3 stats fallback to direct query:', err);
+  }
+
+  // Robust direct fallback based strictly on actual inventory outflows (AM OUT + PM OUT / REMOVE movements)
+  const [itemsRes, movementsRes] = await Promise.all([
+    supabase.from('inventory_stock_view').select('*').eq('is_active', true),
+    supabase.from('stock_movements').select('item_id, quantity_change').eq('type', 'REMOVE')
+  ]);
+
+  const allItems = (itemsRes.data || []).filter((i: any) => !i.is_archived);
+  const allMovements = movementsRes.data || [];
+
+  const outgoingMap = new Map<string, number>();
+  allMovements.forEach((m: any) => {
+    const qty = Math.abs(Number(m.quantity_change) || 0);
+    outgoingMap.set(m.item_id, (outgoingMap.get(m.item_id) || 0) + qty);
+  });
+
+  const best_sellers = [...allItems]
+    .map(i => ({
+      id: i.id,
+      item_name: i.name,
+      category_name: i.category_name || 'General',
+      unit: i.unit || 'pcs',
+      sold_quantity: outgoingMap.get(i.id) || 0,
+    }))
+    .sort((a, b) => b.sold_quantity - a.sold_quantity)
+    .slice(0, 3);
+
+  const most_stocked = [...allItems]
+    .map(i => ({
+      id: i.id,
+      item_name: i.name,
+      category_name: i.category_name || 'General',
+      unit: i.unit || 'pcs',
+      current_stock: Number(i.total_quantity || 0),
+    }))
+    .sort((a, b) => b.current_stock - a.current_stock)
+    .slice(0, 3);
+
+  const least_stocked = [...allItems]
+    .map(i => ({
+      id: i.id,
+      item_name: i.name,
+      category_name: i.category_name || 'General',
+      unit: i.unit || 'pcs',
+      current_stock: Number(i.total_quantity || 0),
+      min_quantity: Number(i.min_quantity || 0),
+    }))
+    .sort((a, b) => a.current_stock - b.current_stock)
+    .slice(0, 3);
+
+  return { best_sellers, most_stocked, least_stocked };
+}
+

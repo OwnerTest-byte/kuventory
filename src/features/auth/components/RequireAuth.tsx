@@ -36,7 +36,7 @@ export function RequireAdmin() {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (role !== 'ADMIN') {
+  if (role !== 'ADMIN' && role !== 'MASTER_ADMIN') {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-background px-4">
         <h1 className="text-2xl font-bold text-foreground mb-2">Access Denied</h1>

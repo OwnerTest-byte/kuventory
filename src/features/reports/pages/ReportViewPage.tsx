@@ -131,7 +131,7 @@ export function ReportViewPage() {
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6 animate-in fade-in">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
         <Link to="/reports" className="inline-flex items-center text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" />

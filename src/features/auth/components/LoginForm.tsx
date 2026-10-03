@@ -36,6 +36,14 @@ export function LoginForm() {
     resolver: zodResolver(loginSchema),
   });
 
+  const handleScrollToViewOnFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Ensure on-screen mobile keyboard does not block the active input field
+    const target = e.currentTarget;
+    setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 120);
+  };
+
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setAuthError(null);
@@ -100,6 +108,7 @@ export function LoginForm() {
               autoComplete="email"
               aria-required="true"
               {...register('email')}
+              onFocus={handleScrollToViewOnFocus}
               name="email"
               required
               aria-invalid={!!errors.email}
@@ -122,6 +131,7 @@ export function LoginForm() {
                 autoComplete="current-password"
                 aria-required="true"
                 {...register('password')}
+                onFocus={handleScrollToViewOnFocus}
                 name="password"
                 required
                 aria-invalid={!!errors.password}
@@ -214,6 +224,7 @@ export function LoginForm() {
                 type="email"
                 value={forgotEmail}
                 onChange={e => setForgotEmail(e.target.value)}
+                onFocus={handleScrollToViewOnFocus}
                 placeholder="e.g. staff@kuventory.com"
                 required
                 aria-required="true"

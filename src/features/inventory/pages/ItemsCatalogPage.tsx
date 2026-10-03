@@ -70,11 +70,11 @@ export function ItemsCatalogPage() {
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       list = list.filter(i => 
-        i.item_name.toLowerCase().includes(q) || 
-        i.item_code.toLowerCase().includes(q) ||
-        (i.description && i.description.toLowerCase().includes(q)) ||
-        (i.supplier_a && i.supplier_a.toLowerCase().includes(q)) ||
-        (i.supplier_b && i.supplier_b.toLowerCase().includes(q))
+        (i.item_name?.toLowerCase().includes(q) ?? false) || 
+        (i.item_code?.toLowerCase().includes(q) ?? false) ||
+        (i.description?.toLowerCase().includes(q) ?? false) ||
+        (i.supplier_a?.toLowerCase().includes(q) ?? false) ||
+        (i.supplier_b?.toLowerCase().includes(q) ?? false)
       );
     }
     
@@ -429,16 +429,33 @@ export function ItemsCatalogPage() {
 
                     return (
                       <tr key={item.id} className="hover:bg-muted/40 transition-colors group">
-                        <td className="px-5 py-3.5 sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border min-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
-                          <Link 
-                            to={`/items/${item.id}`} 
-                            className="text-primary hover:underline font-bold text-xs sm:text-sm"
-                          >
-                            {item.item_name}
-                          </Link>
-                          <span className="block font-mono text-[10px] text-muted-foreground font-normal">
-                            {item.item_code}
-                          </span>
+                        <td className="px-5 py-3.5 sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border min-w-[240px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-lg border border-border bg-muted/40 overflow-hidden shrink-0 flex items-center justify-center shadow-2xs">
+                              {item.image_path ? (
+                                <img 
+                                  src={item.image_path} 
+                                  alt={item.item_name} 
+                                  className="w-full h-full object-cover" 
+                                />
+                              ) : (
+                                <span className="font-bold text-[10px] text-muted-foreground uppercase">
+                                  {item.item_name.substring(0, 2)}
+                                </span>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <Link 
+                                to={`/items/${item.id}`} 
+                                className="text-primary hover:underline font-bold text-xs sm:text-sm truncate block"
+                              >
+                                {item.item_name}
+                              </Link>
+                              <span className="block font-mono text-[10px] text-muted-foreground font-normal">
+                                {item.item_code}
+                              </span>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-5 py-3.5 text-xs text-muted-foreground max-w-40 truncate" title={item.description || ''}>
                           {item.description || '—'}

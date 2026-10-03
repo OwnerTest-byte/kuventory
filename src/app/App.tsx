@@ -18,6 +18,7 @@ const ReportViewPage = lazy(() => import('@/features/reports/pages/ReportViewPag
 const ReportsLibraryPage = lazy(() => import('@/features/reports/pages/ReportsLibraryPage').then(module => ({ default: module.ReportsLibraryPage })));
 const AdminPage = lazy(() => import('@/features/admin/pages/AdminPage').then(module => ({ default: module.AdminPage })));
 const NotificationCenter = lazy(() => import('@/features/inventory/pages/NotificationCenter').then(module => ({ default: module.NotificationCenter })));
+const AnalyticsPage = lazy(() => import('@/features/reports/pages/AnalyticsPage').then(module => ({ default: module.AnalyticsPage })));
 const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage').then(module => ({ default: module.ResetPasswordPage })));
 
 const FallbackLoader = () => (
@@ -63,6 +64,12 @@ export function App() {
 
             <Route path="/notifications" element={
               <Suspense fallback={<FallbackLoader />}><NotificationCenter /></Suspense>
+            } />
+            <Route path="/notification-center" element={
+              <Suspense fallback={<FallbackLoader />}><NotificationCenter /></Suspense>
+            } />
+            <Route path="/analytics" element={
+              <Suspense fallback={<FallbackLoader />}><AnalyticsPage /></Suspense>
             } />
             
             <Route path="/items" element={

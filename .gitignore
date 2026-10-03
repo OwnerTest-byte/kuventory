@@ -40,3 +40,8 @@ coverage/
 *.sln
 *.sw?
 scratch/
+
+# Automated Backups & Dumps
+backups/
+*.dump
+*.sql.gz

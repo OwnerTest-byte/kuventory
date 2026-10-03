@@ -11,15 +11,19 @@ interface StockUpdateModalProps {
   batches: StockBatch[];
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { action: 'add'|'remove'|'adjust', quantity: number, reason: string, batchId?: string, expiryDate?: string }) => void;
+  onSubmit: (data: { action: 'add'|'remove'|'adjust', quantity: number, reason: string, batchId?: string, expiryDate?: string }) => Promise<void> | void;
+  isSubmitting?: boolean;
 }
 
-export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit }: StockUpdateModalProps) {
+export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isSubmitting }: StockUpdateModalProps) {
   const [action, setAction] = useState<'add'|'remove'|'adjust'>('add');
   const [quantity, setQuantity] = useState<number | ''>('');
   const [reason, setReason] = useState('');
   const [batchId, setBatchId] = useState<string>('auto');
   const [expiryDate, setExpiryDate] = useState('');
+  const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
+
+  const isPending = isSubmitting || isSubmittingLocal;
 
   const numQty = typeof quantity === 'number' ? quantity : 0;
   
@@ -32,17 +36,23 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit }: S
     calculatedNewBalance = numQty;
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isPending) return;
     if (quantity === '' || (action !== 'adjust' && quantity <= 0) || (action === 'adjust' && quantity < 0)) return;
     
-    onSubmit({ 
-      action, 
-      quantity: Number(quantity), 
-      reason: reason || (action === 'add' ? 'New delivery received' : action === 'remove' ? 'Stock deduction' : 'Physical count adjustment'), 
-      batchId, 
-      expiryDate: expiryDate ? new Date(expiryDate).toISOString() : undefined 
-    });
+    setIsSubmittingLocal(true);
+    try {
+      await onSubmit({ 
+        action, 
+        quantity: Number(quantity), 
+        reason: reason || (action === 'add' ? 'New delivery received' : action === 'remove' ? 'Stock deduction' : 'Physical count adjustment'), 
+        batchId, 
+        expiryDate: expiryDate ? new Date(expiryDate).toISOString() : undefined 
+      });
+    } finally {
+      setIsSubmittingLocal(false);
+    }
   };
 
   const quickReasons = action === 'add' 
@@ -209,19 +219,20 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit }: S
         </div>
         
         <div className="p-4 border-t border-border bg-muted/30 flex items-center justify-between">
-          <Button type="button" variant="outline" onClick={onClose} className="font-semibold text-muted-foreground border-border">
+          <Button type="button" variant="outline" disabled={isPending} onClick={onClose} className="font-semibold text-muted-foreground border-border">
             Cancel
           </Button>
           <Button 
             type="submit" 
             form="stock-form" 
+            disabled={isPending}
             className={`font-semibold shadow-sm text-white ${
               action === 'add' ? 'bg-emerald-600 hover:bg-emerald-700' :
               action === 'remove' ? 'bg-rose-600 hover:bg-rose-700' :
               'bg-primary hover:bg-primary/90'
             }`}
           >
-            Confirm {action.toUpperCase()}
+            {isPending ? 'Processing...' : `Confirm ${action.toUpperCase()}`}
           </Button>
         </div>
       </DialogContent>

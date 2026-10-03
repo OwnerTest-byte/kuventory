@@ -7,8 +7,9 @@ export function useRealtimeSync() {
 
   useEffect(() => {
     // Channel for real-time inventory and operations updates
+    const channelName = `realtime-sync-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const channel = supabase
-      .channel('inventory-realtime-sync')
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'inventory_items' },

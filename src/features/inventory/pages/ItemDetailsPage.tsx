@@ -15,7 +15,8 @@ import {
   AlertTriangle, 
   AlertOctagon, 
   RefreshCw,
-  PlusCircle
+  PlusCircle,
+  Image as ImageIcon
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { StockUpdateModal } from '../components/StockUpdateModal';
@@ -199,9 +200,41 @@ export function ItemDetailsPage() {
       {/* Main Item Hero Card */}
       <Card className="bg-card border-border shadow-xs overflow-hidden">
         <div className="p-6 space-y-5">
-          {/* Item Metadata & Specs */}
-          <div className="space-y-3">
-            <div>
+          {/* Item Metadata & Specs with Image */}
+          <div className="flex flex-col md:flex-row gap-5 items-start">
+            {/* Optional Item Image */}
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl border border-border bg-muted/30 overflow-hidden shrink-0 flex items-center justify-center relative group shadow-2xs">
+              {item.image_path ? (
+                <>
+                  <img 
+                    src={item.image_path} 
+                    alt={item.item_name} 
+                    className="w-full h-full object-cover" 
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-[11px] font-semibold cursor-pointer"
+                    title="Change item image"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Change</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-muted-foreground hover:text-primary transition-colors cursor-pointer p-2 text-center"
+                  title="Add item image"
+                >
+                  <ImageIcon className="w-6 h-6 opacity-60" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider">+ Image</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex-1 min-w-0 space-y-2">
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
                   {item.item_code}
@@ -218,13 +251,16 @@ export function ItemDetailsPage() {
                   </span>
                 )}
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground uppercase">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground uppercase truncate">
                 {item.item_name}
               </h1>
               {item.description && (
-                <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
               )}
             </div>
+          </div>
+
+          <div className="space-y-3">
 
             {/* Specifications Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl bg-muted/30 border border-border">
@@ -408,32 +444,34 @@ export function ItemDetailsPage() {
                         Loading batches...
                       </td>
                     </tr>
-                  ) : batches.length === 0 ? (
+                  ) : batches.filter(batch => batch.quantity > 0).length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground text-xs">
                         No active stock batches recorded for this item.
                       </td>
                     </tr>
                   ) : (
-                    batches.map((b, index) => {
-                      const expiryDate = b.expiry_date ? new Date(b.expiry_date) : null;
-                      const now = new Date();
-                      const isExpired = expiryDate && expiryDate < now;
-                      const daysLeft = expiryDate ? differenceInDays(expiryDate, now) : null;
+                    batches
+                      .filter(batch => batch.quantity > 0)
+                      .map((b, index) => {
+                        const expiryDate = b.expiry_date ? new Date(b.expiry_date) : null;
+                        const now = new Date();
+                        const isExpired = expiryDate && expiryDate < now;
+                        const daysLeft = expiryDate ? differenceInDays(expiryDate, now) : null;
 
-                      let priorityBadge = 'bg-emerald-100 text-emerald-800';
-                      let priorityText = 'NORMAL';
+                        let priorityBadge = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400';
+                        let priorityText = 'NORMAL';
 
-                      if (isExpired) {
-                        priorityBadge = 'bg-rose-100 text-rose-800 font-bold';
-                        priorityText = 'EXPIRED';
-                      } else if (index === 0 && b.quantity > 0) {
-                        priorityBadge = 'bg-rose-600 text-white font-bold animate-pulse';
-                        priorityText = 'USE FIRST';
-                      } else if (index === 1 && b.quantity > 0) {
-                        priorityBadge = 'bg-amber-500 text-white font-bold';
-                        priorityText = 'NEXT';
-                      }
+                        if (isExpired) {
+                          priorityBadge = 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-400 font-bold';
+                          priorityText = 'EXPIRED';
+                        } else if (index === 0 && b.quantity > 0) {
+                          priorityBadge = 'bg-rose-600 text-white font-bold tracking-wide shadow-xs';
+                          priorityText = 'USE FIRST';
+                        } else if (index === 1 && b.quantity > 0) {
+                          priorityBadge = 'bg-amber-500 text-white font-bold';
+                          priorityText = 'NEXT';
+                        }
 
                       return (
                         <tr key={b.id} className="hover:bg-muted/40 transition-colors">

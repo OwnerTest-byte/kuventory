@@ -18,7 +18,10 @@ import {
   PenSquare,
   Truck,
   RefreshCw,
-  ChevronRight
+  ChevronRight,
+  TrendingUp,
+  Bell,
+  Shield
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/context/AuthContext';
@@ -50,12 +53,21 @@ function SidebarToggleIcon({ className }: { className?: string }) {
   );
 }
 
-// Unified Primary Navigation (Simple, dedicated 5 core destinations)
-const primaryNav = [
+interface NavItem {
+  name: string;
+  to: string;
+  icon: any;
+  badge?: string;
+}
+
+// Unified Primary Navigation (Core destinations matching artisanal bistro IA)
+const primaryNav: NavItem[] = [
   { name: 'Dashboard', to: '/inventory', icon: LayoutDashboard },
   { name: 'Inventory', to: '/items', icon: Package },
   { name: 'Daily Inventory', to: '/daily-inventory', icon: FileText },
   { name: 'Reports', to: '/reports', icon: FileBarChart },
+  { name: 'Analytics', to: '/analytics', icon: TrendingUp },
+  { name: 'Notifications', to: '/notifications', icon: Bell },
   { name: 'Settings', to: '/settings', icon: Settings },
 ];
 
@@ -71,6 +83,9 @@ function AppBreadcrumbs() {
   if (location.pathname === '/inventory') {
     section = 'Overview';
     page = 'Dashboard';
+  } else if (location.pathname === '/analytics') {
+    section = 'Overview';
+    page = 'Analytics';
   } else if (location.pathname === '/daily-inventory') {
     section = 'Operations';
     page = 'Daily Inventory';
@@ -106,6 +121,7 @@ function AppBreadcrumbs() {
     else if (tab === 'users') page = 'Staff & Users';
     else if (tab === 'notifications' || tab === 'preferences') page = 'Preferences & Alerts';
     else if (tab === 'activity' || tab === 'logs') page = 'Activity Audit Trail';
+    else if (tab === 'master') page = 'Master Admin Console';
     else if (tab === 'about') page = 'About & Diagnostics';
     else page = 'System Settings';
   }
@@ -178,33 +194,44 @@ function SidebarNavigation({
     ? `${profile.first_name} ${profile.last_name || ''}`.trim()
     : user?.email || 'User';
 
+  const navList = [
+    ...primaryNav,
+    ...(role === 'MASTER_ADMIN' ? [{ name: 'Master Console', to: '/settings?tab=master', icon: Shield, badge: 'ROOT' }] : [])
+  ];
+
   return (
-    <div className="flex flex-col h-full bg-card text-card-foreground select-none transition-all duration-200 ease-in-out border-r border-border">
+    <div className="flex flex-col h-full bg-[#1F1816] text-[#FAF7F2] select-none transition-all duration-200 ease-in-out border-r border-[#2E2320]">
       {/* Top Header / Brand or Collapsed Toggle Rail */}
       {isCollapsed ? (
-        <div className="h-16 shrink-0 flex flex-col items-center justify-center border-b border-border px-2">
-          {/* Top Toggle Button in Collapsed Mode matching ChatGPT (Image 3) */}
+        <div className="h-18 shrink-0 flex flex-col items-center justify-center border-b border-[#2E2320] px-2 bg-[#1F1816]">
           <button
             type="button"
             onClick={onToggleCollapse}
             title="Open sidebar (Ctrl+[)"
-            className="w-10 h-10 rounded-xl bg-muted/60 hover:bg-muted text-foreground flex items-center justify-center border border-border/60 transition-all cursor-pointer shadow-xs"
+            className="w-10 h-10 rounded-xl bg-[#2A201C] hover:bg-[#382C27] text-[#FAF7F2] flex items-center justify-center border border-[#3E302A] transition-all cursor-pointer shadow-xs"
           >
-            <SidebarToggleIcon className="w-5 h-5 text-foreground" />
+            <SidebarToggleIcon className="w-5 h-5 text-[#FAF7F2]" />
           </button>
         </div>
       ) : (
-        <div className="h-16 shrink-0 flex items-center justify-between border-b border-border px-4 transition-all">
-          <Link to="/inventory" className="flex items-center gap-2.5 min-w-0" onClick={closeMobileMenu}>
-            <img 
-              src="/pics/logo-icon.png" 
-              alt="KUVENTORY" 
-              className="h-7 w-auto object-contain shrink-0" 
-              onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-            />
-            <span className="font-bold text-base tracking-tight text-foreground leading-tight">
-              KUVENTORY
-            </span>
+        <div className="h-18 shrink-0 flex items-center justify-between border-b border-[#2E2320] px-4 transition-all bg-[#1F1816]">
+          <Link to="/inventory" className="flex items-center gap-3 min-w-0" onClick={closeMobileMenu}>
+            <div className="w-9 h-9 rounded-xl bg-[#2A201C] border border-[#3E302A] p-1 flex items-center justify-center shrink-0 shadow-xs">
+              <img 
+                src="/pics/logo-icon.png" 
+                alt="Kape Uno Bistro" 
+                className="h-7 w-auto object-contain" 
+                onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+              />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="font-serif font-bold text-sm tracking-tight text-[#FAF7F2] leading-tight flex items-center gap-1.5">
+                Kape Uno <span className="text-[9px] font-sans font-medium px-1.5 py-0.2 rounded bg-[#C5A059]/20 text-[#DFB748] border border-[#C5A059]/30">Bistro</span>
+              </span>
+              <span className="text-[10px] text-[#A89E93] font-medium tracking-wider uppercase">
+                KUVENTORY
+              </span>
+            </div>
           </Link>
 
           <div className="flex items-center gap-1">
@@ -213,7 +240,7 @@ function SidebarNavigation({
                 type="button"
                 onClick={onOpenSearch}
                 title="Search (Ctrl+K)"
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                className="p-2 rounded-lg text-[#A89E93] hover:text-[#FAF7F2] hover:bg-[#2A201C] transition-colors cursor-pointer"
               >
                 <Search className="w-4 h-4" />
               </button>
@@ -224,7 +251,7 @@ function SidebarNavigation({
                 type="button"
                 onClick={onToggleCollapse}
                 title="Close sidebar (Ctrl+[)"
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors hidden md:flex items-center justify-center cursor-pointer"
+                className="p-2 rounded-lg text-[#A89E93] hover:text-[#FAF7F2] hover:bg-[#2A201C] transition-colors hidden md:flex items-center justify-center cursor-pointer"
               >
                 <SidebarToggleIcon className="w-4 h-4" />
               </button>
@@ -235,7 +262,7 @@ function SidebarNavigation({
                 type="button"
                 onClick={closeMobileMenu}
                 title="Close menu"
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors md:hidden flex items-center justify-center cursor-pointer"
+                className="p-2 rounded-lg text-[#A89E93] hover:text-[#FAF7F2] hover:bg-[#2A201C] transition-colors md:hidden flex items-center justify-center cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -249,15 +276,15 @@ function SidebarNavigation({
         "flex-1 overflow-y-auto py-3 space-y-4 scrollbar-thin",
         isCollapsed ? "px-2" : "px-3"
       )}>
-        {/* Top Primary Quick Action (Inspired by ChatGPT 'New chat' button) */}
+        {/* Top Primary Quick Action */}
         {!isCollapsed ? (
           <div className="space-y-2">
             <button
               type="button"
               onClick={onOpenNewSheet}
-              className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 font-semibold text-xs transition-colors cursor-pointer shadow-2xs group"
+              className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl bg-[#2A201C] hover:bg-[#382C27] text-[#FAF7F2] border border-[#3E302A] font-semibold text-xs transition-colors cursor-pointer shadow-2xs group"
             >
-              <PenSquare className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" />
+              <PenSquare className="w-4 h-4 shrink-0 text-[#DFB748] transition-transform group-hover:scale-110" />
               <span>Daily Worksheet</span>
             </button>
 
@@ -265,13 +292,13 @@ function SidebarNavigation({
               <button
                 type="button"
                 onClick={onOpenSearch}
-                className="flex items-center justify-between w-full px-3 py-2 text-xs text-muted-foreground bg-muted/40 hover:bg-muted/70 rounded-xl border border-border/50 transition-colors cursor-pointer group"
+                className="flex items-center justify-between w-full px-3 py-2 text-xs text-[#A89E93] bg-[#2A201C]/60 hover:bg-[#2A201C] hover:text-[#FAF7F2] rounded-xl border border-[#382C27] transition-colors cursor-pointer group"
               >
                 <span className="flex items-center gap-2">
-                  <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" />
+                  <Search className="w-3.5 h-3.5 text-[#A89E93] group-hover:text-[#FAF7F2]" />
                   <span>Search commands...</span>
                 </span>
-                <kbd className="px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground bg-card border border-border rounded">
+                <kbd className="px-1.5 py-0.5 font-mono text-[10px] font-medium text-[#A89E93] bg-[#1F1816] border border-[#382C27] rounded">
                   Ctrl+K
                 </kbd>
               </button>
@@ -284,7 +311,7 @@ function SidebarNavigation({
               onClick={onOpenNewSheet}
               title="Daily Worksheet"
               aria-label="Open Daily Worksheet"
-              className="w-10 h-10 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+              className="w-10 h-10 rounded-xl bg-[#2A201C] hover:bg-[#382C27] text-[#DFB748] border border-[#3E302A] flex items-center justify-center transition-all cursor-pointer shadow-2xs"
             >
               <PenSquare className="w-4 h-4" />
             </button>
@@ -294,18 +321,18 @@ function SidebarNavigation({
                 onClick={onOpenSearch}
                 title="Search & Commands (Ctrl+K)"
                 aria-label="Search and Commands"
-                className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center transition-colors cursor-pointer"
+                className="w-10 h-10 rounded-xl text-[#A89E93] hover:text-[#FAF7F2] hover:bg-[#2A201C] flex items-center justify-center transition-colors cursor-pointer"
               >
                 <Search className="w-4 h-4" />
               </button>
             )}
-            <div className="h-px w-8 bg-border/60 my-1" />
+            <div className="h-px w-8 bg-[#2E2320] my-1" />
           </div>
         )}
 
-        {/* Unified Primary Navigation List (Simple 5 core destinations) */}
-        <nav className="space-y-1.5 pt-1">
-          {primaryNav.map((item) => {
+        {/* Unified Primary Navigation List */}
+        <nav className="space-y-1 pt-1">
+          {navList.map((item) => {
             const active = isItemActive(item.to);
             return (
               <Link
@@ -317,42 +344,45 @@ function SidebarNavigation({
                   "flex items-center rounded-xl text-xs font-semibold transition-all group",
                   isCollapsed ? "justify-center w-10 h-10 mx-auto" : "gap-3 px-3.5 py-2.5",
                   active
-                    ? "bg-primary/15 text-primary font-bold border-l-2 border-primary shadow-2xs"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "bg-[#611A1F] text-white font-bold shadow-xs border border-[#7D242B]"
+                    : "text-[#A89E93] hover:bg-[#2A201C] hover:text-[#FAF7F2]"
                 )}
               >
-                <item.icon className={cn("h-4 w-4 shrink-0 transition-transform group-hover:scale-105", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+                <item.icon className={cn("h-4 w-4 shrink-0 transition-transform group-hover:scale-105", active ? "text-white" : "text-[#A89E93] group-hover:text-[#FAF7F2]")} />
                 {!isCollapsed && <span className="truncate">{item.name}</span>}
+                {!isCollapsed && item.badge && (
+                  <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#C5A059]/20 text-[#DFB748] border border-[#C5A059]/40">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             );
           })}
         </nav>
       </div>
 
-      {/* User Profile & Theme Footer Card (Matching Image 1 & 3 bottom) */}
+      {/* User Profile & Theme Footer Card */}
       <div className={cn(
-        "border-t border-border bg-muted/20 shrink-0",
+        "border-t border-[#2E2320] bg-[#1A1412] shrink-0",
         isCollapsed ? "p-2" : "p-3"
       )}>
         {isCollapsed ? (
           <div className="flex flex-col items-center gap-2 py-1">
-            {/* Theme Toggle Button in Collapsed Rail */}
             <button
               type="button"
               onClick={toggleTheme}
               title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
               aria-label={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center transition-colors cursor-pointer"
+              className="w-10 h-10 rounded-xl text-[#A89E93] hover:text-[#FAF7F2] hover:bg-[#2A201C] flex items-center justify-center transition-colors cursor-pointer"
             >
-              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-amber-200" />}
             </button>
 
-            {/* Avatar Pill */}
             <Link
               to="/settings?tab=account"
               onClick={closeMobileMenu}
-              title={`${userDisplayName} (${role === 'ADMIN' ? 'Administrator' : 'Staff'}) - Account & Password`}
-              className="h-9 w-9 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/30 cursor-pointer shadow-xs hover:ring-2 hover:ring-primary/40 transition-all"
+              title={`${userDisplayName} (${role === 'MASTER_ADMIN' ? 'Master Admin' : role === 'ADMIN' ? 'Administrator' : 'Staff'})`}
+              className="h-9 w-9 rounded-full bg-[#611A1F] text-white flex items-center justify-center font-bold text-xs shrink-0 border border-[#C5A059]/40 cursor-pointer shadow-xs hover:ring-2 hover:ring-[#C5A059] transition-all"
             >
               {userInitials}
             </Link>
@@ -361,28 +391,35 @@ function SidebarNavigation({
               type="button"
               onClick={handleLogout}
               title="Sign Out"
-              className="p-2 rounded-xl text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+              className="p-2 rounded-xl text-[#A89E93] hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-between p-2 rounded-xl bg-card border border-border/70 shadow-2xs">
+          <div className="flex items-center justify-between p-2 rounded-xl bg-[#231A17] border border-[#342722] shadow-2xs">
             <Link 
               to="/settings?tab=account" 
               onClick={closeMobileMenu}
               title="Manage Account & Password"
-              className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-80 transition-opacity cursor-pointer group"
+              className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-90 transition-opacity cursor-pointer group"
             >
-              <div className="h-9 w-9 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/30 shadow-xs group-hover:ring-2 group-hover:ring-primary/40 transition-all">
+              <div className="h-9 w-9 rounded-full bg-[#611A1F] text-white flex items-center justify-center font-bold text-xs shrink-0 border border-[#C5A059]/40 shadow-xs group-hover:ring-2 group-hover:ring-[#C5A059] transition-all">
                 {userInitials}
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                <span className="text-xs font-semibold text-[#FAF7F2] truncate group-hover:text-[#DFB748] transition-colors">
                   {userDisplayName}
                 </span>
-                <span className="text-[10px] text-muted-foreground uppercase font-medium tracking-wide">
-                  {role === 'ADMIN' ? 'Administrator' : 'Staff Member'}
+                <span className={cn(
+                  "text-[9px] uppercase font-bold tracking-wider inline-block px-1.5 py-0.5 rounded w-fit mt-0.5 border",
+                  role === 'MASTER_ADMIN' 
+                    ? "bg-[#C5A059]/20 text-[#DFB748] border-[#C5A059]/40" 
+                    : role === 'ADMIN'
+                    ? "bg-[#611A1F]/30 text-[#E57373] border-[#611A1F]/50"
+                    : "bg-[#2E7D32]/20 text-[#81C784] border-[#2E7D32]/30"
+                )}>
+                  {role === 'MASTER_ADMIN' ? '👑 Master Admin' : role === 'ADMIN' ? 'Admin' : 'Staff'}
                 </span>
               </div>
             </Link>
@@ -393,16 +430,16 @@ function SidebarNavigation({
                 onClick={toggleTheme}
                 title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 aria-label={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-[#A89E93] hover:text-[#FAF7F2] hover:bg-[#2A201C] transition-colors cursor-pointer"
               >
-                {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+                {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-amber-200" />}
               </button>
               <button
                 type="button"
                 onClick={handleLogout}
                 title="Sign Out"
                 aria-label="Sign Out"
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-[#A89E93] hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
               </button>

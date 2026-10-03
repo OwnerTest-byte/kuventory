@@ -101,7 +101,7 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
   };
 
   return (
-    <div className={embedded ? "space-y-4 max-w-4xl" : "p-4 md:p-8 max-w-4xl mx-auto space-y-6 animate-in fade-in text-foreground"}>
+    <div className={embedded ? "space-y-4 max-w-4xl" : "p-4 md:p-8 max-w-4xl mx-auto space-y-6 text-foreground"}>
       {!embedded ? (
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
           <div>

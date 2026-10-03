@@ -131,7 +131,7 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
           <div className="font-bold text-foreground text-xs sm:text-sm">{item.items?.item_name}</div>
           <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
             <span className="font-medium">{item.items?.unit}</span>
-            {saveStatus === 'saving' && <span className="text-amber-500 font-semibold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />Saving...</span>}
+            {saveStatus === 'saving' && <span className="text-amber-500 font-semibold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />Saving...</span>}
             {saveStatus === 'saved' && <span className="text-emerald-500 font-bold">✓ Saved</span>}
             {saveStatus === 'error' && <span className="text-rose-500 font-bold">⚠️ Save failed</span>}
           </div>
@@ -227,7 +227,7 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
             title={optEnding < 0 ? 'Warning: Ending stock is negative! Please check AM/PM sales entries.' : undefined}
             className={`w-full text-center p-2 h-10 min-h-[40px] flex items-center justify-center rounded-lg font-bold border text-sm transition-all font-mono ${
             optEnding < 0 
-              ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/40 ring-1 ring-rose-500/50 animate-pulse' 
+              ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/40 ring-1 ring-rose-500/50' 
               : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/25'
           }`}>
             {optEnding < 0 && <span className="mr-1 text-xs">⚠️</span>}

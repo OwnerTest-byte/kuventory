@@ -5,7 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Inter", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Playfair Display", Georgia, Cambria, "Times New Roman", Times, serif;
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-card: hsl(var(--card));
@@ -32,36 +33,36 @@
 
 @layer base {
   :root {
-    /* Google Cloud Console Clean Light Mode */
-    --background: 210 20% 98%;       /* #f8f9fa */
-    --foreground: 220 14% 12%;       /* #202124 */
+    /* Kape Uno Bistro Warm Ivory & Coffee Palette (Light Mode) */
+    --background: 34 25% 96%;        /* #F6F1EC Warm Ivory Cream */
+    --foreground: 15 18% 12%;        /* #241B18 Deep Roasted Coffee */
 
-    --card: 0 0% 100%;               /* #ffffff */
-    --card-foreground: 220 14% 12%;
+    --card: 36 33% 98%;              /* #FAF7F2 Warm Clean Card Surface */
+    --card-foreground: 15 18% 12%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 14% 12%;
+    --popover: 36 33% 98%;
+    --popover-foreground: 15 18% 12%;
 
-    --primary: 217 88% 46%;          /* #155fce High-Contrast Blue (WCAG AA 5.8:1) */
-    --primary-foreground: 0 0% 100%;
+    --primary: 355 58% 24%;          /* #611A1F Rich Burgundy Wine */
+    --primary-foreground: 36 33% 98%;/* #FAF7F2 Warm Cream */
 
-    --secondary: 220 14% 94%;        /* #f1f3f4 */
-    --secondary-foreground: 220 14% 12%;
+    --secondary: 33 20% 90%;        /* #EBE4DA Soft Café Taupe Light */
+    --secondary-foreground: 15 18% 12%;
 
-    --muted: 220 14% 94%;            /* #f1f3f4 */
-    --muted-foreground: 218 11% 40%; /* #5f6368 */
+    --muted: 33 20% 92%;            /* #EEE8DF Warm Ivory Muted */
+    --muted-foreground: 30 10% 46%; /* #7A7067 Café Taupe Medium */
 
-    --accent: 220 14% 94%;
-    --accent-foreground: 220 14% 12%;
+    --accent: 43 55% 52%;           /* #D4AF37 / #C5A059 Brushed Gold Accent */
+    --accent-foreground: 15 18% 12%;
 
-    --destructive: 4 90% 58%;        /* #ea4335 Google Red */
+    --destructive: 354 70% 42%;     /* #B81D24 Deep Berry Red */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 218 17% 88%;           /* #dadce0 */
-    --input: 218 17% 88%;            /* #dadce0 */
+    --border: 33 18% 86%;           /* #DFD7CC Warm Subtle Border */
+    --input: 33 18% 86%;            /* #DFD7CC */
     
-    --ring: 217 88% 46%;
-    --radius: 0.5rem;
+    --ring: 355 58% 24%;            /* Burgundy Focus Ring */
+    --radius: 0.75rem;
 
     /* Safe Area Variables */
     --sat: env(safe-area-inset-top, 60px);
@@ -71,34 +72,34 @@
   }
 
   .dark {
-    /* Google Cloud Console Sleek Dark Mode (Solid Charcoal & Blue) */
-    --background: 225 10% 8%;        /* #121316 */
-    --foreground: 216 12% 95%;       /* #f1f3f4 */
+    /* Kape Uno Bistro Roasted Espresso Palette (Dark Mode) */
+    --background: 15 20% 8%;         /* #16100E Deep Dark Espresso */
+    --foreground: 36 25% 94%;        /* #F4EFEA Warm Cream Text */
 
-    --card: 225 10% 11%;             /* #18191d */
-    --card-foreground: 216 12% 95%;
+    --card: 16 18% 12%;             /* #221A17 Roasted Coffee Card Surface */
+    --card-foreground: 36 25% 94%;
 
-    --popover: 225 10% 11%;          /* #18191d */
-    --popover-foreground: 216 12% 95%;
+    --popover: 16 18% 12%;
+    --popover-foreground: 36 25% 94%;
 
-    --primary: 217 88% 48%;          /* #1a67dc High-Contrast Blue on dark (WCAG AA 5.2:1) */
+    --primary: 355 65% 36%;          /* #96252C Warm Burgundy Velvet for Dark Mode */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 224 10% 16%;        /* #22242c */
-    --secondary-foreground: 216 12% 95%;
+    --secondary: 16 15% 18%;        /* #342823 */
+    --secondary-foreground: 36 25% 94%;
 
-    --muted: 224 10% 15%;            /* #20222a */
-    --muted-foreground: 218 10% 65%; /* #9aa0a6 */
+    --muted: 16 15% 16%;            /* #2F241F */
+    --muted-foreground: 30 12% 64%; /* #A89E93 Muted Cream Taupe */
 
-    --accent: 224 10% 15%;
-    --accent-foreground: 216 12% 95%;
+    --accent: 43 55% 58%;           /* #DFB748 Brushed Warm Gold */
+    --accent-foreground: 15 20% 8%;
 
-    --destructive: 4 90% 58%;        /* #ea4335 */
+    --destructive: 0 72% 51%;       /* #E53935 Crimson Red */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 224 10% 21%;           /* #2d313a */
-    --input: 224 10% 21%;            /* #2d313a */
-    --ring: 217 91% 60%;
+    --border: 16 14% 20%;           /* #3A2E28 Warm Dark Border */
+    --input: 16 14% 20%;            /* #3A2E28 */
+    --ring: 355 65% 36%;
   }
 }
 
@@ -258,3 +259,16 @@
 .dark .table-slider-container::-webkit-scrollbar-thumb:hover {
   background: #64748b;
 }
+
+/* Global Animation & Motion Reduction: Disables heavy animations on low-end devices and respects user preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
