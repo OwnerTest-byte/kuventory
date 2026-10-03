@@ -78,12 +78,17 @@ export type DailyInventoryEntry = {
   ending_qty: number;
   category_id?: string | null;
   category_name?: string;
-};export type AppNotification = {
+};
+
+export type AppNotification = {
   id: string;
   title: string;
   message: string;
-  type: 'LOW_STOCK' | 'EXPIRING_SOON' | 'OUT_OF_STOCK' | 'EXPIRED';
-  item_id?: string;
+  type: 'LOW_STOCK' | 'EXPIRING_SOON' | 'OUT_OF_STOCK' | 'EXPIRED' | 'PASSWORD_RESET' | 'SYSTEM' | string;
+  item_id?: string | null;
+  batch_id?: string | null;
+  target_id?: string | null;
   is_read: boolean;
   created_at: string;
 };
+

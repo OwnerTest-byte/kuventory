@@ -4,6 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { useNotifications, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from '../hooks/useNotifications';
 import { cn } from '@/lib/utils';
 
+import { getNotificationRoute } from '../utils/notificationRouter';
+import { KeyRound, ShieldAlert } from 'lucide-react';
+import type { AppNotification } from '../types';
+
 interface Props {
   placement?: 'bottom-right' | 'top-left';
 }
@@ -30,20 +34,15 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleNotificationClick = (notification: any) => {
+  const handleNotificationClick = (notification: AppNotification) => {
     if (!notification.is_read) {
       markAsRead.mutate(notification.id);
     }
     setIsOpen(false);
     
-    // Navigate based on type
-    if (notification.type === 'LOW_STOCK' || notification.type === 'OUT_OF_STOCK') {
-      navigate('/reports?tab=alerts');
-    } else if (notification.type === 'EXPIRING_SOON' || notification.type === 'EXPIRED') {
-      navigate('/items?tab=batches');
-    } else {
-      navigate('/items?tab=history');
-    }
+    // Precise redirection to the exact notification entity (item, batch, sheet, or user management)
+    const targetUrl = getNotificationRoute(notification);
+    navigate(targetUrl);
   };
 
   const getIcon = (type: string) => {
@@ -52,6 +51,8 @@ export function NotificationBell({ placement = 'bottom-right' }: Props) {
       case 'OUT_OF_STOCK': return <AlertCircle className="h-5 w-5 text-red-500" />;
       case 'EXPIRING_SOON': return <Clock className="h-5 w-5 text-amber-500" />;
       case 'EXPIRED': return <AlertCircle className="h-5 w-5 text-red-500" />;
+      case 'PASSWORD_RESET': return <KeyRound className="h-5 w-5 text-amber-600 animate-bounce" />;
+      case 'SYSTEM': return <ShieldAlert className="h-5 w-5 text-primary" />;
       default: return <Info className="h-5 w-5 text-blue-500" />;
     }
   };

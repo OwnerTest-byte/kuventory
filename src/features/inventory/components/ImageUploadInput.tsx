@@ -8,12 +8,14 @@ interface ImageUploadInputProps {
   value: string | null;
   onChange: (value: string | null) => void;
   className?: string;
+  hideHeaderLabel?: boolean;
 }
 
 export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
   value,
   onChange,
   className,
+  hideHeaderLabel = false,
 }) => {
   const [activeTab, setActiveTab] = useState<'upload' | 'url'>('upload');
   const [urlInput, setUrlInput] = useState('');
@@ -140,13 +142,25 @@ export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
   };
 
   return (
-    <div className={cn("space-y-3", className)}>
-      <div className="flex items-center justify-between">
-        <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-          <ImageIcon className="w-3.5 h-3.5 text-primary" />
-          Item Product Photo
-        </label>
-        {value && (
+    <div className={cn("space-y-2.5", className)}>
+      {!hideHeaderLabel ? (
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+            <ImageIcon className="w-3.5 h-3.5 text-primary" />
+            Item Product Photo
+          </label>
+          {value && (
+            <button
+              type="button"
+              onClick={handleClearImage}
+              className="text-[11px] font-semibold text-rose-500 hover:text-rose-600 flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              <X className="w-3 h-3" /> Remove Photo
+            </button>
+          )}
+        </div>
+      ) : value ? (
+        <div className="flex justify-end">
           <button
             type="button"
             onClick={handleClearImage}
@@ -154,8 +168,8 @@ export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
           >
             <X className="w-3 h-3" /> Remove Photo
           </button>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {/* Preview Box if image exists */}
       {value ? (

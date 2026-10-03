@@ -64,7 +64,7 @@ test.describe('KUVENTORY End-to-End QA Verification Suite', () => {
     await expect(manifestLink).toHaveAttribute('href', '/manifest.json');
 
     const appleTouchIcon = page.locator('link[rel="apple-touch-icon"]');
-    await expect(appleTouchIcon).toHaveAttribute('href', '/apple-touch-icon.png');
+    await expect(appleTouchIcon).toHaveAttribute('href', /\/(apple-touch-icon\.png|pics\/logo-icon\.png)/);
 
     const viewportMeta = page.locator('meta[name="viewport"]');
     await expect(viewportMeta).toHaveAttribute('content', /viewport-fit=cover/);

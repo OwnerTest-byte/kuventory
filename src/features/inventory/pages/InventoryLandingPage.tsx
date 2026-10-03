@@ -21,6 +21,7 @@ import {
 import { format } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { getNotificationRoute } from '../utils/notificationRouter';
 
 export function InventoryLandingPage() {
   const navigate = useNavigate();
@@ -335,8 +336,8 @@ export function InventoryLandingPage() {
             notifications.slice(0, 4).map((notif) => (
               <div
                 key={notif.id}
-                onClick={() => navigate('/notifications')}
-                className="p-4 flex items-start justify-between gap-3 hover:bg-muted/30 transition-colors cursor-pointer"
+                onClick={() => navigate(getNotificationRoute(notif))}
+                className="p-4 flex items-start justify-between gap-3 hover:bg-muted/30 transition-colors cursor-pointer group"
               >
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 shrink-0">

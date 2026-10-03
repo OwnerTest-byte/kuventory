@@ -3,8 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { X } from 'lucide-react';
-import type { InventoryItem } from '../types';
+import { X, Image as ImageIcon } from 'lucide-react';
+import type { InventoryItem, Category } from '../types';
 import { useSuppliers } from '../api/suppliers';
 import { ImageUploadInput } from './ImageUploadInput';
 
@@ -33,12 +33,12 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
   });
   const [error, setError] = useState<string | null>(null);
 
-  const { data: categories } = useQuery({
+  const { data: categories } = useQuery<Category[]>({
     queryKey: ['categories'],
     queryFn: async () => {
       const { data, error } = await supabase.from('categories').select('*').order('name');
       if (error) throw error;
-      return data;
+      return (data || []) as Category[];
     }
   });
 
@@ -219,11 +219,15 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
                 ))}
               </datalist>
 
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-semibold text-foreground">Item Image (Optional)</label>
+              <div className="space-y-2 md:col-span-2 pt-1">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                  <ImageIcon className="w-4 h-4 text-primary" />
+                  Item Image (Optional)
+                </label>
                 <ImageUploadInput 
                   value={formData.image_path}
                   onChange={(val) => setFormData({ ...formData, image_path: val || '' })}
+                  hideHeaderLabel
                 />
               </div>
             </div>

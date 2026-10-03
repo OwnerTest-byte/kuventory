@@ -37,13 +37,13 @@ export function LoginPage() {
         </div>
         
         <div className="relative z-10 flex flex-col items-center gap-6 text-center my-auto">
-          <div className="w-32 h-32 rounded-3xl bg-[#2A201C] border border-[#3E302A] p-4 flex items-center justify-center shadow-2xl">
+          <div className="w-28 h-28 rounded-2xl bg-[#FAF7F2] border-2 border-[#D4AF37]/60 p-2.5 flex items-center justify-center shadow-2xl ring-4 ring-[#D4AF37]/20 transition-transform hover:scale-105">
             <img 
               src="/pics/logo-transparent.png" 
-              alt="KUVENTORY Logo" 
+              alt="Kape Uno Bistro Logo" 
               width={200}
               height={160}
-              className="h-24 w-auto object-contain drop-shadow" 
+              className="h-20 w-auto object-contain" 
               onError={(e) => { e.currentTarget.style.display = 'none'; }} 
             />
           </div>
@@ -69,7 +69,7 @@ export function LoginPage() {
             <button 
               type="button"
               onClick={() => setLegalType('privacy')} 
-              className="hover:text-[#FAF7F2] transition-colors underline-offset-4 hover:underline min-h-[48px] min-w-[48px] px-3 py-3 flex items-center cursor-pointer"
+              className="hover:text-[#FAF7F2] transition-colors underline-offset-4 hover:underline min-h-12 min-w-12 px-3 py-3 flex items-center cursor-pointer"
             >
               Privacy Policy
             </button>
@@ -77,7 +77,7 @@ export function LoginPage() {
             <button 
               type="button"
               onClick={() => setLegalType('terms')} 
-              className="hover:text-[#FAF7F2] transition-colors underline-offset-4 hover:underline min-h-[48px] min-w-[48px] px-3 py-3 flex items-center cursor-pointer"
+              className="hover:text-[#FAF7F2] transition-colors underline-offset-4 hover:underline min-h-12 min-w-12 px-3 py-3 flex items-center cursor-pointer"
             >
               Terms of Service
             </button>
@@ -90,16 +90,18 @@ export function LoginPage() {
         <div className="w-full flex-1 flex flex-col items-center justify-center my-auto max-w-md">
           {/* Mobile Logo & Heading */}
           <div className="lg:hidden mb-6 flex flex-col items-center gap-2">
-            <img 
-              src="/pics/logo-icon.png" 
-              alt="KUVENTORY Icon" 
-              width={64}
-              height={64}
-              className="h-16 w-auto object-contain" 
-              onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-            />
+            <div className="w-20 h-20 rounded-2xl bg-[#FAF7F2] border-2 border-[#D4AF37]/50 p-2 flex items-center justify-center shadow-md mb-1">
+              <img 
+                src="/pics/logo-icon.png" 
+                alt="Kape Uno Bistro Icon" 
+                width={64}
+                height={64}
+                className="h-14 w-auto object-contain" 
+                onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+              />
+            </div>
             <h1 className="font-bold text-2xl text-foreground tracking-tight">KUVENTORY</h1>
-            <p className="text-sm text-muted-foreground font-medium">Inventory Management System</p>
+            <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Kape Uno Bistro · Operations</p>
           </div>
           
           <div className="w-full bg-card p-6 sm:p-8 rounded-xl shadow-sm border border-border">

@@ -417,4 +417,46 @@ test.describe('KUVENTORY Directive Hardening & Real Verification Suite', () => {
       expect(await zeroQtyBadge.count()).toBe(0);
     }
   });
+
+  // Test 7: Master Admin Password Reset Modal & Direct Hotline
+  test('Password Reset Modal: Dispatches to Master Admin and displays hotline 09917101298 with tel/sms links', async ({ page }) => {
+    await page.goto('login');
+
+    const forgotBtn = page.getByRole('button', { name: /forgot password\?/i });
+    await expect(forgotBtn).toBeVisible();
+    await forgotBtn.click();
+
+    // Verify modal is open
+    await expect(page.getByRole('heading', { name: /reset password/i })).toBeVisible();
+
+    // Verify hotline number and email dedicated to Master Admin
+    await expect(page.locator('text=09917101298')).toBeVisible();
+    await expect(page.locator('text=master@kuventory.com')).toBeVisible();
+
+    // Verify accessible Call & SMS links
+    const callLink = page.locator('a[href="tel:09917101298"]').first();
+    const smsLink = page.locator('a[href="sms:09917101298"]').first();
+    await expect(callLink).toBeVisible();
+    await expect(smsLink).toBeVisible();
+  });
+
+  // Test 8: Header Location & Navigation
+  test('App Layout: Displays "Kape Uno Bistro · Main Branch" and eliminates duplicate worksheet navigation', async ({ page }) => {
+    await mockAuthenticatedAdminSession(page);
+    await page.goto('inventory');
+
+    // Verify header location displays "Kape Uno Bistro · Main Branch"
+    const locationBadge = page.locator('header').getByText(/Kape Uno Bistro · Main Branch/i);
+    await expect(locationBadge).toBeVisible();
+
+    // Verify single Daily Inventory navigation item exists (sidebar on desktop/tablet or mobile nav on phone)
+    const isMobile = await page.evaluate(() => window.innerWidth < 768);
+    if (!isMobile) {
+      const dailyNav = page.locator('aside nav').getByRole('link', { name: /Daily Inventory/i });
+      await expect(dailyNav).toBeVisible();
+    } else {
+      const mobileNav = page.locator('nav a[href="/daily-inventory"]').first();
+      await expect(mobileNav).toBeAttached();
+    }
+  });
 });

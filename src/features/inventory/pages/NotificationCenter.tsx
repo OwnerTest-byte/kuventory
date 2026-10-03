@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, AlertTriangle, Info, Clock, AlertCircle, CheckCheck, Loader2, RefreshCw, BellOff } from 'lucide-react';
+import { Bell, AlertTriangle, Info, Clock, AlertCircle, CheckCheck, Loader2, RefreshCw, BellOff, KeyRound, ShieldAlert, ArrowRight } from 'lucide-react';
 import { useNotifications, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from '../hooks/useNotifications';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { getNotificationRoute } from '../utils/notificationRouter';
 import type { AppNotification } from '../types';
 
 function getIcon(type: string) {
@@ -12,6 +13,8 @@ function getIcon(type: string) {
     case 'OUT_OF_STOCK': return <AlertCircle className="h-5 w-5 text-red-500" />;
     case 'EXPIRING_SOON': return <Clock className="h-5 w-5 text-amber-500" />;
     case 'EXPIRED': return <AlertCircle className="h-5 w-5 text-red-500" />;
+    case 'PASSWORD_RESET': return <KeyRound className="h-5 w-5 text-amber-600 animate-bounce" />;
+    case 'SYSTEM': return <ShieldAlert className="h-5 w-5 text-primary" />;
     default: return <Info className="h-5 w-5 text-blue-500" />;
   }
 }
@@ -22,6 +25,7 @@ function getBadgeVariant(type: string) {
     case 'OUT_OF_STOCK': return 'destructive' as const;
     case 'EXPIRING_SOON': return 'outline' as const;
     case 'EXPIRED': return 'destructive' as const;
+    case 'PASSWORD_RESET': return 'secondary' as const;
     default: return 'default' as const;
   }
 }
@@ -32,6 +36,8 @@ function typeLabel(type: string) {
     case 'OUT_OF_STOCK': return 'OUT OF STOCK';
     case 'EXPIRING_SOON': return 'EXPIRING SOON';
     case 'EXPIRED': return 'EXPIRED';
+    case 'PASSWORD_RESET': return 'PASSWORD RESET';
+    case 'SYSTEM': return 'SYSTEM ALERT';
     default: return type;
   }
 }
@@ -45,13 +51,8 @@ export function NotificationCenter() {
 
   const handleOpen = (n: AppNotification) => {
     if (!n.is_read) markAsRead.mutate(n.id);
-    if (n.type === 'LOW_STOCK' || n.type === 'OUT_OF_STOCK') {
-      navigate('/items');
-    } else if (n.type === 'EXPIRING_SOON' || n.type === 'EXPIRED') {
-      navigate('/items?tab=batches');
-    } else {
-      navigate('/items?tab=history');
-    }
+    const targetUrl = getNotificationRoute(n);
+    navigate(targetUrl);
   };
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
@@ -147,9 +148,14 @@ export function NotificationCenter() {
                       <Badge variant={getBadgeVariant(n.type)}>{typeLabel(n.type)}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">{n.message}</p>
-                    <p className="text-[10px] text-muted-foreground/80 mt-2">
-                      {new Date(n.created_at).toLocaleString()}
-                    </p>
+                    <div className="flex items-center justify-between mt-2 pt-1">
+                      <p className="text-[10px] text-muted-foreground/80">
+                        {new Date(n.created_at).toLocaleString()}
+                      </p>
+                      <span className="text-xs font-semibold text-primary flex items-center gap-1 group-hover:underline">
+                        Open <ArrowRight className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
                   </div>
                 </button>
               </li>

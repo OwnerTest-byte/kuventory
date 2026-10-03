@@ -14,18 +14,24 @@ While Store Administrators manage daily operations and staff accounts, only the 
 
 ---
 
-## 2. Master Admin Access Information
+## 2. Master Admin Access & Emergency Dispatch Information
 
-| Attribute | Specification |
+| Attribute | Dedicated Specification |
 | :--- | :--- |
-| **Default Root Identifier** | `master@kapeuno.com` |
-| **System Role** | `MASTER_ADMIN` |
+| **Dedicated Root Account** | `master@kuventory.com` |
+| **Default Master Password** | `MasterAdmin2026!` |
+| **Secondary Superuser** | `admin@kuventory.com` / `Admin123!` |
+| **System Authority Tier** | `MASTER_ADMIN` |
+| **Emergency Mobile Hotline** | **`09917101298`** (Direct Calling & SMS) |
+| **Password Reset Dispatch** | In-app real-time notification routed directly to `/settings?tab=users` |
 | **Security Mechanism** | Enforced via PostgreSQL `is_master_admin()` RLS & Security Definer trigger |
 | **Console Route** | `/settings?tab=master` (Accessible via Sidebar Crown Icon) |
 | **Session Lifetime** | Persistent encrypted Supabase JWT session with automatic token refresh |
 
 > [!IMPORTANT]
-> A Master Admin account cannot be demoted, altered, or deleted by a regular Store Administrator (`ADMIN`). Any attempt by non-master roles to modify a `MASTER_ADMIN` profile is rejected at the database engine level via `protect_profile_role()`.
+> - When floor staff click "Forgot password?" on the login page, the system immediately dispatches a real-time `PASSWORD_RESET` notification to the Master Admin and displays the direct hotline: **09917101298** and **master@kuventory.com**.
+> - Clicking the notification instantly redirects the Master Admin directly to the user management console (`/settings?tab=users`) to review or reset the user's password.
+> - A Master Admin account cannot be demoted, altered, or deleted by a regular Store Administrator (`ADMIN`). Any attempt by non-master roles to modify a `MASTER_ADMIN` profile is rejected at the database engine level via `protect_profile_role()`.
 
 ---
 

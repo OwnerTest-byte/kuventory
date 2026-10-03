@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, KeyRound, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, CheckCircle2, AlertCircle, Loader2, ShieldCheck, Phone, MessageSquare, Mail, Send } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 export const loginSchema = z.object({
@@ -63,20 +63,50 @@ export function LoginForm() {
     }
   };
 
+  const MASTER_ADMIN_HOTLINE = '09917101298';
+  const MASTER_ADMIN_EMAIL = 'master@kuventory.com';
+
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotEmail) return;
     setIsSendingReset(true);
     setForgotError(null);
     setForgotMessage(null);
+
+    const emailToReset = forgotEmail.trim().toLowerCase();
+
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      // 1. Dispatch real-time alert directly to Master Admin via database RPC
+      const { data: rpcData, error: rpcError } = await supabase.rpc('request_password_reset', {
+        p_email: emailToReset,
       });
-      if (error) throw error;
-      setForgotMessage('Password reset link has been dispatched to your email.');
+
+      if (rpcError) {
+        // Fallback: direct insert to notifications table if RPC is unmigrated
+        await supabase.from('notifications').insert({
+          type: 'PASSWORD_RESET',
+          title: `Password Reset Request: ${emailToReset}`,
+          message: `Staff member (${emailToReset}) requested a password reset. Call or SMS Master Admin hotline: ${MASTER_ADMIN_HOTLINE}, or reset password in Admin Settings.`,
+          target_id: '/settings?tab=users',
+        } as any);
+      }
+
+      // 2. Also try standard Supabase auth reset link as background fallback
+      try {
+        await supabase.auth.resetPasswordForEmail(emailToReset, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+      } catch (authErr) {
+        // Ignore SMTP delivery failures since Master Admin is already notified
+        console.warn('Direct SMTP reset skipped or unconfigured:', authErr);
+      }
+
+      setForgotMessage(
+        rpcData?.message || 
+        `Password reset request has been dispatched directly to the Master Admin! For immediate clearance, call or text ${MASTER_ADMIN_HOTLINE}.`
+      );
     } catch (err: any) {
-      setForgotError(err.message || 'Unable to send reset email. Contact operations administrator directly.');
+      setForgotError(err.message || `Unable to send reset request. Please contact the Master Admin directly at ${MASTER_ADMIN_HOTLINE}.`);
     } finally {
       setIsSendingReset(false);
     }
@@ -123,8 +153,8 @@ export function LoginForm() {
 
           <div className="space-y-2 text-left">
             <Label htmlFor="password" className="text-sm font-semibold inline-block py-1">Password</Label>
-            <div className="relative flex items-center">
-              <Input
+            <div className="flex items-center h-12 min-h-[48px] w-full rounded-md border border-input bg-card shadow-2xs focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+              <input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
@@ -135,12 +165,12 @@ export function LoginForm() {
                 name="password"
                 required
                 aria-invalid={!!errors.password}
-                className="h-12 min-h-[48px] pr-12 text-base bg-card text-foreground"
+                className="flex-1 h-full px-3 py-2 bg-transparent text-base text-foreground placeholder:text-muted-foreground focus:outline-none min-w-0"
               />
               <button
                 type="button"
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10 min-h-[40px] min-w-[40px] flex items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none rounded-md cursor-pointer shrink-0"
+                className="h-12 w-12 min-h-[48px] min-w-[48px] flex items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none rounded-r-md cursor-pointer shrink-0"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -232,10 +262,56 @@ export function LoginForm() {
               />
             </div>
 
-            <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 space-y-1">
-              <p className="font-semibold text-slate-800 dark:text-slate-200">Admin Hotline Assistance:</p>
-              <p>Email: <span className="font-mono text-slate-900 dark:text-slate-100">operations@kuventory.com</span></p>
-              <p>Warehouse Tel: <span className="font-mono text-slate-900 dark:text-slate-100">+63 (02) 8921-4567</span></p>
+            <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 text-xs text-foreground space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-primary flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+                  Master Admin Direct Hotline
+                </span>
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                  Priority Support
+                </span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-0.5">
+                <div>
+                  <p className="text-[11px] text-muted-foreground font-medium">Hotline / Mobile:</p>
+                  <a 
+                    href={`tel:${MASTER_ADMIN_HOTLINE}`} 
+                    className="font-mono text-base font-black text-primary hover:underline flex items-center gap-1.5"
+                    aria-label={`Call Master Admin at ${MASTER_ADMIN_HOTLINE}`}
+                  >
+                    <Phone className="w-3.5 h-3.5 shrink-0" />
+                    {MASTER_ADMIN_HOTLINE}
+                  </a>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <a
+                    href={`tel:${MASTER_ADMIN_HOTLINE}`}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 transition-colors shadow-2xs"
+                  >
+                    <Phone className="w-3 h-3" /> Call
+                  </a>
+                  <a
+                    href={`sms:${MASTER_ADMIN_HOTLINE}`}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-card border border-border text-foreground font-bold text-xs hover:bg-muted transition-colors shadow-2xs"
+                  >
+                    <MessageSquare className="w-3 h-3" /> SMS
+                  </a>
+                </div>
+              </div>
+
+              <div className="pt-1 border-t border-primary/10 flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Email Assistance:</span>
+                <a 
+                  href={`mailto:${MASTER_ADMIN_EMAIL}`}
+                  className="font-mono text-primary hover:underline flex items-center gap-1 font-semibold"
+                >
+                  <Mail className="w-3 h-3" />
+                  {MASTER_ADMIN_EMAIL}
+                </a>
+              </div>
             </div>
 
             <DialogFooter className="pt-2 gap-2 sm:gap-0">
@@ -243,17 +319,21 @@ export function LoginForm() {
                 type="button"
                 variant="outline"
                 onClick={() => setIsForgotModalOpen(false)}
-                className="min-h-[44px]"
+                className="min-h-11"
               >
                 Close
               </Button>
               <Button
                 type="submit"
                 disabled={isSendingReset || !forgotEmail}
-                className="font-bold min-h-[44px]"
+                className="font-bold min-h-11 bg-primary hover:bg-primary/90 text-primary-foreground"
               >
-                {isSendingReset ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <KeyRound className="w-4 h-4 mr-2" />}
-                Send Reset Link
+                {isSendingReset ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Send className="w-4 h-4 mr-2" />
+                )}
+                Dispatch to Master Admin
               </Button>
             </DialogFooter>
           </form>

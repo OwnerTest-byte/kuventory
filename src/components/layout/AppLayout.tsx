@@ -15,7 +15,6 @@ import {
   ChevronDown,
   Sun,
   Moon,
-  PenSquare,
   Truck,
   RefreshCw,
   ChevronRight,
@@ -140,15 +139,13 @@ interface SidebarNavigationProps {
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   onOpenSearch?: () => void;
-  onOpenNewSheet?: () => void;
 }
 
 function SidebarNavigation({ 
   closeMobileMenu, 
   isCollapsed = false, 
   onToggleCollapse,
-  onOpenSearch,
-  onOpenNewSheet
+  onOpenSearch
 }: SidebarNavigationProps) {
   const { role, profile, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -279,15 +276,6 @@ function SidebarNavigation({
         {/* Top Primary Quick Action */}
         {!isCollapsed ? (
           <div className="space-y-2">
-            <button
-              type="button"
-              onClick={onOpenNewSheet}
-              className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl bg-[#2A201C] hover:bg-[#382C27] text-[#FAF7F2] border border-[#3E302A] font-semibold text-xs transition-colors cursor-pointer shadow-2xs group"
-            >
-              <PenSquare className="w-4 h-4 shrink-0 text-[#DFB748] transition-transform group-hover:scale-110" />
-              <span>Daily Worksheet</span>
-            </button>
-
             {onOpenSearch && (
               <button
                 type="button"
@@ -306,15 +294,6 @@ function SidebarNavigation({
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2 pb-1">
-            <button
-              type="button"
-              onClick={onOpenNewSheet}
-              title="Daily Worksheet"
-              aria-label="Open Daily Worksheet"
-              className="w-10 h-10 rounded-xl bg-[#2A201C] hover:bg-[#382C27] text-[#DFB748] border border-[#3E302A] flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-            >
-              <PenSquare className="w-4 h-4" />
-            </button>
             {onOpenSearch && (
               <button
                 type="button"
@@ -540,7 +519,6 @@ export function AppLayout() {
           isCollapsed={isSidebarCollapsed} 
           onToggleCollapse={toggleSidebar}
           onOpenSearch={() => setIsCommandOpen(true)}
-          onOpenNewSheet={() => navigate('/daily-inventory')}
         />
       </aside>
 
@@ -558,10 +536,6 @@ export function AppLayout() {
                 setMobileMenuOpen(false);
                 setIsCommandOpen(true);
               }}
-              onOpenNewSheet={() => {
-                setMobileMenuOpen(false);
-                navigate('/daily-inventory');
-              }}
             />
           </div>
         </div>
@@ -572,7 +546,7 @@ export function AppLayout() {
         {/* Top Header Bar for Main Content Area */}
         <header className="h-16 shrink-0 bg-card border-b border-border flex items-center justify-between px-2.5 sm:px-6 relative z-40 shadow-2xs gap-2">
           {/* Left Side: Mobile Menu Button (md:hidden) & Warehouse Location Badge */}
-          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 max-w-fit">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <Button 
               variant="ghost" 
               className="p-1.5 h-8 w-8 sm:h-9 sm:w-9 md:hidden text-muted-foreground hover:text-foreground shrink-0 cursor-pointer" 
@@ -583,13 +557,13 @@ export function AppLayout() {
               <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
 
-            {/* Location / Warehouse Badge */}
-            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-muted/60 border border-border min-w-0 max-w-[125px] xs:max-w-[170px] sm:max-w-none overflow-hidden select-none">
+            {/* Location / Bistro Branch Badge */}
+            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-muted/60 border border-border shrink-0 select-none">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              <div className="flex items-center gap-1 text-xs font-semibold text-foreground min-w-0 overflow-hidden">
+              <div className="flex items-center gap-1 text-xs font-semibold text-foreground">
                 <span className="hidden sm:inline text-muted-foreground font-normal">Location:</span>
-                <strong className="tracking-tight uppercase truncate min-w-0">
-                  <span className="hidden sm:inline">KUVENTORY </span>KIOSK & BODEGA
+                <strong className="tracking-tight uppercase text-[#1F1816] dark:text-[#FAF7F2]">
+                  Kape Uno Bistro · Main Branch
                 </strong>
               </div>
             </div>

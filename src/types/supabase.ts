@@ -759,6 +759,14 @@ export type Database = {
         Args: { p_notification_id: string }
         Returns: undefined
       }
+      request_password_reset: {
+        Args: { p_email: string }
+        Returns: { success: boolean; message: string; hotline?: string; admin_email?: string }
+      }
+      admin_reset_user_password: {
+        Args: { p_user_id: string; p_new_password: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
