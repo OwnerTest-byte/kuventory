@@ -40,28 +40,19 @@ export function LoginPage() {
         </div>
         
         <div className="relative z-10 flex flex-col items-center gap-4 text-center my-auto w-full max-w-sm">
-          {/* Brand Emblem */}
+          {/* Brand Emblem - Kape Uno Official Logo */}
           <div className="relative group">
-            <div className="w-32 h-32 rounded-3xl overflow-hidden border-2 border-[#D4AF37]/50 shadow-2xl ring-4 ring-[#D4AF37]/15 bg-[#171210] flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+            <div className="w-36 h-36 rounded-3xl overflow-hidden border-2 border-[#D4AF37]/60 shadow-2xl ring-4 ring-[#D4AF37]/20 bg-[#FAF7F2] flex items-center justify-center p-3 transition-transform duration-300 group-hover:scale-105">
               <img 
-                src="/pics/coffee-showcase.jpg" 
-                alt="Kape Uno Bistro" 
-                width={128}
-                height={128}
-                className="w-full h-full object-cover" 
+                src="/pics/logo-original.png" 
+                alt="Kape Uno Bistro Logo" 
+                width={144}
+                height={144}
+                className="w-full h-full object-contain" 
                 onError={(e) => { 
-                  // Fallback to transparent logo if photo fails to load
+                  // Fallback to transparent logo if original fails to load
                   e.currentTarget.src = '/pics/logo-transparent.png'; 
                 }} 
-              />
-            </div>
-            <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-xl bg-[#FAF7F2] border-2 border-[#D4AF37] p-1 shadow-md flex items-center justify-center">
-              <img 
-                src="/pics/logo-icon.png" 
-                alt="Kape Uno Icon" 
-                width={32}
-                height={32}
-                className="w-full h-full object-contain"
               />
             </div>
           </div>
@@ -106,14 +97,14 @@ export function LoginPage() {
         <div className="w-full flex-1 flex flex-col items-center justify-center my-auto py-2 max-w-md">
           {/* Mobile Header: Compact & Direct */}
           <div className="lg:hidden mb-4 flex flex-col items-center gap-1.5 w-full text-center">
-            <div className="w-14 h-14 rounded-2xl bg-[#FAF7F2] border-2 border-[#D4AF37]/50 p-1.5 flex items-center justify-center shadow-md mb-0.5">
+            <div className="w-16 h-16 rounded-2xl bg-[#FAF7F2] border-2 border-[#D4AF37]/50 p-2 flex items-center justify-center shadow-md mb-0.5">
               <img 
-                src="/pics/logo-icon.png" 
-                alt="Kape Uno Bistro Icon" 
-                width={56}
-                height={56}
-                className="h-10 w-auto object-contain" 
-                onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                src="/pics/logo-original.png" 
+                alt="Kape Uno Bistro Logo" 
+                width={64}
+                height={64}
+                className="w-full h-full object-contain" 
+                onError={(e) => { e.currentTarget.src = '/pics/logo-transparent.png'; }} 
               />
             </div>
             <h1 className="font-bold text-2xl text-foreground tracking-tight">KUVENTORY</h1>
