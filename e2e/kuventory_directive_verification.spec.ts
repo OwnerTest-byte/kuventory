@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // Helper to set up mock API responses and authenticated state for protected routes
-async function mockAuthenticatedAdminSession(page: any) {
+async function mockAuthenticatedSession(page: any, targetRole: 'ADMIN' | 'MASTER_ADMIN' | 'USER' = 'ADMIN') {
   page.on('console', (msg: any) => {
     if (msg.type() === 'error') console.log('[PAGE ERROR LOG]:', msg.text());
   });
@@ -9,15 +9,19 @@ async function mockAuthenticatedAdminSession(page: any) {
     console.log('[PAGE UNCAUGHT EXCEPTION]:', err.message);
   });
 
+  const isMaster = targetRole === 'MASTER_ADMIN';
+  const email = isMaster ? 'master@kuventory.com' : (targetRole === 'ADMIN' ? 'admin@kapeuno.com' : 'staff@kapeuno.com');
+  const name = isMaster ? 'Master Administrator' : (targetRole === 'ADMIN' ? 'Admin Chief' : 'Staff Member');
+
   const mockUser = {
-    id: '00000000-0000-0000-0000-000000000001',
+    id: isMaster ? '00000000-0000-0000-0000-000000000099' : '00000000-0000-0000-0000-000000000001',
     aud: 'authenticated',
     role: 'authenticated',
-    email: 'admin@kapeuno.com',
+    email,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
     app_metadata: { provider: 'email' },
-    user_metadata: { name: 'Admin Chief' }
+    user_metadata: { name, role: targetRole }
   };
 
   const mockAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDEiLCJlbWFpbCI6ImFkbWluQGthcGV1bm8uY29tIiwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJleHAiOjE5OTk5OTk5OTl9.MOCK_SIGNATURE';
@@ -53,9 +57,9 @@ async function mockAuthenticatedAdminSession(page: any) {
       contentType: 'application/json',
       body: JSON.stringify([
         {
-          id: '00000000-0000-0000-0000-000000000001',
-          name: 'Admin Chief',
-          role: 'ADMIN',
+          id: mockUser.id,
+          name,
+          role: targetRole,
           created_at: '2026-01-01T00:00:00Z'
         }
       ])
@@ -266,10 +270,22 @@ async function mockAuthenticatedAdminSession(page: any) {
 
   // Perform login
   await page.goto('login');
-  await page.fill('#email', 'admin@kapeuno.com');
+  await page.fill('#email', email);
   await page.fill('#password', 'password123');
   await page.click('button[type="submit"]');
-  await page.waitForURL('**/inventory');
+  await page.waitForURL(targetRole === 'USER' ? '**/daily-inventory' : '**/inventory');
+}
+
+async function mockAuthenticatedAdminSession(page: any) {
+  return mockAuthenticatedSession(page, 'ADMIN');
+}
+
+async function mockAuthenticatedMasterAdminSession(page: any) {
+  return mockAuthenticatedSession(page, 'MASTER_ADMIN');
+}
+
+async function mockAuthenticatedStaffSession(page: any) {
+  return mockAuthenticatedSession(page, 'USER');
 }
 
 test.describe('KUVENTORY Directive Hardening & Real Verification Suite', () => {
@@ -457,6 +473,103 @@ test.describe('KUVENTORY Directive Hardening & Real Verification Suite', () => {
     } else {
       const mobileNav = page.locator('nav a[href="/daily-inventory"]').first();
       await expect(mobileNav).toBeAttached();
+    }
+  });
+
+  // Test 9: Login Cleanliness & Feature Removal (No Artisanal text, No feature slider showcase)
+  test('Login Page Simplification: "Artisanal Coffee & Kitchen" and feature showcase slider are completely removed', async ({ page }) => {
+    await page.goto('login');
+
+    // 1. Verify "Artisanal Coffee & Kitchen" is NOT present anywhere on the page
+    const pageContent = await page.content();
+    expect(pageContent).not.toContain('Artisanal Coffee & Kitchen');
+    expect(pageContent).not.toContain('Artisanal Coffee &amp; Kitchen');
+
+    // 2. Verify feature highlight slider components are completely absent
+    await expect(page.locator('text=/SYSTEM HIGHLIGHT/i')).toHaveCount(0);
+    await expect(page.locator('text=/Zero Spoilage Guarantee/i')).toHaveCount(0);
+    await expect(page.locator('text=/Automated FEFO Rotation/i')).toHaveCount(0);
+
+    // 3. Verify clean, centered title and login card remain visible and accessible
+    await expect(page.locator('h1:visible').first()).toContainText('KUVENTORY');
+    await expect(page.locator('#email')).toBeVisible();
+    await expect(page.locator('#password')).toBeVisible();
+    await expect(page.locator('button[type="submit"]')).toBeVisible();
+  });
+
+  // Test 10: Master Admin Sidebar Visibility & Access Denial for Standard Admin
+  test('Master Admin Role Boundary: Sidebar shows Master Admin to Admin, but clicking it strictly denies access', async ({ page }) => {
+    await mockAuthenticatedAdminSession(page);
+    await page.goto('inventory');
+
+    // 1. Verify Master Admin link exists in the sidebar for Admin
+    const isMobile = await page.evaluate(() => window.innerWidth < 768);
+    if (!isMobile) {
+      const masterAdminLink = page.locator('aside nav').getByRole('link', { name: /Master Admin/i });
+      await expect(masterAdminLink).toBeVisible();
+
+      // 2. Click Master Admin link in sidebar
+      await masterAdminLink.click();
+      await page.waitForURL('**/settings?tab=master');
+    } else {
+      await page.goto('settings?tab=master');
+    }
+
+    // 3. Verify Standard Admin is STRICTLY DENIED access to Master Admin
+    await expect(page.locator('text=Master Administrator Clearance Required')).toBeVisible();
+    await expect(page.locator('text=403 Forbidden · Tier 0 Boundary')).toBeVisible();
+    await expect(page.locator('text=ADMIN (Level 1 Operational Administrator)')).toBeVisible();
+
+    // 4. Verify Master Admin privileged operational controls are NOT accessible
+    await expect(page.locator('button', { hasText: /Download Full System Backup/i })).toHaveCount(0);
+    await expect(page.locator('button', { hasText: /Execute Disaster Recovery Restore/i })).toHaveCount(0);
+    await expect(page.locator('button', { hasText: /Harmonize Stock Drifts/i })).toHaveCount(0);
+
+    // 5. Verify "Return to Admin Console" button safely redirects back to standard admin tabs
+    const returnBtn = page.getByRole('button', { name: /Return to Admin Console/i });
+    await expect(returnBtn).toBeVisible();
+    await returnBtn.click();
+    await expect(page.locator('h2', { hasText: /Restaurant Profile & Business Details/i })).toBeVisible();
+  });
+
+  // Test 11: Master Admin Absolute Operational Authority
+  test('Master Admin Authority: Master Admin account accesses full Tier 0 console with recovery, backup, and telemetry', async ({ page }) => {
+    await mockAuthenticatedMasterAdminSession(page);
+    await page.goto('settings?tab=master');
+
+    // 1. Verify Master Admin Console Header & Tier 0 Root Badge
+    await expect(page.locator('h2', { hasText: /Master Administrator Console/i })).toBeVisible();
+    await expect(page.locator('text=Tier 0 Root')).toBeVisible();
+
+    // 2. Verify Live Real-Time Telemetry Monitor
+    await expect(page.locator('text=/Live Real-Time Activity & Telemetry Monitor/i')).toBeVisible();
+
+    // 3. Verify One-Click Full Database Backup Snapshot
+    await expect(page.locator('text=/One-Click Real-Time Backup Snapshot/i')).toBeVisible();
+    await expect(page.locator('button', { hasText: /Download Full System Backup/i })).toBeVisible();
+
+    // 4. Verify Disaster Recovery Restore
+    await expect(page.locator('text=/Disaster Recovery & Point-in-Time Restore/i')).toBeVisible();
+
+    // 5. Verify Emergency Operational Contingencies
+    await expect(page.locator('text=/Emergency Operational Contingencies & Auto-Healing/i')).toBeVisible();
+    await expect(page.locator('text=/System Maintenance Lock/i')).toBeVisible();
+
+    // 6. Verify NO Access Denied barrier is present for genuine Master Admin
+    await expect(page.locator('text=/403 Forbidden/i')).toHaveCount(0);
+    await expect(page.locator('text=/Master Administrator Clearance Required/i')).toHaveCount(0);
+  });
+
+  // Test 12: Staff User Visibility Isolation
+  test('Staff Role Isolation: Normal Staff account does NOT see Master Admin in the sidebar', async ({ page }) => {
+    await mockAuthenticatedStaffSession(page);
+    await page.goto('daily-inventory');
+
+    const isMobile = await page.evaluate(() => window.innerWidth < 768);
+    if (!isMobile) {
+      // Sidebar on desktop/tablet must completely hide Master Admin
+      const masterAdminLink = page.locator('aside nav').getByRole('link', { name: /Master Admin/i });
+      await expect(masterAdminLink).toHaveCount(0);
     }
   });
 });

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LoginForm } from '../components/LoginForm';
-import { LoginFeatureSlider } from '../components/LoginFeatureSlider';
 import { LegalModal } from '@/components/common/LegalModal';
 
 export function LoginPage() {
@@ -41,12 +40,12 @@ export function LoginPage() {
         </div>
         
         <div className="relative z-10 flex flex-col items-center gap-4 text-center my-auto w-full max-w-sm">
-          {/* Artisanal Coffee Cup Showcase & Brand Emblem */}
+          {/* Brand Emblem */}
           <div className="relative group">
             <div className="w-32 h-32 rounded-3xl overflow-hidden border-2 border-[#D4AF37]/50 shadow-2xl ring-4 ring-[#D4AF37]/15 bg-[#171210] flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
               <img 
                 src="/pics/coffee-showcase.jpg" 
-                alt="Artisanal Latte Art Coffee at Kape Uno Bistro" 
+                alt="Kape Uno Bistro" 
                 width={128}
                 height={128}
                 className="w-full h-full object-cover" 
@@ -68,20 +67,12 @@ export function LoginPage() {
           </div>
 
           <div>
-            <span className="text-[11px] uppercase tracking-[0.25em] font-extrabold text-[#C5A059] block mb-1">
-              Artisanal Coffee &amp; Kitchen
-            </span>
             <h1 className="text-3xl xl:text-4xl font-serif font-black tracking-tight text-[#FAF7F2]">
               KUVENTORY
             </h1>
             <p className="text-xs text-[#D5CEC5] mt-1 font-medium">
               Enterprise Inventory Management System
             </p>
-          </div>
-
-          {/* Interactive Feature Slider */}
-          <div className="w-full pt-1">
-            <LoginFeatureSlider />
           </div>
         </div>
 
@@ -134,11 +125,6 @@ export function LoginPage() {
           {/* Centered Login Form Card */}
           <div className="w-full bg-card p-6 sm:p-8 rounded-2xl shadow-sm border border-border">
             <LoginForm />
-          </div>
-
-          {/* Mobile-Only Feature Highlights Carousel below form */}
-          <div className="lg:hidden w-full max-w-md mt-6">
-            <LoginFeatureSlider />
           </div>
         </div>
 

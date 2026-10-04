@@ -69,10 +69,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('Profile fetch warning (using metadata fallback):', error.message);
         }
 
-        const isMaster = user.email === 'master@kuventory.com' || user.email === 'admin@kuventory.com';
+        const isMaster = user.email === 'master@kuventory.com';
+        const isAdmin = user.email === 'admin@kuventory.com';
         const roleFromMeta = (user.user_metadata?.role as Role) || 'USER';
         const roleFromDb = data?.role as Role;
-        const resolvedRole: Role = isMaster ? 'MASTER_ADMIN' : (roleFromDb || roleFromMeta);
+        const resolvedRole: Role = isMaster ? 'MASTER_ADMIN' : (isAdmin ? 'ADMIN' : (roleFromDb || roleFromMeta));
 
         return {
           id: user.id,
@@ -84,10 +85,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } as Profile;
       } catch (err) {
         console.warn('Profile query exception:', err);
-        const isMaster = user.email === 'master@kuventory.com' || user.email === 'admin@kuventory.com';
+        const isMaster = user.email === 'master@kuventory.com';
+        const isAdmin = user.email === 'admin@kuventory.com';
+        const fallbackRole: Role = isMaster ? 'MASTER_ADMIN' : (isAdmin ? 'ADMIN' : ((user.user_metadata?.role as Role) || 'USER'));
         return {
           id: user.id,
-          role: isMaster ? 'MASTER_ADMIN' : ((user.user_metadata?.role as Role) || 'USER'),
+          role: fallbackRole,
           first_name: user.email?.split('@')[0] || 'User',
           last_name: '',
           created_at: new Date().toISOString(),
@@ -107,8 +110,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isLoading = isSessionLoading || (!!user && isProfileLoading);
-  const isMasterUser = user?.email === 'master@kuventory.com' || user?.email === 'admin@kuventory.com';
-  const role: Role = isMasterUser ? 'MASTER_ADMIN' : (profile?.role ?? (user?.user_metadata?.role as Role) ?? 'USER');
+  const isMasterUser = user?.email === 'master@kuventory.com';
+  const isAdminUser = user?.email === 'admin@kuventory.com';
+  const role: Role = isMasterUser 
+    ? 'MASTER_ADMIN' 
+    : (isAdminUser ? 'ADMIN' : (profile?.role ?? (user?.user_metadata?.role as Role) ?? 'USER'));
 
   return (
     <AuthContext.Provider value={{ session, user, profile: profile ?? null, role, isLoading, signOut }}>

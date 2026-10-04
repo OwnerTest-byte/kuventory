@@ -87,7 +87,9 @@ export function App() {
             <Route path="/settings" element={
               <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
             } />
-            <Route path="/admin" element={<Navigate to="/settings" replace />} />
+            <Route path="/admin" element={
+              <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
+            } />
 
             {/* Fallback for authenticated users */}
             <Route path="*" element={<Navigate to="/inventory" replace />} />

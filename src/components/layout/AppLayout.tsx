@@ -20,7 +20,7 @@ import {
   ChevronRight,
   TrendingUp,
   Bell,
-  Shield
+  Crown
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/context/AuthContext';
@@ -172,8 +172,12 @@ function SidebarNavigation({
       return location.pathname.startsWith('/reports');
     }
 
+    if (to === '/settings?tab=master') {
+      return (location.pathname === '/settings' || location.pathname === '/admin') && location.search.includes('tab=master');
+    }
+
     if (to === '/settings') {
-      return location.pathname === '/settings' || location.pathname === '/admin';
+      return (location.pathname === '/settings' || location.pathname === '/admin') && !location.search.includes('tab=master');
     }
 
     return location.pathname === to;
@@ -191,9 +195,17 @@ function SidebarNavigation({
     ? `${profile.first_name} ${profile.last_name || ''}`.trim()
     : user?.email || 'User';
 
+  const isMasterUser = role === 'MASTER_ADMIN' || user?.email === 'master@kuventory.com';
+  const isAdminUser = role === 'ADMIN' || user?.email === 'admin@kuventory.com' || isMasterUser;
+
   const navList = [
     ...primaryNav,
-    ...(role === 'MASTER_ADMIN' ? [{ name: 'Master Console', to: '/settings?tab=master', icon: Shield, badge: 'ROOT' }] : [])
+    ...(isAdminUser ? [{ 
+      name: 'Master Admin', 
+      to: '/settings?tab=master', 
+      icon: Crown, 
+      badge: isMasterUser ? 'ROOT' : 'RESTRICTED' 
+    }] : [])
   ];
 
   return (

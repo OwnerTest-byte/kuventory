@@ -36,21 +36,19 @@ interface ProfileRow {
 export function AdminPage() {
   const queryClient = useQueryClient();
   const { user, profile, role } = useAuth();
-  const isMasterAdmin = role === 'MASTER_ADMIN' || user?.email === 'master@kuventory.com' || user?.email === 'admin@kuventory.com';
-  const isAdmin = role === 'ADMIN' || isMasterAdmin;
+  const isMasterAdmin = role === 'MASTER_ADMIN' || user?.email === 'master@kuventory.com';
+  const isAdmin = role === 'ADMIN' || user?.email === 'admin@kuventory.com' || isMasterAdmin;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get('tab');
 
-  const allowedTabs = isMasterAdmin
+  const allowedTabs = (isMasterAdmin || isAdmin)
     ? ['account', 'restaurant', 'users', 'notifications', 'activity', 'master', 'about'] 
-    : (isAdmin 
-        ? ['account', 'restaurant', 'users', 'notifications', 'activity', 'about'] 
-        : ['account', 'restaurant', 'about']);
+    : ['account', 'restaurant', 'about'];
 
   const activeTab = (urlTab && allowedTabs.includes(urlTab))
     ? urlTab
-    : (isMasterAdmin && urlTab === 'master' ? 'master' : (isAdmin ? 'restaurant' : 'account'));
+    : (isAdmin ? 'restaurant' : 'account');
 
   const [activitySubTab, setActivitySubTab] = useState<'stock' | 'database' | 'logins'>('stock');
 
@@ -962,12 +960,25 @@ export function AdminPage() {
               </TabsTrigger>
             </>
           )}
-          {isMasterAdmin && (
+          {(isMasterAdmin || isAdmin) && (
             <TabsTrigger 
               value="master" 
-              className="font-semibold text-xs sm:text-sm bg-linear-to-r from-amber-500/15 to-amber-600/10 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+              className={cn(
+                "font-semibold text-xs sm:text-sm border transition-all",
+                isMasterAdmin 
+                  ? "bg-linear-to-r from-amber-500/15 to-amber-600/10 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:border-amber-500/50" 
+                  : "text-muted-foreground hover:text-foreground border-transparent hover:border-border"
+              )}
             >
-              <Crown className="w-4 h-4 mr-2 text-amber-500" /> Master Console
+              {isMasterAdmin ? (
+                <>
+                  <Crown className="w-4 h-4 mr-2 text-amber-500" /> Master Admin
+                </>
+              ) : (
+                <>
+                  <Shield className="w-4 h-4 mr-2 text-rose-500" /> Master Admin
+                </>
+              )}
             </TabsTrigger>
           )}
           <TabsTrigger value="about" className="font-semibold text-xs sm:text-sm">
@@ -1847,9 +1858,70 @@ export function AdminPage() {
           </div>
         </TabsContent>
 
-        {/* TAB 6: MASTER ADMIN CONSOLE (TIER 0 ROOT AUTHORITY) */}
-        {isMasterAdmin && (
+        {/* TAB 6: MASTER ADMIN CONSOLE (TIER 0 ROOT AUTHORITY) OR ACCESS DENIED FOR STANDARD ADMIN */}
+        {(isMasterAdmin || isAdmin) && (
           <TabsContent value="master" className="space-y-6">
+            {!isMasterAdmin ? (
+              /* STRICT ACCESS DENIED SECURITY BARRIER FOR STANDARD ADMIN */
+              <div className="p-8 sm:p-12 rounded-2xl bg-card border border-rose-500/30 shadow-md space-y-6 max-w-3xl mx-auto text-center my-6">
+                <div className="w-16 h-16 rounded-3xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-500 mx-auto shadow-inner">
+                  <Lock className="w-8 h-8 text-rose-600 dark:text-rose-400 animate-pulse" />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold uppercase tracking-wider">
+                    <Shield className="w-3.5 h-3.5" /> 403 Forbidden · Tier 0 Boundary
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                    Master Administrator Clearance Required
+                  </h2>
+                  <p className="text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed">
+                    The Master Admin Console contains high-risk disaster recovery mechanisms, raw database snapshot engines, live telemetry streams, and emergency system locks. Standard Administrators do not possess clearance for Tier 0 governance.
+                  </p>
+                </div>
+
+                {/* Security Audit Badge & Current Identity */}
+                <div className="p-4 rounded-xl bg-muted/40 border border-border text-xs text-left space-y-2.5 max-w-lg mx-auto">
+                  <div className="flex items-center justify-between pb-2 border-b border-border">
+                    <span className="text-muted-foreground font-medium">Authenticated Identity:</span>
+                    <span className="font-bold text-foreground font-mono">{user?.email || 'admin@kuventory.com'}</span>
+                  </div>
+                  <div className="flex items-center justify-between pb-2 border-b border-border">
+                    <span className="text-muted-foreground font-medium">Assigned Operational Role:</span>
+                    <span className="font-bold text-primary">ADMIN (Level 1 Operational Administrator)</span>
+                  </div>
+                  <div className="flex items-center justify-between pb-2 border-b border-border">
+                    <span className="text-muted-foreground font-medium">Required Authorization:</span>
+                    <span className="font-bold text-amber-500">MASTER_ADMIN (Tier 0 Absolute Governance)</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground font-medium">Security Enforcement:</span>
+                    <span className="font-bold text-emerald-500 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Active Zero-Trust Policy
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <Button
+                    onClick={() => handleTabChange('restaurant')}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs px-6 py-2.5 rounded-xl cursor-pointer shadow-xs w-full sm:w-auto"
+                  >
+                    <Store className="w-4 h-4 mr-2" />
+                    Return to Admin Console
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleTabChange('users')}
+                    className="font-bold text-xs px-6 py-2.5 rounded-xl border-border text-foreground hover:bg-muted cursor-pointer w-full sm:w-auto"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Manage Staff & Users
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
             {/* Master Admin Identity Card */}
             <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-500/10 via-card to-card border border-amber-500/30 shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -2391,6 +2463,8 @@ export function AdminPage() {
                 </Table>
               </div>
             </div>
+              </>
+            )}
           </TabsContent>
         )}
       </Tabs>
