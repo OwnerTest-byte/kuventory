@@ -20,8 +20,8 @@ While Store Administrators manage daily operations and staff accounts, only the 
 | :--- | :--- |
 | **Dedicated Root Account** | `master@kuventory.com` |
 | **Default Master Password** | `MasterAdmin2026!` |
-| **Secondary Superuser** | `admin@kuventory.com` / `Admin123!` |
-| **System Authority Tier** | `MASTER_ADMIN` |
+| **Store Administrator (Operational)** | `admin@kuventory.com` / `Admin123!` |
+| **System Authority Tier** | `MASTER_ADMIN` (Dedicated to `master@kuventory.com`) |
 | **Emergency Mobile Hotline** | **`09917101298`** (Direct Calling & SMS) |
 | **Password Reset Dispatch** | In-app real-time notification routed directly to `/settings?tab=users` |
 | **Security Mechanism** | Enforced via PostgreSQL `is_master_admin()` RLS & Security Definer trigger |
@@ -100,7 +100,7 @@ While Store Administrators manage daily operations and staff accounts, only the 
 
 If the production database experiences a partial outage or corrupt record state:
 
-1. Log into the system using the Master Admin credentials (`master@kuventory.com` or `admin@kuventory.com`).
+1. Log into the system using the Master Admin credentials (`master@kuventory.com`).
 2. Navigate to **Master Console** via the sidebar icon (`👑 Master Console`) or URL `/settings?tab=master`.
 3. Check the **Real-Time Telemetry & Latency Monitor** to verify PostgREST and WebSocket connectivity.
 4. In the **Disaster Recovery Center**, select the backup snapshot file (`kuventory_master_backup_*.json`).
