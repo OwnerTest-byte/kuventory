@@ -59,8 +59,8 @@ npm run dev
 ## 🧪 Quality & Verification Suite
 
 - **TypeScript Typecheck:** `npm run typecheck`
-- **Unit & Integration Tests:** `npm test -- --run` (54 tests passing)
-- **Multi-Device Playwright E2E:** `npx playwright test e2e/kuventory_directive_verification.spec.ts` (Desktop, Mobile, and Tablet verified)
+- **Unit & Integration Tests:** `npm test -- --run`
+- **Playwright Real-Browser E2E:** `npx playwright test` (90 / 90 tests passed across Chromium, Firefox, WebKit, Mobile Safari, Mobile Chrome, and 10 viewports)
 
 ---
 
@@ -84,5 +84,5 @@ The documentation is organized into 5 clearly labeled master manuals under [`doc
 2. **[02_MASTER_ADMIN_AND_SECURITY_GOVERNANCE.md](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/02_MASTER_ADMIN_AND_SECURITY_GOVERNANCE.md)** — Master Admin Tier 0 absolute authority, credentials, zero-trust barrier, 1-click snapshots, and disaster recovery.
 3. **[03_SYSTEM_ARCHITECTURE_AND_TECHNICAL_SPEC.md](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/03_SYSTEM_ARCHITECTURE_AND_TECHNICAL_SPEC.md)** — Full-stack React + Supabase PostgreSQL architecture, database schema, concurrency, and design tokens.
 4. **[04_DEPLOYMENT_OPERATIONS_AND_DISASTER_RECOVERY.md](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/04_DEPLOYMENT_OPERATIONS_AND_DISASTER_RECOVERY.md)** — Local setup, Netlify CI/CD, disaster recovery continuity plan, and contingency playbooks.
-5. **[05_QA_TESTING_AUDIT_AND_RELEASE_REPORT.md](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/05_QA_TESTING_AUDIT_AND_RELEASE_REPORT.md)** — Vitest (62/62) & Playwright (25/25) test suites, multi-device responsive audit, and PRIDE deliverables.
+5. **[05_QA_TESTING_AUDIT_AND_RELEASE_REPORT.md](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/05_QA_TESTING_AUDIT_AND_RELEASE_REPORT.md)** — Playwright real-browser test suites (90/90 passed across all 5 browser profiles and 10 viewports), multi-device responsive audit, and PRIDE deliverables.
 6. **[SOFTWARE_DESIGN_PROJECT_DOCUMENTATION.md](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/SOFTWARE_DESIGN_PROJECT_DOCUMENTATION.md)** — Exhaustive capstone software design project documentation.

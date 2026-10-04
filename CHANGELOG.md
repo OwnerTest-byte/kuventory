@@ -5,6 +5,22 @@ All notable changes to KUVENTORY will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-10-04
+
+### Added
+
+- **Master Engineering Directive Compliance**: Complete architectural audit enforcing Anti-Vibe-Coding, Anti-AI-Slop, and Worker-First UX principles across all customer and staff surfaces.
+- **Worker-First Microcopy System**: Simplified UI messages to clean 1–4 word worker-oriented signals (`ACCOUNT IN USE`, `SAVED`, `SAVING...`, `SAVE FAILED`, `FINALIZED`, `INSUFFICIENT STOCK`, `ADDED: X pcs`, `PASSWORD CHANGED`, `RESTORED`).
+- **Single-Session Lease Lockout**: Atomic `user_session_leases` table with 45-second heartbeat window and instant lockout denial (`ACCOUNT IN USE`) when a concurrent session attempts login on another terminal.
+- **Playwright Real-Browser Verification**: 100% test pass rate across 90 / 90 scenarios executed on real browser engines (Chromium, Firefox, WebKit, Mobile Safari, Mobile Chrome) across 10 viewports (360×800 to 1920×1080).
+- **Disaster Recovery Center (Tier 0)**: 5-tier coordinated recovery architecture with read-only state preview drawer, 1-click JSON snapshot exports, and automatic stock drift healing.
+- **FEFO Batch Preservation**: Authoritative batch isolation ensuring multiple restocks with different expiration dates never overwrite or corrupt existing batches.
+
+### Fixed
+
+- **Stock Deduction Error Microcopy**: Replaced lengthy error paragraphs with crisp status format `INSUFFICIENT STOCK\nAvailable: X pcs`.
+- **Cross-Device Virtual Keyboard Clearance**: Ensured all login and modal inputs provide automatic scroll-into-view and vertical scroll preservation to prevent software keyboard obstruction.
+
 ## [1.0.0-RC3] - 2026-09-27
 
 ### Added

@@ -3,17 +3,19 @@
 ## 1. Scenario Catalog & Containment Protocols
 
 ### Scenario 1: Concurrent Login on Same Account (Rules 11–14, 149)
+
 - **Condition**: Staff member logged in on Terminal 1; second worker attempts login on Tablet 2 using the same credentials.
 - **System Action**:
   - Tablet 2 login fails lease acquisition via `claim_user_session`.
   - Tablet 2 session is instantly revoked and cleared.
-  - Clear message displayed: *"This account is currently active on another device. KUVENTORY permits only one active session per account."*
+  - Clear worker-first message displayed: **`ACCOUNT IN USE`** (*Active on another device*).
   - Terminal 1 session is completely undisturbed.
 - **Audit**: Incident logged as `SESSION_DENIED_OCCUPIED` with attempted device details.
 
 ---
 
 ### Scenario 2: Sudden Device Crash / Power Loss (Rules 15, 150)
+
 - **Condition**: Terminal 1 battery dies abruptly without explicit logout.
 - **System Action**:
   - Heartbeat stops updating `user_session_leases`.
@@ -24,6 +26,7 @@
 ---
 
 ### Scenario 3: Realtime WebSocket Disconnection (Rule 68)
+
 - **Condition**: Network blip or corporate firewall drops Phoenix Realtime WebSocket connection.
 - **System Action**:
   - Realtime state indicator transitions to `RECONNECTING` / `DISCONNECTED`.
@@ -34,6 +37,7 @@
 ---
 
 ### Scenario 4: Network Timeout During Stock Mutation (Rule 34)
+
 - **Condition**: Worker clicks "Deduct 50 units", request reaches server, but response times out due to cellular drop.
 - **System Action**:
   - Client catches network failure; does NOT display an optimistic false success.
@@ -44,6 +48,7 @@
 ---
 
 ### Scenario 5: Lost PDF Export File in Storage (Rules 48, 122)
+
 - **Condition**: Supabase Storage bucket asset is accidentally purged or corrupted.
 - **System Action**:
   - System checks immutable `report_items` snapshot table in PostgreSQL.
@@ -53,6 +58,7 @@
 ---
 
 ### Scenario 6: Compromised Staff Account (Rule 115)
+
 - **Condition**: Staff account credentials compromised or shared unauthorizedly.
 - **Incident Response Workflow**:
   1. Master Admin accesses **Master Admin Control Center → Security**.
@@ -65,6 +71,7 @@
 ---
 
 ### Scenario 7: Severe Inventory Data Discrepancy (Rules 113, 119)
+
 - **Condition**: Incorrect bulk receiving entered on floor creating inventory confusion.
 - **Incident Response Workflow**:
   1. Master Admin activates **Emergency System Maintenance Lockout** to halt floor mutations.

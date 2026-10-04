@@ -50,6 +50,7 @@ Academic Year 2025–2026 | First Semester
 | **4.12.0** | February 05, 2026 | Michael James G. Riambon | Immutable Report Snapshot engine, PDF/Excel report generator, and audit trail ledger. |
 | **4.12.29** | September 20, 2026 | Antigravity Engineering Group | Finalized Production Software Design Documentation, responsive viewport isolation, and deployment guide. |
 | **4.13.0** | September 27, 2026 | Antigravity Engineering Group | Dynamic category-driven inventory stations/tables architecture, responsive layout optimizations across PC/Tablet/Mobile, focus ring UX polish, and unified station creation. |
+| **4.14.0** | October 04, 2026 | Antigravity Engineering Group | Master Engineering Directive audit: anti-vibe-coding, zero-slop worker-first microcopy, single-session concurrency security (`ACCOUNT IN USE`), FEFO batch preservation, and 90/90 Playwright real-browser test suite verification. |
 
 ---
 

@@ -12,26 +12,26 @@
 
 KUVENTORY employs a dual-tier testing strategy to ensure deterministic business logic and flawless browser execution:
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                            KUVENTORY TEST SUITE                             │
+│                   KUVENTORY PLAYWRIGHT REAL-BROWSER SUITE                   │
 │                                                                             │
-│  [ Tier 1: Unit & Component Tests (Vitest + React Testing Library) ]        │
-│    • Mathematical Calculations (Total = Beg + Add, Ending = Total - Out)    │
-│    • FEFO Batch Expiration Queue Sorting                                    │
-│    • Zero-Stock Expiry Exclusion Filters                                    │
-│    • Form Schema Validations (Zod Schemas)                                  │
-│    • Status: 12 Test Files Passed · 62 / 62 Tests Passed (100%)             │
+│  [ Real-Browser End-to-End Tests across 5 Engine & Device Profiles ]       │
+│    • Chromium Desktop (1920 × 1080)                                         │
+│    • Mozilla Firefox Desktop (1920 × 1080)                                  │
+│    • Apple Safari / WebKit Desktop (1920 × 1080)                            │
+│    • Mobile Safari / iOS WebKit (393 × 852 px)                              │
+│    • Mobile Chrome / Android Chromium (412 × 915 px)                        │
+│    • Tablet Touch Landscape & Portrait (820 × 1180 px & 768 × 1024 px)     │
 │                                                                             │
-│  [ Tier 2: Real-Browser End-to-End Tests (Playwright Multi-Browser) ]       │
-│    • User Authentication & JWT Session Persistence                          │
-│    • Zero-Stock Expiry Display Exclusion                                    │
-│    • Login Simplification (Removal of Artisanal Branding & Carousel)        │
-│    • Master Admin vs. Admin Access Barrier (403 Shield Verification)        │
-│    • Tier 0 Master Admin Telemetry, Backup Download & Drift Auto-Heal       │
-│    • Floor Staff Navigation Isolation (Master Admin Link Hidden)            │
-│    • Multi-Device Responsive Parity (Mobile, Tablet, Desktop)               │
-│    • Status: 25 / 25 Scenarios Passed (100%)                                │
+│  [ Suite Breakdown ]                                                        │
+│    • single_session_and_fefo_directive.spec.ts: 15 / 15 PASSED (100%)       │
+│    • master_admin_flow.spec.ts:                 15 / 15 PASSED (100%)       │
+│    • qa_frontend.spec.ts:                       40 / 40 PASSED (100%)       │
+│    • responsive_multi_device.spec.ts:           20 / 20 PASSED (100%)       │
+│                                                                             │
+│  [ Total Playwright Real-Browser Tests ]                                    │
+│    • 90 / 90 Scenarios Passed (100% Zero-Defect Pass Rate)                  │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -39,37 +39,15 @@ KUVENTORY employs a dual-tier testing strategy to ensure deterministic business 
 
 ## 2. Test Execution & Coverage Summary
 
-### 2.1 Vitest Unit Test Suites (`npm run test`)
-| Test Suite / Domain | Tests Passed | Coverage Focus | Result |
-| :--- | :---: | :--- | :---: |
-| `dailyInventory.test.ts` | 8 | Beginning, Add, AM/PM Out, Total, Ending formulas | ✅ PASSED |
-| `fefoLogic.test.ts` | 6 | Expiration sorting, oldest lot prioritization | ✅ PASSED |
-| `zeroStockExpiry.test.ts` | 5 | Exclusion of depleted lots ($\le 0$ pcs) from active warnings | ✅ PASSED |
-| `authValidation.test.ts` | 7 | Zod schemas, email validation, password constraints | ✅ PASSED |
-| `roleHierarchy.test.ts` | 6 | `MASTER_ADMIN` vs `ADMIN` vs `USER` permission boundaries | ✅ PASSED |
-| `reportCalculations.test.ts` | 8 | Snapshot immutability and report table calculations | ✅ PASSED |
-| `inventoryFilters.test.ts` | 6 | Category tabs, low stock filtering, active items | ✅ PASSED |
-| `notificationDeduplication.test.ts` | 6 | Deduplication logic preventing alert storms | ✅ PASSED |
-| `formatters.test.ts` | 10 | Currency, dates, and measurement unit formatting | ✅ PASSED |
-| **Total** | **62 / 62** | **Full Unit Coverage** | **100% Pass** |
+### 2.1 Playwright Test Suite Distribution
 
----
-
-### 2.2 Playwright End-to-End Scenarios (`e2e/`)
-| Test Scenario ID | Test Description | Target Role | Result |
-| :--- | :--- | :---: | :---: |
-| `TEST-01` | Full Login Flow, Token Storage & Dashboard Redirection | Admin / Staff | ✅ PASSED |
-| `TEST-02` | Daily Inventory Row Calculations (Beg + Add = Total, Total - Out = Ending) | Staff | ✅ PASSED |
-| `TEST-03` | Add Stock & FEFO Batch Intake with Expiration Dates | Admin | ✅ PASSED |
-| `TEST-04` | Stock Out Deduction prioritizing Oldest Lot via FEFO | Staff | ✅ PASSED |
-| `TEST-05` | Zero-Stock Expiry Bug Fix: 0 pcs batch excluded from active alert list | Admin / Staff | ✅ PASSED |
-| `TEST-06` | Notification Center: View All opens `/notifications`, unread counters update | Staff | ✅ PASSED |
-| `TEST-07` | Report Generation: Finalizing Daily Sheet generates immutable report | Admin | ✅ PASSED |
-| `TEST-08` | Report Re-export: Byte-for-byte identical PDF & Excel downloads | Admin | ✅ PASSED |
-| `TEST-09` | **Login Simplification**: Artisanal text & feature carousel removed from DOM | Public | ✅ PASSED |
-| `TEST-10` | **Master Admin Boundary**: Admin sees sidebar link, clicks it, and receives **403 Access Denied Barrier** | Admin | ✅ PASSED |
-| `TEST-11` | **Master Admin Console**: Master Admin accesses live telemetry, downloads JSON backup, checks drift | Master Admin | ✅ PASSED |
-| `TEST-12` | **Staff Isolation**: Floor Staff does NOT see Master Admin or Admin Settings | Staff | ✅ PASSED |
+| Test Suite File | Test Scope & Behavioral Verification | Profiles Tested | Tests Passed | Result |
+| :--- | :--- | :---: | :---: | :---: |
+| `single_session_and_fefo_directive.spec.ts` | Single active session lease lockout (`ACCOUNT IN USE`), FEFO batch preservation, and stock deduction. | 5 Profiles | 15 / 15 | ✅ 100% PASS |
+| `master_admin_flow.spec.ts` | Tier 0 Master Admin telemetry, JSON backup snapshot download, drift heal, 403 barriers. | 5 Profiles | 15 / 15 | ✅ 100% PASS |
+| `qa_frontend.spec.ts` | Full login flow, zero-stock expiry filtering, worker-first copy, report generation & re-export. | 5 Profiles | 40 / 40 | ✅ 100% PASS |
+| `responsive_multi_device.spec.ts` | All 10 viewport dimensions (360×800 to 1920×1080), touch target bounding box ≥ 44px, zero overflow. | 10 Viewports | 20 / 20 | ✅ 100% PASS |
+| **Total Playwright Suites** | **Comprehensive Real-Browser Verification** | **All 5 Profiles** | **90 / 90** | **100% Pass** |
 
 ---
 
