@@ -76,9 +76,13 @@ KUVENTORY is pre-configured for automated deployment to Netlify via `netlify.tom
 
 ---
 
-## 📚 Documentation Library
+## 📚 Consolidated Documentation Library
 
-- [Master Administrator Guide](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/MASTER_ADMIN_GUIDE.md)
-- [Administrator & Roles Guide](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/ADMIN_GUIDE.md)
-- [Design System & Palette Guide](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/DESIGN_SYSTEM.md)
-- [Disaster Recovery & Backup Runbook](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/disaster-recovery.md)
+The documentation is organized into 5 clearly labeled master manuals under [`docs/`](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/README.md):
+
+1. **[01_USER_OPERATIONS_MANUAL.md](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/01_USER_OPERATIONS_MANUAL.md)** — Daily inventory shift routines, Beginning/Add/AM/PM calculations, FEFO batch receipts, and exports. *(Companion Word document: [`KUVENTORY_USER_GUIDE.docx`](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/KUVENTORY_USER_GUIDE.docx))*
+2. **[02_MASTER_ADMIN_AND_SECURITY_GOVERNANCE.md](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/02_MASTER_ADMIN_AND_SECURITY_GOVERNANCE.md)** — Master Admin Tier 0 absolute authority, credentials, zero-trust barrier, 1-click snapshots, and disaster recovery.
+3. **[03_SYSTEM_ARCHITECTURE_AND_TECHNICAL_SPEC.md](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/03_SYSTEM_ARCHITECTURE_AND_TECHNICAL_SPEC.md)** — Full-stack React + Supabase PostgreSQL architecture, database schema, concurrency, and design tokens.
+4. **[04_DEPLOYMENT_OPERATIONS_AND_DISASTER_RECOVERY.md](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/04_DEPLOYMENT_OPERATIONS_AND_DISASTER_RECOVERY.md)** — Local setup, Netlify CI/CD, disaster recovery continuity plan, and contingency playbooks.
+5. **[05_QA_TESTING_AUDIT_AND_RELEASE_REPORT.md](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/05_QA_TESTING_AUDIT_AND_RELEASE_REPORT.md)** — Vitest (62/62) & Playwright (25/25) test suites, multi-device responsive audit, and PRIDE deliverables.
+6. **[SOFTWARE_DESIGN_PROJECT_DOCUMENTATION.md](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/docs/SOFTWARE_DESIGN_PROJECT_DOCUMENTATION.md)** — Exhaustive capstone software design project documentation.
