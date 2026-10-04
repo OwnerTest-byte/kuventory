@@ -3,6 +3,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { Profile, Role } from '../types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { claimSessionLease, heartbeatSessionLease, releaseSessionLease } from '../services/sessionLeaseService';
 
 interface AuthContextType {
   session: Session | null;
@@ -10,6 +11,8 @@ interface AuthContextType {
   profile: Profile | null;
   role: Role;
   isLoading: boolean;
+  sessionLeaseError: string | null;
+  clearSessionLeaseError: () => void;
   signOut: () => Promise<void>;
 }
 
@@ -19,6 +22,8 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   role: 'USER',
   isLoading: true,
+  sessionLeaseError: null,
+  clearSessionLeaseError: () => {},
   signOut: async () => {},
 });
 
@@ -26,32 +31,98 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isSessionLoading, setIsSessionLoading] = useState(true);
+  const [sessionLeaseError, setSessionLeaseError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    let isMounted = true;
+
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsSessionLoading(false);
+    supabase.auth.getSession().then(async ({ data: { session: initSession } }) => {
+      if (!isMounted) return;
+      if (initSession) {
+        const claimResult = await claimSessionLease(initSession.access_token.slice(-16));
+        if (!claimResult.success) {
+          console.warn('Initial session lease rejected: occupied on another device.');
+          await supabase.auth.signOut();
+          if (isMounted) {
+            setSession(null);
+            setUser(null);
+            setSessionLeaseError(claimResult.message || 'This account is currently active on another device. KUVENTORY permits only one active session per account (First Session Wins).');
+            setIsSessionLoading(false);
+          }
+          return;
+        }
+        if (isMounted) {
+          setSession(initSession);
+          setUser(initSession.user ?? null);
+        }
+      }
+      if (isMounted) setIsSessionLoading(false);
     }).catch(err => {
       console.error('Session load error:', err);
-      setIsSessionLoading(false);
+      if (isMounted) setIsSessionLoading(false);
     });
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (!session) {
+    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      if (!isMounted) return;
+      if (!newSession) {
+        setSession(null);
+        setUser(null);
         queryClient.removeQueries({ queryKey: ['profile'] });
+        return;
+      }
+
+      // Atomically claim session lease before setting active session
+      const claimResult = await claimSessionLease(newSession.access_token.slice(-16));
+      if (!claimResult.success) {
+        console.warn('Session lease rejected on auth change: occupied on another device.');
+        await supabase.auth.signOut();
+        if (isMounted) {
+          setSession(null);
+          setUser(null);
+          setSessionLeaseError(claimResult.message || 'This account is currently active on another device. KUVENTORY permits only one active session per account (First Session Wins).');
+        }
+        return;
+      }
+
+      if (isMounted) {
+        setSessionLeaseError(null);
+        setSession(newSession);
+        setUser(newSession.user ?? null);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [queryClient]);
+
+  // Periodic Session Heartbeat (Rule 13 & 15: Heartbeat + Lease + Grace Period)
+  useEffect(() => {
+    if (!user || !session) return;
+
+    // Send immediate heartbeat on mount
+    heartbeatSessionLease();
+
+    const heartbeatInterval = setInterval(async () => {
+      const res = await heartbeatSessionLease();
+      if (res.status === 'REVOKED') {
+        console.warn('Session has been revoked by an administrator.');
+        await supabase.auth.signOut();
+        setSession(null);
+        setUser(null);
+        queryClient.clear();
+        alert('Your session has been terminated by an administrator: ' + (res.reason || 'Administrative revocation'));
+      }
+    }, 15000); // Heartbeat every 15s (grace period is 45s)
+
+    return () => clearInterval(heartbeatInterval);
+  }, [user?.id, session?.access_token, queryClient]);
 
   // Fetch profile when user is authenticated
   const { data: profile, isLoading: isProfileLoading } = useQuery({
@@ -103,6 +174,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const signOut = async () => {
+    try {
+      await releaseSessionLease();
+    } catch (e) {
+      console.warn('Error releasing session lease:', e);
+    }
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
@@ -116,8 +192,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ? 'MASTER_ADMIN' 
     : (isAdminUser ? 'ADMIN' : (profile?.role ?? (user?.user_metadata?.role as Role) ?? 'USER'));
 
+  const clearSessionLeaseError = () => setSessionLeaseError(null);
+
   return (
-    <AuthContext.Provider value={{ session, user, profile: profile ?? null, role, isLoading, signOut }}>
+    <AuthContext.Provider value={{ 
+      session, 
+      user, 
+      profile: profile ?? null, 
+      role, 
+      isLoading, 
+      sessionLeaseError, 
+      clearSessionLeaseError, 
+      signOut 
+    }}>
       {children}
     </AuthContext.Provider>
   );

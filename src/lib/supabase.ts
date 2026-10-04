@@ -9,3 +9,7 @@ if (!import.meta.env.VITE_SUPABASE_URL || (!import.meta.env.VITE_SUPABASE_PUBLIS
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+if (typeof window !== 'undefined') {
+  (window as any).supabase = supabase;
+}

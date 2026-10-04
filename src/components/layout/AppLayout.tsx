@@ -28,6 +28,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from '@/features/inventory/components/NotificationBell';
+import { releaseSessionLease } from '@/features/auth/services/sessionLeaseService';
 import { CommandPalette } from './CommandPalette';
 import { ItemFormModal } from '@/features/inventory/components/ItemFormModal';
 import { useItems } from '@/features/inventory/hooks/useItems';
@@ -184,6 +185,11 @@ function SidebarNavigation({
   };
 
   const handleLogout = async () => {
+    try {
+      await releaseSessionLease();
+    } catch (e) {
+      console.warn('Error releasing session lease:', e);
+    }
     await supabase.auth.signOut();
   };
 

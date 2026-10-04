@@ -10,6 +10,9 @@ import { Eye, EyeOff, KeyRound, CheckCircle2, AlertCircle, Loader2, ShieldCheck,
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
+import { claimSessionLease } from '../services/sessionLeaseService';
+import { useAuth } from '../context/AuthContext';
+
 export const loginSchema = z.object({
   email: z.string().min(1, 'invalid email address').email('invalid email address'),
   password: z.string().min(6, 'password must be at least 6 characters long'),
@@ -18,6 +21,7 @@ export const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
+  const { sessionLeaseError, clearSessionLeaseError } = useAuth();
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -48,6 +52,7 @@ export function LoginForm() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setAuthError(null);
+    clearSessionLeaseError();
 
     const email = data.email.trim().toLowerCase();
     const candidatePasswords = [data.password];
@@ -61,6 +66,7 @@ export function LoginForm() {
 
     let authSuccess = false;
     let lastError: any = null;
+    let activeSession: any = null;
 
     for (const pwd of candidatePasswords) {
       const { data: signInData, error } = await supabase.auth.signInWithPassword({
@@ -70,12 +76,26 @@ export function LoginForm() {
 
       if (!error && signInData?.session) {
         authSuccess = true;
+        activeSession = signInData.session;
         break;
       }
       lastError = error;
     }
 
-    if (!authSuccess && lastError) {
+    if (authSuccess && activeSession) {
+      // Enforce Rule 11 & 12: Single Active Session Per Account (First Session Wins)
+      const claimResult = await claimSessionLease(activeSession.access_token.slice(-16));
+      if (!claimResult.success) {
+        // Device B was denied! Terminate Device B session cleanly so Device A is completely undisturbed
+        await supabase.auth.signOut();
+        setAuthError(
+          claimResult.message || 
+          'This account is currently active on another device. KUVENTORY permits only one active session per account (First Session Wins).'
+        );
+        setIsLoading(false);
+        return;
+      }
+    } else if (!authSuccess && lastError) {
       const isInvalidCreds = 
         lastError.message.toLowerCase().includes('invalid') || 
         lastError.message.toLowerCase().includes('credential') || 
@@ -144,10 +164,10 @@ export function LoginForm() {
       </div>
       
       <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-5" aria-label="Sign In Form">
-        {authError && (
-          <div className="p-3.5 text-sm font-semibold text-rose-200 bg-rose-950/80 border border-rose-500/40 rounded-xl flex items-center gap-2.5 animate-in fade-in" role="alert">
+        {(authError || sessionLeaseError) && (
+          <div className="p-3.5 text-sm font-semibold text-rose-200 text-destructive bg-rose-950/80 border border-rose-500/40 rounded-xl flex items-center gap-2.5 animate-in fade-in" role="alert">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-            <span>{authError}</span>
+            <span>{sessionLeaseError || authError}</span>
           </div>
         )}
 

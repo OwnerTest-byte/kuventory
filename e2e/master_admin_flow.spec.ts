@@ -1,5 +1,20 @@
 import { test, expect } from '@playwright/test';
 
+async function cleanSignOut(page: any) {
+  try {
+    await page.evaluate(async () => {
+      const sb = (window as any).supabase;
+      if (sb) {
+        try {
+          const clientId = sessionStorage.getItem('kuventory_session_client_id');
+          await sb.rpc('release_user_session', { p_client_id: clientId });
+        } catch {}
+        await sb.auth.signOut();
+      }
+    });
+  } catch {}
+}
+
 test.describe('Master Admin Authentication & Control Center Flow', () => {
   test('Password input has blue focus highlight and zero white box', async ({ page }) => {
     await page.goto('/login');
@@ -41,7 +56,9 @@ test.describe('Master Admin Authentication & Control Center Flow', () => {
 
     // Wait for redirect or navigation away from /login
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
-    expect(page.url()).not.toContain('/login');
+    // Release session lease
+    await cleanSignOut(page);
+    await page.waitForTimeout(500);
   });
 
   test('Master Admin Control Center displays all 10 modular sub-tabs and real metrics', async ({ page }) => {
@@ -102,5 +119,10 @@ test.describe('Master Admin Authentication & Control Center Flow', () => {
     await expect(page.locator('text=Live Telemetry Feed')).toBeVisible();
 
     console.log('Master Admin E2E flow verified with 100% success!');
+
+    // Release session lease
+    await cleanSignOut(page);
+    await page.waitForTimeout(500);
   });
 });
+

@@ -1,11 +1,17 @@
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { 
   Shield, Crown, Lock, CheckCircle2, KeyRound, 
-  Users, UserCheck, ShieldAlert, Loader2
+  Users, UserCheck, ShieldAlert, Loader2, Laptop, 
+  UserX, RefreshCw, AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getActiveUserSessions, revokeUserSessionByAdmin, type ActiveSessionRecord } from '@/features/auth/services/sessionLeaseService';
 
 interface MasterSecurityTabProps {
   maintenanceSetting: { locked: boolean; reason: string; locked_at?: string } | undefined;
@@ -29,6 +35,42 @@ export function MasterSecurityTab({
   visitorLogs,
   onOpenResetPassword,
 }: MasterSecurityTabProps) {
+  const queryClient = useQueryClient();
+
+  // Active Sessions Query
+  const { data: activeSessions = [], isLoading: isLoadingSessions, refetch: refetchSessions } = useQuery({
+    queryKey: ['active-user-sessions'],
+    queryFn: getActiveUserSessions,
+    refetchInterval: 10000, // Auto refresh every 10s
+  });
+
+  // Revocation Modal State
+  const [selectedSession, setSelectedSession] = useState<ActiveSessionRecord | null>(null);
+  const [revocationReason, setRevocationReason] = useState('');
+  const [isRevoking, setIsRevoking] = useState(false);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
+
+  const handleRevokeConfirm = async () => {
+    if (!selectedSession) return;
+    setIsRevoking(true);
+    setRevokeError(null);
+
+    try {
+      await revokeUserSessionByAdmin(
+        selectedSession.user_id,
+        revocationReason.trim() || 'Revoked by Master Administrator from Security Control Center'
+      );
+      await refetchSessions();
+      queryClient.invalidateQueries({ queryKey: ['active-user-sessions'] });
+      setSelectedSession(null);
+      setRevocationReason('');
+    } catch (err: any) {
+      setRevokeError(err.message || 'Failed to revoke session.');
+    } finally {
+      setIsRevoking(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -42,7 +84,7 @@ export function MasterSecurityTab({
               </h2>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Zero-Trust clearance enforcement, privileged administrator accounts, maintenance lockout barriers, and staff authentication logs.
+              Zero-Trust clearance enforcement, atomic single-session leases (First Session Wins), maintenance lockout barriers, and active device inspection.
             </p>
           </div>
 
@@ -54,7 +96,7 @@ export function MasterSecurityTab({
         </div>
 
         {/* Security Posture Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs pt-2">
           <div className="p-3.5 rounded-xl bg-muted/30 border border-border">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground text-[11px]">Tier 0 Master Admin</span>
@@ -72,7 +114,18 @@ export function MasterSecurityTab({
               </span>
             </div>
             <span className="font-bold text-foreground text-sm mt-1 flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-primary" /> {privilegedUsers.filter(u => u.role === 'ADMIN').length} Store Administrators
+              <Users className="w-4 h-4 text-primary" /> {privilegedUsers.filter(u => u.role === 'ADMIN').length} Store Admins
+            </span>
+          </div>
+          <div className="p-3.5 rounded-xl bg-muted/30 border border-border">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-[11px]">Active Session Leases</span>
+              <span className="text-[10px] font-mono font-bold text-emerald-500 uppercase px-1.5 py-0.5 rounded bg-emerald-500/10">
+                {activeSessions.filter(s => s.is_occupied_now).length} Active
+              </span>
+            </div>
+            <span className="font-bold text-foreground text-sm mt-1 flex items-center gap-1.5">
+              <Laptop className="w-4 h-4 text-emerald-500" /> Single-Session Strict
             </span>
           </div>
           <div className="p-3.5 rounded-xl bg-muted/30 border border-border">
@@ -87,7 +140,119 @@ export function MasterSecurityTab({
         </div>
       </div>
 
-      {/* Contingency 1: System Maintenance Mode Lock */}
+      {/* Contingency 1: Active User Session Leases & Instant Revocation (Rule 11-17) */}
+      <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Laptop className="w-5 h-5 text-primary" />
+            <div>
+              <h3 className="text-base font-bold text-foreground">
+                Active Session Leases (First Session Wins Enforcement)
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Enforcing single active human session per account. Device B login is denied if Device A is active.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetchSessions()}
+            disabled={isLoadingSessions}
+            className="text-xs font-bold border-border text-foreground hover:bg-muted cursor-pointer shrink-0"
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5 mr-1.5", isLoadingSessions && "animate-spin")} />
+            Refresh Leases
+          </Button>
+        </div>
+
+        <div className="rounded-xl border border-border overflow-hidden">
+          <Table>
+            <TableHeader className="bg-muted/60 border-b border-border">
+              <TableRow>
+                <TableHead className="font-bold text-foreground">User / Identity</TableHead>
+                <TableHead className="font-bold text-foreground">Role</TableHead>
+                <TableHead className="font-bold text-foreground">Device / Browser</TableHead>
+                <TableHead className="font-bold text-foreground">Last Heartbeat</TableHead>
+                <TableHead className="font-bold text-foreground">Lease Status</TableHead>
+                <TableHead className="text-right font-bold text-foreground">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {activeSessions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-xs text-muted-foreground">
+                    No session leases registered yet.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                activeSessions.map((session) => {
+                  const isOccupied = session.is_occupied_now;
+                  const isRevoked = session.status === 'REVOKED';
+                  const isMaster = session.role === 'MASTER_ADMIN';
+
+                  return (
+                    <TableRow key={session.lease_id} className="hover:bg-muted/40">
+                      <TableCell>
+                        <div className="font-bold text-foreground">{session.display_name}</div>
+                        <span className="font-mono text-[11px] text-muted-foreground">{session.email}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider",
+                          isMaster 
+                            ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30" 
+                            : session.role === 'ADMIN'
+                            ? "bg-primary/15 text-primary border border-primary/20"
+                            : "bg-muted text-muted-foreground border border-border"
+                        )}>
+                          {session.role}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-xs text-foreground truncate max-w-[220px]" title={session.device_info}>
+                          {session.device_info || 'Standard Browser Client'}
+                        </div>
+                        <span className="font-mono text-[10px] text-muted-foreground">{session.client_id}</span>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground font-mono">
+                        {session.last_heartbeat_at ? format(new Date(session.last_heartbeat_at), 'HH:mm:ss') : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider",
+                          isOccupied
+                            ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                            : isRevoked
+                            ? "bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30"
+                            : "bg-muted text-muted-foreground border border-border"
+                        )}>
+                          {isOccupied ? 'OCCUPIED (Active)' : isRevoked ? 'REVOKED' : 'EXPIRED / INACTIVE'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isOccupied && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setSelectedSession(session)}
+                            className="text-xs font-bold cursor-pointer shadow-xs"
+                          >
+                            <UserX className="w-3.5 h-3.5 mr-1" />
+                            Revoke Session
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* Contingency 2: System Maintenance Mode Lock */}
       <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -234,6 +399,67 @@ export function MasterSecurityTab({
           )}
         </div>
       </div>
+
+      {/* Revocation Confirmation Dialog */}
+      <Dialog open={!!selectedSession} onOpenChange={(open) => !open && setSelectedSession(null)}>
+        <DialogContent className="max-w-md bg-card border border-border text-foreground">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-500 font-bold">
+              <UserX className="w-5 h-5" /> Revoke User Session
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground pt-1">
+              This will immediately invalidate the active lease for <strong className="text-foreground">{selectedSession?.email}</strong>. The user's device will be disconnected and returned to the login screen.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div className="p-3 rounded-xl bg-muted/30 border border-border space-y-1">
+              <div><span className="text-muted-foreground">User:</span> <strong className="text-foreground">{selectedSession?.display_name} ({selectedSession?.email})</strong></div>
+              <div><span className="text-muted-foreground">Device:</span> <span className="font-mono text-[11px]">{selectedSession?.device_info}</span></div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                Revocation Audit Reason (Required)
+              </label>
+              <Textarea
+                placeholder="e.g. Lost device report / suspicious concurrent activity"
+                value={revocationReason}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setRevocationReason(e.target.value)}
+                className="text-xs min-h-[70px]"
+              />
+            </div>
+
+            {revokeError && (
+              <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 shrink-0" /> {revokeError}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedSession(null)}
+              disabled={isRevoking}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleRevokeConfirm}
+              disabled={isRevoking}
+              className="text-xs font-bold"
+            >
+              {isRevoking ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <UserX className="w-3.5 h-3.5 mr-1" />}
+              Confirm Revocation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
