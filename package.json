@@ -15,7 +15,8 @@
     "preview": "vite preview",
     "server": "node server/server.mjs",
     "backup": "node scripts/backup-db.mjs --now",
-    "backup:schedule": "node scripts/backup-db.mjs"
+    "backup:schedule": "node scripts/backup-db.mjs",
+    "docs:dev-logs": "node scripts/build-dev-logs-docx.mjs"
   },
   "overrides": {
     "uuid": "^11.1.1"
