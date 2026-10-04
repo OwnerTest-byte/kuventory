@@ -287,21 +287,14 @@ export async function updateItem(id: string, updates: Partial<Omit<InventoryItem
  * Archive or unarchive an item.
  */
 export async function archiveItem(id: string, isArchived: boolean): Promise<void> {
-  const { error: rpcError } = await supabase.rpc('archive_inventory_item', {
-    p_item_id: id,
-    p_archived: isArchived,
-  });
+  const { error } = await supabase
+    .from('inventory_items')
+    .update({ is_archived: isArchived, is_active: !isArchived })
+    .eq('id', id);
 
-  if (rpcError) {
-    const { error } = await supabase
-      .from('inventory_items')
-      .update({ is_archived: isArchived, is_active: !isArchived })
-      .eq('id', id);
-
-    if (error) {
-      console.error('archiveItem error:', error);
-      throw error;
-    }
+  if (error) {
+    console.error('archiveItem error:', error);
+    throw error;
   }
 }
 
