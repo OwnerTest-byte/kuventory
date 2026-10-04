@@ -392,15 +392,18 @@ export function AdminPage() {
 
   // Toggle role mutation
   const toggleRoleMutation = useMutation({
-    mutationFn: async ({ userId, newRole }: { userId: string; newRole: 'MASTER_ADMIN' | 'ADMIN' | 'USER' }) => {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', userId);
+    mutationFn: async ({ userId, newRole }: { userId: string; newRole: 'ADMIN' | 'USER' }) => {
+      const { error } = await supabase.rpc('admin_update_user_role', {
+        p_user_id: userId,
+        p_role: newRole,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles-admin'] });
+    },
+    onError: (err: any) => {
+      alert(err.message || 'Failed to update user role');
     }
   });
 
@@ -1290,10 +1293,23 @@ export function AdminPage() {
         {/* TAB 2: USER & STAFF MANAGEMENT */}
         <TabsContent value="users" className="space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl border border-border">
-            <div>
-              <h2 className="text-sm font-bold text-foreground">Authorized Users & Roles</h2>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-sm font-bold text-foreground">Authorized Users & Roles</h2>
+                <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                  1 Master Admin (Root)
+                </span>
+                <span className={cn(
+                  "text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full border",
+                  users.filter(u => u.role === 'ADMIN').length >= 3
+                    ? "bg-rose-500/15 text-rose-500 border-rose-500/30"
+                    : "bg-primary/15 text-primary border-primary/30"
+                )}>
+                  Admins: {users.filter(u => u.role === 'ADMIN').length} / 3 Max Allowed
+                </span>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Admins have full operational access; Staff/Users have permission to count and update sheets.
+                Only 1 Master Admin and up to 3 Administrators are permitted. Staff users perform daily inventory counting.
               </p>
             </div>
             <Button onClick={() => setIsAddUserOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs sm:text-sm">
@@ -1390,31 +1406,35 @@ export function AdminPage() {
                             </Button>
 
                             {/* Role management controls */}
-                            {isMasterAdmin && !isSelf && (
+                            {isMasterAdmin && !isSelf && !isTargetMaster && (
                               <select
                                 value={u.role}
                                 onChange={(e) => toggleRoleMutation.mutate({ 
                                   userId: u.id, 
-                                  newRole: e.target.value as 'USER' | 'ADMIN' | 'MASTER_ADMIN' 
+                                  newRole: e.target.value as 'USER' | 'ADMIN' 
                                 })}
                                 disabled={toggleRoleMutation.isPending}
                                 className="h-8 px-2 bg-card border border-border text-foreground rounded text-xs font-semibold outline-none cursor-pointer"
                               >
                                 <option value="USER">Staff</option>
-                                <option value="ADMIN">Admin</option>
-                                <option value="MASTER_ADMIN">Master Admin</option>
+                                <option 
+                                  value="ADMIN" 
+                                  disabled={users.filter(x => x.role === 'ADMIN').length >= 3 && u.role !== 'ADMIN'}
+                                >
+                                  Admin {users.filter(x => x.role === 'ADMIN').length >= 3 && u.role !== 'ADMIN' ? '(Quota 3/3 Full)' : ''}
+                                </option>
                               </select>
                             )}
 
-                            {!isMasterAdmin && !isTargetMaster && (
+                            {!isMasterAdmin && !isTargetMaster && !isSelf && (
                               <Button 
                                 variant="outline" 
                                 size="sm" 
                                 className="text-xs font-bold border-border text-foreground hover:bg-muted"
                                 onClick={() => toggleRoleMutation.mutate({ userId: u.id, newRole: isTargetAdmin ? 'USER' : 'ADMIN' })}
-                                disabled={toggleRoleMutation.isPending || isSelf}
+                                disabled={toggleRoleMutation.isPending || (!isTargetAdmin && users.filter(x => x.role === 'ADMIN').length >= 3)}
                               >
-                                {isTargetAdmin ? 'Demote to Staff' : 'Promote to Admin'}
+                                {isTargetAdmin ? 'Demote to Staff' : users.filter(x => x.role === 'ADMIN').length >= 3 ? 'Admin Quota Full (3/3)' : 'Promote to Admin'}
                               </Button>
                             )}
 
@@ -2288,18 +2308,30 @@ export function AdminPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-foreground">Role Assignment</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-foreground">Role Assignment</Label>
+                <span className="text-[11px] font-mono text-muted-foreground">
+                  Admin quota: {users.filter(u => u.role === 'ADMIN').length}/3 filled
+                </span>
+              </div>
               <select 
                 value={newUser.role}
-                onChange={e => setNewUser({ ...newUser, role: e.target.value as 'USER' | 'ADMIN' | 'MASTER_ADMIN' })}
+                onChange={e => setNewUser({ ...newUser, role: e.target.value as 'USER' | 'ADMIN' })}
                 className="w-full h-11 px-3 py-2 bg-card border border-border text-foreground rounded-md text-sm font-semibold outline-none cursor-pointer"
               >
                 <option value="USER">Staff / Operator (Worksheet entry)</option>
-                <option value="ADMIN">System Administrator (Full operational access)</option>
-                {isMasterAdmin && (
-                  <option value="MASTER_ADMIN">Master Admin (Tier 0 Root Authority)</option>
-                )}
+                <option 
+                  value="ADMIN" 
+                  disabled={!isMasterAdmin || users.filter(u => u.role === 'ADMIN').length >= 3}
+                >
+                  System Administrator {!isMasterAdmin ? '(Only Master Admin can assign)' : users.filter(u => u.role === 'ADMIN').length >= 3 ? '(Quota 3/3 Full)' : `(${users.filter(u => u.role === 'ADMIN').length}/3 filled)`}
+                </option>
               </select>
+              {users.filter(u => u.role === 'ADMIN').length >= 3 && (
+                <p className="text-[11px] text-amber-500 font-medium">
+                  Maximum allowed 3 Administrators reached. You can only create Staff members until an existing Admin is demoted.
+                </p>
+              )}
             </div>
           </div>
 

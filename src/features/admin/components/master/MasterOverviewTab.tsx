@@ -57,7 +57,7 @@ export function MasterOverviewTab({
   return (
     <div className="space-y-6">
       {/* Identity & Root Authority Banner */}
-      <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-500/10 via-card to-card border border-amber-500/30 shadow-sm space-y-4">
+      <div className="p-6 rounded-2xl bg-linear-to-br from-amber-500/10 via-card to-card border border-amber-500/30 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-500 shrink-0 shadow-xs">

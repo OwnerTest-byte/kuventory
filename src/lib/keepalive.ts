@@ -18,17 +18,23 @@ export async function pingSupabaseKeepalive(): Promise<KeepaliveResult> {
   const now = new Date().toISOString();
 
   try {
-    // 1. Try lightweight RPC if available, fallback to selecting 1 key from system_settings
+    // 1. Try lightweight RPC first (zero table lock, sub-5ms)
+    const rpcRes = await supabase.rpc('ping_keepalive');
+    const latencyMs = Math.round(performance.now() - start);
+
+    if (!rpcRes.error) {
+      sessionStorage.setItem(STORAGE_KEY, now);
+      return { success: true, latencyMs, timestamp: now };
+    }
+
+    // 2. Fallback to selecting from system_settings
     const { error } = await supabase
       .from('system_settings')
       .select('key')
       .limit(1);
 
-    const latencyMs = Math.round(performance.now() - start);
-
     if (error) {
-      // Even an error from PostgreSQL counts as active database traffic to Supabase's proxy
-      console.warn('Keepalive ping responded with notice:', error.message);
+      console.warn('Keepalive ping notice:', error.message);
       sessionStorage.setItem(STORAGE_KEY, now);
       return { success: true, latencyMs, timestamp: now, error: error.message };
     }

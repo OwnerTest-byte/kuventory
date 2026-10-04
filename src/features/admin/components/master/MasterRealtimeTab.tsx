@@ -130,7 +130,7 @@ export function MasterRealtimeTab({
           </div>
           <div className="p-3.5 rounded-xl bg-muted/30 border border-border">
             <span className="text-muted-foreground text-[11px] block">Delivery Guarantee</span>
-            <span className="font-bold text-emerald-500 text-xs mt-0.5 block flex items-center gap-1">
+            <span className="font-bold text-emerald-500 text-xs mt-0.5 flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5" /> Database Fallback Active
             </span>
           </div>

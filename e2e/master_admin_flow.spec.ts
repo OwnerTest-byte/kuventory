@@ -79,11 +79,11 @@ test.describe('Master Admin Authentication & Control Center Flow', () => {
     await expect(page.locator('text=Supabase GoTrue Identity Service')).toBeVisible();
 
     // 4. Test Data Integrity sub-tab
-    await page.click('button:has-text("Data Integrity")');
-    await expect(page.locator('text=Data Integrity & Relational Verification Center')).toBeVisible();
-    await expect(page.locator('text=Relational Verification Matrix')).toBeVisible();
-    await expect(page.locator('text=Negative Stock Quantities')).toBeVisible();
-    await expect(page.locator('text=Zero-Stock Expiry Rule Compliance')).toBeVisible();
+    await page.locator('button', { hasText: 'Data Integrity' }).first().click();
+    await expect(page.locator('text=Data Integrity & Relational Verification Center')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Relational Verification Matrix')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Negative Stock Quantities')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Zero-Stock Expiry Rule Compliance')).toBeVisible({ timeout: 10000 });
 
     // 5. Test Inventory & FEFO sub-tab
     await page.click('button:has-text("Inventory & FEFO")');

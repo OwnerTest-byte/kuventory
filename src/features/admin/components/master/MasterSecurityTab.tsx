@@ -56,20 +56,31 @@ export function MasterSecurityTab({
         {/* Security Posture Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-2">
           <div className="p-3.5 rounded-xl bg-muted/30 border border-border">
-            <span className="text-muted-foreground text-[11px] block">Tier 0 Clearances</span>
-            <span className="font-bold text-amber-500 text-sm mt-0.5 block flex items-center gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-[11px]">Tier 0 Master Admin</span>
+              <span className="text-[10px] font-mono font-bold text-amber-500 uppercase px-1.5 py-0.5 rounded bg-amber-500/10">1 / 1 (Fixed)</span>
+            </div>
+            <span className="font-bold text-amber-500 text-sm mt-1 flex items-center gap-1.5">
               <Crown className="w-4 h-4" /> 1 Master Admin (Root)
             </span>
           </div>
           <div className="p-3.5 rounded-xl bg-muted/30 border border-border">
-            <span className="text-muted-foreground text-[11px] block">Level 1 Operational Admins</span>
-            <span className="font-bold text-foreground text-sm mt-0.5 block flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-primary" /> {Math.max(0, privilegedUsers.length - 1)} Store Administrators
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-[11px]">Level 1 Operational Admins</span>
+              <span className="text-[10px] font-mono font-bold text-primary uppercase px-1.5 py-0.5 rounded bg-primary/10">
+                {privilegedUsers.filter(u => u.role === 'ADMIN').length} / 3 Max Quota
+              </span>
+            </div>
+            <span className="font-bold text-foreground text-sm mt-1 flex items-center gap-1.5">
+              <Users className="w-4 h-4 text-primary" /> {privilegedUsers.filter(u => u.role === 'ADMIN').length} Store Administrators
             </span>
           </div>
           <div className="p-3.5 rounded-xl bg-muted/30 border border-border">
-            <span className="text-muted-foreground text-[11px] block">Maintenance Barrier</span>
-            <span className={cn("font-bold text-sm mt-0.5 block flex items-center gap-1.5", maintenanceSetting?.locked ? "text-rose-500" : "text-emerald-500")}>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-[11px]">Emergency Lockout</span>
+              <span className="text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-muted">Status</span>
+            </div>
+            <span className={cn("font-bold text-sm mt-1 flex items-center gap-1.5", maintenanceSetting?.locked ? "text-rose-500" : "text-emerald-500")}>
               <Lock className="w-4 h-4" /> {maintenanceSetting?.locked ? "LOCKED (Read-Only)" : "OFF (Normal Flow)"}
             </span>
           </div>
