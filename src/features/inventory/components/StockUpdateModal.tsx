@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { InventoryStock, StockBatch } from '../types';
-import { PlusCircle, MinusCircle, RefreshCw, Layers } from 'lucide-react';
+import { PlusCircle, MinusCircle, RefreshCw, Layers, Calendar } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface StockUpdateModalProps {
   item: InventoryStock;
@@ -22,6 +23,16 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
   const [batchId, setBatchId] = useState<string>('auto');
   const [expiryDate, setExpiryDate] = useState('');
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
+
+  const activeBatches = useMemo(() => {
+    return [...batches]
+      .filter((b: StockBatch) => b.quantity > 0)
+      .sort((a: StockBatch, b: StockBatch) => {
+        const dateA = a.expiry_date ? new Date(a.expiry_date).getTime() : Infinity;
+        const dateB = b.expiry_date ? new Date(b.expiry_date).getTime() : Infinity;
+        return dateA - dateB;
+      });
+  }, [batches]);
 
   const isPending = isSubmitting || isSubmittingLocal;
 
@@ -158,33 +169,97 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
             </div>
 
             {action === 'add' && (
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  Batch Expiry Date (Optional)
-                </Label>
+              <div className="space-y-3 p-3.5 bg-muted/40 rounded-xl border border-border">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-primary" />
+                    Batch Expiry Date (FEFO Expiration Tracking)
+                  </Label>
+                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    Closest Expiry Deducted 1st
+                  </span>
+                </div>
                 <Input
                   type="date"
                   value={expiryDate}
                   onChange={(e) => setExpiryDate(e.target.value)}
-                  className="border-border h-10"
+                  className="border-border h-10 bg-card text-foreground"
                 />
+                <p className="text-[11px] text-muted-foreground leading-normal">
+                  In KUVENTORY, you can add multiple deliveries of the same item with different expiration dates. The automated FEFO engine guarantees that the batch with the <strong>closest expiration date</strong> is always deducted first when sales or usage occurs.
+                </p>
+
+                {/* Existing Batches Queue Preview */}
+                {activeBatches.length > 0 && (
+                  <div className="pt-2 border-t border-border/80 space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                      <span>Existing Active Lots ({activeBatches.length})</span>
+                      <span>FEFO Deduction Order</span>
+                    </div>
+                    <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                      {activeBatches.map((b, idx) => {
+                        const isFirst = idx === 0;
+                        const expDate = b.expiry_date ? new Date(b.expiry_date) : null;
+                        return (
+                          <div 
+                            key={b.id} 
+                            className={`flex items-center justify-between p-2 rounded-lg text-xs border ${
+                              isFirst 
+                                ? 'bg-rose-500/10 border-rose-500/30 text-foreground' 
+                                : 'bg-card border-border text-muted-foreground'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-mono font-bold text-[11px] text-foreground">
+                                {b.batch_code}
+                              </span>
+                              <span className="font-semibold text-foreground">
+                                {b.quantity} {item.unit}
+                              </span>
+                              <span className="text-[11px] text-muted-foreground">
+                                Exp: {expDate ? format(expDate, 'MMM dd, yyyy') : 'No Expiry'}
+                              </span>
+                            </div>
+
+                            <div>
+                              {isFirst ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-600 text-white uppercase tracking-wider shadow-2xs">
+                                  Next to Deduct (1st)
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground border border-border">
+                                  Position #{idx + 1}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {action === 'remove' && batches.length > 0 && (
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  Batch Allocation Rule
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-foreground uppercase tracking-wider">
+                    Batch Allocation Rule
+                  </Label>
+                  <span className="text-[10px] font-semibold text-primary">
+                    Auto-Prioritizes Closest Expiry
+                  </span>
+                </div>
                 <select 
                   className="w-full h-10 px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   value={batchId}
                   onChange={(e) => setBatchId(e.target.value)}
                 >
-                  <option value="auto">Auto (FEFO Priority - Earliest Expiry First)</option>
-                  {batches.map(b => (
+                  <option value="auto">Auto (FEFO Priority - Closest Expiry Lot Deducted First)</option>
+                  {activeBatches.map((b, idx) => (
                     <option key={b.id} value={b.id}>
-                      {b.batch_code} ({b.quantity} {item.unit}) • Exp: {b.expiry_date ? new Date(b.expiry_date).toLocaleDateString() : 'N/A'}
+                      {idx === 0 ? '★ [USE FIRST] ' : ''}{b.batch_code} ({b.quantity} {item.unit}) • Exp: {b.expiry_date ? format(new Date(b.expiry_date), 'MMM dd, yyyy') : 'N/A'}
                     </option>
                   ))}
                 </select>

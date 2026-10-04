@@ -225,32 +225,55 @@
   }
 }
 
-/* Dedicated Vertical Slider for Login Page */
+/* Universal High-Visibility Selection Highlighting (Vibrant Tailwind Blue 600 + Pure White Text) */
+::selection {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+::-moz-selection {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+*::selection {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+*::-moz-selection {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Dedicated Vertical Slider for Login Page - Smooth and Unobtrusive */
 .login-vertical-slider {
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
   scrollbar-width: thin;
-  scrollbar-color: #d4af37 #1f1816;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
 }
 
 .login-vertical-slider::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .login-vertical-slider::-webkit-scrollbar-track {
-  background: rgba(31, 24, 22, 0.2);
-  border-radius: 9999px;
+  background: transparent;
 }
 
 .login-vertical-slider::-webkit-scrollbar-thumb {
-  background: #d4af37;
+  background: rgba(148, 163, 184, 0.35);
   border-radius: 9999px;
-  border: 2px solid transparent;
 }
 
 .login-vertical-slider::-webkit-scrollbar-thumb:hover {
-  background: #f59e0b;
+  background: rgba(148, 163, 184, 0.6);
 }
 
 /* Dedicated Table Slider Container for Responsive Horizontal & Vertical Scrolling */

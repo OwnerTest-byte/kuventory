@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Link as LinkIcon, X, Image as ImageIcon, Loader2, RefreshCw } from 'lucide-react';
+import { Upload, Link as LinkIcon, X, Image as ImageIcon, Loader2, RefreshCw, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,7 @@ export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   // Compress and convert local image to optimized Base64 data URL
   const processFile = (file: File) => {
@@ -139,6 +140,9 @@ export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = '';
+    }
   };
 
   return (
@@ -173,8 +177,8 @@ export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
 
       {/* Preview Box if image exists */}
       {value ? (
-        <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/30">
-          <div className="w-16 h-16 rounded-lg bg-card border border-border overflow-hidden shrink-0 flex items-center justify-center p-1 relative">
+        <div className="flex flex-col sm:flex-row items-center gap-3 p-3.5 rounded-xl border border-border bg-muted/30">
+          <div className="w-20 h-20 sm:w-16 sm:h-16 rounded-xl bg-card border border-border overflow-hidden shrink-0 flex items-center justify-center p-1 relative shadow-xs">
             <img
               src={value}
               alt="Item preview"
@@ -186,42 +190,51 @@ export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
             />
           </div>
 
-          <div className="flex-1 min-w-0 space-y-1">
-            <p className="text-xs font-semibold text-foreground truncate">Photo uploaded</p>
+          <div className="flex-1 min-w-0 w-full text-center sm:text-left space-y-1">
+            <p className="text-xs font-semibold text-foreground truncate">Product Photo Set</p>
             <p className="text-[10px] text-muted-foreground truncate">
-              {value.startsWith('data:') ? 'Local file (compressed)' : value}
+              {value.startsWith('data:') ? 'Local file (WebP optimized)' : value}
             </p>
-            <div className="flex items-center gap-2 pt-0.5">
+            <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
-                className="h-6 text-[10px] px-2 font-bold gap-1 cursor-pointer"
+                className="h-7 text-xs px-2.5 font-bold gap-1 cursor-pointer border-border"
               >
-                <RefreshCw className="w-2.5 h-2.5" /> Replace
+                <RefreshCw className="w-3 h-3 text-primary" /> Replace
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => cameraInputRef.current?.click()}
+                className="h-7 text-xs px-2.5 font-bold gap-1 cursor-pointer border-border sm:hidden"
+              >
+                <Camera className="w-3 h-3 text-emerald-600" /> Camera
               </Button>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={handleClearImage}
-                className="h-6 text-[10px] px-2 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 font-bold gap-1 cursor-pointer"
+                className="h-7 text-xs px-2.5 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 font-bold gap-1 cursor-pointer"
               >
-                <X className="w-2.5 h-2.5" /> Remove
+                <X className="w-3 h-3" /> Remove
               </Button>
             </div>
           </div>
         </div>
       ) : (
-        /* Upload or URL input tabs */
+        /* Upload, Camera, or URL tabs */
         <div className="space-y-2.5">
-          <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg border border-border w-fit text-xs">
+          <div className="flex flex-wrap items-center gap-1.5 bg-muted/60 p-1 rounded-lg border border-border w-fit text-xs">
             <button
               type="button"
               onClick={() => { setActiveTab('upload'); setErrorMessage(null); }}
               className={cn(
-                "px-2.5 py-1 rounded-md font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5",
+                "px-2.5 py-1.5 rounded-md font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5",
                 activeTab === 'upload'
                   ? "bg-card text-foreground shadow-2xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -233,7 +246,7 @@ export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
               type="button"
               onClick={() => { setActiveTab('url'); setErrorMessage(null); }}
               className={cn(
-                "px-2.5 py-1 rounded-md font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5",
+                "px-2.5 py-1.5 rounded-md font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5",
                 activeTab === 'url'
                   ? "bg-card text-foreground shadow-2xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -244,53 +257,67 @@ export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
           </div>
 
           {activeTab === 'upload' ? (
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-border/80 hover:border-primary/60 rounded-xl p-4 text-center cursor-pointer transition-colors bg-muted/20 hover:bg-muted/40 space-y-1"
-            >
-              {isProcessing ? (
-                <div className="py-2 flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                  <span className="text-xs font-semibold">Processing image...</span>
-                </div>
-              ) : (
-                <>
-                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-1">
-                    <Upload className="w-4 h-4" />
+            <div className="space-y-2">
+              <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-border/80 hover:border-primary/60 rounded-xl p-4 sm:p-5 text-center cursor-pointer transition-colors bg-muted/20 hover:bg-muted/40 space-y-1.5"
+              >
+                {isProcessing ? (
+                  <div className="py-2 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                    <span className="text-xs font-semibold">Compressing and optimizing photo...</span>
                   </div>
-                  <p className="text-xs font-bold text-foreground">
-                    Click to browse or drop an image here
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    PNG, JPG, WEBP, or SVG (compressed automatically)
-                  </p>
-                </>
-              )}
+                ) : (
+                  <>
+                    <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-1">
+                      <Upload className="w-4.5 h-4.5" />
+                    </div>
+                    <p className="text-xs font-bold text-foreground">
+                      Click to choose image or drag &amp; drop
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Supports JPG, PNG, WEBP, or SVG · Auto-compressed for speed
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Mobile Direct Camera Trigger Button */}
+              <div className="flex sm:hidden justify-center pt-0.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="w-full h-9 text-xs font-bold gap-1.5 border-border bg-card text-foreground"
+                >
+                  <Camera className="w-4 h-4 text-emerald-600" /> Take Photo with Camera
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-1.5">
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                   type="url"
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
                   placeholder="https://example.com/photos/item.jpg"
-                  className="h-8 text-xs bg-card border-border flex-1"
+                  className="h-9 text-xs bg-card border-border flex-1"
                 />
                 <Button
                   type="button"
                   size="sm"
                   onClick={handleApplyUrl}
                   disabled={!urlInput.trim()}
-                  className="h-8 text-xs px-3 font-bold bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 cursor-pointer"
+                  className="h-9 text-xs px-4 font-bold bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 cursor-pointer"
                 >
-                  Apply
+                  Apply URL
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Paste any direct public image URL
+                Paste any direct public web image link
               </p>
             </div>
           )}
@@ -303,11 +330,21 @@ export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
         </div>
       )}
 
-      {/* Hidden file input */}
+      {/* Hidden file input for standard file picker */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
+      {/* Hidden file input for mobile camera capture */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
         onChange={handleFileChange}
         className="hidden"
       />

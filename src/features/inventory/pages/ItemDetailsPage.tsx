@@ -467,10 +467,10 @@ export function ItemDetailsPage() {
                           priorityText = 'EXPIRED';
                         } else if (index === 0 && b.quantity > 0) {
                           priorityBadge = 'bg-rose-600 text-white font-bold tracking-wide shadow-xs';
-                          priorityText = 'USE FIRST';
+                          priorityText = 'NEXT TO DEDUCT (FEFO 1st)';
                         } else if (index === 1 && b.quantity > 0) {
                           priorityBadge = 'bg-amber-500 text-white font-bold';
-                          priorityText = 'NEXT';
+                          priorityText = 'NEXT IN QUEUE';
                         }
 
                       return (

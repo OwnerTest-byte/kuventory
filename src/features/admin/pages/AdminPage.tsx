@@ -965,7 +965,7 @@ export function AdminPage() {
           {isMasterAdmin && (
             <TabsTrigger 
               value="master" 
-              className="font-semibold text-xs sm:text-sm bg-gradient-to-r from-amber-500/15 to-amber-600/10 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+              className="font-semibold text-xs sm:text-sm bg-linear-to-r from-amber-500/15 to-amber-600/10 text-amber-600 dark:text-amber-400 border border-amber-500/30"
             >
               <Crown className="w-4 h-4 mr-2 text-amber-500" /> Master Console
             </TabsTrigger>

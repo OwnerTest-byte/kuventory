@@ -123,7 +123,8 @@ export function ItemsCatalogPage() {
 
   const handleCreateOrUpdate = async (
     data: Omit<InventoryItem, 'id' | 'is_archived' | 'created_at' | 'updated_at' | 'current_qty'>,
-    initialQty?: number
+    initialQty?: number,
+    initialExpiryDate?: string
   ) => {
     setIsSubmitting(true);
     try {
@@ -135,6 +136,7 @@ export function ItemsCatalogPage() {
           await add.mutateAsync({
             itemId: newItem.id,
             quantity: initialQty,
+            expiryDate: initialExpiryDate ? new Date(initialExpiryDate).toISOString() : undefined,
             reason: 'Initial Opening Stock Balance'
           });
         }

@@ -3,16 +3,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { X, Image as ImageIcon } from 'lucide-react';
+import { X, Image as ImageIcon, Layers, Calendar, CheckCircle2 } from 'lucide-react';
 import type { InventoryItem, Category } from '../types';
 import { useSuppliers } from '../api/suppliers';
+import { addStock } from '../api';
 import { ImageUploadInput } from './ImageUploadInput';
 
 interface Props {
   item?: InventoryItem; // If undefined, it's a create action
   defaultCategoryId?: string;
   onClose: () => void;
-  onSubmit: (data: Omit<InventoryItem, 'id' | 'is_archived' | 'created_at' | 'updated_at' | 'current_qty'>, initialQty?: number) => Promise<void>;
+  onSubmit: (
+    data: Omit<InventoryItem, 'id' | 'is_archived' | 'created_at' | 'updated_at' | 'current_qty'>, 
+    initialQty?: number,
+    initialExpiryDate?: string
+  ) => Promise<void>;
   isSubmitting: boolean;
 }
 
@@ -29,9 +34,11 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
     unit_cost: item?.unit_cost?.toString() || '0',
     min_qty: item?.min_qty?.toString() || '0',
     initial_qty: '0',
+    initial_expiry_date: '',
     image_path: item?.image_path || ''
   });
   const [error, setError] = useState<string | null>(null);
+  const [batchAddedSuccess, setBatchAddedSuccess] = useState<string | null>(null);
 
   const { data: categories } = useQuery<Category[]>({
     queryKey: ['categories'],
@@ -43,6 +50,25 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
   });
 
   const { data: registeredSuppliers } = useSuppliers();
+
+  // Query existing items for intelligent FEFO duplicate detection
+  const { data: existingActiveItems = [] } = useQuery({
+    queryKey: ['existing-active-items-catalog'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('inventory_items')
+        .select('id, name, unit, category_id, categories(name)')
+        .eq('is_archived', false);
+      return data || [];
+    },
+    enabled: !item
+  });
+
+  const matchedExistingItem = !item && formData.item_name.trim().length > 1
+    ? existingActiveItems.find(
+        (i: any) => i.name.trim().toLowerCase() === formData.item_name.trim().toLowerCase()
+      )
+    : null;
 
   // Derive effective category ID directly to avoid unnecessary state renders
   const effectiveCategoryId = formData.category_id || defaultCategoryId || categories?.[0]?.id || '';
@@ -73,9 +99,33 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
         min_qty: parseInt(formData.min_qty, 10) || 0,
         image_path: formData.image_path || null,
         category_name: selectedCategoryName
-      }, !item ? parseFloat(formData.initial_qty) || 0 : undefined);
+      }, !item ? parseFloat(formData.initial_qty) || 0 : undefined, formData.initial_expiry_date || undefined);
     } catch (err: any) {
       setError(err.message || 'Failed to save item');
+    }
+  };
+
+  const handleAddBatchToExisting = async () => {
+    if (!matchedExistingItem) return;
+    const qty = parseFloat(formData.initial_qty);
+    if (!qty || qty <= 0) {
+      setError("Please specify an Initial Stock Quantity greater than 0 to record this new batch delivery.");
+      return;
+    }
+
+    try {
+      await addStock({
+        itemId: (matchedExistingItem as any).id,
+        quantity: qty,
+        expiryDate: formData.initial_expiry_date || null,
+        reason: 'Restock Batch Delivery (FEFO Expiry Queue)'
+      });
+      setBatchAddedSuccess(`Successfully added ${qty} ${(matchedExistingItem as any).unit || 'units'} to existing item "${(matchedExistingItem as any).name}" as a new batch!`);
+      setTimeout(() => {
+        onClose();
+      }, 1200);
+    } catch (err: any) {
+      setError(err.message || 'Failed to add batch to existing item');
     }
   };
 
@@ -93,6 +143,13 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
           {error && (
             <div className="mb-6 p-4 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 shadow-sm text-sm font-medium">
               {error}
+            </div>
+          )}
+
+          {batchAddedSuccess && (
+            <div className="mb-6 p-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg border border-emerald-500/20 shadow-sm text-sm font-semibold flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 shrink-0" />
+              <span>{batchAddedSuccess}</span>
             </div>
           )}
 
@@ -118,6 +175,32 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
                   required
                 />
               </div>
+
+              {/* Intelligent FEFO Duplicate Resolution Banner */}
+              {matchedExistingItem && (
+                <div className="md:col-span-2 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-2.5">
+                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold text-sm">
+                    <Layers className="w-4 h-4 shrink-0 text-amber-600" />
+                    <span>Item "{(matchedExistingItem as any).name}" already exists in your inventory</span>
+                  </div>
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    KUVENTORY is powered by an automated <strong>First-Expired, First-Out (FEFO)</strong> engine. You do not need to create duplicate item entries for different expiration dates. You can add this shipment as a new batch lot to <strong>{(matchedExistingItem as any).name}</strong> with its unique expiration date, and the batch with the <strong>closest expiry date will automatically be consumed first</strong>.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleAddBatchToExisting}
+                      className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-8 shadow-xs cursor-pointer"
+                    >
+                      Add as New Batch to Existing "{(matchedExistingItem as any).name}"
+                    </Button>
+                    <span className="text-[11px] text-muted-foreground">
+                      or proceed below to register a completely separate SKU item.
+                    </span>
+                  </div>
+                </div>
+              )}
               
               <div className="space-y-2 md:col-span-2">
                 <div className="flex items-center justify-between">
@@ -167,16 +250,33 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
               </div>
 
               {!item && (
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-foreground">Initial Stock Quantity</label>
-                  <Input 
-                    type="number"
-                    min="0"
-                    value={formData.initial_qty}
-                    onChange={e => setFormData({ ...formData, initial_qty: e.target.value })}
-                    placeholder="Initial units on hand"
-                  />
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-foreground">Initial Stock Quantity</label>
+                    <Input 
+                      type="number"
+                      min="0"
+                      value={formData.initial_qty}
+                      onChange={e => setFormData({ ...formData, initial_qty: e.target.value })}
+                      placeholder="Initial units on hand"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-foreground flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-primary" />
+                        Initial Batch Expiry Date
+                      </span>
+                      <span className="text-[10px] text-muted-foreground uppercase font-bold">FEFO Queued</span>
+                    </label>
+                    <Input 
+                      type="date"
+                      value={formData.initial_expiry_date}
+                      onChange={e => setFormData({ ...formData, initial_expiry_date: e.target.value })}
+                    />
+                  </div>
+                </>
               )}
 
               <div className="space-y-2">

@@ -108,4 +108,40 @@ describe('FEFO (First-Expired, First-Out) Priority Engine (QA Verification)', ()
     expect(priority.priorityText).toBe('EXPIRED');
     expect(priority.daysLeft).toBeLessThan(0);
   });
+
+  it('guarantees that when multiple deliveries of the same item arrive with different expiry dates, the closest expiry is deducted first', () => {
+    // Scenario: User receives Delivery A of Fresh Milk (Exp: Nov 20), then Delivery B (Exp: Oct 15)
+    const milkBatches: BatchTestItem[] = [
+      { id: 'batch-delivery-a', batch_code: 'MILK-NOV20', quantity: 20, expiry_date: '2026-11-20' },
+      { id: 'batch-delivery-b', batch_code: 'MILK-OCT15', quantity: 15, expiry_date: '2026-10-15' },
+    ];
+
+    const fefoQueue = sortBatchesByFEFO(milkBatches);
+    
+    // Batch B (Oct 15) must be 1st to be deducted because its expiry is closest
+    expect(fefoQueue[0].id).toBe('batch-delivery-b');
+    expect(fefoQueue[0].expiry_date).toBe('2026-10-15');
+    expect(fefoQueue[1].id).toBe('batch-delivery-a');
+
+    // Simulate stock deduction of 25 units:
+    // First 15 units must be consumed from Batch B (exhausting it), and remaining 10 units from Batch A
+    let remainingToConsume = 25;
+    const consumptionLog: { batchId: string; deducted: number }[] = [];
+
+    for (const batch of fefoQueue) {
+      if (remainingToConsume <= 0) break;
+      const deduct = Math.min(batch.quantity, remainingToConsume);
+      consumptionLog.push({ batchId: batch.id, deducted: deduct });
+      batch.quantity -= deduct;
+      remainingToConsume -= deduct;
+    }
+
+    expect(consumptionLog).toEqual([
+      { batchId: 'batch-delivery-b', deducted: 15 }, // Closest expiry consumed 100% first
+      { batchId: 'batch-delivery-a', deducted: 10 }  // Overflow deducted from next batch
+    ]);
+
+    expect(milkBatches.find(b => b.id === 'batch-delivery-b')?.quantity).toBe(0);
+    expect(milkBatches.find(b => b.id === 'batch-delivery-a')?.quantity).toBe(10);
+  });
 });

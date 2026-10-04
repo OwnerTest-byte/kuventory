@@ -103,6 +103,19 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
     return list;
   }, [batches, search, stockFilter, expiryFilter]);
 
+  // Map item_id -> ID of the batch with the closest expiry date among in-stock non-depleted batches
+  const earliestBatchByItemId = useMemo(() => {
+    const map = new Map<string, string>();
+    // batches is already sorted by expiry_date ASC
+    batches.forEach(b => {
+      const itemId = b.items?.id;
+      if (itemId && b.quantity > 0 && !map.has(itemId)) {
+        map.set(itemId, b.id);
+      }
+    });
+    return map;
+  }, [batches]);
+
   return (
     <div className={embedded ? "space-y-4" : "p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6"}>
       {/* Page Header */}
@@ -211,11 +224,12 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
                   </td>
                 </tr>
               ) : (
-                filteredBatches.map((batch, index) => {
+                filteredBatches.map((batch) => {
                   const expiryDate = batch.expiry_date ? new Date(batch.expiry_date) : null;
                   const now = new Date();
                   const isExpired = expiryDate && expiryDate < now;
                   const daysLeft = expiryDate ? differenceInDays(expiryDate, now) : null;
+                  const isEarliestForItem = earliestBatchByItemId.get(batch.items?.id) === batch.id;
 
                   let priorityBadge = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
                   let priorityText = 'NORMAL';
@@ -226,15 +240,12 @@ export function StockBatchesPage({ embedded }: { embedded?: boolean } = {}) {
                   } else if (isExpired) {
                     priorityBadge = 'bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold border-rose-500/20';
                     priorityText = 'EXPIRED';
+                  } else if (isEarliestForItem) {
+                    priorityBadge = 'bg-rose-600 text-white font-bold border-rose-600 shadow-2xs';
+                    priorityText = 'USE FIRST';
                   } else if (daysLeft !== null && daysLeft <= 14) {
                     priorityBadge = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border-amber-500/20';
                     priorityText = daysLeft <= 3 ? 'CRITICAL EXPIRY' : 'EXPIRING SOON';
-                  } else if (index === 0) {
-                    priorityBadge = 'bg-rose-600 text-white font-bold border-rose-600';
-                    priorityText = 'USE FIRST';
-                  } else if (index === 1) {
-                    priorityBadge = 'bg-amber-500 text-white font-bold border-amber-500';
-                    priorityText = 'NEXT';
                   }
 
                   return (
