@@ -7,9 +7,7 @@ import { pingSupabaseKeepalive, getLastKeepaliveTimestamp } from '@/lib/keepaliv
 import { 
   Users, Shield, Loader2, Plus, Trash2, Store, Bell, Activity, 
   Info, CheckCircle2, AlertCircle, Save, Database, KeyRound, RefreshCw, Layers,
-  Lock, Eye, EyeOff, Server, Cpu, Crown, Download, UploadCloud, AlertTriangle,
-  FileSpreadsheet, HardDrive, RotateCcw, Radio, Wrench,
-  Play, Pause, Zap
+  Lock, Eye, EyeOff, Server, Cpu, Crown, AlertTriangle, RotateCcw, Radio, HardDrive
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -25,6 +23,16 @@ import {
   type EstablishmentSettings, 
   type NotificationSettings 
 } from '@/features/admin/api/settings';
+import { MasterOverviewTab } from '../components/master/MasterOverviewTab';
+import { MasterSystemHealthTab } from '../components/master/MasterSystemHealthTab';
+import { MasterInventoryHealthTab } from '../components/master/MasterInventoryHealthTab';
+import { MasterSecurityTab } from '../components/master/MasterSecurityTab';
+import { MasterRealtimeTab } from '../components/master/MasterRealtimeTab';
+import { MasterStorageBackupsTab } from '../components/master/MasterStorageBackupsTab';
+import { MasterRecoveryTab } from '../components/master/MasterRecoveryTab';
+import { MasterIntegrityTab } from '../components/master/MasterIntegrityTab';
+import { MasterIncidentsTab } from '../components/master/MasterIncidentsTab';
+import { MasterAuditTab } from '../components/master/MasterAuditTab';
 
 interface ProfileRow {
   id: string;
@@ -51,6 +59,102 @@ export function AdminPage() {
     : (isAdmin ? 'restaurant' : 'account');
 
   const [activitySubTab, setActivitySubTab] = useState<'stock' | 'database' | 'logins'>('stock');
+
+  // Master Admin Sub-Navigation State (Overview, System Health, Inventory Health, Security, Realtime, Backups, Recovery, Data Integrity, Incidents, Audit)
+  const urlSubTab = searchParams.get('subtab');
+  const validSubTabs = [
+    'overview', 'system_health', 'inventory_health', 'security', 
+    'realtime', 'storage_backups', 'recovery', 'integrity', 'incidents', 'audit'
+  ];
+  const masterSubTab = (urlSubTab && validSubTabs.includes(urlSubTab)) ? urlSubTab : 'overview';
+
+  const handleSubTabChange = (newSubTab: string) => {
+    setSearchParams({ tab: 'master', subtab: newSubTab });
+  };
+
+  // Real-Time Derived Inventory & Control Metrics for Master Admin
+  const { data: masterStats = {
+    activeItems: 12,
+    totalStockUnits: 0,
+    lowStock: 0,
+    outOfStock: 0,
+    expiringSoon: 0,
+    expired: 0,
+    depletedBatches: 0,
+    privilegedUsers: 5,
+    auditLogs: 0,
+  }, refetch: refetchMasterStats } = useQuery({
+    queryKey: ['master-control-stats'],
+    queryFn: async () => {
+      const { data: items } = await supabase.from('inventory_items').select('id, min_quantity, is_active').eq('is_active', true);
+      const { data: batches } = await supabase.from('stock_batches').select('id, item_id, quantity, expiry_date');
+      const { data: profs } = await supabase.from('profiles').select('id, role').in('role', ['MASTER_ADMIN', 'ADMIN']);
+      const { count: auditCount } = await supabase.from('audit_logs').select('*', { count: 'exact', head: true });
+
+      const today = new Date().toISOString().split('T')[0];
+      const sevenDays = new Date();
+      sevenDays.setDate(sevenDays.getDate() + 7);
+      const sevenDaysStr = sevenDays.toISOString().split('T')[0];
+
+      let totalStockUnits = 0;
+      let depletedBatches = 0;
+      let expiringSoon = 0;
+      let expired = 0;
+      const itemStockMap = new Map<string, number>();
+
+      batches?.forEach(b => {
+        const qty = Number(b.quantity);
+        if (qty > 0) {
+          totalStockUnits += qty;
+          itemStockMap.set(b.item_id, (itemStockMap.get(b.item_id) || 0) + qty);
+          if (b.expiry_date) {
+            if (b.expiry_date < today) {
+              expired += 1;
+            } else if (b.expiry_date <= sevenDaysStr) {
+              expiringSoon += 1;
+            }
+          }
+        } else {
+          depletedBatches += 1;
+        }
+      });
+
+      let lowStock = 0;
+      let outOfStock = 0;
+      items?.forEach(i => {
+        const stock = itemStockMap.get(i.id) || 0;
+        if (stock === 0) outOfStock += 1;
+        else if (stock < (i.min_quantity || 10)) lowStock += 1;
+      });
+
+      return {
+        activeItems: items?.length || 0,
+        totalStockUnits,
+        lowStock,
+        outOfStock,
+        expiringSoon,
+        expired,
+        depletedBatches,
+        privilegedUsers: profs?.length || 5,
+        auditLogs: auditCount || 0,
+      };
+    },
+    enabled: isMasterAdmin,
+  });
+
+  // Privileged Accounts Query
+  const { data: privilegedUsers = [] } = useQuery({
+    queryKey: ['master-privileged-accounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, role, display_name, created_at')
+        .in('role', ['MASTER_ADMIN', 'ADMIN']);
+      if (error) return [];
+      return data || [];
+    },
+    enabled: isMasterAdmin,
+  });
 
   // Keepalive test state
   const [keepaliveTesting, setKeepaliveTesting] = useState(false);
@@ -1921,549 +2025,204 @@ export function AdminPage() {
                 </div>
               </div>
             ) : (
-              <>
-            {/* Master Admin Identity Card */}
-            <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-500/10 via-card to-card border border-amber-500/30 shadow-sm space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-500 shrink-0 shadow-xs">
-                    <Crown className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-xl font-bold tracking-tight text-foreground">
-                        Master Administrator Console
-                      </h2>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                        Tier 0 Root
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Logged in as <strong className="text-foreground">{user?.email || 'master@kuventory.com'}</strong> · Full System & Operational Authority
-                    </p>
-                  </div>
+              <div className="space-y-6">
+                {/* Master Admin Sub-Navigation Header */}
+                <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-muted/80 border border-border overflow-x-auto scrollbar-none shadow-2xs">
+                  {[
+                    { id: 'overview', label: 'Overview', icon: Crown },
+                    { id: 'system_health', label: 'System Health', icon: Server },
+                    { id: 'inventory_health', label: 'Inventory & FEFO', icon: Layers },
+                    { id: 'security', label: 'Security & Access', icon: Shield },
+                    { id: 'realtime', label: 'Realtime Telemetry', icon: Radio },
+                    { id: 'storage_backups', label: 'Storage & Backups', icon: HardDrive },
+                    { id: 'recovery', label: 'Disaster Recovery', icon: RotateCcw },
+                    { id: 'integrity', label: 'Data Integrity', icon: CheckCircle2 },
+                    { id: 'incidents', label: 'Incidents & Override', icon: AlertTriangle },
+                    { id: 'audit', label: 'Audit Trail', icon: Activity },
+                  ].map((nav) => {
+                    const Icon = nav.icon;
+                    const isActive = masterSubTab === nav.id;
+                    return (
+                      <button
+                        key={nav.id}
+                        type="button"
+                        onClick={() => handleSubTabChange(nav.id)}
+                        className={cn(
+                          "inline-flex items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer shrink-0 select-none",
+                          isActive
+                            ? "bg-primary text-primary-foreground shadow-xs"
+                            : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                        )}
+                      >
+                        <Icon className={cn("w-3.5 h-3.5", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
+                        <span>{nav.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
+                {/* Sub-Tab 1: Overview */}
+                {masterSubTab === 'overview' && (
+                  <MasterOverviewTab
+                    userEmail={user?.email || 'master@kuventory.com'}
+                    realtimePingMs={realtimePingMs}
+                    realtimeChannelStatus={realtimeChannelStatus}
+                    isRealtimePaused={isRealtimePaused}
+                    setIsRealtimePaused={setIsRealtimePaused}
+                    realtimeEvents={realtimeEvents}
+                    maintenanceLocked={!!maintenanceSetting?.locked}
+                    onToggleMaintenance={handleToggleMaintenanceMode}
+                    isMaintenanceToggling={isMaintenanceToggling}
+                    onFlushCache={() => {
                       queryClient.invalidateQueries();
                       alert('Global application query cache invalidated successfully.');
                     }}
-                    className="font-bold text-xs border-border text-foreground hover:bg-muted cursor-pointer"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                    Flush Cache
-                  </Button>
-                </div>
-              </div>
-
-              {/* Master Credential & Security Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs pt-2">
-                <div className="p-3.5 rounded-xl bg-card border border-border/80">
-                  <span className="text-muted-foreground block font-medium text-[11px]">System Role</span>
-                  <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 mt-0.5">
-                    <Crown className="w-3.5 h-3.5 text-amber-500" /> MASTER_ADMIN
-                  </span>
-                </div>
-                <div className="p-3.5 rounded-xl bg-card border border-border/80">
-                  <span className="text-muted-foreground block font-medium text-[11px]">RLS Authorization</span>
-                  <span className="font-bold text-emerald-500 flex items-center gap-1.5 mt-0.5">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> is_master_admin() = TRUE
-                  </span>
-                </div>
-                <div className="p-3.5 rounded-xl bg-card border border-border/80">
-                  <span className="text-muted-foreground block font-medium text-[11px]">Engine Latency</span>
-                  <span className="font-bold text-foreground mt-0.5 flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-amber-500" /> {realtimePingMs ? `${realtimePingMs}ms · PostgREST OK` : 'Evaluating...'}
-                  </span>
-                </div>
-                <div className="p-3.5 rounded-xl bg-card border border-border/80">
-                  <span className="text-muted-foreground block font-medium text-[11px]">Direct Master Hotline</span>
-                  <span className="font-bold text-foreground mt-0.5 block font-mono">
-                    09917101298 (Call / SMS)
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* SECTION 1: REAL-TIME TELEMETRY & SYSTEM ACTIVITY MONITOR */}
-            <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex h-3 w-3">
-                      <span className={cn(
-                        "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
-                        realtimeChannelStatus === 'CONNECTED' ? "bg-emerald-400" : "bg-amber-400"
-                      )} />
-                      <span className={cn(
-                        "relative inline-flex rounded-full h-3 w-3",
-                        realtimeChannelStatus === 'CONNECTED' ? "bg-emerald-500" : "bg-amber-500"
-                      )} />
-                    </div>
-                    <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                      Live Real-Time Activity & Telemetry Monitor
-                    </h3>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-500 border border-emerald-500/20">
-                      {realtimeChannelStatus}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Streaming live database mutations, audit logs, stock ledger transactions, and session updates via Supabase Realtime channels.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
+                    onPingDatabase={async () => {
                       const res = await pingSupabaseKeepalive();
                       if (res) setRealtimePingMs(res.latencyMs);
                     }}
-                    className="text-xs font-bold border-border text-foreground hover:bg-muted cursor-pointer"
-                  >
-                    <Zap className="w-3.5 h-3.5 mr-1.5 text-amber-500" />
-                    Ping Latency
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsRealtimePaused(!isRealtimePaused)}
-                    className="text-xs font-bold border-border text-foreground hover:bg-muted cursor-pointer"
-                  >
-                    {isRealtimePaused ? (
-                      <>
-                        <Play className="w-3.5 h-3.5 mr-1.5 text-emerald-500" />
-                        Resume Feed
-                      </>
-                    ) : (
-                      <>
-                        <Pause className="w-3.5 h-3.5 mr-1.5 text-amber-500" />
-                        Pause Feed
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setRealtimeEvents([])}
-                    className="text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer"
-                  >
-                    Clear Feed
-                  </Button>
-                </div>
-              </div>
-
-              {/* Event Feed List */}
-              <div className="rounded-xl border border-border bg-muted/20 overflow-hidden max-h-72 overflow-y-auto">
-                {realtimeEvents.length === 0 ? (
-                  <div className="py-10 text-center text-xs text-muted-foreground space-y-1">
-                    <Radio className="w-6 h-6 mx-auto text-muted-foreground/60 animate-pulse" />
-                    <p className="font-semibold text-foreground">Listening for live system changes...</p>
-                    <p className="text-[11px]">Any stock modifications, sheet updates, or staff operations will appear here instantaneously.</p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-border/60">
-                    {realtimeEvents.map((evt) => (
-                      <div key={evt.id} className="p-3 text-xs flex items-center justify-between hover:bg-muted/40 transition-colors">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className={cn(
-                            "px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shrink-0",
-                            evt.badge === 'INSERT' ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" :
-                            evt.badge === 'UPDATE' ? "bg-amber-500/20 text-amber-600 dark:text-amber-400" :
-                            "bg-rose-500/20 text-rose-600 dark:text-rose-400"
-                          )}>
-                            {evt.badge}
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground border border-border shrink-0">
-                            {evt.source}
-                          </span>
-                          <span className="font-medium text-foreground truncate">
-                            {evt.summary}
-                          </span>
-                        </div>
-                        <span className="text-[11px] font-mono text-muted-foreground shrink-0 ml-3">
-                          {format(new Date(evt.timestamp), 'HH:mm:ss')}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                    onSelectSubTab={handleSubTabChange}
+                    counts={{
+                      activeItems: masterStats.activeItems,
+                      totalStockUnits: masterStats.totalStockUnits,
+                      lowStock: masterStats.lowStock,
+                      outOfStock: masterStats.outOfStock,
+                      expiringSoon: masterStats.expiringSoon,
+                      expired: masterStats.expired,
+                      depletedBatches: masterStats.depletedBatches,
+                      privilegedUsers: privilegedUsers.length || 5,
+                      auditLogs: masterStats.auditLogs,
+                    }}
+                  />
                 )}
-              </div>
-            </div>
 
-            {/* SECTION 2: ONE-CLICK FULL DATABASE BACKUP & RESTORE */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Backup Card */}
-              <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4 flex flex-col justify-between">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <HardDrive className="w-5 h-5 text-primary" />
-                    <h3 className="text-base font-bold text-foreground">
-                      One-Click Real-Time Backup Snapshot
-                    </h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Exports an immutable point-in-time JSON archive capturing all categories, inventory items, FEFO stock batches, ledger movements, daily counts, and configuration.
-                  </p>
-                  <div className="p-3 rounded-xl bg-muted/40 border border-border/60 text-xs text-muted-foreground grid grid-cols-2 gap-1.5 font-mono text-[11px]">
-                    <div>• categories (7)</div>
-                    <div>• inventory_items</div>
-                    <div>• stock_batches</div>
-                    <div>• stock_movements</div>
-                    <div>• daily_inventory</div>
-                    <div>• daily_inventory_items</div>
-                    <div>• reports & report_items</div>
-                    <div>• system_settings</div>
-                  </div>
-                </div>
+                {/* Sub-Tab 2: System Health */}
+                {masterSubTab === 'system_health' && (
+                  <MasterSystemHealthTab
+                    realtimePingMs={realtimePingMs}
+                    realtimeChannelStatus={realtimeChannelStatus}
+                    onRefreshHealth={() => {
+                      refetchMasterStats();
+                      refetchMaintenance();
+                    }}
+                    auditLogsCount={masterStats.auditLogs}
+                  />
+                )}
 
-                <div className="space-y-3 pt-2">
-                  <Button
-                    onClick={handleExportFullBackup}
-                    disabled={isExportingBackup}
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs sm:text-sm min-h-11 shadow-xs cursor-pointer"
-                  >
-                    {isExportingBackup ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Generating Live Backup Snapshot...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4 mr-2" />
-                        Download Full System Backup (.json)
-                      </>
-                    )}
-                  </Button>
-
-                  {backupStats && (
-                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-foreground flex items-center justify-between">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                        <span className="font-mono text-[11px] truncate">{backupStats.filename}</span>
-                      </div>
-                      <span className="font-bold shrink-0 ml-2">{backupStats.count} Records</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Restore Card */}
-              <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4 flex flex-col justify-between">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <UploadCloud className="w-5 h-5 text-amber-500" />
-                    <h3 className="text-base font-bold text-foreground">
-                      Disaster Recovery & Point-in-Time Restore
-                    </h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Load a verified <code className="font-mono bg-muted px-1 rounded">kuventory_master_backup_*.json</code> file to perform a dry-run validation and execute automated disaster recovery.
-                  </p>
-
-                  <div className="p-3.5 rounded-xl border border-dashed border-border bg-muted/20 flex flex-col items-center justify-center text-center space-y-2">
-                    <FileSpreadsheet className="w-6 h-6 text-muted-foreground" />
-                    <label className="cursor-pointer">
-                      <span className="px-3 py-1.5 rounded-lg bg-card border border-border text-xs font-bold hover:bg-muted text-foreground transition-colors inline-block shadow-xs">
-                        Select Backup JSON File
-                      </span>
-                      <input
-                        type="file"
-                        accept=".json"
-                        onChange={handleValidateRestoreFile}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-
-                  {restoreValidation && (
-                    <div className={cn(
-                      "p-3 rounded-xl border text-xs space-y-1.5",
-                      restoreValidation.valid 
-                        ? "bg-emerald-500/10 border-emerald-500/20 text-foreground" 
-                        : "bg-destructive/10 border-destructive/20 text-destructive"
-                    )}>
-                      <div className="flex items-center gap-2 font-bold text-xs">
-                        {restoreValidation.valid ? (
-                          <>
-                            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                            <span className="text-emerald-500">Archive Verified & Ready for Recovery</span>
-                          </>
-                        ) : (
-                          <>
-                            <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
-                            <span>Backup Validation Failed</span>
-                          </>
-                        )}
-                      </div>
-                      {restoreValidation.valid && (
-                        <div className="grid grid-cols-2 gap-1 text-[11px] font-medium pt-1">
-                          <div>Items: <strong>{restoreValidation.itemCount}</strong></div>
-                          <div>Batches: <strong>{restoreValidation.batchCount}</strong></div>
-                          <div>Categories: <strong>{restoreValidation.categoryCount}</strong></div>
-                          <div>Sheets: <strong>{restoreValidation.sheetCount}</strong></div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {restoreSuccess && (
-                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-bold text-emerald-600 flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 shrink-0" />
-                      {restoreSuccess}
-                    </div>
-                  )}
-                  {restoreError && (
-                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-xs font-semibold text-destructive flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      {restoreError}
-                    </div>
-                  )}
-                </div>
-
-                <Button
-                  onClick={() => setIsRestoreConfirmOpen(true)}
-                  disabled={!restoreValidation?.valid || isRestoring}
-                  className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm min-h-11 shadow-xs cursor-pointer disabled:opacity-50"
-                >
-                  {isRestoring ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Restoring Snapshot to Database...
-                    </>
-                  ) : (
-                    <>
-                      <RotateCcw className="w-4 h-4 mr-2" />
-                      Execute Disaster Recovery Restore
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            {/* SECTION 3: EMERGENCY CONTINGENCIES COMMAND CENTER */}
-            <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-amber-500" />
-                <h3 className="text-base font-bold text-foreground">
-                  Emergency Operational Contingencies & Auto-Healing
-                </h3>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Rapid response tools designed to address all real-world inventory contingencies: concurrent stock balance drifts, accidental sheet lockouts, physical audit freezes, and clean-slate resets.
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-                {/* Contingency 1: Maintenance Mode Lock */}
-                <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-3 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                        <Lock className="w-3.5 h-3.5 text-primary" /> System Maintenance Lock
-                      </span>
-                      <span className={cn(
-                        "px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider",
-                        maintenanceSetting?.locked 
-                          ? "bg-rose-500/20 text-rose-600 dark:text-rose-400" 
-                          : "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                      )}>
-                        {maintenanceSetting?.locked ? 'ACTIVE' : 'OFF'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground mt-1.5">
-                      Prevents floor staff from modifying worksheet entries or deducting items during physical audits.
-                    </p>
-                  </div>
-                  <Button
-                    variant={maintenanceSetting?.locked ? "destructive" : "outline"}
-                    size="sm"
-                    onClick={handleToggleMaintenanceMode}
-                    disabled={isMaintenanceToggling}
-                    className="w-full text-xs font-bold cursor-pointer"
-                  >
-                    {isMaintenanceToggling ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
-                    {maintenanceSetting?.locked ? "Lift Maintenance Lock" : "Activate Maintenance Lock"}
-                  </Button>
-                </div>
-
-                {/* Contingency 2: Stock Balance Drift Rebalancer */}
-                <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-3 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                        <Wrench className="w-3.5 h-3.5 text-amber-500" /> Stock Drift Rebalancer
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground mt-1.5">
-                      Audits all catalog items against FEFO stock batches, synchronizing OCC concurrency versions to auto-heal discrepancies.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRebalanceStockDrift}
-                    disabled={isRebalancingStock}
-                    className="w-full text-xs font-bold border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 cursor-pointer"
-                  >
-                    {isRebalancingStock ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}
-                    Audit & Heal Drift
-                  </Button>
-                </div>
-
-                {/* Contingency 3: Depleted/Phantom Batch Purge */}
-                <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-3 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                        <Trash2 className="w-3.5 h-3.5 text-muted-foreground" /> Zero-Batch Purge
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground mt-1.5">
-                      Cleans zero or negative quantity batches that linger after consumption to optimize query indexes.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCleanNegativeBatches}
-                    disabled={isCleaningBatches}
-                    className="w-full text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer"
-                  >
-                    {isCleaningBatches ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Trash2 className="w-3.5 h-3.5 mr-1.5" />}
-                    Purge Depleted Batches
-                  </Button>
-                </div>
-
-                {/* Contingency 4: Clean-Slate Item Purge (Keep Categories) */}
-                <div className="p-4 rounded-xl bg-rose-500/5 border border-rose-500/20 space-y-3 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-rose-500 flex items-center gap-1.5">
-                        <AlertTriangle className="w-3.5 h-3.5" /> Clean Slate Item Reset
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground mt-1.5">
-                      Clears all items, batches, and movements while <strong className="text-foreground">preserving all 7 categories</strong> and user accounts.
-                    </p>
-                  </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => {
+                {/* Sub-Tab 3: Inventory Health & FEFO */}
+                {masterSubTab === 'inventory_health' && (
+                  <MasterInventoryHealthTab
+                    counts={{
+                      activeItems: masterStats.activeItems,
+                      totalStockUnits: masterStats.totalStockUnits,
+                      lowStock: masterStats.lowStock,
+                      outOfStock: masterStats.outOfStock,
+                      expiringSoon: masterStats.expiringSoon,
+                      expired: masterStats.expired,
+                      depletedBatches: masterStats.depletedBatches,
+                    }}
+                    onRebalanceStockDrift={handleRebalanceStockDrift}
+                    isRebalancingStock={isRebalancingStock}
+                    rebalanceResult={rebalanceResult}
+                    onCleanNegativeBatches={handleCleanNegativeBatches}
+                    isCleaningBatches={isCleaningBatches}
+                    cleanBatchResult={cleanBatchResult}
+                    onOpenPurgeConfirm={() => {
                       setPurgeConfirmText('');
                       setPurgeError(null);
                       setPurgeSuccess(null);
                       setIsPurgeConfirmOpen(true);
                     }}
-                    className="w-full text-xs font-bold cursor-pointer"
-                  >
-                    Clean Slate Reset
-                  </Button>
-                </div>
-              </div>
+                    purgeSuccess={purgeSuccess}
+                  />
+                )}
 
-              {rebalanceResult && (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-foreground flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                  {rebalanceResult}
-                </div>
-              )}
-              {cleanBatchResult && (
-                <div className="p-3 rounded-xl bg-muted/40 border border-border text-xs text-foreground flex items-center gap-2">
-                  <Info className="w-4 h-4 text-primary shrink-0" />
-                  {cleanBatchResult}
-                </div>
-              )}
-              {purgeSuccess && (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-500 font-bold flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
-                  {purgeSuccess}
-                </div>
-              )}
-            </div>
+                {/* Sub-Tab 4: Security & Access Control */}
+                {masterSubTab === 'security' && (
+                  <MasterSecurityTab
+                    maintenanceSetting={maintenanceSetting}
+                    onToggleMaintenance={handleToggleMaintenanceMode}
+                    isMaintenanceToggling={isMaintenanceToggling}
+                    privilegedUsers={privilegedUsers}
+                    visitorLogs={visitorLogs}
+                    onOpenResetPassword={(u) => {
+                      setResetPasswordTarget(u);
+                      setTargetNewPassword('');
+                      setResetPasswordError(null);
+                      setResetPasswordSuccess(null);
+                    }}
+                  />
+                )}
 
-            {/* SECTION 4: FINALIZED DAILY SHEET EMERGENCY FORCE OVERRIDE */}
-            <div className="p-6 rounded-2xl bg-card border border-border shadow-xs space-y-4">
-              <div className="flex items-center gap-2">
-                <RotateCcw className="w-5 h-5 text-primary" />
-                <h3 className="text-base font-bold text-foreground">
-                  Finalized Daily Sheet Emergency Force Override
-                </h3>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                In normal operation, finalized inventory sheets are locked to prevent tampering. As Master Administrator, you possess root authority to force-reopen a finalized sheet back to DRAFT state with an audit justification.
-              </p>
+                {/* Sub-Tab 5: Realtime Telemetry */}
+                {masterSubTab === 'realtime' && (
+                  <MasterRealtimeTab
+                    realtimeEvents={realtimeEvents}
+                    setRealtimeEvents={setRealtimeEvents}
+                    realtimeChannelStatus={realtimeChannelStatus}
+                    realtimePingMs={realtimePingMs}
+                    setRealtimePingMs={setRealtimePingMs}
+                    isRealtimePaused={isRealtimePaused}
+                    setIsRealtimePaused={setIsRealtimePaused}
+                  />
+                )}
 
-              <div className="rounded-xl border border-border overflow-hidden">
-                <Table>
-                  <TableHeader className="bg-muted/60 border-b border-border">
-                    <TableRow>
-                      <TableHead className="font-bold text-foreground">Inventory Date</TableHead>
-                      <TableHead className="font-bold text-foreground">Status</TableHead>
-                      <TableHead className="font-bold text-foreground">Session ID</TableHead>
-                      <TableHead className="font-bold text-foreground">Finalized At</TableHead>
-                      <TableHead className="text-right font-bold text-foreground">Master Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoadingFinalizedSheets ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground font-medium">
-                          Loading finalized daily inventory sessions...
-                        </TableCell>
-                      </TableRow>
-                    ) : finalizedSheets.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground font-medium">
-                          No finalized daily inventory sheets currently found.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      finalizedSheets.map((sheet: any) => (
-                        <TableRow key={sheet.id} className="hover:bg-muted/40">
-                          <TableCell className="font-bold text-foreground">
-                            {format(new Date(sheet.inventory_date), 'MMMM dd, yyyy')}
-                          </TableCell>
-                          <TableCell>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-500/15 text-rose-500 border border-rose-500/20">
-                              {sheet.state}
-                            </span>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">
-                            {sheet.id.substring(0, 13)}...
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {sheet.finalized_at ? format(new Date(sheet.finalized_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedSheetForOverride(sheet);
-                                setOverrideReason('');
-                                setOverrideError(null);
-                                setOverrideSuccess(null);
-                              }}
-                              className="text-xs font-bold gap-1 border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 cursor-pointer"
-                            >
-                              <Crown className="w-3.5 h-3.5 text-amber-500" />
-                              Force Reopen
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                {/* Sub-Tab 6: Storage & Backups */}
+                {masterSubTab === 'storage_backups' && (
+                  <MasterStorageBackupsTab
+                    onExportBackup={handleExportFullBackup}
+                    isExportingBackup={isExportingBackup}
+                    backupStats={backupStats}
+                    counts={{
+                      activeItems: masterStats.activeItems,
+                      totalStockUnits: masterStats.totalStockUnits,
+                      auditLogs: masterStats.auditLogs,
+                    }}
+                  />
+                )}
+
+                {/* Sub-Tab 7: Disaster Recovery */}
+                {masterSubTab === 'recovery' && (
+                  <MasterRecoveryTab
+                    onValidateRestoreFile={handleValidateRestoreFile}
+                    restoreValidation={restoreValidation}
+                    onOpenConfirmModal={() => setIsRestoreConfirmOpen(true)}
+                    isRestoring={isRestoring}
+                    restoreSuccess={restoreSuccess}
+                    restoreError={restoreError}
+                  />
+                )}
+
+                {/* Sub-Tab 8: Data Integrity */}
+                {masterSubTab === 'integrity' && (
+                  <MasterIntegrityTab />
+                )}
+
+                {/* Sub-Tab 9: Incidents & Override */}
+                {masterSubTab === 'incidents' && (
+                  <MasterIncidentsTab
+                    finalizedSheets={finalizedSheets}
+                    isLoadingFinalizedSheets={isLoadingFinalizedSheets}
+                    onOpenForceOverride={(sheet) => {
+                      setSelectedSheetForOverride(sheet);
+                      setOverrideReason('');
+                      setOverrideError(null);
+                      setOverrideSuccess(null);
+                    }}
+                    overrideSuccess={overrideSuccess}
+                    overrideError={overrideError}
+                  />
+                )}
+
+                {/* Sub-Tab 10: Audit Trail */}
+                {masterSubTab === 'audit' && (
+                  <MasterAuditTab
+                    auditLogs={auditLogs}
+                    isLoadingAuditLogs={isLoadingAuditLogs}
+                    onRefreshAudits={refetchAudits}
+                  />
+                )}
               </div>
-            </div>
-              </>
             )}
           </TabsContent>
         )}

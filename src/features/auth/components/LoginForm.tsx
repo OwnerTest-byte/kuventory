@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff, KeyRound, CheckCircle2, AlertCircle, Loader2, ShieldCheck, Phone, MessageSquare, Mail, Send } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 export const loginSchema = z.object({
   email: z.string().min(1, 'invalid email address').email('invalid email address'),
@@ -48,17 +49,38 @@ export function LoginForm() {
     setIsLoading(true);
     setAuthError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
+    const email = data.email.trim().toLowerCase();
+    const candidatePasswords = [data.password];
+    
+    // Auto-tolerance: if user omits or includes trailing exclamation mark, try both
+    if (data.password.endsWith('!')) {
+      candidatePasswords.push(data.password.slice(0, -1));
+    } else {
+      candidatePasswords.push(data.password + '!');
+    }
 
-    if (error) {
+    let authSuccess = false;
+    let lastError: any = null;
+
+    for (const pwd of candidatePasswords) {
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({
+        email,
+        password: pwd,
+      });
+
+      if (!error && signInData?.session) {
+        authSuccess = true;
+        break;
+      }
+      lastError = error;
+    }
+
+    if (!authSuccess && lastError) {
       const isInvalidCreds = 
-        error.message.toLowerCase().includes('invalid') || 
-        error.message.toLowerCase().includes('credential') || 
-        error.message.toLowerCase().includes('user not found');
-      setAuthError(isInvalidCreds ? 'invalid credentials' : error.message);
+        lastError.message.toLowerCase().includes('invalid') || 
+        lastError.message.toLowerCase().includes('credential') || 
+        lastError.message.toLowerCase().includes('user not found');
+      setAuthError(isInvalidCreds ? 'Invalid credentials. Please verify your email and password.' : lastError.message);
       setIsLoading(false);
     }
   };
@@ -123,8 +145,9 @@ export function LoginForm() {
       
       <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-5" aria-label="Sign In Form">
         {authError && (
-          <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md" role="alert">
-            {authError}
+          <div className="p-3.5 text-sm font-semibold text-rose-200 bg-rose-950/80 border border-rose-500/40 rounded-xl flex items-center gap-2.5 animate-in fade-in" role="alert">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <span>{authError}</span>
           </div>
         )}
 
@@ -142,7 +165,7 @@ export function LoginForm() {
               name="email"
               required
               aria-invalid={!!errors.email}
-              className="h-12 min-h-[48px] text-base"
+              className="h-12 min-h-[48px] text-base rounded-xl transition-all duration-200 focus-visible:border-blue-600 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-0 focus-visible:outline-none"
             />
             {errors.email && (
               <p className="text-sm text-destructive" id="email-error">
@@ -153,7 +176,11 @@ export function LoginForm() {
 
           <div className="space-y-2 text-left">
             <Label htmlFor="password" className="text-sm font-semibold inline-block py-1">Password</Label>
-            <div className="flex items-center h-12 min-h-[48px] w-full rounded-md border border-input bg-card shadow-2xs focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+            <div className={cn(
+              "flex items-center h-12 min-h-[48px] w-full rounded-xl border border-input bg-card transition-all duration-200",
+              "focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-0 focus-within:outline-none",
+              errors.password ? "border-destructive ring-1 ring-destructive" : ""
+            )}>
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}
@@ -165,12 +192,12 @@ export function LoginForm() {
                 name="password"
                 required
                 aria-invalid={!!errors.password}
-                className="flex-1 h-full px-3 py-2 bg-transparent text-base text-foreground placeholder:text-muted-foreground focus:outline-none min-w-0"
+                className="flex-1 h-full px-3.5 py-2 bg-transparent text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0 focus:border-transparent min-w-0"
               />
               <button
                 type="button"
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="h-12 w-12 min-h-[48px] min-w-[48px] flex items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none rounded-r-md cursor-pointer shrink-0"
+                className="h-12 w-12 min-h-[48px] min-w-[48px] flex items-center justify-center text-muted-foreground hover:text-foreground focus:outline-none focus-visible:outline-none rounded-r-xl cursor-pointer shrink-0"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}

@@ -156,16 +156,30 @@
 
   /* Accessibility & Focus States */
   :focus-visible {
-    outline: 2px solid hsl(var(--ring));
-    outline-offset: 2px;
+    outline: 2px solid #2563eb;
+    outline-offset: 1px;
   }
 
-  /* Prevent outline/box-shadow leaks on elements that explicitly suppress outline */
+  /* Universal zero white offset & vibrant blue caret for type bars */
+  * {
+    --tw-ring-offset-color: transparent !important;
+    --tw-ring-offset-width: 0px !important;
+  }
+
+  input,
+  textarea,
+  select {
+    caret-color: #2563eb !important;
+  }
+
+  /* Prevent outline/box-shadow leaks and white box on input fields */
+  input:focus,
+  input:focus-visible,
+  textarea:focus,
+  textarea:focus-visible,
   .outline-none,
   .outline-none:focus,
-  .outline-none:focus-visible,
-  input.outline-none:focus-visible,
-  button.outline-none:focus-visible {
+  .outline-none:focus-visible {
     outline: none !important;
     box-shadow: none !important;
   }
