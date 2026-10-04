@@ -13,7 +13,7 @@ function getIcon(type: string) {
     case 'OUT_OF_STOCK': return <AlertCircle className="h-5 w-5 text-red-500" />;
     case 'EXPIRING_SOON': return <Clock className="h-5 w-5 text-amber-500" />;
     case 'EXPIRED': return <AlertCircle className="h-5 w-5 text-red-500" />;
-    case 'PASSWORD_RESET': return <KeyRound className="h-5 w-5 text-amber-600 animate-bounce" />;
+    case 'PASSWORD_RESET': return <KeyRound className="h-5 w-5 text-amber-600" />;
     case 'SYSTEM': return <ShieldAlert className="h-5 w-5 text-primary" />;
     default: return <Info className="h-5 w-5 text-blue-500" />;
   }
@@ -77,8 +77,7 @@ export function NotificationCenter() {
             )}
           </div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Notification Center</h1>
-            <p className="text-muted-foreground mt-1">Operational alerts, stock events, and batch status notifications.</p>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Notifications</h1>
           </div>
         </div>
         <button

@@ -172,7 +172,12 @@ export function ItemsCatalogPage() {
       }
       setStockUpdateItem(null);
     } catch (err: any) {
-      alert(err.message || 'Failed to update stock');
+      const msg = err.message || '';
+      if (msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('deficit')) {
+        alert(`INSUFFICIENT STOCK\nAvailable: ${stockUpdateItem?.current_qty} ${stockUpdateItem?.unit || 'pcs'}`);
+      } else {
+        alert(err.message || 'Operation failed');
+      }
     }
   };
 
@@ -200,12 +205,11 @@ export function ItemsCatalogPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground uppercase">INVENTORY &amp; STOCK MANAGEMENT</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Master items catalog, FEFO stock batches, movement audit logs, and categories.</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground uppercase">INVENTORY</h1>
         </div>
         {currentTab === 'catalog' && (
-          <Button onClick={() => { setEditingItem(undefined); setIsModalOpen(true); }} className="h-10 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs font-bold text-xs shrink-0">
-            <Plus className="w-4 h-4 mr-2" /> Add New Item
+          <Button onClick={() => { setEditingItem(undefined); setIsModalOpen(true); }} className="h-10 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs font-bold text-xs shrink-0 cursor-pointer">
+            <Plus className="w-4 h-4 mr-2" /> Add Item
           </Button>
         )}
       </div>

@@ -103,7 +103,7 @@ export const SuppliersDirectoryTab: React.FC = () => {
   const handleSaveSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      setModalFeedback({ type: 'error', message: 'Supplier name is required.' });
+      setModalFeedback({ type: 'error', message: 'SUPPLIER NAME REQUIRED' });
       return;
     }
 
@@ -119,8 +119,8 @@ export const SuppliersDirectoryTab: React.FC = () => {
           lead_time_days: Number(formData.lead_time_days) || 1,
           notes: formData.notes.trim(),
         });
-        setModalFeedback({ type: 'success', message: 'Supplier information updated successfully!' });
-        setTimeout(() => setSelectedSupplier(null), 1200);
+        setModalFeedback({ type: 'success', message: 'SAVED' });
+        setTimeout(() => setSelectedSupplier(null), 1000);
       } else {
         await createSupplier.mutateAsync({
           name: formData.name.trim(),
@@ -133,11 +133,11 @@ export const SuppliersDirectoryTab: React.FC = () => {
           payment_terms: 'COD',
           is_active: true,
         });
-        setModalFeedback({ type: 'success', message: 'New supplier added to directory!' });
-        setTimeout(() => setIsNewModalOpen(false), 1200);
+        setModalFeedback({ type: 'success', message: 'ADDED' });
+        setTimeout(() => setIsNewModalOpen(false), 1000);
       }
     } catch (err: any) {
-      setModalFeedback({ type: 'error', message: err.message || 'Failed to save supplier.' });
+      setModalFeedback({ type: 'error', message: err.message || 'SAVE FAILED' });
     }
   };
 

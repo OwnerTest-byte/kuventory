@@ -109,7 +109,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
     if (!matchedExistingItem) return;
     const qty = parseFloat(formData.initial_qty);
     if (!qty || qty <= 0) {
-      setError("Please specify an Initial Stock Quantity greater than 0 to record this new batch delivery.");
+      setError("QUANTITY REQUIRED");
       return;
     }
 
@@ -120,12 +120,12 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
         expiryDate: formData.initial_expiry_date || null,
         reason: 'Restock Batch Delivery (FEFO Expiry Queue)'
       });
-      setBatchAddedSuccess(`Successfully added ${qty} ${(matchedExistingItem as any).unit || 'units'} to existing item "${(matchedExistingItem as any).name}" as a new batch!`);
+      setBatchAddedSuccess(`ADDED: ${qty} ${(matchedExistingItem as any).unit || 'units'}`);
       setTimeout(() => {
         onClose();
-      }, 1200);
+      }, 1000);
     } catch (err: any) {
-      setError(err.message || 'Failed to add batch to existing item');
+      setError(err.message || 'SAVE FAILED');
     }
   };
 

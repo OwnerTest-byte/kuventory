@@ -100,9 +100,9 @@ test.describe('KUVENTORY End-to-End QA Verification Suite', () => {
     await page.fill('#password', 'wrongpassword123');
     await page.click('button[type="submit"]');
 
-    // Check error banner surfaces "invalid credentials"
+    // Check error banner surfaces "INVALID LOGIN" / "invalid credentials"
     const errorBanner = page.locator('[role="alert"]');
-    await expect(errorBanner).toContainText(/invalid credentials/i, { timeout: 10000 });
+    await expect(errorBanner).toContainText(/invalid login|invalid credentials/i, { timeout: 10000 });
   });
 
   test('Legal & Compliance: Privacy Policy and Terms of Service dialogs open properly', async ({ page }) => {

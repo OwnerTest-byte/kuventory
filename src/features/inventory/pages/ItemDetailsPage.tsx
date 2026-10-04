@@ -129,7 +129,12 @@ export function ItemDetailsPage() {
       refetchBatches();
       refetchHistory();
     } catch (err: any) {
-      alert(err.message || 'Failed to update stock');
+      const msg = err.message || '';
+      if (msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('deficit')) {
+        alert(`INSUFFICIENT STOCK\nAvailable: ${item.current_qty} ${item.unit || 'pcs'}`);
+      } else {
+        alert(err.message || 'Operation failed');
+      }
     }
   };
 

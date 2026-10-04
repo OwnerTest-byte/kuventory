@@ -185,9 +185,6 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
                   onChange={(e) => setExpiryDate(e.target.value)}
                   className="border-border h-10 bg-card text-foreground"
                 />
-                <p className="text-[11px] text-muted-foreground leading-normal">
-                  In KUVENTORY, you can add multiple deliveries of the same item with different expiration dates. The automated FEFO engine guarantees that the batch with the <strong>closest expiration date</strong> is always deducted first when sales or usage occurs.
-                </p>
 
                 {/* Existing Batches Queue Preview */}
                 {activeBatches.length > 0 && (

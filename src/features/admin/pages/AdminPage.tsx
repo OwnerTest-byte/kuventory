@@ -207,11 +207,11 @@ export function AdminPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password: selfNewPassword });
       if (error) throw error;
-      setSelfPasswordSuccess('Your password has been changed successfully!');
+      setSelfPasswordSuccess('PASSWORD CHANGED');
       setSelfNewPassword('');
       setSelfConfirmPassword('');
     } catch (err: any) {
-      setSelfPasswordError(err.message || 'Failed to update password');
+      setSelfPasswordError(err.message || 'UPDATE FAILED');
     } finally {
       setSelfPasswordLoading(false);
     }
@@ -854,11 +854,11 @@ export function AdminPage() {
       }
 
       queryClient.invalidateQueries();
-      setRestoreSuccess(`System restored successfully from snapshot (${items.length} items, ${batches.length} batches, ${categories.length} categories restored).`);
+      setRestoreSuccess('RESTORED');
       setIsRestoreConfirmOpen(false);
     } catch (err: any) {
       console.error('Disaster restore error:', err);
-      setRestoreError(err.message || 'Failed to restore database from snapshot');
+      setRestoreError(err.message || 'RESTORE FAILED');
     } finally {
       setIsRestoring(false);
     }
@@ -1282,7 +1282,7 @@ export function AdminPage() {
                 </Button>
                 {savedNotice && (
                   <span className="text-xs font-bold text-emerald-500 flex items-center">
-                    <CheckCircle2 className="w-4 h-4 mr-1" /> Settings saved successfully!
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> SAVED
                   </span>
                 )}
               </div>

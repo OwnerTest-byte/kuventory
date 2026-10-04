@@ -131,9 +131,9 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
           <div className="font-bold text-foreground text-xs sm:text-sm">{item.items?.item_name}</div>
           <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
             <span className="font-medium">{item.items?.unit}</span>
-            {saveStatus === 'saving' && <span className="text-amber-500 font-semibold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />Saving...</span>}
-            {saveStatus === 'saved' && <span className="text-emerald-500 font-bold">✓ Saved</span>}
-            {saveStatus === 'error' && <span className="text-rose-500 font-bold">⚠️ Save failed</span>}
+            {saveStatus === 'saving' && <span className="text-amber-500 font-semibold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />SAVING...</span>}
+            {saveStatus === 'saved' && <span className="text-emerald-500 font-bold">✓ SAVED</span>}
+            {saveStatus === 'error' && <span className="text-rose-500 font-bold">⚠️ SAVE FAILED</span>}
           </div>
         </TableCell>
         

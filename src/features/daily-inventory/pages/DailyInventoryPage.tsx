@@ -98,16 +98,16 @@ export function DailyInventoryPage() {
         <div>
           <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
             <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground uppercase">
-              DAILY INVENTORY WORKSHEET
+              DAILY INVENTORY
             </h1>
             {record && (
               isFinalized ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/25">
-                  <Lock size={12} /> Finalized & Locked
+                  <Lock size={12} /> FINALIZED
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/25">
-                  <CheckCircle2 size={12} /> Live Autosave Active
+                  <CheckCircle2 size={12} /> DRAFT
                 </span>
               )
             )}
@@ -307,10 +307,10 @@ export function DailyInventoryPage() {
 
             <div>
               <DialogTitle className="text-xl font-black text-foreground">
-                Daily Inventory Finalized!
+                FINALIZED
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-1">
-                Official closing snapshot created for <strong className="text-foreground">{format(new Date(date + 'T00:00:00'), 'MMMM dd, yyyy')}</strong>. FEFO batch consumption complete.
+                Date: <strong className="text-foreground">{format(new Date(date + 'T00:00:00'), 'MMMM dd, yyyy')}</strong>
               </DialogDescription>
             </div>
 

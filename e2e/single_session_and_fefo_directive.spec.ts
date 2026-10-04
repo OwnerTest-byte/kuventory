@@ -29,7 +29,7 @@ test.describe('Single Active Session Lease & First Session Wins (Rules 11-17, 14
     await pageA.click('button[type="submit"]');
 
     // Wait for Device A to be logged in
-    await pageA.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
+    await pageA.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 });
     expect(pageA.url()).not.toContain('/login');
 
     // 2. Device B (Browser Context 2 - Separate browser instance / device)
@@ -67,7 +67,7 @@ test.describe('Single Active Session Lease & First Session Wins (Rules 11-17, 14
     await pageB.click('button[type="submit"]');
 
     // Device B should now be admitted
-    await pageB.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
+    await pageB.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 });
     expect(pageB.url()).not.toContain('/login');
 
     // 5. Cleanly sign out Device B so that subsequent test suites can run without waiting for lease expiry

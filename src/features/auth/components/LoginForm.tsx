@@ -89,8 +89,9 @@ export function LoginForm() {
         // Device B was denied! Terminate Device B session cleanly so Device A is completely undisturbed
         await supabase.auth.signOut();
         setAuthError(
-          claimResult.message || 
-          'This account is currently active on another device. KUVENTORY permits only one active session per account (First Session Wins).'
+          claimResult.reason === 'OCCUPIED' || claimResult.message?.toLowerCase().includes('active')
+            ? 'ACCOUNT IN USE'
+            : (claimResult.message || 'ACCOUNT IN USE')
         );
         setIsLoading(false);
         return;
@@ -100,7 +101,7 @@ export function LoginForm() {
         lastError.message.toLowerCase().includes('invalid') || 
         lastError.message.toLowerCase().includes('credential') || 
         lastError.message.toLowerCase().includes('user not found');
-      setAuthError(isInvalidCreds ? 'Invalid credentials. Please verify your email and password.' : lastError.message);
+      setAuthError(isInvalidCreds ? 'INVALID LOGIN' : 'TRY AGAIN');
       setIsLoading(false);
     }
   };
@@ -167,7 +168,15 @@ export function LoginForm() {
         {(authError || sessionLeaseError) && (
           <div className="p-3.5 text-sm font-semibold text-rose-200 text-destructive bg-rose-950/80 border border-rose-500/40 rounded-xl flex items-center gap-2.5 animate-in fade-in" role="alert">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-            <span>{sessionLeaseError || authError}</span>
+            <div className="text-left">
+              <span className="font-bold block tracking-wide">{sessionLeaseError || authError}</span>
+              {((sessionLeaseError || authError) === 'ACCOUNT IN USE' || (sessionLeaseError || authError)?.includes('OCCUPIED')) && (
+                <span className="text-xs text-rose-300 block font-normal mt-0.5">Active on another device</span>
+              )}
+              {authError === 'INVALID LOGIN' && (
+                <span className="text-xs text-rose-300 block font-normal mt-0.5">Invalid credentials</span>
+              )}
+            </div>
           </div>
         )}
 

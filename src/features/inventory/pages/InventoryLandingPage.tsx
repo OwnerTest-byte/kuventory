@@ -242,18 +242,18 @@ export function InventoryLandingPage() {
                 </span>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground font-semibold">
               {isFinalizedToday
-                ? 'Today’s daily count has been submitted and verified. All stations reconciled.'
+                ? 'FINALIZED'
                 : isDraftToday
-                ? 'Physical count has been opened. Continue entering station numbers before end-of-day.'
-                : 'Begin today’s shift by recording physical stock levels across all stations.'}
+                ? 'DRAFT IN PROGRESS'
+                : 'NOT STARTED'}
             </p>
           </div>
 
           <Button
             onClick={() => navigate('/daily-inventory')}
-            className={`font-semibold text-xs sm:text-sm shrink-0 shadow-xs ${
+            className={`font-semibold text-xs sm:text-sm shrink-0 shadow-xs cursor-pointer min-h-11 ${
               isFinalizedToday
                 ? 'bg-muted text-foreground hover:bg-muted/80'
                 : 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -278,37 +278,28 @@ export function InventoryLandingPage() {
           <Button
             variant="outline"
             onClick={() => navigate('/items')}
-            className="h-14 justify-start px-4 border-border bg-card hover:bg-muted text-foreground text-left"
+            className="h-12 min-h-12 justify-start px-4 border-border bg-card hover:bg-muted text-foreground text-left cursor-pointer"
           >
             <PlusCircle className="w-5 h-5 text-emerald-600 mr-3 shrink-0" />
-            <div>
-              <div className="font-semibold text-xs sm:text-sm">Add Stock / New Delivery</div>
-              <div className="text-[11px] text-muted-foreground font-normal">Receive or record incoming goods</div>
-            </div>
+            <span className="font-bold text-xs sm:text-sm">Add Stock</span>
           </Button>
 
           <Button
             variant="outline"
             onClick={() => navigate('/daily-inventory')}
-            className="h-14 justify-start px-4 border-border bg-card hover:bg-muted text-foreground text-left"
+            className="h-12 min-h-12 justify-start px-4 border-border bg-card hover:bg-muted text-foreground text-left cursor-pointer"
           >
             <Calendar className="w-5 h-5 text-primary mr-3 shrink-0" />
-            <div>
-              <div className="font-semibold text-xs sm:text-sm">Daily Inventory</div>
-              <div className="text-[11px] text-muted-foreground font-normal">Physical stock count by station</div>
-            </div>
+            <span className="font-bold text-xs sm:text-sm">Daily Inventory</span>
           </Button>
 
           <Button
             variant="outline"
             onClick={() => navigate('/items')}
-            className="h-14 justify-start px-4 border-border bg-card hover:bg-muted text-foreground text-left"
+            className="h-12 min-h-12 justify-start px-4 border-border bg-card hover:bg-muted text-foreground text-left cursor-pointer"
           >
             <Layers className="w-5 h-5 text-blue-600 mr-3 shrink-0" />
-            <div>
-              <div className="font-semibold text-xs sm:text-sm">View Inventory</div>
-              <div className="text-[11px] text-muted-foreground font-normal">Catalog, unit costs, and suppliers</div>
-            </div>
+            <span className="font-bold text-xs sm:text-sm">Inventory Catalog</span>
           </Button>
         </div>
       </div>

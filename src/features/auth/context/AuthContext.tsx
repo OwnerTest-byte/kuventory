@@ -48,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (isMounted) {
             setSession(null);
             setUser(null);
-            setSessionLeaseError(claimResult.message || 'This account is currently active on another device. KUVENTORY permits only one active session per account (First Session Wins).');
+            setSessionLeaseError('ACCOUNT IN USE');
             setIsSessionLoading(false);
           }
           return;
@@ -84,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (isMounted) {
           setSession(null);
           setUser(null);
-          setSessionLeaseError(claimResult.message || 'This account is currently active on another device. KUVENTORY permits only one active session per account (First Session Wins).');
+          setSessionLeaseError('ACCOUNT IN USE');
         }
         return;
       }
