@@ -59,40 +59,40 @@ While Store Administrators manage daily operations and staff accounts, only the 
 
 ### 4.1 One-Click Full Database Backup (.json Snapshot)
 - Accessible from the **Master Console** (`/settings?tab=master`).
-- Bundles complete point-in-time state across 7 mission-critical tables:
-  1. `items` (SKUs, categories, unit costs, storage conditions)
-  2. `inventory_batches` (FEFO lots, expiration dates, remaining quantities)
-  3. `daily_inventory_sheets` (Historical closing sheets and shift records)
-  4. `daily_inventory_items` (Item-level counted quantities and computed variances)
-  5. `stock_movements` (Immutable FIFO/FEFO transaction history)
-  6. `system_settings` (Branch details, operational hours, low-stock thresholds)
-  7. `profiles` (Staff authorization credentials and role metadata)
+- Bundles complete point-in-time state across 10 mission-critical tables:
+  1. `categories` (All 7 standard store departments: Beverages, Snacks, Grilled Stock, Portion Stock, Per Cases, Per Bottle, Desserts)
+  2. `inventory_items` (SKUs, categories, units, min threshold quantities, OCC versions)
+  3. `stock_batches` (FEFO lots, expiration dates, remaining quantities, batch versions)
+  4. `daily_inventory` (Daily closing sessions, shift records, finalization timestamps)
+  5. `daily_inventory_items` (Item-level counted quantities, beginning, purchases, sales, computed variances)
+  6. `stock_movements` (Immutable FIFO/FEFO transaction history ledger)
+  7. `reports` & `report_items` (Historical end-of-day immutable snapshots)
+  8. `system_settings` (Branch details, operational hours, maintenance locks)
+  9. `profiles` (Staff authorization credentials and role metadata)
 - Output format: `kuventory_master_backup_YYYY-MM-DD_HHmmss.json`.
 - Includes checksum, record count metadata, and application signature.
 
-### 4.2 Disaster Recovery & Dry-Run Restoration Validator
+### 4.2 Disaster Recovery & Point-in-Time Restoration
 - Allows validating an existing `.json` backup file without mutating database state.
 - **Verification Criteria:**
   - Presence of valid `KUVENTORY` application signature.
-  - Integrity of core relational tables.
-  - Verification of non-null SKU records and batch associations.
-- Displays immediate visual status report (Green checkmark badge with record counts or Red warning with validation errors).
+  - Integrity of core relational tables and foreign keys.
+  - Verification of category structures and batch associations.
+- **Automated 1-Click Restoration:**
+  - Master Admin can confirm and execute a point-in-time restoration directly into the Supabase database.
+  - Safely upserts categories, items, batches, ledger movements, and daily sheets in dependency order.
 
-### 4.3 Finalized Daily Sheet Force Override
-- **Business Rule:** Under standard operations, once a daily inventory sheet is marked `FINALIZED`, it is immutable to prevent reconciliation tampering.
-- **Master Privilege:** In cases of severe counting error or physical recount variance, the Master Administrator can invoke:
-  ```sql
-  SELECT force_override_daily_inventory(
-    p_sheet_id := 'uuid-here',
-    p_status := 'DRAFT', -- or 'VOID'
-    p_reason := 'Physical count misentry authorized by Owner'
-  );
-  ```
-- **Mandatory Justification:** Every override requires an audit reason which is permanently recorded in PostgreSQL audit logs.
+### 4.3 Live Real-Time Telemetry & System Activity Monitor
+- **Active Supabase Realtime Channels:** Subscribes in real time to mutations across `audit_logs`, `stock_movements`, and `daily_inventory`.
+- **Live Stream Indicator:** Real-time pulsating health indicator, WebSocket subscription state, and engine latency (ms).
+- **Interactive Controls:** Master Admin can ping latency on demand, pause/resume the live stream, or clear the feed.
 
-### 4.4 User Privilege Governance
-- Only `MASTER_ADMIN` can assign the `ADMIN` or `MASTER_ADMIN` role to user accounts.
-- Prevents administrative escalation and rogue account takeover.
+### 4.4 Emergency Operational Contingencies Command Center
+1. **Emergency Maintenance Mode Lock:** Blocks floor staff from submitting worksheet counts or modifying stock during end-of-month audits.
+2. **Stock Balance Drift Auto-Healing (Rebalancer):** Scans all inventory items against positive FEFO stock batches, updating OCC concurrency versions to heal any client-side drift.
+3. **Depleted/Phantom Batch Purge:** Cleans zero or negative quantity batches that linger in the database.
+4. **Clean-Slate Item Purge (Keep Categories & Users):** Allows wiping test/historical item records for a clean store launch while preserving all 7 category structures and staff accounts.
+5. **Finalized Daily Sheet Force Reopening:** Invokes `force_override_daily_inventory(p_daily_inventory_id)` to reopen locked sheets back to `DRAFT` for correction.
 
 ---
 
@@ -100,9 +100,10 @@ While Store Administrators manage daily operations and staff accounts, only the 
 
 If the production database experiences a partial outage or corrupt record state:
 
-1. Log into the system using the Master Admin credentials.
+1. Log into the system using the Master Admin credentials (`master@kuventory.com` or `admin@kuventory.com`).
 2. Navigate to **Master Console** via the sidebar icon (`👑 Master Console`) or URL `/settings?tab=master`.
-3. Check the **Real-Time Keepalive & Latency Monitor** to verify PostgREST connectivity.
-4. In the **Disaster Recovery Center**, upload the latest valid snapshot file.
+3. Check the **Real-Time Telemetry & Latency Monitor** to verify PostgREST and WebSocket connectivity.
+4. In the **Disaster Recovery Center**, select the backup snapshot file (`kuventory_master_backup_*.json`).
 5. Review the **Dry-Run Inspection Report** to ensure zero schema discrepancies.
-6. Click **Flush Cache** to force all client connections to synchronize with fresh database state.
+6. Click **Execute Disaster Recovery Restore** to synchronize the database.
+7. Click **Flush Cache** to force all client connections to synchronize with fresh state.
