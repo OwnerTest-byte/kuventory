@@ -23,46 +23,41 @@ export function LoginPage() {
   }
 
   return (
-    <main id="main-content" className="flex min-h-screen min-h-[100dvh] w-full bg-background login-container">
+    <main id="main-content" className="flex min-h-dvh w-full bg-background login-container">
       {/* Left Branding Panel (Desktop & Laptop) */}
       <aside aria-label="Brand Overview" className="hidden lg:flex lg:w-1/2 flex-col justify-between items-center bg-[#1F1816] text-[#FAF7F2] p-8 xl:p-12 relative overflow-hidden border-r border-[#2E2320]">
         {/* Subtle warm artisanal ambient backdrop */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#3A2A24]/50 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-[#3A2A24]/50 via-transparent to-transparent pointer-events-none" />
 
         <div className="w-full flex items-center justify-between z-10">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#2A201C] border border-[#3E302A] text-xs font-semibold text-[#DFB748]">
-            <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
-            Kape Uno Bistro · Operations Portal
-          </div>
-          <span className="text-[11px] text-[#A89E93] font-medium tracking-wide">
-            FEFO Certified · 2026
+          <span className="text-xs font-semibold text-[#A89E93] tracking-wide uppercase">
+            Kape Uno Bistro
           </span>
         </div>
         
         <div className="relative z-10 flex flex-col items-center gap-4 text-center my-auto w-full max-w-sm">
-          {/* Brand Emblem - Kape Uno Official Logo */}
+          {/* Brand Emblem */}
           <div className="relative group">
-            <div className="w-36 h-36 rounded-3xl overflow-hidden border-2 border-[#D4AF37]/60 shadow-2xl ring-4 ring-[#D4AF37]/20 bg-[#FAF7F2] flex items-center justify-center p-3 transition-transform duration-300 group-hover:scale-105">
+            <div className="w-28 h-28 rounded-2xl overflow-hidden border border-[#3E302A] shadow-xl bg-[#2A201C] flex items-center justify-center p-3 transition-transform duration-300 group-hover:scale-105">
               <img 
-                src="/pics/logo-original.png" 
-                alt="Kape Uno Bistro Logo" 
-                width={144}
-                height={144}
+                src="/pics/logo-transparent.png" 
+                alt="KUVENTORY Logo" 
+                width={112}
+                height={112}
                 className="w-full h-full object-contain" 
                 onError={(e) => { 
-                  // Fallback to transparent logo if original fails to load
-                  e.currentTarget.src = '/pics/logo-transparent.png'; 
+                  e.currentTarget.src = '/pics/logo-original.png'; 
                 }} 
               />
             </div>
           </div>
 
           <div>
-            <h1 className="text-3xl xl:text-4xl font-serif font-black tracking-tight text-[#FAF7F2]">
+            <h1 className="text-3xl xl:text-4xl font-bold tracking-tight text-[#FAF7F2]">
               KUVENTORY
             </h1>
-            <p className="text-xs text-[#D5CEC5] mt-1 font-medium">
-              Enterprise Inventory Management System
+            <p className="text-sm text-[#A89E93] mt-1 font-medium">
+              Commercial Inventory Management
             </p>
           </div>
         </div>
@@ -92,24 +87,24 @@ export function LoginPage() {
       {/* Right Login Panel (Responsive: Phone, Tablet, Laptop, PC) */}
       <section 
         aria-label="Authentication" 
-        className="flex-1 flex flex-col justify-between items-center px-4 sm:px-6 lg:px-8 bg-background relative z-10 py-6 sm:py-8 w-full min-h-[100dvh] login-vertical-slider"
+        className="flex-1 flex flex-col justify-between items-center px-4 sm:px-6 lg:px-8 bg-background relative z-10 py-6 sm:py-8 w-full min-h-dvh login-vertical-slider"
       >
         <div className="w-full flex-1 flex flex-col items-center justify-center my-auto py-2 max-w-md">
           {/* Mobile Header: Compact & Direct */}
-          <div className="lg:hidden mb-4 flex flex-col items-center gap-1.5 w-full text-center">
-            <div className="w-16 h-16 rounded-2xl bg-[#FAF7F2] border-2 border-[#D4AF37]/50 p-2 flex items-center justify-center shadow-md mb-0.5">
+          <div className="lg:hidden mb-6 flex flex-col items-center gap-2 w-full text-center">
+            <div className="w-14 h-14 rounded-2xl bg-card border border-border p-2 flex items-center justify-center shadow-xs">
               <img 
-                src="/pics/logo-original.png" 
-                alt="Kape Uno Bistro Logo" 
-                width={64}
-                height={64}
+                src="/pics/logo-transparent.png" 
+                alt="KUVENTORY Logo" 
+                width={56}
+                height={56}
                 className="w-full h-full object-contain" 
-                onError={(e) => { e.currentTarget.src = '/pics/logo-transparent.png'; }} 
+                onError={(e) => { e.currentTarget.src = '/pics/logo-original.png'; }} 
               />
             </div>
             <h1 className="font-bold text-2xl text-foreground tracking-tight">KUVENTORY</h1>
-            <p className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
-              Kape Uno Bistro · Operations Portal
+            <p className="text-xs text-muted-foreground font-medium">
+              Commercial Inventory Management
             </p>
           </div>
           

@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, formatUserDisplayName, formatRoleLabel } from '@/lib/utils';
 import { 
   useSystemSetting, 
   useUpdateSystemSetting, 
@@ -1102,7 +1102,7 @@ export function AdminPage() {
                 My Account & Profile
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Logged in as <strong className="text-foreground">{user?.email}</strong> with <strong className="text-primary">{role === 'ADMIN' ? 'Administrator' : 'Staff'}</strong> privileges.
+                Logged in as <strong className="text-foreground">{user?.email}</strong> with <strong className="text-primary">{formatRoleLabel(role)}</strong> privileges.
               </p>
             </div>
 
@@ -1110,12 +1110,12 @@ export function AdminPage() {
               <div>
                 <span className="text-muted-foreground block font-medium">Display Name</span>
                 <span className="font-bold text-foreground">
-                  {profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : (user?.email?.split('@')[0] || 'Staff User')}
+                  {formatUserDisplayName(profile, user?.email)}
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground block font-medium">Account Role</span>
-                <span className="font-bold text-primary">{role || 'USER'}</span>
+                <span className="font-bold text-primary">{formatRoleLabel(role)}</span>
               </div>
               <div>
                 <span className="text-muted-foreground block font-medium">Security Status</span>

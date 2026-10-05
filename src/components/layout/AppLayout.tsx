@@ -9,7 +9,6 @@ import {
   LayoutDashboard, 
   FileBarChart, 
   Settings, 
-  User as UserIcon,
   Search,
   Plus,
   ChevronDown,
@@ -25,7 +24,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
-import { cn } from '@/lib/utils';
+import { cn, formatUserDisplayName, formatRoleLabel, getUserInitials } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from '@/features/inventory/components/NotificationBell';
 import { releaseSessionLease } from '@/features/auth/services/sessionLeaseService';
@@ -193,13 +192,8 @@ function SidebarNavigation({
     await supabase.auth.signOut();
   };
 
-  const userInitials = profile?.first_name 
-    ? `${profile.first_name[0]}${profile.last_name ? profile.last_name[0] : ''}`.toUpperCase()
-    : 'U';
-
-  const userDisplayName = profile?.first_name
-    ? `${profile.first_name} ${profile.last_name || ''}`.trim()
-    : user?.email || 'User';
+  const userInitials = getUserInitials(profile || user?.email);
+  const userDisplayName = formatUserDisplayName(profile, user?.email);
 
   const isMasterUser = role === 'MASTER_ADMIN' || user?.email === 'master@kuventory.com';
   const isAdminUser = role === 'ADMIN' || user?.email === 'admin@kuventory.com' || isMasterUser;
@@ -230,21 +224,21 @@ function SidebarNavigation({
         </div>
       ) : (
         <div className="h-18 shrink-0 flex items-center justify-between border-b border-[#2E2320] px-4 transition-all bg-[#1F1816]">
-          <Link to="/inventory" className="flex items-center gap-3 min-w-0" onClick={closeMobileMenu}>
-            <div className="w-9 h-9 rounded-xl bg-[#2A201C] border border-[#3E302A] p-1 flex items-center justify-center shrink-0 shadow-xs">
+          <Link to="/inventory" className="flex items-center gap-3 min-w-0 group" onClick={closeMobileMenu}>
+            <div className="w-9 h-9 rounded-xl bg-[#2A201C] border border-[#3E302A] p-1 flex items-center justify-center shrink-0 shadow-xs transition-colors group-hover:border-[#C5A059]/50">
               <img 
-                src="/pics/logo-icon.png" 
-                alt="Kape Uno Bistro" 
+                src="/pics/logo-transparent.png" 
+                alt="KUVENTORY" 
                 className="h-7 w-auto object-contain" 
-                onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                onError={(e) => { e.currentTarget.src = '/pics/logo-original.png'; }} 
               />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="font-serif font-bold text-sm tracking-tight text-[#FAF7F2] leading-tight flex items-center gap-1.5">
-                Kape Uno <span className="text-[9px] font-sans font-medium px-1.5 py-0.2 rounded bg-[#C5A059]/20 text-[#DFB748] border border-[#C5A059]/30">Bistro</span>
-              </span>
-              <span className="text-[10px] text-[#A89E93] font-medium tracking-wider uppercase">
+              <span className="font-bold text-sm tracking-tight text-[#FAF7F2] leading-tight group-hover:text-[#DFB748] transition-colors">
                 KUVENTORY
+              </span>
+              <span className="text-[11px] text-[#A89E93] font-medium tracking-normal truncate">
+                Kape Uno Bistro
               </span>
             </div>
           </Link>
@@ -416,7 +410,7 @@ function SidebarNavigation({
                     ? "bg-[#611A1F]/30 text-[#E57373] border-[#611A1F]/50"
                     : "bg-[#2E7D32]/20 text-[#81C784] border-[#2E7D32]/30"
                 )}>
-                  {role === 'MASTER_ADMIN' ? '👑 Master Admin' : role === 'ADMIN' ? 'Admin' : 'Staff'}
+                  {formatRoleLabel(role)}
                 </span>
               </div>
             </Link>
@@ -522,7 +516,15 @@ export function AppLayout() {
     }
   };
 
+  const userInitials = getUserInitials(profile || user?.email);
+  const userDisplayName = formatUserDisplayName(profile, user?.email);
+
   const handleLogout = async () => {
+    try {
+      await releaseSessionLease();
+    } catch (e) {
+      console.warn('Error releasing session lease:', e);
+    }
     await supabase.auth.signOut();
   };
 
@@ -563,7 +565,7 @@ export function AppLayout() {
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Top Header Bar for Main Content Area */}
         <header className="h-16 shrink-0 bg-card border-b border-border flex items-center justify-between px-2.5 sm:px-6 relative z-40 shadow-2xs gap-2">
-          {/* Left Side: Mobile Menu Button (md:hidden) & Warehouse Location Badge */}
+          {/* Left Side: Mobile Menu Button (md:hidden) */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <Button 
               variant="ghost" 
@@ -574,17 +576,6 @@ export function AppLayout() {
             >
               <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
-
-            {/* Location / Bistro Branch Badge */}
-            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-muted/60 border border-border shrink-0 select-none">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              <div className="flex items-center gap-1 text-xs font-semibold text-foreground">
-                <span className="hidden sm:inline text-muted-foreground font-normal">Location:</span>
-                <strong className="tracking-tight uppercase text-[#1F1816] dark:text-[#FAF7F2]">
-                  Kape Uno Bistro · Main Branch
-                </strong>
-              </div>
-            </div>
           </div>
 
           {/* Center: Global Quick Search Button (Desktop) */}
@@ -724,24 +715,31 @@ export function AppLayout() {
             {/* Notification Bell */}
             <NotificationBell />
 
-            {/* User Profile Pill */}
-            <div className="hidden sm:flex items-center gap-2.5 pl-3 border-l border-border">
-              <div className="flex flex-col items-end">
-                <span className="text-xs font-bold text-foreground">
-                  {profile ? `${profile.first_name} ${profile.last_name || ''}`.trim() : 'User'}
-                </span>
-                <span className="text-[10px] text-muted-foreground uppercase font-semibold">
-                  {role}
-                </span>
-              </div>
-              <div className="h-8 w-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs border border-primary/30">
-                <UserIcon className="w-4 h-4" />
-              </div>
+            {/* User Profile & Account */}
+            <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-border">
+              <Link
+                to="/settings?tab=account"
+                title={`Account: ${userDisplayName} (${formatRoleLabel(role)})`}
+                className="flex items-center gap-2.5 px-2 py-1 rounded-xl hover:bg-muted/80 transition-colors group cursor-pointer"
+              >
+                <div className="h-8 w-8 rounded-full bg-[#611A1F] text-white flex items-center justify-center font-bold text-xs shrink-0 border border-[#C5A059]/40 shadow-2xs group-hover:ring-2 group-hover:ring-[#C5A059] transition-all">
+                  {userInitials}
+                </div>
+                <div className="flex flex-col items-start leading-tight">
+                  <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors max-w-32 truncate">
+                    {userDisplayName}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-medium">
+                    {formatRoleLabel(role)}
+                  </span>
+                </div>
+              </Link>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="p-1 text-muted-foreground hover:text-rose-500 transition-colors cursor-pointer"
-                title="Logout"
+                className="h-8 w-8 flex items-center justify-center rounded-xl text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                title="Sign Out"
+                aria-label="Sign Out"
               >
                 <LogOut className="w-4 h-4" />
               </button>
