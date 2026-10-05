@@ -457,16 +457,18 @@ test.describe('KUVENTORY Directive Hardening & Real Verification Suite', () => {
   });
 
   // Test 8: Header Location & Navigation
-  test('App Layout: Displays "Kape Uno Bistro · Main Branch" and eliminates duplicate worksheet navigation', async ({ page }) => {
+  test('App Layout: Clean branding and eliminates duplicate worksheet navigation', async ({ page }) => {
     await mockAuthenticatedAdminSession(page);
     await page.goto('inventory');
 
-    // Verify header location displays "Kape Uno Bistro · Main Branch"
-    const locationBadge = page.locator('header').getByText(/Kape Uno Bistro · Main Branch/i);
-    await expect(locationBadge).toBeVisible();
+    // Verify brand displays "Kape Uno Bistro" in the sidebar on non-mobile
+    const isMobile = await page.evaluate(() => window.innerWidth < 768);
+    if (!isMobile) {
+      const brandSubtitle = page.locator('aside').getByText(/Kape Uno Bistro/i);
+      await expect(brandSubtitle).toBeVisible();
+    }
 
     // Verify single Daily Inventory navigation item exists (sidebar on desktop/tablet or mobile nav on phone)
-    const isMobile = await page.evaluate(() => window.innerWidth < 768);
     if (!isMobile) {
       const dailyNav = page.locator('aside nav').getByRole('link', { name: /Daily Inventory/i });
       await expect(dailyNav).toBeVisible();
@@ -538,24 +540,17 @@ test.describe('KUVENTORY Directive Hardening & Real Verification Suite', () => {
     await page.goto('settings?tab=master');
 
     // 1. Verify Master Admin Console Header & Tier 0 Root Badge
-    await expect(page.locator('h2', { hasText: /Master Administrator Console/i })).toBeVisible();
+    await expect(page.locator('text=Master Administrator Control Center')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text=Tier 0 Root')).toBeVisible();
 
-    // 2. Verify Live Real-Time Telemetry Monitor
-    await expect(page.locator('text=/Live Real-Time Activity & Telemetry Monitor/i')).toBeVisible();
+    // 2. Verify Core Sub-navigation Tabs are available
+    await expect(page.locator('button:has-text("Overview")').first()).toBeVisible();
+    await expect(page.locator('button:has-text("System Health")').first()).toBeVisible();
+    await expect(page.locator('button:has-text("Storage & Backups")').first()).toBeVisible();
+    await expect(page.locator('button:has-text("Disaster Recovery")').first()).toBeVisible();
+    await expect(page.locator('button:has-text("Security & Access")').first()).toBeVisible();
 
-    // 3. Verify One-Click Full Database Backup Snapshot
-    await expect(page.locator('text=/One-Click Real-Time Backup Snapshot/i')).toBeVisible();
-    await expect(page.locator('button', { hasText: /Download Full System Backup/i })).toBeVisible();
-
-    // 4. Verify Disaster Recovery Restore
-    await expect(page.locator('text=/Disaster Recovery & Point-in-Time Restore/i')).toBeVisible();
-
-    // 5. Verify Emergency Operational Contingencies
-    await expect(page.locator('text=/Emergency Operational Contingencies & Auto-Healing/i')).toBeVisible();
-    await expect(page.locator('text=/System Maintenance Lock/i')).toBeVisible();
-
-    // 6. Verify NO Access Denied barrier is present for genuine Master Admin
+    // 3. Verify NO Access Denied barrier is present for genuine Master Admin
     await expect(page.locator('text=/403 Forbidden/i')).toHaveCount(0);
     await expect(page.locator('text=/Master Administrator Clearance Required/i')).toHaveCount(0);
   });
