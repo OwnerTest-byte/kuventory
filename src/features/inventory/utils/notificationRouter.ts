@@ -10,9 +10,9 @@ export function getNotificationRoute(notification: AppNotification): string {
     return notification.target_id.trim();
   }
 
-  // 2. Direct Item Link: routes directly to the item overview/detail card
-  if (notification.item_id) {
-    return `/items/${notification.item_id}`;
+  // 2. Stock Discrepancy -> Daily Inventory Worksheet directly
+  if (notification.type === 'STOCK_DISCREPANCY') {
+    return '/daily-inventory';
   }
 
   // 3. Batches / Expiry
@@ -20,17 +20,22 @@ export function getNotificationRoute(notification: AppNotification): string {
     return '/items?tab=batches';
   }
 
-  // 4. Low stock / Out of stock / Discrepancy
-  if (notification.type === 'LOW_STOCK' || notification.type === 'OUT_OF_STOCK' || notification.type === 'STOCK_DISCREPANCY') {
+  // 4. Direct Item Link: routes directly to the item overview/detail card
+  if (notification.item_id) {
+    return `/items/${notification.item_id}`;
+  }
+
+  // 5. Low stock / Out of stock fallback
+  if (notification.type === 'LOW_STOCK' || notification.type === 'OUT_OF_STOCK') {
     return '/reports/low-stock';
   }
 
-  // 5. Password Reset Request
+  // 6. Password Reset Request
   if (notification.type === 'PASSWORD_RESET') {
     return '/settings?tab=users';
   }
 
-  // 6. Daily Sheet Session
+  // 7. Daily Sheet Session
   if (notification.type === 'DAILY_SHEET') {
     return '/daily-inventory';
   }

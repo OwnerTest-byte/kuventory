@@ -22,6 +22,7 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
   const [reason, setReason] = useState('');
   const [batchId, setBatchId] = useState<string>('auto');
   const [expiryDate, setExpiryDate] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
 
   const activeBatches = useMemo(() => {
@@ -52,6 +53,13 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
     if (isPending) return;
     if (quantity === '' || (action !== 'adjust' && quantity <= 0) || (action === 'adjust' && quantity < 0)) return;
     
+    // Strict requirement: Expiration date is required when adding stock
+    if (action === 'add' && !expiryDate) {
+      setErrorMsg('Expiration date is required for new stock batches (FEFO tracking)');
+      return;
+    }
+
+    setErrorMsg('');
     setIsSubmittingLocal(true);
     try {
       await onSubmit({ 
@@ -93,11 +101,17 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
         </DialogHeader>
 
         <div className="p-6 space-y-5 bg-card text-card-foreground">
+          {errorMsg && (
+            <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+              <span>⚠️</span> {errorMsg}
+            </div>
+          )}
+
           {/* Segmented Action Selector matching Mockup */}
           <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-lg">
             <button
               type="button"
-              onClick={() => { setAction('add'); setQuantity(''); }}
+              onClick={() => { setAction('add'); setQuantity(''); setErrorMsg(''); }}
               className={`flex items-center justify-center gap-2 py-2.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${
                 action === 'add'
                   ? 'bg-emerald-600 text-white shadow-sm'
@@ -108,7 +122,7 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
             </button>
             <button
               type="button"
-              onClick={() => { setAction('remove'); setQuantity(''); }}
+              onClick={() => { setAction('remove'); setQuantity(''); setErrorMsg(''); }}
               className={`flex items-center justify-center gap-2 py-2.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${
                 action === 'remove'
                   ? 'bg-rose-600 text-white shadow-sm'
@@ -119,7 +133,7 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
             </button>
             <button
               type="button"
-              onClick={() => { setAction('adjust'); setQuantity(item.current_qty); }}
+              onClick={() => { setAction('adjust'); setQuantity(item.current_qty); setErrorMsg(''); }}
               className={`flex items-center justify-center gap-2 py-2.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${
                 action === 'adjust'
                   ? 'bg-blue-600 text-white shadow-sm'
@@ -197,16 +211,20 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-primary" />
-                    Batch Expiry Date (FEFO Expiration Tracking)
+                    Batch Expiry Date <span className="text-rose-500 font-bold">*</span> (FEFO Expiration Tracking)
                   </Label>
                   <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                    Closest Expiry Deducted 1st
+                    Required • Earliest Deducted 1st
                   </span>
                 </div>
                 <Input
                   type="date"
+                  required
                   value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
+                  onChange={(e) => {
+                    setExpiryDate(e.target.value);
+                    if (errorMsg) setErrorMsg('');
+                  }}
                   className="border-border h-10 bg-card text-foreground"
                 />
 

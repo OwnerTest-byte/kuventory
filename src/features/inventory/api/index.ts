@@ -136,6 +136,94 @@ export async function addStock(params: {
     console.error('addStock RPC error:', error);
     throw error;
   }
+
+  // 2-Way Sync: Propagate addition directly into today's Daily Inventory sheet
+  await syncItemToTodayDailyInventory(params.itemId, { addDelta: safeQty });
+}
+
+/**
+ * 2-Way Live Sync: Propagate physical stock movements (add/remove/adjust)
+ * from the Inventory Catalog directly into today's Daily Inventory worksheet.
+ */
+export async function syncItemToTodayDailyInventory(
+  itemId: string,
+  changes: { addDelta?: number; salesDelta?: number; targetEnding?: number }
+): Promise<void> {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+
+    // 1. Fetch or create today's daily_inventory worksheet
+    let { data: session } = await supabase
+      .from('daily_inventory')
+      .select('id, state')
+      .eq('inventory_date', today)
+      .maybeSingle();
+
+    if (!session) {
+      const { data: draftId } = await supabase.rpc('create_daily_inventory_draft', {
+        p_target_date: today,
+      });
+      if (draftId) {
+        session = { id: draftId, state: 'DRAFT' };
+      }
+    }
+
+    if (!session || session.state === 'FINALIZED') return;
+
+    // 2. Fetch existing daily_inventory_items entry for this item
+    const { data: entry } = await supabase
+      .from('daily_inventory_items')
+      .select('*')
+      .eq('daily_inventory_id', session.id)
+      .eq('item_id', itemId)
+      .maybeSingle();
+
+    if (entry) {
+      let newAdd = Math.max(0, Number(entry.add || 0));
+      let newPm = Math.max(0, Number(entry.pm || 0));
+
+      if (changes.addDelta !== undefined) {
+        newAdd = Math.max(0, newAdd + changes.addDelta);
+      }
+      if (changes.salesDelta !== undefined) {
+        newPm = Math.max(0, newPm + changes.salesDelta);
+      }
+      if (changes.targetEnding !== undefined) {
+        const beg = Math.max(0, Number(entry.beg || 0));
+        const am = Math.max(0, Number(entry.am || 0));
+        const target = Math.max(0, changes.targetEnding);
+        if (target >= (beg + newAdd - am)) {
+          newAdd = Math.max(0, target + am + newPm - beg);
+        } else {
+          newPm = Math.max(0, (beg + newAdd) - am - target);
+        }
+      }
+
+      await supabase
+        .from('daily_inventory_items')
+        .update({
+          add: newAdd,
+          pm: newPm,
+        })
+        .eq('id', entry.id);
+    } else {
+      const addVal = Math.max(0, changes.addDelta || (changes.targetEnding ?? 0));
+      const pmVal = Math.max(0, changes.salesDelta || 0);
+
+      await supabase
+        .from('daily_inventory_items')
+        .insert({
+          daily_inventory_id: session.id,
+          item_id: itemId,
+          beg: 0,
+          add: addVal,
+          am: 0,
+          pm: pmVal,
+        });
+    }
+  } catch (err) {
+    console.warn('syncItemToTodayDailyInventory warning:', err);
+  }
 }
 
 /**
@@ -186,6 +274,9 @@ export async function removeStock(params: {
       console.error('removeStock RPC error:', error);
       throw error;
     }
+
+    // 2-Way Sync: Propagate consumption directly into today's Daily Inventory sheet
+    await syncItemToTodayDailyInventory(params.itemId, { salesDelta: qtyToConsume });
   }
 
   // Check if item reached zero

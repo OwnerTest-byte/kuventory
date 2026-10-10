@@ -189,9 +189,10 @@ export async function updateDailyInventoryItem(params: {
     if (hasDeficit && itemId) {
       await supabase.from('notifications').upsert({
         type: 'STOCK_DISCREPANCY',
-        title: `Stock Deficit Auto-Zeroed: ${itemName}`,
-        message: `Sales for ${itemName} (${sales} ${unit}) exceeded total stock (${total} ${unit}) by ${deficitAmount} ${unit}. Negative stock is disallowed; ending stock has been automatically zeroed to 0.`,
+        title: `Invalid Stock: ${itemName}`,
+        message: `Sales for ${itemName} (${sales} ${unit}) exceeded total stock (${total} ${unit}) by ${deficitAmount} ${unit}. Invalid entry has been zeroed to 0.`,
         item_id: itemId,
+        target_id: '/daily-inventory',
         dedup_key: `DEFICIT_${itemId}_${today}`,
         is_read: false,
         created_at: new Date().toISOString()
@@ -205,6 +206,7 @@ export async function updateDailyInventoryItem(params: {
         title: `Out of Stock: ${itemName}`,
         message: `${itemName} has reached 0 stock in daily inventory (ending: 0 ${unit}). Reorder recommended.`,
         item_id: itemId,
+        target_id: `/items/${itemId}`,
         dedup_key: `OOS_${itemId}_${today}`,
         is_read: false,
         created_at: new Date().toISOString()
@@ -215,13 +217,100 @@ export async function updateDailyInventoryItem(params: {
         title: `Low Stock: ${itemName}`,
         message: `${itemName} is running low at ${ending} ${unit} (minimum threshold: ${rawItem.min_quantity}).`,
         item_id: itemId,
+        target_id: `/items/${itemId}`,
         dedup_key: `LOW_${itemId}_${today}`,
         is_read: false,
         created_at: new Date().toISOString()
       }, { onConflict: 'dedup_key' });
     }
+
+    // 3. Real-time FEFO Batch Synchronization:
+    // Ensures physical stock batches in Inventory Catalog match the daily ending stock.
+    // When sales occur, deducts batches that expire earliest first (FEFO).
+    if (itemId) {
+      const { data: batches } = await supabase
+        .from('stock_batches')
+        .select('*')
+        .eq('item_id', itemId)
+        .order('expiry_date', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true });
+
+      const currentBatchesTotal = (batches || []).reduce((sum: number, b: any) => sum + Number(b.quantity || 0), 0);
+      const targetStock = ending;
+      const diff = currentBatchesTotal - targetStock;
+
+      if (diff > 0) {
+        // Sales deduction: consume diff from earliest expiring batches (FEFO)
+        let remainingToDeduct = diff;
+        for (const b of (batches || [])) {
+          if (remainingToDeduct <= 0) break;
+          const bQty = Number(b.quantity || 0);
+          if (bQty <= 0) continue;
+
+          const deductAmt = Math.min(bQty, remainingToDeduct);
+          const newQty = Math.max(0, bQty - deductAmt);
+
+          await supabase
+            .from('stock_batches')
+            .update({ quantity: newQty, version: (b.version || 1) + 1 })
+            .eq('id', b.id);
+
+          await supabase
+            .from('stock_movements')
+            .insert({
+              item_id: itemId,
+              batch_id: b.id,
+              type: 'REMOVE',
+              quantity_before: bQty,
+              quantity_change: -deductAmt,
+              quantity_after: newQty,
+              reason: 'Daily Inventory Sales Deduction (FEFO)'
+            });
+
+          remainingToDeduct -= deductAmt;
+        }
+      } else if (diff < 0) {
+        // Balance increased: restore stock to active batch
+        const toAdd = Math.abs(diff);
+        if (batches && batches.length > 0) {
+          const targetBatch = batches[batches.length - 1];
+          const oldQty = Number(targetBatch.quantity || 0);
+          const newQty = oldQty + toAdd;
+
+          await supabase
+            .from('stock_batches')
+            .update({ quantity: newQty, version: (targetBatch.version || 1) + 1 })
+            .eq('id', targetBatch.id);
+
+          await supabase
+            .from('stock_movements')
+            .insert({
+              item_id: itemId,
+              batch_id: targetBatch.id,
+              type: 'ADD',
+              quantity_before: oldQty,
+              quantity_change: toAdd,
+              quantity_after: newQty,
+              reason: 'Daily Inventory Stock Adjustment'
+            });
+        } else {
+          // No batches existed, create initial batch with 30-day default expiry
+          const defaultExpiry = new Date();
+          defaultExpiry.setDate(defaultExpiry.getDate() + 30);
+          await supabase
+            .from('stock_batches')
+            .insert({
+              item_id: itemId,
+              quantity: toAdd,
+              expiry_date: defaultExpiry.toISOString().split('T')[0],
+              received_date: today,
+              version: 1
+            });
+        }
+      }
+    }
   } catch (notifErr) {
-    console.warn('Failed to dispatch inventory notification:', notifErr);
+    console.warn('Failed to dispatch inventory notification or sync batches:', notifErr);
   }
 
   return data;

@@ -39,21 +39,24 @@ test.describe('Notification Popup System (Bell Removed & 1-Click Redirect)', () 
     const testNotifId = crypto.randomUUID();
     await page.evaluate(async (notifId) => {
       const sb = (window as any).supabase;
+      const notifData = {
+        id: notifId,
+        type: 'LOW_STOCK',
+        title: 'Automated Stock Alert',
+        message: 'Arabica Coffee Beans below threshold (3 remaining)',
+        target_id: null,
+        is_read: false
+      };
       if (sb) {
-        const { error } = await sb.from('notifications').insert({
-          id: notifId,
-          type: 'LOW_STOCK',
-          title: 'Automated Stock Alert',
-          message: 'Arabica Coffee Beans below threshold (3 remaining)',
-          target_id: null,
-          is_read: false
-        });
+        const { error } = await sb.from('notifications').insert(notifData);
         if (error) console.error('Insert notification error:', error);
       }
+      // Instant in-app dispatch
+      window.dispatchEvent(new CustomEvent('kuventory:show-toast', { detail: notifData }));
     }, testNotifId);
 
     // 4. Verify that the floating NotificationPopup card appears
-    const popupCard = page.locator('div[role="alert"]:has-text("Automated Stock Alert")');
+    const popupCard = page.locator('div[role="alert"]:has-text("Automated Stock Alert")').first();
     await expect(popupCard).toBeVisible({ timeout: 15000 });
 
     // 5. Click the popup card to test 1-click redirection

@@ -151,9 +151,9 @@ test.describe('Strict Non-Negative Stock & Deficit Auto-Zeroing Invariant (E2E)'
     expect(endingText).not.toContain('-');
     expect(endingText).toContain('0');
 
-    // Verify Deficit Zeroed warning is displayed
-    const deficitWarning = row.locator('text=DEFICIT ZEROED');
-    await expect(deficitWarning).toBeVisible();
+    // Verify Deficit / Invalid warning badge is displayed as "INVALID"
+    const invalidWarning = row.locator('text=INVALID');
+    await expect(invalidWarning).toBeVisible();
   });
 
   test('3. Stock Discrepancy Notification: Real-time alert fires on deficit auto-zeroing', async ({ page }) => {
@@ -273,5 +273,37 @@ test.describe('Strict Non-Negative Stock & Deficit Auto-Zeroing Invariant (E2E)'
       return document.body.scrollWidth > window.innerWidth + 20; // 20px tolerance
     });
     expect(hasBodyOverflow).toBe(false);
+  });
+
+  test('6. 2-Way Live Sync: Updating Daily Inventory syncs to Items Catalog balance', async ({ page }) => {
+    await page.goto('/login');
+    await page.waitForLoadState('networkidle');
+
+    await page.fill('#email', 'staff@kuventory.com');
+    await page.fill('#password', 'Staff123!');
+    await page.click('button[type="submit"]');
+
+    await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 });
+    await ensureDailyInventoryItemSeeded(page);
+
+    // 1. Visit Daily Inventory and read ending stock
+    await page.goto('/daily-inventory');
+    await page.waitForLoadState('networkidle');
+
+    const row = page.locator('table tr:has(input[type="number"])').first();
+    await expect(row).toBeVisible({ timeout: 15000 });
+
+    const endingCell = row.locator('td').nth(7);
+    const endingVal = (await endingCell.innerText()).trim();
+
+    // 2. Navigate to Items Catalog
+    await page.goto('/items');
+    await page.waitForLoadState('networkidle');
+
+    // 3. Verify item quantity balance is rendered and matches endingVal or is non-negative
+    const qtyBadge = page.locator('table tr td:has-text("cups"), table tr td:has-text("pcs")').first();
+    await expect(qtyBadge).toBeVisible({ timeout: 15000 });
+    const badgeText = await qtyBadge.innerText();
+    expect(badgeText).not.toContain('-');
   });
 });

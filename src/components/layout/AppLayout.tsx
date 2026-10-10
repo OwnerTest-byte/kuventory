@@ -32,6 +32,7 @@ import { CommandPalette } from './CommandPalette';
 import { ItemFormModal } from '@/features/inventory/components/ItemFormModal';
 import { useItems } from '@/features/inventory/hooks/useItems';
 import { useStockMutations } from '@/features/inventory/hooks/useStockMutations';
+import { useUnreadNotificationsCount } from '@/features/inventory/hooks/useNotifications';
 import type { InventoryItem } from '@/features/inventory/types';
 
 // Custom SVG icon matching ChatGPT's exact sidebar toggle [ | ] icon
@@ -197,9 +198,18 @@ function SidebarNavigation({
 
   const isMasterUser = role === 'MASTER_ADMIN' || user?.email === 'master@kuventory.com';
   const isAdminUser = role === 'ADMIN' || user?.email === 'admin@kuventory.com' || isMasterUser;
+  const unreadCount = useUnreadNotificationsCount();
 
   const navList = [
-    ...primaryNav,
+    ...primaryNav.map((item) => {
+      if (item.name === 'Notifications' && unreadCount > 0) {
+        return {
+          ...item,
+          badge: unreadCount > 99 ? '99+' : String(unreadCount),
+        };
+      }
+      return item;
+    }),
     ...(isAdminUser ? [{ 
       name: 'Master Admin', 
       to: '/settings?tab=master', 
@@ -464,6 +474,7 @@ export function AppLayout() {
   const { createItem } = useItems();
   const { add } = useStockMutations();
   const { profile, user, role } = useAuth();
+  const unreadNotifications = useUnreadNotificationsCount();
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
@@ -610,6 +621,21 @@ export function AppLayout() {
             >
               <Search className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
+
+            {/* Direct Notifications Bell Button with Live Unread Counter */}
+            <Link
+              to="/notifications"
+              title="Notifications"
+              aria-label="View notifications"
+              className="relative h-8 w-8 sm:h-9 sm:w-9 p-1.5 sm:p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+              {unreadNotifications > 0 && (
+                <span className="absolute top-1 right-1 h-4 min-w-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-card animate-pulse">
+                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                </span>
+              )}
+            </Link>
 
             {/* Dark / Light Theme Toggle Button */}
             <button

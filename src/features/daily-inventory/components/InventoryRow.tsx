@@ -152,10 +152,10 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
             {saveStatus === 'error' && <span className="text-rose-500 font-bold">⚠️ SAVE FAILED</span>}
             {hasDeficit && (
               <span 
-                className="text-rose-500 font-bold text-[10px] bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 flex items-center gap-1"
-                title={`Deficit detected: Sales exceeded stock by ${deficitAmount} ${item.items?.unit}. Ending stock auto-zeroed to 0.`}
+                className="text-rose-500 font-bold text-[10px] bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 flex items-center gap-1 uppercase tracking-wider"
+                title={`Invalid: Sales exceeded total stock by ${deficitAmount} ${item.items?.unit}. Ending balance is zeroed to 0.`}
               >
-                <span>⚠️</span> DEFICIT ZEROED ({deficitAmount} {item.items?.unit})
+                <span>⚠️</span> INVALID
               </span>
             )}
           </div>
@@ -177,7 +177,7 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
           />
         </TableCell>
 
-        {/* ADD - Direct Input + Batch Modal trigger */}
+        {/* ADD - Direct Input + Batch Modal trigger requiring Expiry Date */}
         <TableCell className="p-2 bg-blue-500/3">
           <div className="relative flex items-center">
             <input 
@@ -185,10 +185,12 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
               min="0"
               step="any"
               value={add} 
+              onClick={() => { if (!isReadOnly) setIsModalOpen(true); }}
               onChange={e => handleInputChange('add', e.target.value)}
               onBlur={handleBlur}
               onKeyDown={handleKeyDown}
               disabled={isReadOnly}
+              title={isReadOnly ? undefined : "Click + or enter stock batch (Expiration Date required)"}
               className={`${inputClass} pr-9 font-bold text-primary`}
               aria-label={`${item.items?.item_name} Add Quantity`}
             />
@@ -196,7 +198,7 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
-                title="Receive Batch Delivery with Expiry Date"
+                title="Receive Batch Delivery with Expiry Date (Required)"
                 className="absolute right-1 w-8 h-8 rounded-md flex items-center justify-center text-primary/70 hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer"
                 aria-label={`Receive delivery batch for ${item.items?.item_name}`}
               >
@@ -250,7 +252,7 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
           <div 
             title={
               hasDeficit 
-                ? `Deficit Detected: Sales exceeded stock by ${deficitAmount} ${item.items?.unit}. Ending balance auto-zeroed to 0.` 
+                ? `Invalid: Sales exceeded stock by ${deficitAmount} ${item.items?.unit}. Ending balance is zeroed to 0.` 
                 : optEnding === 0 
                   ? 'Alert: Stock is zeroed out (Out of Stock)!' 
                   : undefined
@@ -263,7 +265,7 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
                 : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/25'
           }`}>
             {optEnding === 0 && (
-              <span className="mr-1 text-xs" title={hasDeficit ? "Deficit Auto-Zeroed" : "Out of Stock Warning"}>
+              <span className="mr-1 text-xs" title={hasDeficit ? "Invalid (Deficit)" : "Out of Stock Warning"}>
                 ⚠️
               </span>
             )}

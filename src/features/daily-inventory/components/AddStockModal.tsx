@@ -37,6 +37,11 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
       return;
     }
 
+    if (!expiry) {
+      setErrorMsg('Expiration date is required for FEFO tracking');
+      return;
+    }
+
     try {
       setErrorMsg('');
       
@@ -97,7 +102,9 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Expiry Date</label>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Expiry Date <span className="text-rose-500 font-bold">*</span> <span className="text-xs text-muted-foreground font-normal">(Required for FEFO)</span>
+            </label>
             <input 
               type="date" 
               required

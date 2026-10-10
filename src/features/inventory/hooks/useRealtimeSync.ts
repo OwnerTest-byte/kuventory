@@ -24,8 +24,14 @@ export function useRealtimeSync() {
         () => {
           queryClient.invalidateQueries({ queryKey: ['global-stock-batches'] });
           queryClient.invalidateQueries({ queryKey: ['expiring-batches'] });
+          queryClient.invalidateQueries({ queryKey: ['active-expiring-batches'] });
+          queryClient.invalidateQueries({ queryKey: ['active-expired-batches'] });
           queryClient.invalidateQueries({ queryKey: ['batches'] });
           queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          queryClient.invalidateQueries({ queryKey: ['items'] });
+          queryClient.invalidateQueries({ queryKey: ['item'] });
+          queryClient.invalidateQueries({ queryKey: ['dailyInventory'] });
+          queryClient.invalidateQueries({ queryKey: ['daily-inventory'] });
         }
       )
       .on(
@@ -35,6 +41,7 @@ export function useRealtimeSync() {
           queryClient.invalidateQueries({ queryKey: ['global-stock-history'] });
           queryClient.invalidateQueries({ queryKey: ['stock-history'] });
           queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          queryClient.invalidateQueries({ queryKey: ['items'] });
         }
       )
       .on(
@@ -49,6 +56,7 @@ export function useRealtimeSync() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'daily_inventory' },
         () => {
+          queryClient.invalidateQueries({ queryKey: ['dailyInventory'] });
           queryClient.invalidateQueries({ queryKey: ['daily-inventory'] });
           queryClient.invalidateQueries({ queryKey: ['reports'] });
         }
@@ -57,7 +65,12 @@ export function useRealtimeSync() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'daily_inventory_items' },
         () => {
+          queryClient.invalidateQueries({ queryKey: ['dailyInventory'] });
           queryClient.invalidateQueries({ queryKey: ['daily-inventory'] });
+          queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          queryClient.invalidateQueries({ queryKey: ['items'] });
+          queryClient.invalidateQueries({ queryKey: ['batches'] });
+          queryClient.invalidateQueries({ queryKey: ['global-stock-batches'] });
         }
       )
       .subscribe();

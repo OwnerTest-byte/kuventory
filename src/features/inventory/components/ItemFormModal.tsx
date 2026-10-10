@@ -83,6 +83,12 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
       return;
     }
 
+    const initialQtyNum = !item ? Math.max(0, parseFloat(formData.initial_qty) || 0) : 0;
+    if (initialQtyNum > 0 && !formData.initial_expiry_date) {
+      setError("Expiration date is required when adding initial stock (FEFO tracking)");
+      return;
+    }
+
     const selectedCategoryName = categories?.find(c => c.id === categoryIdToUse)?.name || 'General';
 
     try {
@@ -99,7 +105,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
         min_qty: Math.max(0, parseInt(formData.min_qty, 10) || 0),
         image_path: formData.image_path || null,
         category_name: selectedCategoryName
-      }, !item ? Math.max(0, parseFloat(formData.initial_qty) || 0) : undefined, formData.initial_expiry_date || undefined);
+      }, !item ? initialQtyNum : undefined, formData.initial_expiry_date || undefined);
     } catch (err: any) {
       setError(err.message || 'Failed to save item');
     }
@@ -110,6 +116,11 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
     const qty = parseFloat(formData.initial_qty);
     if (!qty || qty <= 0) {
       setError("QUANTITY REQUIRED");
+      return;
+    }
+
+    if (!formData.initial_expiry_date) {
+      setError("EXPIRATION DATE REQUIRED");
       return;
     }
 
@@ -266,12 +277,19 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
                     <label className="text-sm font-semibold text-foreground flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-primary" />
-                        Initial Batch Expiry Date
+                        Initial Batch Expiry Date {parseFloat(formData.initial_qty) > 0 && <span className="text-rose-500 font-bold">*</span>}
                       </span>
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold">FEFO Queued</span>
+                      {parseFloat(formData.initial_qty) > 0 ? (
+                        <span className="text-[10px] text-rose-500 font-bold bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">
+                          REQUIRED FOR FEFO
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold">FEFO Queued</span>
+                      )}
                     </label>
                     <Input 
                       type="date"
+                      required={parseFloat(formData.initial_qty) > 0}
                       value={formData.initial_expiry_date}
                       onChange={e => setFormData({ ...formData, initial_expiry_date: e.target.value })}
                     />

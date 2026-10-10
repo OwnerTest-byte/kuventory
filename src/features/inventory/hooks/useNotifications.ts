@@ -156,3 +156,11 @@ export function useMarkAllNotificationsAsRead() {
     },
   });
 }
+
+/**
+ * Returns the count of unread notifications reactively.
+ */
+export function useUnreadNotificationsCount(): number {
+  const { data: notifications = [] } = useNotifications();
+  return notifications.filter((n) => !n.is_read).length;
+}
