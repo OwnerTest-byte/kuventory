@@ -48,7 +48,9 @@ export function NotificationPopup() {
   const { data: notifications = [] } = useNotifications();
   const markAsRead = useMarkNotificationAsRead();
   const activeToastsRef = useRef<ActiveToast[]>([]);
-  activeToastsRef.current = activeToasts;
+  useEffect(() => {
+    activeToastsRef.current = activeToasts;
+  }, [activeToasts]);
 
   const dismissToast = useCallback((id: string) => {
     setActiveToasts(prev => {

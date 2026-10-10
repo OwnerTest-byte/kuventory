@@ -440,7 +440,7 @@ export function ItemDetailsPage() {
             </Button>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="max-h-[420px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+            <div className="max-h-105 overflow-y-auto overflow-x-auto relative overscroll-contain">
               <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
                 <thead className="sticky top-0 z-10 bg-muted/60 backdrop-blur-xs border-b border-border text-muted-foreground shadow-xs">
                   <tr>
@@ -543,7 +543,7 @@ export function ItemDetailsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="max-h-[420px] overflow-y-auto overflow-x-auto relative overscroll-contain">
+            <div className="max-h-105 overflow-y-auto overflow-x-auto relative overscroll-contain">
               <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
                 <thead className="sticky top-0 z-10 bg-muted/60 backdrop-blur-xs border-b border-border text-muted-foreground shadow-xs">
                   <tr>

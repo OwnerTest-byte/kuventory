@@ -387,11 +387,11 @@ export function ItemsCatalogPage() {
             </div>
           )}
 
-          <div className="table-slider-container max-h-[calc(100dvh-280px)] min-h-[350px] relative overscroll-contain">
+          <div className="table-slider-container max-h-[calc(100dvh-280px)] min-h-87.5 relative overscroll-contain">
             <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
               <thead className="sticky top-0 z-20 bg-muted/90 backdrop-blur-xs border-b border-border shadow-2xs">
                 <tr className="text-muted-foreground">
-                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs sticky left-0 z-30 bg-muted border-r border-border min-w-[200px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">ITEM</th>
+                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs sticky left-0 z-30 bg-muted border-r border-border min-w-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">ITEM</th>
                   <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs">DESCRIPTION</th>
                   <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs">SECTION</th>
                   <th className="px-5 py-3 font-bold uppercase tracking-wider text-xs text-right">UNIT COST</th>
@@ -435,7 +435,7 @@ export function ItemsCatalogPage() {
 
                     return (
                       <tr key={item.id} className="hover:bg-muted/40 transition-colors group">
-                        <td className="px-5 py-3.5 sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border min-w-[240px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                        <td className="px-5 py-3.5 sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border min-w-60 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-lg border border-border bg-muted/40 overflow-hidden shrink-0 flex items-center justify-center shadow-2xs">
                               {item.image_path ? (
