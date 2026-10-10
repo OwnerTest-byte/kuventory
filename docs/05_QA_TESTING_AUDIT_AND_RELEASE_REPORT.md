@@ -31,9 +31,10 @@ KUVENTORY employs a dual-tier testing strategy to ensure deterministic business 
 │    • responsive_multi_device.spec.ts:           20 / 20 PASSED (100%)       │
 │    • notification_popup.spec.ts:                 5 / 5  PASSED (100%)       │
 │    • user_audit_fixes_verification.spec.ts:      5 / 5  PASSED (100%)       │
+│    • negative_stock_prevention.spec.ts:         25 / 25 PASSED (100%)       │
 │                                                                             │
 │  [ Total Playwright Real-Browser Tests ]                                    │
-│    • 100 / 100 Scenarios Passed (100% Zero-Defect Pass Rate)                │
+│    • 125 / 125 Scenarios Passed (100% Zero-Defect Pass Rate)                │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -51,7 +52,8 @@ KUVENTORY employs a dual-tier testing strategy to ensure deterministic business 
 | `responsive_multi_device.spec.ts` | All 10 viewport dimensions (360×800 to 1920×1080), touch target bounding box ≥ 44px, zero overflow. | 10 Viewports | 20 / 20 | ✅ 100% PASS |
 | `notification_popup.spec.ts` | Removal of bell icon, floating real-time popup appearance, and 1-click entity redirection. | 5 Profiles | 5 / 5 | ✅ 100% PASS |
 | `user_audit_fixes_verification.spec.ts` | Zero-stock alert trigger, oval logo silhouette, sub-tab scrolling, DELETE confirmation, image link proxying. | Chromium | 5 / 5 | ✅ 100% PASS |
-| **Total Playwright Suites** | **Comprehensive Real-Browser Verification** | **All Profiles** | **100 / 100** | **100% Pass** |
+| `negative_stock_prevention.spec.ts` | Strict non-negative physical stock invariant, zero-friction input sanitization, deficit auto-zeroing ($\max(0, \text{ending})$), real-time `STOCK_DISCREPANCY` popups, and multi-device overflow resilience. | 5 Profiles (Chrome, Firefox, WebKit, Mobile, Tablet) | 25 / 25 | ✅ 100% PASS |
+| **Total Playwright Suites** | **Comprehensive Real-Browser Verification** | **All Profiles** | **125 / 125** | **100% Pass** |
 
 ---
 

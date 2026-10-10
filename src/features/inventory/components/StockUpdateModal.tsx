@@ -142,7 +142,19 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
                   step="any"
                   required
                   value={quantity}
-                  onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+                  onKeyDown={(e) => {
+                    if (e.key === '-' || e.key === 'Minus') {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={(e) => {
+                    if (e.target.value === '') {
+                      setQuantity('');
+                      return;
+                    }
+                    const parsed = parseFloat(e.target.value.replace(/[^0-9.]/g, ''));
+                    setQuantity(isNaN(parsed) ? '' : Math.max(0, parsed));
+                  }}
                   className="h-12 pl-4 pr-16 text-lg font-bold border-slate-300 focus:ring-blue-500"
                   placeholder="0"
                   autoFocus
@@ -154,12 +166,24 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
             </div>
 
             {/* Dynamic Calculated Balance Banner */}
-            <div className="p-3.5 bg-muted/50 border border-border rounded-lg flex items-center justify-between">
+            <div className={`p-3.5 border rounded-lg flex items-center justify-between ${
+              action === 'remove' && numQty > item.current_qty 
+                ? 'bg-amber-500/10 border-amber-500/30' 
+                : 'bg-muted/50 border-border'
+            }`}>
               <div>
-                <div className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider">Projected New Stock Balance</div>
+                <div className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1.5">
+                  Projected New Stock Balance
+                  {action === 'remove' && numQty > item.current_qty && (
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/20 px-1.5 py-0.5 rounded">
+                      Deficit Auto-Zeroed
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs text-muted-foreground">
                   {action === 'add' && `${item.current_qty} + ${numQty} ${item.unit}`}
-                  {action === 'remove' && `${item.current_qty} - ${numQty} ${item.unit}`}
+                  {action === 'remove' && numQty <= item.current_qty && `${item.current_qty} - ${numQty} ${item.unit}`}
+                  {action === 'remove' && numQty > item.current_qty && `Exceeds stock by ${(numQty - item.current_qty).toFixed(2)} ${item.unit} (zeroed to 0)`}
                   {action === 'adjust' && `Adjusted directly to ${numQty} ${item.unit}`}
                 </div>
               </div>

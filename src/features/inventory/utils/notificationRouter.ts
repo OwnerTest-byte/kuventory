@@ -20,8 +20,8 @@ export function getNotificationRoute(notification: AppNotification): string {
     return '/items?tab=batches';
   }
 
-  // 4. Low stock / Out of stock
-  if (notification.type === 'LOW_STOCK' || notification.type === 'OUT_OF_STOCK') {
+  // 4. Low stock / Out of stock / Discrepancy
+  if (notification.type === 'LOW_STOCK' || notification.type === 'OUT_OF_STOCK' || notification.type === 'STOCK_DISCREPANCY') {
     return '/reports/low-stock';
   }
 

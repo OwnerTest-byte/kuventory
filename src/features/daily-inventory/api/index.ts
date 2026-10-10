@@ -98,12 +98,12 @@ export async function fetchOrCreateDailyInventory(date: string): Promise<DailyIn
       section: section,
       category_id: catId,
       category_name: catName,
-      beginning_qty: Number(entry.beg || 0),
-      add_qty: Number(entry.add || 0),
-      total_stock: Number(entry.total ?? (Number(entry.beg || 0) + Number(entry.add || 0))),
-      sales_am: Number(entry.am || 0),
-      sales_pm: Number(entry.pm || 0),
-      ending_qty: Number(entry.ending ?? (Number(entry.beg || 0) + Number(entry.add || 0) - Number(entry.am || 0) - Number(entry.pm || 0))),
+      beginning_qty: Math.max(0, Number(entry.beg || 0)),
+      add_qty: Math.max(0, Number(entry.add || 0)),
+      total_stock: Math.max(0, Number(entry.total ?? (Number(entry.beg || 0) + Number(entry.add || 0)))),
+      sales_am: Math.max(0, Number(entry.am || 0)),
+      sales_pm: Math.max(0, Number(entry.pm || 0)),
+      ending_qty: Math.max(0, Number(entry.ending ?? (Number(entry.beg || 0) + Number(entry.add || 0) - Number(entry.am || 0) - Number(entry.pm || 0)))),
       items: {
         item_name: itemName,
         unit: unit,
@@ -147,13 +147,19 @@ export async function updateDailyInventoryItem(params: {
   am: number;
   pm: number;
 }): Promise<any> {
+  // Strict non-negative inventory rule: inputs cannot be negative, clamp to 0
+  const safeBeg = Math.max(0, Number(params.beg) || 0);
+  const safeAdd = Math.max(0, Number(params.add) || 0);
+  const safeAm = Math.max(0, Number(params.am) || 0);
+  const safePm = Math.max(0, Number(params.pm) || 0);
+
   const { data, error } = await supabase
     .from('daily_inventory_items')
     .update({
-      beg: params.beg,
-      add: params.add,
-      am: params.am,
-      pm: params.pm
+      beg: safeBeg,
+      add: safeAdd,
+      am: safeAm,
+      pm: safePm
     })
     .eq('id', params.id)
     .select('*, inventory_items(id, name, unit, min_quantity)')
@@ -164,15 +170,35 @@ export async function updateDailyInventoryItem(params: {
     throw error;
   }
 
-  // Trigger Out of Stock / Low Stock real-time notification
+  // Trigger Out of Stock / Deficit Auto-Zero / Low Stock real-time notification
   try {
-    const ending = (Number(params.beg) + Number(params.add)) - (Number(params.am) + Number(params.pm));
+    const total = safeBeg + safeAdd;
+    const sales = safeAm + safePm;
+    const rawEnding = total - sales;
+    const ending = Math.max(0, rawEnding);
+    const hasDeficit = rawEnding < 0;
+    const deficitAmount = Math.abs(rawEnding);
+
     const rawItem = data?.inventory_items as any;
     const itemName = rawItem?.name || 'Item';
     const itemId = rawItem?.id || data?.item_id;
     const unit = rawItem?.unit || 'pcs';
     const today = new Date().toISOString().split('T')[0];
 
+    // 1. Deficit Auto-Zero Notification: sales exceeded available stock
+    if (hasDeficit && itemId) {
+      await supabase.from('notifications').upsert({
+        type: 'STOCK_DISCREPANCY',
+        title: `Stock Deficit Auto-Zeroed: ${itemName}`,
+        message: `Sales for ${itemName} (${sales} ${unit}) exceeded total stock (${total} ${unit}) by ${deficitAmount} ${unit}. Negative stock is disallowed; ending stock has been automatically zeroed to 0.`,
+        item_id: itemId,
+        dedup_key: `DEFICIT_${itemId}_${today}`,
+        is_read: false,
+        created_at: new Date().toISOString()
+      }, { onConflict: 'dedup_key' });
+    }
+
+    // 2. Out of Stock Notification
     if (ending <= 0 && itemId) {
       await supabase.from('notifications').upsert({
         type: 'OUT_OF_STOCK',

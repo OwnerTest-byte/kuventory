@@ -81,9 +81,16 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
             <input 
               type="number" 
               required
-              min="1"
+              min="0.01"
+              step="any"
               value={qty}
-              onChange={e => setQty(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === '-' || e.key === 'Minus') e.preventDefault();
+              }}
+              onChange={e => {
+                const clean = e.target.value.replace(/[^0-9.]/g, '');
+                setQty(clean);
+              }}
               className="w-full bg-background border border-input rounded-lg p-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               placeholder="e.g. 10"
             />

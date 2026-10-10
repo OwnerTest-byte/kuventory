@@ -1,21 +1,5 @@
 import { describe, it, expect } from 'vitest';
-
-/**
- * Standard Kuventory calculation helpers mirroring the exact arithmetic in daily inventory
- */
-function calculateTotalStock(beg: number, add: number): number {
-  const result = (beg || 0) + (add || 0);
-  return Number(result.toFixed(2));
-}
-
-function calculateEndingStock(beg: number, add: number, am: number, pm: number): number {
-  const totalStock = (beg || 0) + (add || 0);
-  const totalSales = (am || 0) + (pm || 0);
-  const ending = totalStock - totalSales;
-  // Normalize -0 and round to 2 decimal places to avoid floating point artifacts
-  const rounded = Number(ending.toFixed(2));
-  return Object.is(rounded, -0) ? 0 : rounded;
-}
+import { calculateTotalStock, calculateEndingStock, calculateDiscrepancy } from '../utils/calculations';
 
 function calculateItemValuation(currentQty: number, unitCost: number): number {
   const valuation = (currentQty || 0) * (unitCost || 0);
@@ -59,8 +43,35 @@ describe('Daily Inventory & Stock Calculations (QA Verification)', () => {
       expect(result).toBe(0.1);
     });
 
-    it('computes correctly with high variables up to warehouse limits', () => {
-      expect(calculateEndingStock(50000, 25000, 15000, 20000)).toBe(40000);
+    it('strictly clamps negative ending stock to 0 when sales exceed stock (4-arg signature)', () => {
+      // 50 BEG + 0 ADD - (40 AM + 20 PM) => raw is -10, MUST be auto-zeroed to 0
+      expect(calculateEndingStock(50, 0, 40, 20)).toBe(0);
+      // Extreme deficit: 10 BEG + 5 ADD - (50 AM + 50 PM) => raw is -85, MUST be 0
+      expect(calculateEndingStock(10, 5, 50, 50)).toBe(0);
+    });
+
+    it('strictly clamps negative ending stock to 0 when sales exceed stock (3-arg signature)', () => {
+      // 30 Total - (25 AM + 15 PM) => raw is -10, MUST be auto-zeroed to 0
+      expect(calculateEndingStock(30, 25, 15)).toBe(0);
+      // 0 Total - (5 AM + 0 PM) => raw is -5, MUST be auto-zeroed to 0
+      expect(calculateEndingStock(0, 5, 0)).toBe(0);
+    });
+
+    it('safely clamps negative inputs to 0 preventing aberrant calculation', () => {
+      expect(calculateEndingStock(-10, -5, 5, 5)).toBe(0);
+    });
+  });
+
+  describe('calculateDiscrepancy', () => {
+    it('accurately calculates physical count minus ending stock', () => {
+      expect(calculateDiscrepancy(50, 50)).toBe(0);
+      expect(calculateDiscrepancy(45, 50)).toBe(-5);
+      expect(calculateDiscrepancy(55, 50)).toBe(5);
+    });
+
+    it('returns 0 when physical count is missing or not entered', () => {
+      expect(calculateDiscrepancy(undefined, 50)).toBe(0);
+      expect(calculateDiscrepancy(NaN, 50)).toBe(0);
     });
   });
 

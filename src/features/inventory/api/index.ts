@@ -121,9 +121,12 @@ export async function addStock(params: {
   reason: string;
   userId?: string;
 }): Promise<void> {
+  const safeQty = Math.max(0, Number(params.quantity) || 0);
+  if (safeQty <= 0) return;
+
   const { error } = await supabase.rpc('add_stock', {
     p_item_id: params.itemId,
-    p_quantity: params.quantity,
+    p_quantity: safeQty,
     p_expiry_date: params.expiryDate || '2099-12-31',
     p_received_date: params.receivedDate || new Date().toISOString().split('T')[0],
     p_reason: params.reason || 'Stock Received',
@@ -137,6 +140,8 @@ export async function addStock(params: {
 
 /**
  * Remove stock using automated FEFO consumption via backend RPC.
+ * Enforces non-negative physical stock: cannot consume below 0.
+ * If requested quantity exceeds available stock, clamps to available stock and notifies about the discrepancy.
  */
 export async function removeStock(params: {
   itemId: string;
@@ -144,21 +149,49 @@ export async function removeStock(params: {
   reason: string;
   userId?: string;
 }): Promise<void> {
-  const { error } = await supabase.rpc('consume_stock', {
-    p_item_id: params.itemId,
-    p_quantity: params.quantity,
-    p_reason: params.reason || 'Stock Consumption / Sales',
-  });
+  const requestedQty = Math.max(0, Number(params.quantity) || 0);
+  if (requestedQty <= 0) return;
 
-  if (error) {
-    console.error('removeStock RPC error:', error);
-    throw error;
+  const item = await getItemById(params.itemId);
+  const available = Math.max(0, item.current_qty);
+  const qtyToConsume = Math.min(available, requestedQty);
+
+  if (requestedQty > available) {
+    // Physical inventory deficit: cannot be negative, log discrepancy notification
+    const deficit = Number((requestedQty - available).toFixed(2));
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      await supabase.from('notifications').upsert({
+        type: 'STOCK_DISCREPANCY',
+        title: `Stock Deficit Auto-Zeroed: ${item.item_name}`,
+        message: `Attempted deduction of ${requestedQty} ${item.unit} for "${item.item_name}" exceeded available physical stock (${available} ${item.unit}) by ${deficit} ${item.unit}. Physical stock has been zeroed to 0.`,
+        item_id: params.itemId,
+        dedup_key: `DEFICIT_${params.itemId}_${today}`,
+        is_read: false,
+        created_at: new Date().toISOString(),
+      }, { onConflict: 'dedup_key' });
+    } catch (e) {
+      console.warn('Failed to upsert discrepancy notification on removeStock:', e);
+    }
+  }
+
+  if (qtyToConsume > 0) {
+    const { error } = await supabase.rpc('consume_stock', {
+      p_item_id: params.itemId,
+      p_quantity: qtyToConsume,
+      p_reason: params.reason || 'Stock Consumption / Sales',
+    });
+
+    if (error) {
+      console.error('removeStock RPC error:', error);
+      throw error;
+    }
   }
 
   // Check if item reached zero
   try {
-    const item = await getItemById(params.itemId);
-    if (item.current_qty <= 0) {
+    const updatedItem = await getItemById(params.itemId);
+    if (updatedItem.current_qty <= 0) {
       const today = new Date().toISOString().split('T')[0];
       await supabase.from('notifications').upsert({
         type: 'OUT_OF_STOCK',
@@ -175,6 +208,7 @@ export async function removeStock(params: {
 
 /**
  * Adjust physical stock count up or down.
+ * Negative target quantities are clamped to 0 and trigger a discrepancy alert.
  */
 export async function adjustStock(params: {
   itemId: string;
@@ -182,8 +216,27 @@ export async function adjustStock(params: {
   reason: string;
   userId?: string;
 }): Promise<void> {
+  const safeTarget = Math.max(0, Number(params.targetQuantity) || 0);
   const item = await getItemById(params.itemId);
-  const diff = params.targetQuantity - item.current_qty;
+
+  if (params.targetQuantity < 0) {
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      await supabase.from('notifications').upsert({
+        type: 'STOCK_DISCREPANCY',
+        title: `Negative Count Zeroed: ${item.item_name}`,
+        message: `An invalid negative physical count (${params.targetQuantity} ${item.unit}) was submitted for "${item.item_name}". Physical stock cannot be negative and has been zeroed to 0.`,
+        item_id: params.itemId,
+        dedup_key: `NEG_ADJ_${params.itemId}_${today}`,
+        is_read: false,
+        created_at: new Date().toISOString(),
+      }, { onConflict: 'dedup_key' });
+    } catch (e) {
+      console.warn('Failed to upsert discrepancy notification on negative adjustStock:', e);
+    }
+  }
+
+  const diff = safeTarget - item.current_qty;
   if (diff === 0) return;
 
   if (diff > 0) {
@@ -200,7 +253,7 @@ export async function adjustStock(params: {
     });
   }
 
-  if (params.targetQuantity === 0) {
+  if (safeTarget === 0) {
     const today = new Date().toISOString().split('T')[0];
     try {
       await supabase.from('notifications').upsert({

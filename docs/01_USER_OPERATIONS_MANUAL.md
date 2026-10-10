@@ -48,15 +48,18 @@ The **Daily Inventory Worksheet** (`/daily-inventory`) is the operational heart 
 [Start of Shift: Record BEG] ──► [Mid-Day: Record ADD & AM OUT] ──► [End of Shift: Record PM OUT] ──► [Supervisor: Finalize Sheet]
 ```
 
-### 2.1 The Daily Stock Formula & Real-Time Depletion Alerts
+### 2.1 The Daily Stock Formula, Non-Negative Invariant & Real-Time Alerts
 
-All calculations in KUVENTORY are computed automatically at the database engine level to guarantee mathematical integrity:
+All calculations in KUVENTORY are computed automatically at the application and database engine level to guarantee physical mathematical integrity:
 
 $$\text{TOTAL} = \text{BEGINNING} + \text{ADD}$$
-$$\text{ENDING} = \text{TOTAL} - \text{AM OUT} - \text{PM OUT}$$
+$$\text{ENDING} = \max(0, \text{TOTAL} - \text{AM OUT} - \text{PM OUT})$$
 
-- **Instant Zero-Stock Real-Time Notifications**: Entering `0` or depleting an item's calculated ending stock to $\le 0$ instantly inserts an `OUT_OF_STOCK` alert into `public.notifications` and pops up a real-time toast notification with 1-click navigation to low-stock reports.
-- **Ending Stock Alert Indicator**: When an item reaches `0` ending units, the ending balance cell renders a high-contrast rose alert badge with a `⚠️ 0` indicator instead of the standard neutral badge, alerting staff before finalization.
+- **Strict Non-Negative Stock Invariant:** In physical retail and F&B operations, physical inventory items cannot exist in negative quantities on shelves. If recorded sales or deductions exceed available on-hand stock, the ending stock is automatically zeroed to `0` ($\text{ENDING} \ge 0$).
+- **Automatic Stock Discrepancy Alert (`STOCK_DISCREPANCY`):** Whenever sales exceed available stock, the system automatically logs and broadcasts a high-priority `STOCK_DISCREPANCY` alert to supervisors detailing the exact shortage (e.g., *"Sales for Pork BBQ (25 pcs) exceeded total stock (15 pcs) by 10 pcs. Negative stock is disallowed; ending stock has been automatically zeroed to 0."*).
+- **Inline Worksheet Deficit Indicators:** The worksheet immediately renders a `DEFICIT ZEROED (X pcs)` warning badge below the item name and flags the ending balance cell with a `⚠️ 0` badge.
+- **Negative Keypress Interception:** Typing `-` or pasting negative numbers into any count or quantity input (`BEG`, `ADD`, `AM`, `PM`, receiving deliveries, or manual adjustments) is completely intercepted and sanitized in real time.
+- **Instant Zero-Stock Real-Time Notifications:** Entering `0` or depleting an item's calculated ending stock to `0` instantly inserts an `OUT_OF_STOCK` alert into `public.notifications` and pops up a real-time toast notification with 1-click navigation to low-stock reports.
 
 ### 2.2 Step-by-Step Shift Tasks
 1. **Morning Opening (Opening Staff):**

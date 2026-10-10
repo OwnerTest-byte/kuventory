@@ -95,11 +95,11 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
         supplier_a: formData.supplier_a,
         supplier_b: formData.supplier_b,
         unit: formData.unit,
-        unit_cost: parseFloat(formData.unit_cost) || 0,
-        min_qty: parseInt(formData.min_qty, 10) || 0,
+        unit_cost: Math.max(0, parseFloat(formData.unit_cost) || 0),
+        min_qty: Math.max(0, parseInt(formData.min_qty, 10) || 0),
         image_path: formData.image_path || null,
         category_name: selectedCategoryName
-      }, !item ? parseFloat(formData.initial_qty) || 0 : undefined, formData.initial_expiry_date || undefined);
+      }, !item ? Math.max(0, parseFloat(formData.initial_qty) || 0) : undefined, formData.initial_expiry_date || undefined);
     } catch (err: any) {
       setError(err.message || 'Failed to save item');
     }

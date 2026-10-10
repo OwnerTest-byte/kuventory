@@ -19,16 +19,21 @@ export function calculateEndingStock(
 ): number {
   if (pmOutIfFourArgs !== undefined) {
     // 4-arg signature: (beg, add, am, pm)
-    const total = (Number(totalStockOrBeg) || 0) + (Number(stockInOrAm) || 0);
-    const sales = (Number(pmOutOrZero) || 0) + (Number(pmOutIfFourArgs) || 0);
-    const ending = total - sales;
+    const total = Math.max(0, (Number(totalStockOrBeg) || 0) + (Number(stockInOrAm) || 0));
+    const sales = Math.max(0, (Number(pmOutOrZero) || 0) + (Number(pmOutIfFourArgs) || 0));
+    const rawEnding = total - sales;
+    // Strict non-negative inventory rule: stock cannot be negative in physical inventory, auto-zeroed to 0
+    const ending = Math.max(0, rawEnding);
     const rounded = Number(ending.toFixed(2));
     return Object.is(rounded, -0) ? 0 : rounded;
   }
 
   // 3-arg signature: (totalStock, amOut, pmOut)
-  const sales = (Number(stockInOrAm) || 0) + (Number(pmOutOrZero) || 0);
-  const ending = (Number(totalStockOrBeg) || 0) - sales;
+  const total = Math.max(0, Number(totalStockOrBeg) || 0);
+  const sales = Math.max(0, (Number(stockInOrAm) || 0) + (Number(pmOutOrZero) || 0));
+  const rawEnding = total - sales;
+  // Strict non-negative inventory rule: stock cannot be negative in physical inventory, auto-zeroed to 0
+  const ending = Math.max(0, rawEnding);
   const rounded = Number(ending.toFixed(2));
   return Object.is(rounded, -0) ? 0 : rounded;
 }

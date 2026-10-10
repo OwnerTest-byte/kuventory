@@ -113,6 +113,19 @@ export function NotificationPopup() {
     };
   }, [showNotificationToast]);
 
+  // 3. Custom in-app event listener for guaranteed zero-latency notification dispatches
+  useEffect(() => {
+    const handleCustomToast = (e: any) => {
+      if (e.detail && !e.detail.is_read) {
+        showNotificationToast(e.detail);
+      }
+    };
+    window.addEventListener('kuventory:show-toast', handleCustomToast);
+    return () => {
+      window.removeEventListener('kuventory:show-toast', handleCustomToast);
+    };
+  }, [showNotificationToast]);
+
   const handleCardClick = (notif: AppNotification) => {
     // 1. Dismiss this toast
     dismissToast(notif.id);
@@ -133,6 +146,8 @@ export function NotificationPopup() {
         return <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />;
       case 'OUT_OF_STOCK': 
         return <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />;
+      case 'STOCK_DISCREPANCY':
+        return <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 animate-bounce" />;
       case 'EXPIRING_SOON': 
         return <Clock className="w-5 h-5 text-amber-500 shrink-0" />;
       case 'EXPIRED': 
@@ -150,6 +165,7 @@ export function NotificationPopup() {
     switch (type) {
       case 'OUT_OF_STOCK':
       case 'EXPIRED':
+      case 'STOCK_DISCREPANCY':
         return 'border-rose-500/40 hover:border-rose-500';
       case 'LOW_STOCK':
       case 'EXPIRING_SOON':
@@ -164,6 +180,7 @@ export function NotificationPopup() {
     switch (type) {
       case 'LOW_STOCK': return 'Low Stock Warning';
       case 'OUT_OF_STOCK': return 'Out of Stock Alert';
+      case 'STOCK_DISCREPANCY': return 'Stock Discrepancy Alert';
       case 'EXPIRING_SOON': return 'Expiry Warning';
       case 'EXPIRED': return 'Batch Expired';
       case 'PASSWORD_RESET': return 'Password Reset Request';

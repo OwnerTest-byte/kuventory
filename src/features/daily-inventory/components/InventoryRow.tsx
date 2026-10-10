@@ -42,10 +42,10 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
 
   const saveRow = async (newBeg: string, newAdd: string, newAm: string, newPm: string) => {
     if (isReadOnly) return;
-    const numBeg = parseFloat(newBeg) || 0;
-    const numAdd = parseFloat(newAdd) || 0;
-    const numAm = parseFloat(newAm) || 0;
-    const numPm = parseFloat(newPm) || 0;
+    const numBeg = Math.max(0, parseFloat(newBeg) || 0);
+    const numAdd = Math.max(0, parseFloat(newAdd) || 0);
+    const numAm = Math.max(0, parseFloat(newAm) || 0);
+    const numPm = Math.max(0, parseFloat(newPm) || 0);
 
     if (
       numBeg === item.beginning_qty &&
@@ -78,15 +78,22 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
   const handleInputChange = (field: 'beg' | 'add' | 'am' | 'pm', value: string) => {
     if (isReadOnly) return;
 
+    // Strict non-negative inventory rule: strip negative signs and disallow numbers < 0
+    let sanitized = value.replace(/-/g, '');
+    const parsed = parseFloat(sanitized);
+    if (!isNaN(parsed) && parsed < 0) {
+      sanitized = '0';
+    }
+
     let nextBeg = beg;
     let nextAdd = add;
     let nextAm = am;
     let nextPm = pm;
 
-    if (field === 'beg') { setBeg(value); nextBeg = value; }
-    if (field === 'add') { setAdd(value); nextAdd = value; }
-    if (field === 'am') { setAm(value); nextAm = value; }
-    if (field === 'pm') { setPm(value); nextPm = value; }
+    if (field === 'beg') { setBeg(sanitized); nextBeg = sanitized; }
+    if (field === 'add') { setAdd(sanitized); nextAdd = sanitized; }
+    if (field === 'am') { setAm(sanitized); nextAm = sanitized; }
+    if (field === 'pm') { setPm(sanitized); nextPm = sanitized; }
 
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
@@ -100,6 +107,11 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Strictly block negative number keys
+    if (e.key === '-' || e.key === 'Minus') {
+      e.preventDefault();
+      return;
+    }
     if (e.key === 'Enter') {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
       saveRow(beg, add, am, pm);
@@ -108,12 +120,16 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
     }
   };
 
-  const numBeg = parseFloat(beg) || 0;
-  const numAdd = parseFloat(add) || 0;
-  const numAm = parseFloat(am) || 0;
-  const numPm = parseFloat(pm) || 0;
-  const optTotal = numBeg + numAdd;
-  const optEnding = optTotal - numAm - numPm;
+  const numBeg = Math.max(0, parseFloat(beg) || 0);
+  const numAdd = Math.max(0, parseFloat(add) || 0);
+  const numAm = Math.max(0, parseFloat(am) || 0);
+  const numPm = Math.max(0, parseFloat(pm) || 0);
+  const optTotal = Math.max(0, numBeg + numAdd);
+  const rawEnding = optTotal - numAm - numPm;
+  // Strict non-negative rule: stock cannot be negative in physical inventory, auto-zeroed if sales exceed total
+  const optEnding = Math.max(0, rawEnding);
+  const hasDeficit = rawEnding < 0;
+  const deficitAmount = Math.abs(rawEnding);
 
   const inputClass = `w-full text-center p-2 h-10 min-h-[40px] text-base sm:text-sm font-semibold border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary font-mono ${
     isReadOnly 
@@ -129,11 +145,19 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
         </TableCell>
         <TableCell className="p-2 sm:p-3 align-middle sticky left-10 sm:left-12 z-10 bg-card group-hover:bg-muted border-r border-border min-w-[150px] sm:min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
           <div className="font-bold text-foreground text-xs sm:text-sm">{item.items?.item_name}</div>
-          <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
+          <div className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-1.5 mt-0.5">
             <span className="font-medium">{item.items?.unit}</span>
             {saveStatus === 'saving' && <span className="text-amber-500 font-semibold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />SAVING...</span>}
             {saveStatus === 'saved' && <span className="text-emerald-500 font-bold">✓ SAVED</span>}
             {saveStatus === 'error' && <span className="text-rose-500 font-bold">⚠️ SAVE FAILED</span>}
+            {hasDeficit && (
+              <span 
+                className="text-rose-500 font-bold text-[10px] bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 flex items-center gap-1"
+                title={`Deficit detected: Sales exceeded stock by ${deficitAmount} ${item.items?.unit}. Ending stock auto-zeroed to 0.`}
+              >
+                <span>⚠️</span> DEFICIT ZEROED ({deficitAmount} {item.items?.unit})
+              </span>
+            )}
           </div>
         </TableCell>
         
@@ -221,24 +245,28 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
           />
         </TableCell>
 
-        {/* ENDING QTY */}
+        {/* ENDING QTY - Strict Non-Negative Invariant */}
         <TableCell className="p-2 bg-emerald-500/[0.04]">
           <div 
             title={
-              optEnding < 0 
-                ? 'Warning: Ending stock is negative! Please check AM/PM sales entries.' 
+              hasDeficit 
+                ? `Deficit Detected: Sales exceeded stock by ${deficitAmount} ${item.items?.unit}. Ending balance auto-zeroed to 0.` 
                 : optEnding === 0 
                   ? 'Alert: Stock is zeroed out (Out of Stock)!' 
                   : undefined
             }
-            className={`w-full text-center p-2 h-10 min-h-[40px] flex items-center justify-center rounded-lg font-bold border text-sm transition-all font-mono ${
-            optEnding < 0 
-              ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/40 ring-1 ring-rose-500/50' 
+            className={`w-full text-center p-2 h-10 min-h-10 flex items-center justify-center rounded-lg font-bold border text-sm transition-all font-mono ${
+            hasDeficit
+              ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/40 ring-1 ring-rose-500/50'
               : optEnding === 0
                 ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/35 ring-1 ring-rose-500/25'
                 : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/25'
           }`}>
-            {optEnding <= 0 && <span className="mr-1 text-xs" title="Out of Stock Warning">⚠️</span>}
+            {optEnding === 0 && (
+              <span className="mr-1 text-xs" title={hasDeficit ? "Deficit Auto-Zeroed" : "Out of Stock Warning"}>
+                ⚠️
+              </span>
+            )}
             {optEnding}
           </div>
         </TableCell>
