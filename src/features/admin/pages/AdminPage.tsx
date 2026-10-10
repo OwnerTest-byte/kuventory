@@ -545,6 +545,54 @@ export function AdminPage() {
   useEffect(() => {
     if (!isMasterAdmin) return;
 
+    // Pre-fetch recent telemetry records so the live activity table is populated immediately
+    const prefetchTelemetry = async () => {
+      try {
+        const [auditRes, stockRes] = await Promise.all([
+          supabase.from('audit_logs').select('id, action, target_table, created_at').order('created_at', { ascending: false }).limit(25),
+          supabase.from('stock_movements').select('id, type, quantity_change, reason, created_at').order('created_at', { ascending: false }).limit(25),
+        ]);
+
+        const initial: Array<{
+          id: string;
+          source: string;
+          action: string;
+          summary: string;
+          timestamp: string;
+          badge: string;
+        }> = [];
+
+        auditRes.data?.forEach((log: any) => {
+          initial.push({
+            id: String(log.id),
+            source: 'audit_logs',
+            action: log.action || 'AUDIT_LOG',
+            summary: log.target_table ? `${log.action || 'Action'} on ${log.target_table}` : (log.action || 'System Audit Record'),
+            timestamp: log.created_at,
+            badge: 'AUDIT'
+          });
+        });
+
+        stockRes.data?.forEach((mov: any) => {
+          initial.push({
+            id: String(mov.id),
+            source: 'stock_movements',
+            action: mov.type || 'STOCK_EVENT',
+            summary: `Stock change: ${mov.quantity_change > 0 ? '+' : ''}${mov.quantity_change} (${mov.reason || 'Ledger event'})`,
+            timestamp: mov.created_at,
+            badge: 'LEDGER'
+          });
+        });
+
+        initial.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        setRealtimeEvents(initial.slice(0, 50));
+      } catch (err) {
+        console.warn('Initial telemetry pre-fetch warning:', err);
+      }
+    };
+
+    prefetchTelemetry();
+
     // Ping Supabase Keepalive
     pingSupabaseKeepalive().then(res => {
       if (res) setRealtimePingMs(res.latencyMs);

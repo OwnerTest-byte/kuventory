@@ -26,7 +26,7 @@ import { useAuth } from '@/features/auth/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { cn, formatUserDisplayName, formatRoleLabel, getUserInitials } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { NotificationBell } from '@/features/inventory/components/NotificationBell';
+import { NotificationPopup } from '@/features/inventory/components/NotificationPopup';
 import { releaseSessionLease } from '@/features/auth/services/sessionLeaseService';
 import { CommandPalette } from './CommandPalette';
 import { ItemFormModal } from '@/features/inventory/components/ItemFormModal';
@@ -530,6 +530,9 @@ export function AppLayout() {
 
   return (
     <div className="flex h-dvh min-h-dvh max-h-dvh bg-background text-foreground overflow-hidden font-sans">
+      {/* Global Real-time Notification Popups */}
+      <NotificationPopup />
+
       {/* 1. Desktop Sidebar Navigation (ChatGPT style full-height rail) */}
       <aside className={cn(
         "bg-card border-r border-border flex-col hidden md:flex shrink-0 h-full transition-all duration-200 ease-in-out z-30",
@@ -712,8 +715,6 @@ export function AppLayout() {
               )}
             </div>
 
-            {/* Notification Bell */}
-            <NotificationBell />
 
             {/* User Profile & Account */}
             <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-border">

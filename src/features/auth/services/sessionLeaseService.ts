@@ -1,6 +1,7 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseUrl, supabaseAnonKey } from '@/lib/supabase';
 
 const CLIENT_ID_KEY = 'kuventory_session_client_id';
+export const DEFAULT_LEASE_SECONDS = 30;
 
 export function getOrCreateClientId(): string {
   try {
@@ -35,7 +36,7 @@ export async function claimSessionLease(sessionId: string): Promise<ClaimSession
       p_session_id: sessionId,
       p_client_id: clientId,
       p_device_info: deviceInfo,
-      p_lease_seconds: 45,
+      p_lease_seconds: DEFAULT_LEASE_SECONDS,
     });
 
     if (error) {
@@ -57,7 +58,7 @@ export async function heartbeatSessionLease(): Promise<{ status: string; reason?
   try {
     const { data, error } = await supabase.rpc('heartbeat_user_session', {
       p_client_id: clientId,
-      p_lease_seconds: 45,
+      p_lease_seconds: DEFAULT_LEASE_SECONDS,
     });
 
     if (error) {
@@ -79,6 +80,61 @@ export async function releaseSessionLease(): Promise<void> {
     });
   } catch (err) {
     console.warn('release_user_session failed:', err);
+  }
+}
+
+/**
+ * Synchronous / keepalive lease release for page unload/quit.
+ * Ensures the session lease is deleted immediately in Postgres when the user closes the tab or quits the browser.
+ */
+export function releaseSessionLeaseBeacon(): void {
+  try {
+    const clientId = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(CLIENT_ID_KEY) : null;
+    if (!clientId) return;
+
+    // Retrieve active access token from Supabase storage or client
+    let token = supabaseAnonKey;
+    if (typeof localStorage !== 'undefined') {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('auth-token') || key.includes('supabase.auth.token'))) {
+          try {
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed?.access_token) {
+                token = parsed.access_token;
+                break;
+              }
+              if (parsed?.currentSession?.access_token) {
+                token = parsed.currentSession.access_token;
+                break;
+              }
+            }
+          } catch {}
+        }
+      }
+    }
+
+    const endpoint = `${supabaseUrl}/rest/v1/rpc/release_user_session`;
+    const payload = JSON.stringify({ p_client_id: clientId });
+
+    // Use keepalive fetch which is guaranteed to complete after page unloads
+    if (typeof fetch === 'function') {
+      fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: payload,
+        keepalive: true,
+      }).catch(() => {});
+    }
+  } catch (err) {
+    console.warn('releaseSessionLeaseBeacon error:', err);
   }
 }
 

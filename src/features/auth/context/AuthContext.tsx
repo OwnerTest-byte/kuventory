@@ -3,7 +3,9 @@ import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { Profile, Role } from '../types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { claimSessionLease, heartbeatSessionLease, releaseSessionLease } from '../services/sessionLeaseService';
+import { claimSessionLease, heartbeatSessionLease, releaseSessionLease, releaseSessionLeaseBeacon } from '../services/sessionLeaseService';
+
+const BROWSER_SESSION_KEY = 'kuventory_browser_session_active';
 
 interface AuthContextType {
   session: Session | null;
@@ -34,6 +36,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [sessionLeaseError, setSessionLeaseError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
+  // Instant release beacon on page unload or browser quit
+  useEffect(() => {
+    const handlePageUnload = () => {
+      releaseSessionLeaseBeacon();
+    };
+
+    window.addEventListener('pagehide', handlePageUnload);
+    window.addEventListener('beforeunload', handlePageUnload);
+
+    return () => {
+      window.removeEventListener('pagehide', handlePageUnload);
+      window.removeEventListener('beforeunload', handlePageUnload);
+    };
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -41,10 +58,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(async ({ data: { session: initSession } }) => {
       if (!isMounted) return;
       if (initSession) {
+        // Enforce browser-quit auto-logout: if user closed the browser/tab and reopens fresh,
+        // sessionStorage has cleared. We terminate the stale session to maintain enterprise security.
+        const isSessionActive = sessionStorage.getItem(BROWSER_SESSION_KEY);
+        if (!isSessionActive) {
+          try {
+            await releaseSessionLease();
+            await supabase.auth.signOut();
+          } catch {}
+          if (isMounted) {
+            setSession(null);
+            setUser(null);
+            setIsSessionLoading(false);
+          }
+          return;
+        }
+
         const claimResult = await claimSessionLease(initSession.access_token.slice(-16));
         if (!claimResult.success) {
           console.warn('Initial session lease rejected: occupied on another device.');
           await supabase.auth.signOut();
+          sessionStorage.removeItem(BROWSER_SESSION_KEY);
           if (isMounted) {
             setSession(null);
             setUser(null);
@@ -54,6 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
         if (isMounted) {
+          sessionStorage.setItem(BROWSER_SESSION_KEY, '1');
           setSession(initSession);
           setUser(initSession.user ?? null);
         }
@@ -70,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       if (!isMounted) return;
       if (!newSession) {
+        sessionStorage.removeItem(BROWSER_SESSION_KEY);
         setSession(null);
         setUser(null);
         queryClient.removeQueries({ queryKey: ['profile'] });
@@ -81,6 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!claimResult.success) {
         console.warn('Session lease rejected on auth change: occupied on another device.');
         await supabase.auth.signOut();
+        sessionStorage.removeItem(BROWSER_SESSION_KEY);
         if (isMounted) {
           setSession(null);
           setUser(null);
@@ -90,6 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (isMounted) {
+        sessionStorage.setItem(BROWSER_SESSION_KEY, '1');
         setSessionLeaseError(null);
         setSession(newSession);
         setUser(newSession.user ?? null);
@@ -113,13 +151,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await heartbeatSessionLease();
       if (res.status === 'REVOKED') {
         console.warn('Session has been revoked by an administrator.');
+        sessionStorage.removeItem(BROWSER_SESSION_KEY);
         await supabase.auth.signOut();
         setSession(null);
         setUser(null);
         queryClient.clear();
         alert('Your session has been terminated by an administrator: ' + (res.reason || 'Administrative revocation'));
       }
-    }, 15000); // Heartbeat every 15s (grace period is 45s)
+    }, 10000); // Fast heartbeat every 10s (grace period is 30s)
 
     return () => clearInterval(heartbeatInterval);
   }, [user?.id, session?.access_token, queryClient]);
@@ -174,6 +213,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const signOut = async () => {
+    sessionStorage.removeItem(BROWSER_SESSION_KEY);
     try {
       await releaseSessionLease();
     } catch (e) {

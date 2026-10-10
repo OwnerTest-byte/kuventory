@@ -88,6 +88,7 @@ export function LoginForm() {
       if (!claimResult.success) {
         // Device B was denied! Terminate Device B session cleanly so Device A is completely undisturbed
         await supabase.auth.signOut();
+        sessionStorage.removeItem('kuventory_browser_session_active');
         setAuthError(
           claimResult.reason === 'OCCUPIED' || claimResult.message?.toLowerCase().includes('active')
             ? 'ACCOUNT IN USE'
@@ -96,6 +97,7 @@ export function LoginForm() {
         setIsLoading(false);
         return;
       }
+      sessionStorage.setItem('kuventory_browser_session_active', '1');
     } else if (!authSuccess && lastError) {
       const isInvalidCreds = 
         lastError.message.toLowerCase().includes('invalid') || 

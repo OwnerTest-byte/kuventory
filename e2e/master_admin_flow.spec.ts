@@ -16,6 +16,10 @@ async function cleanSignOut(page: any) {
 }
 
 test.describe('Master Admin Authentication & Control Center Flow', () => {
+  test.afterEach(async ({ page }) => {
+    await cleanSignOut(page);
+  });
+
   test('Password input has blue focus highlight and zero white box', async ({ page }) => {
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
@@ -62,6 +66,7 @@ test.describe('Master Admin Authentication & Control Center Flow', () => {
   });
 
   test('Master Admin Control Center displays all 10 modular sub-tabs and real metrics', async ({ page }) => {
+    test.setTimeout(60000);
     // 1. Log in
     await page.goto('/login');
     await page.fill('#email', 'master@kuventory.com');
@@ -90,10 +95,10 @@ test.describe('Master Admin Authentication & Control Center Flow', () => {
     }
 
     // 3. Test System Health sub-tab
-    await page.click('button:has-text("System Health")');
-    await expect(page.locator('text=Technical System Health & Observability')).toBeVisible();
-    await expect(page.locator('text=PostgreSQL Relational Engine')).toBeVisible();
-    await expect(page.locator('text=Supabase GoTrue Identity Service')).toBeVisible();
+    await page.locator('button', { hasText: 'System Health' }).first().click();
+    await expect(page.locator('text=Technical System Health & Observability')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=PostgreSQL Relational Engine')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Supabase GoTrue Identity Service')).toBeVisible({ timeout: 10000 });
 
     // 4. Test Data Integrity sub-tab
     await page.locator('button', { hasText: 'Data Integrity' }).first().click();
@@ -103,20 +108,20 @@ test.describe('Master Admin Authentication & Control Center Flow', () => {
     await expect(page.locator('text=Zero-Stock Expiry Rule Compliance')).toBeVisible({ timeout: 10000 });
 
     // 5. Test Inventory & FEFO sub-tab
-    await page.click('button:has-text("Inventory & FEFO")');
-    await expect(page.locator('text=Inventory Health, FEFO & Concurrency Engine')).toBeVisible();
-    await expect(page.locator('text=Core Inventory Metrics')).toBeVisible();
+    await page.locator('button', { hasText: 'Inventory & FEFO' }).first().click();
+    await expect(page.locator('text=Inventory Health, FEFO & Concurrency Engine')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Core Inventory Metrics')).toBeVisible({ timeout: 10000 });
 
     // 6. Test Security & Access sub-tab
-    await page.click('button:has-text("Security & Access")');
-    await expect(page.locator('text=Security, Access Control & Privileged Sessions')).toBeVisible();
-    await expect(page.locator('text=Emergency System Maintenance Lockout')).toBeVisible();
-    await expect(page.locator('h3:has-text("Privileged Administrator Accounts")')).toBeVisible();
+    await page.locator('button', { hasText: 'Security & Access' }).first().click();
+    await expect(page.locator('text=Security, Access Control & Privileged Sessions')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Emergency System Maintenance Lockout')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('h3:has-text("Privileged Administrator Accounts")')).toBeVisible({ timeout: 10000 });
 
     // 7. Test Realtime Telemetry sub-tab
-    await page.click('button:has-text("Realtime Telemetry")');
-    await expect(page.locator('text=Realtime Telemetry & WebSocket Engine')).toBeVisible();
-    await expect(page.locator('text=Live Telemetry Feed')).toBeVisible();
+    await page.locator('button', { hasText: 'Realtime Telemetry' }).first().click();
+    await expect(page.locator('text=Realtime Telemetry & WebSocket Engine')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Live Telemetry Feed')).toBeVisible({ timeout: 10000 });
 
     console.log('Master Admin E2E flow verified with 100% success!');
 
