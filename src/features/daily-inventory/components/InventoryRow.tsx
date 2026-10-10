@@ -224,13 +224,21 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
         {/* ENDING QTY */}
         <TableCell className="p-2 bg-emerald-500/[0.04]">
           <div 
-            title={optEnding < 0 ? 'Warning: Ending stock is negative! Please check AM/PM sales entries.' : undefined}
+            title={
+              optEnding < 0 
+                ? 'Warning: Ending stock is negative! Please check AM/PM sales entries.' 
+                : optEnding === 0 
+                  ? 'Alert: Stock is zeroed out (Out of Stock)!' 
+                  : undefined
+            }
             className={`w-full text-center p-2 h-10 min-h-[40px] flex items-center justify-center rounded-lg font-bold border text-sm transition-all font-mono ${
             optEnding < 0 
               ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/40 ring-1 ring-rose-500/50' 
-              : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/25'
+              : optEnding === 0
+                ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/35 ring-1 ring-rose-500/25'
+                : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/25'
           }`}>
-            {optEnding < 0 && <span className="mr-1 text-xs">⚠️</span>}
+            {optEnding <= 0 && <span className="mr-1 text-xs" title="Out of Stock Warning">⚠️</span>}
             {optEnding}
           </div>
         </TableCell>

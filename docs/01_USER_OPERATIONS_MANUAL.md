@@ -4,7 +4,7 @@
 **Document Code:** `DOC-01-UOM`  
 **Classification:** Operational Guide · General Staff & Store Administrators  
 **Production URL:** [https://kuventory.netlify.app](https://kuventory.netlify.app)  
-**Version:** 2.4.0 (Production Release)  
+**Version:** 2.5.0 (Production Release)  
 **Companion Word Document:** [`KUVENTORY_USER_GUIDE.docx`](file:///c:/Users/Nuero/OneDrive/Desktop/KUVENTORY-FINAL/KUVENTORY_USER_GUIDE.docx)
 
 ---
@@ -48,11 +48,15 @@ The **Daily Inventory Worksheet** (`/daily-inventory`) is the operational heart 
 [Start of Shift: Record BEG] ──► [Mid-Day: Record ADD & AM OUT] ──► [End of Shift: Record PM OUT] ──► [Supervisor: Finalize Sheet]
 ```
 
-### 2.1 The Daily Stock Formula
+### 2.1 The Daily Stock Formula & Real-Time Depletion Alerts
+
 All calculations in KUVENTORY are computed automatically at the database engine level to guarantee mathematical integrity:
 
 $$\text{TOTAL} = \text{BEGINNING} + \text{ADD}$$
 $$\text{ENDING} = \text{TOTAL} - \text{AM OUT} - \text{PM OUT}$$
+
+- **Instant Zero-Stock Real-Time Notifications**: Entering `0` or depleting an item's calculated ending stock to $\le 0$ instantly inserts an `OUT_OF_STOCK` alert into `public.notifications` and pops up a real-time toast notification with 1-click navigation to low-stock reports.
+- **Ending Stock Alert Indicator**: When an item reaches `0` ending units, the ending balance cell renders a high-contrast rose alert badge with a `⚠️ 0` indicator instead of the standard neutral badge, alerting staff before finalization.
 
 ### 2.2 Step-by-Step Shift Tasks
 1. **Morning Opening (Opening Staff):**
@@ -83,7 +87,8 @@ Navigate to **Inventory** (`/inventory`) to see the comprehensive catalog.
   - `Expiring Soon`: Lots nearing expiration within 7 days.
   - `Out of Stock`: Quantity is 0.
 
-### 3.2 Adding a New Item (Admins Only)
+### 3.2 Adding a New Item & Product Photography (Admins Only)
+
 1. In the Inventory screen, click **+ Add New Item**.
 2. Fill in:
    - **Item Name** (e.g., "Whole Bean Arabica 1kg")
@@ -91,7 +96,12 @@ Navigate to **Inventory** (`/inventory`) to see the comprehensive catalog.
    - **Unit of Measure** (e.g., "kg", "pcs", "cans", "boxes")
    - **Minimum Reorder Quantity** (safety stock alert trigger)
    - **Cost per Unit** (for inventory valuation)
-3. Click **Save Item**. The item is immediately available across all sheets.
+   - **Photo Upload or URL**: Upload an image file or paste an image URL.
+3. **Resilient Photo Link Handling**:
+   - Accepts direct links as well as Google Drive sharing links (`drive.google.com/file/d/...`), Imgur links (`imgur.com/...`), and Dropbox links.
+   - Automatically converts share links to direct CDN links.
+   - Employs `referrerPolicy="no-referrer"` and automated CDN proxy fallback (`images.weserv.nl`) to bypass external host hotlink blockers and CORS restrictions.
+4. Click **Save Item**. The item is immediately available across all sheets.
 
 ### 3.3 Adding Stock / Receiving Deliveries
 1. Locate the item in the Inventory table.

@@ -442,7 +442,17 @@ export function ItemsCatalogPage() {
                                 <img 
                                   src={item.image_path} 
                                   alt={item.item_name} 
+                                  referrerPolicy="no-referrer"
                                   className="w-full h-full object-cover" 
+                                  onError={(e) => {
+                                    const target = e.currentTarget;
+                                    if (!target.dataset.triedProxy && item.image_path?.startsWith('http') && !item.image_path.includes('weserv.nl')) {
+                                      target.dataset.triedProxy = 'true';
+                                      target.src = `https://images.weserv.nl/?url=${encodeURIComponent(item.image_path)}`;
+                                    } else {
+                                      target.style.display = 'none';
+                                    }
+                                  }}
                                 />
                               ) : (
                                 <span className="font-bold text-[10px] text-muted-foreground uppercase">

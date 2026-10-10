@@ -154,6 +154,23 @@ export async function removeStock(params: {
     console.error('removeStock RPC error:', error);
     throw error;
   }
+
+  // Check if item reached zero
+  try {
+    const item = await getItemById(params.itemId);
+    if (item.current_qty <= 0) {
+      const today = new Date().toISOString().split('T')[0];
+      await supabase.from('notifications').upsert({
+        type: 'OUT_OF_STOCK',
+        title: `Out of Stock: ${item.item_name}`,
+        message: `${item.item_name} reached 0 physical stock. Reorder required.`,
+        item_id: params.itemId,
+        dedup_key: `OOS_${params.itemId}_${today}`,
+        is_read: false,
+        created_at: new Date().toISOString(),
+      }, { onConflict: 'dedup_key' });
+    }
+  } catch {}
 }
 
 /**
@@ -181,6 +198,23 @@ export async function adjustStock(params: {
       quantity: Math.abs(diff),
       reason: params.reason || 'Physical Count Adjustment (Down)',
     });
+  }
+
+  if (params.targetQuantity === 0) {
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      await supabase.from('notifications').upsert({
+        type: 'OUT_OF_STOCK',
+        title: `Out of Stock: ${item.item_name}`,
+        message: `${item.item_name} was adjusted to 0 and is now completely out of stock.`,
+        item_id: params.itemId,
+        dedup_key: `OOS_${params.itemId}_${today}`,
+        is_read: false,
+        created_at: new Date().toISOString(),
+      }, { onConflict: 'dedup_key' });
+    } catch (err) {
+      console.warn('Failed to dispatch adjustStock out-of-stock notification:', err);
+    }
   }
 }
 

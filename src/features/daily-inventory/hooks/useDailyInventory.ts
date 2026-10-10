@@ -39,6 +39,8 @@ export function useUpsertDailyItem(date: string) {
           })
         };
       });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
     },
   });
 }

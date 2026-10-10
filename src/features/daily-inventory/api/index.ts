@@ -156,13 +156,48 @@ export async function updateDailyInventoryItem(params: {
       pm: params.pm
     })
     .eq('id', params.id)
-    .select()
+    .select('*, inventory_items(id, name, unit, min_quantity)')
     .single();
 
   if (error) {
     console.error('updateDailyInventoryItem error:', error);
     throw error;
   }
+
+  // Trigger Out of Stock / Low Stock real-time notification
+  try {
+    const ending = (Number(params.beg) + Number(params.add)) - (Number(params.am) + Number(params.pm));
+    const rawItem = data?.inventory_items as any;
+    const itemName = rawItem?.name || 'Item';
+    const itemId = rawItem?.id || data?.item_id;
+    const unit = rawItem?.unit || 'pcs';
+    const today = new Date().toISOString().split('T')[0];
+
+    if (ending <= 0 && itemId) {
+      await supabase.from('notifications').upsert({
+        type: 'OUT_OF_STOCK',
+        title: `Out of Stock: ${itemName}`,
+        message: `${itemName} has reached 0 stock in daily inventory (ending: 0 ${unit}). Reorder recommended.`,
+        item_id: itemId,
+        dedup_key: `OOS_${itemId}_${today}`,
+        is_read: false,
+        created_at: new Date().toISOString()
+      }, { onConflict: 'dedup_key' });
+    } else if (rawItem?.min_quantity && ending <= Number(rawItem.min_quantity) && itemId) {
+      await supabase.from('notifications').upsert({
+        type: 'LOW_STOCK',
+        title: `Low Stock: ${itemName}`,
+        message: `${itemName} is running low at ${ending} ${unit} (minimum threshold: ${rawItem.min_quantity}).`,
+        item_id: itemId,
+        dedup_key: `LOW_${itemId}_${today}`,
+        is_read: false,
+        created_at: new Date().toISOString()
+      }, { onConflict: 'dedup_key' });
+    }
+  } catch (notifErr) {
+    console.warn('Failed to dispatch inventory notification:', notifErr);
+  }
+
   return data;
 }
 

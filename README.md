@@ -6,12 +6,13 @@
 
 ## ☕ Key Architectural Features
 
-- **Artisanal Bistro Visual Language:** Refined Espresso `#1F1816`, Burgundy `#611A1F`, and Brushed Gold `#D4AF37` design system with `Playfair Display` and `Inter` typography.
-- **Worker-First Daily Worksheet:** High-contrast portion and per-case count inputs with auto-calculated expected balances and variance tracking.
+- **Artisanal Bistro Visual Language:** Refined Espresso `#1F1816`, Burgundy `#611A1F`, and Brushed Gold `#D4AF37` design system with authentic mathematical oval logo silhouette and capsule badge containers.
+- **Worker-First Daily Worksheet:** High-contrast portion and per-case count inputs with auto-calculated expected balances, instant zero-stock real-time alerts, and warning badges.
 - **FEFO Batch Allocation & Expiration Engine:** First-Expired, First-Out queueing with zero-quantity batch pruning and live threshold warnings.
-- **Real-Time Notification Pop-Up Engine:** Replaced static bell icons with a high-visibility floating toast system with Supabase Realtime WebSocket listeners and 1-click entity redirection.
+- **Real-Time Notification Pop-Up Engine:** Replaced static bell icons with a high-visibility floating toast system with Supabase Realtime WebSocket listeners, instant out-of-stock triggers, and 1-click entity redirection.
+- **Resilient Product Photography:** Direct upload and smart URL pasting (Google Drive, Imgur, Dropbox) with automated high-speed CDN conversion, `referrerPolicy="no-referrer"`, and proxy fallback.
 - **Enterprise Session Exclusivity & Fast Teardown:** Single active session enforcement with a 30s lease, 10s heartbeat, browser `keepalive` beacon on exit (`pagehide`/`beforeunload`), and automatic logout detection on browser quit.
-- **Tier 0 Master Admin Console:** Dedicated superuser console (`/settings?tab=master`) with live activity telemetry pre-fetched on mount, monthly automated save-state checkpointing, point-in-time rollback restore, and balance drift healing.
+- **Tier 0 Master Admin Console:** Dedicated superuser console (`/settings?tab=master`) with live activity telemetry, fluid scrollable sub-tabs with chevrons, monthly automated save-state checkpointing, point-in-time rollback restore, and balance drift healing.
 - **Immutable Audit Trails:** PostgreSQL-backed atomic inventory transactions, stock movement history, and staff visitor tracking.
 - **Responsive Across All Form Factors:** Verified across 10 distinct viewports: mobile phones (360px–412px), tablets (768px/820px), laptops (1280px/1366px), and desktops (1440px/1920px).
 - **Clean Architecture & Zero Dead Code:** Completely purged of orphaned components, unreferenced modules, and legacy artifacts.
@@ -70,7 +71,7 @@ npm run dev
 
 - **TypeScript Typecheck:** `npm run typecheck`
 - **Unit & Integration Tests:** `npm test -- --run`
-- **Playwright Real-Browser E2E:** `npx playwright test` (Multi-browser suite passed across Chromium, Firefox, WebKit, Mobile Safari, Mobile Chrome, and 10 viewports)
+- **Playwright Real-Browser E2E:** `npx playwright test` (100 / 100 scenarios passed across Chromium, Firefox, WebKit, Mobile Safari, Mobile Chrome, and 10 viewports with zero DOM mocks)
 
 ---
 

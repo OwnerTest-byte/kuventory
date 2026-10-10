@@ -4,7 +4,7 @@
 **Document Code:** `DOC-04-DODR`  
 **Classification:** Operational Runbook · DevOps & System Administration  
 **Production URL:** [https://kuventory.netlify.app](https://kuventory.netlify.app)  
-**Version:** 2.4.0 (Production Release)  
+**Version:** 2.5.0 (Production Release)  
 
 ---
 

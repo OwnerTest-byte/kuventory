@@ -4,7 +4,7 @@
 **Document Code:** `DOC-02-MASG`  
 **Classification:** Confidential · Tier 0 Master Administrator & Security Governance  
 **Production URL:** [https://kuventory.netlify.app](https://kuventory.netlify.app)  
-**Version:** 2.4.0 (Production Release)  
+**Version:** 2.5.0 (Production Release)  
 
 ---
 
@@ -109,6 +109,14 @@ Accessible exclusively by `master@kuventory.com`, the Master Console provides 6 
 - **Monthly Checkpointing:** Automatically detects or creates monthly baseline snapshots (`MONTHLY_AUTOSAVE_YYYY_MM`).
 - **365-Day Immutable Lock:** Checkpoints are tagged with immutable compliance protection against accidental purging.
 - **Point-in-Time Preview & 1-Click Restore:** Allows full preview of checkpoint contents (items, stock counts, categories, batches) and offers a **Restore System to this Checkpoint** button with automated pre-restore safety snapshot generation.
+
+### 4.8 Clean-Slate Catalog Reset (Strict "DELETE" Confirmation)
+- In the **Inventory Health** sub-tab, the Master Administrator can perform a Clean-Slate Catalog Reset to wipe test items, batches, and movements before live production rollout while strictly preserving user accounts, categories, and audit logs.
+- **Strict Authorization Shield:** The modal requires typing strictly `"DELETE"` (case-sensitive) to enable the destructive action button, preventing accidental executions.
+
+### 4.9 Fluid Horizontal Sub-Tab Navigation
+- The Master Admin console sub-navigation tabs (Activity Telemetry, Inventory Health, User Security, Backup & Export, Restore & Reset, Disaster Recovery, Data Integrity, Incidents, Audit Trail) feature smooth horizontal touch-scrolling and responsive navigation chevrons.
+- Guarantees zero clipping across all screen sizes and mobile touch devices.
 
 ---
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -7,7 +7,8 @@ import { pingSupabaseKeepalive, getLastKeepaliveTimestamp } from '@/lib/keepaliv
 import { 
   Users, Shield, Loader2, Plus, Trash2, Store, Bell, Activity, 
   Info, CheckCircle2, AlertCircle, Save, Database, KeyRound, RefreshCw, Layers,
-  Lock, Eye, EyeOff, Server, Cpu, Crown, AlertTriangle, RotateCcw, Radio, HardDrive
+  Lock, Eye, EyeOff, Server, Cpu, Crown, AlertTriangle, RotateCcw, Radio, HardDrive,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -70,6 +71,16 @@ export function AdminPage() {
 
   const handleSubTabChange = (newSubTab: string) => {
     setSearchParams({ tab: 'master', subtab: newSubTab });
+  };
+
+  const subTabsRef = useRef<HTMLDivElement>(null);
+  const scrollSubTabs = (direction: 'left' | 'right') => {
+    if (subTabsRef.current) {
+      subTabsRef.current.scrollBy({
+        left: direction === 'left' ? -240 : 240,
+        behavior: 'smooth'
+      });
+    }
   };
 
   // Real-Time Derived Inventory & Control Metrics for Master Admin
@@ -976,8 +987,8 @@ export function AdminPage() {
 
   // Contingency: Clean-Slate Item Purge (Keep Categories & Users)
   const handlePurgeAllItems = async () => {
-    if (purgeConfirmText !== 'PURGE ALL ITEMS') {
-      setPurgeError('Please type "PURGE ALL ITEMS" exactly to confirm.');
+    if (purgeConfirmText !== 'DELETE') {
+      setPurgeError('Please type "DELETE" exactly to confirm.');
       return;
     }
 
@@ -2094,39 +2105,62 @@ export function AdminPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Master Admin Sub-Navigation Header */}
-                <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-muted/80 border border-border overflow-x-auto scrollbar-none shadow-2xs">
-                  {[
-                    { id: 'overview', label: 'Overview', icon: Crown },
-                    { id: 'system_health', label: 'System Health', icon: Server },
-                    { id: 'inventory_health', label: 'Inventory & FEFO', icon: Layers },
-                    { id: 'security', label: 'Security & Access', icon: Shield },
-                    { id: 'realtime', label: 'Realtime Telemetry', icon: Radio },
-                    { id: 'storage_backups', label: 'Storage & Backups', icon: HardDrive },
-                    { id: 'recovery', label: 'Disaster Recovery', icon: RotateCcw },
-                    { id: 'integrity', label: 'Data Integrity', icon: CheckCircle2 },
-                    { id: 'incidents', label: 'Incidents & Override', icon: AlertTriangle },
-                    { id: 'audit', label: 'Audit Trail', icon: Activity },
-                  ].map((nav) => {
-                    const Icon = nav.icon;
-                    const isActive = masterSubTab === nav.id;
-                    return (
-                      <button
-                        key={nav.id}
-                        type="button"
-                        onClick={() => handleSubTabChange(nav.id)}
-                        className={cn(
-                          "inline-flex items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer shrink-0 select-none",
-                          isActive
-                            ? "bg-primary text-primary-foreground shadow-xs"
-                            : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                        )}
-                      >
-                        <Icon className={cn("w-3.5 h-3.5", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
-                        <span>{nav.label}</span>
-                      </button>
-                    );
-                  })}
+                {/* Master Admin Sub-Navigation Header with Smooth Navigation & Scroll Controls */}
+                <div className="relative w-full min-w-0 max-w-full flex items-center group">
+                  <button
+                    type="button"
+                    aria-label="Scroll tabs left"
+                    onClick={() => scrollSubTabs('left')}
+                    className="hidden sm:flex absolute -left-2 z-10 w-7 h-7 rounded-full bg-card/95 border border-border shadow-md items-center justify-center text-muted-foreground hover:text-foreground hover:scale-110 transition-all cursor-pointer backdrop-blur-xs"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <div 
+                    ref={subTabsRef}
+                    className="w-full min-w-0 max-w-full flex items-center gap-1.5 p-1.5 rounded-2xl bg-muted/80 border border-border overflow-x-auto scroll-smooth touch-pan-x shadow-2xs py-2 scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground/30"
+                  >
+                    {[
+                      { id: 'overview', label: 'Overview', icon: Crown },
+                      { id: 'system_health', label: 'System Health', icon: Server },
+                      { id: 'inventory_health', label: 'Inventory & FEFO', icon: Layers },
+                      { id: 'security', label: 'Security & Access', icon: Shield },
+                      { id: 'realtime', label: 'Realtime Telemetry', icon: Radio },
+                      { id: 'storage_backups', label: 'Storage & Backups', icon: HardDrive },
+                      { id: 'recovery', label: 'Disaster Recovery', icon: RotateCcw },
+                      { id: 'integrity', label: 'Data Integrity', icon: CheckCircle2 },
+                      { id: 'incidents', label: 'Incidents & Override', icon: AlertTriangle },
+                      { id: 'audit', label: 'Audit Trail', icon: Activity },
+                    ].map((nav) => {
+                      const Icon = nav.icon;
+                      const isActive = masterSubTab === nav.id;
+                      return (
+                        <button
+                          key={nav.id}
+                          type="button"
+                          onClick={() => handleSubTabChange(nav.id)}
+                          className={cn(
+                            "inline-flex items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer shrink-0 select-none",
+                            isActive
+                              ? "bg-primary text-primary-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                          )}
+                        >
+                          <Icon className={cn("w-3.5 h-3.5", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
+                          <span>{nav.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    aria-label="Scroll tabs right"
+                    onClick={() => scrollSubTabs('right')}
+                    className="hidden sm:flex absolute -right-2 z-10 w-7 h-7 rounded-full bg-card/95 border border-border shadow-md items-center justify-center text-muted-foreground hover:text-foreground hover:scale-110 transition-all cursor-pointer backdrop-blur-xs"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
 
                 {/* Sub-Tab 1: Overview */}
@@ -2624,7 +2658,7 @@ export function AdminPage() {
               <li>Store settings & branches remain intact.</li>
             </ul>
             <p className="text-[11px] text-destructive pt-1">
-              To confirm, type <strong className="font-mono bg-destructive/20 px-1 py-0.5 rounded">PURGE ALL ITEMS</strong> below:
+              To confirm, type <strong className="font-mono bg-destructive/20 px-1 py-0.5 rounded">DELETE</strong> below:
             </p>
           </div>
 
@@ -2639,7 +2673,7 @@ export function AdminPage() {
             <Input
               value={purgeConfirmText}
               onChange={(e) => setPurgeConfirmText(e.target.value)}
-              placeholder="Type PURGE ALL ITEMS"
+              placeholder="Type DELETE"
               className="font-mono text-sm bg-card border-border text-foreground h-11"
             />
           </div>
@@ -2657,7 +2691,7 @@ export function AdminPage() {
             <Button
               type="button"
               onClick={handlePurgeAllItems}
-              disabled={isPurgingItems || purgeConfirmText !== 'PURGE ALL ITEMS'}
+              disabled={isPurgingItems || purgeConfirmText !== 'DELETE'}
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold"
             >
               {isPurgingItems ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}

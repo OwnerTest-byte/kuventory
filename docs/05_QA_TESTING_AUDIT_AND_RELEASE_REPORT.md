@@ -4,7 +4,7 @@
 **Document Code:** `DOC-05-QTAR`  
 **Classification:** Quality Assurance & Testing Report · Engineering Deliverables  
 **Production URL:** [https://kuventory.netlify.app](https://kuventory.netlify.app)  
-**Version:** 2.4.0 (Production Release)  
+**Version:** 2.5.0 (Production Release)  
 
 ---
 
@@ -30,9 +30,10 @@ KUVENTORY employs a dual-tier testing strategy to ensure deterministic business 
 │    • qa_frontend.spec.ts:                       40 / 40 PASSED (100%)       │
 │    • responsive_multi_device.spec.ts:           20 / 20 PASSED (100%)       │
 │    • notification_popup.spec.ts:                 5 / 5  PASSED (100%)       │
+│    • user_audit_fixes_verification.spec.ts:      5 / 5  PASSED (100%)       │
 │                                                                             │
 │  [ Total Playwright Real-Browser Tests ]                                    │
-│    • 95 / 95 Scenarios Passed (100% Zero-Defect Pass Rate)                  │
+│    • 100 / 100 Scenarios Passed (100% Zero-Defect Pass Rate)                │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -49,7 +50,8 @@ KUVENTORY employs a dual-tier testing strategy to ensure deterministic business 
 | `qa_frontend.spec.ts` | Full login flow, zero-stock expiry filtering, worker-first copy, report generation & re-export. | 5 Profiles | 40 / 40 | ✅ 100% PASS |
 | `responsive_multi_device.spec.ts` | All 10 viewport dimensions (360×800 to 1920×1080), touch target bounding box ≥ 44px, zero overflow. | 10 Viewports | 20 / 20 | ✅ 100% PASS |
 | `notification_popup.spec.ts` | Removal of bell icon, floating real-time popup appearance, and 1-click entity redirection. | 5 Profiles | 5 / 5 | ✅ 100% PASS |
-| **Total Playwright Suites** | **Comprehensive Real-Browser Verification** | **All 5 Profiles** | **95 / 95** | **100% Pass** |
+| `user_audit_fixes_verification.spec.ts` | Zero-stock alert trigger, oval logo silhouette, sub-tab scrolling, DELETE confirmation, image link proxying. | Chromium | 5 / 5 | ✅ 100% PASS |
+| **Total Playwright Suites** | **Comprehensive Real-Browser Verification** | **All Profiles** | **100 / 100** | **100% Pass** |
 
 ---
 

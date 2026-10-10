@@ -5,6 +5,21 @@ All notable changes to KUVENTORY will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-10-10
+
+### Added
+
+- **Instant Zero-Stock Real-Time Notifications**: Entering 0 or depleting stock in the Daily Inventory Worksheet (`/daily-inventory`) or through inventory adjustments automatically inserts deduplicated `OUT_OF_STOCK` and `LOW_STOCK` alerts into `public.notifications` and triggers real-time toast popups with 1-click redirection.
+- **Out-of-Stock Warning Badge**: Daily inventory ending stock cell renders a high-contrast rose alert badge and `⚠️ 0` indicator when ending balance is depleted (replacing misleading green status).
+- **Mathematical Oval Logo Silhouette**: Re-encoded `logo-transparent.png` with a precise anti-aliased elliptical alpha mask (`cx=237, cy=174, rx=205.5, ry=70`) eliminating off-white card artifacts, and upgraded login & header emblem containers into matching golden-bordered capsule silhouettes (`rounded-full border-[#C5A059]/40`).
+- **Master Admin Sub-Tabs Fluid Scroll & Chevrons**: Added smooth horizontal touch-scrolling and responsive navigation chevrons to the Master Admin sub-tabs container (`subTabsRef`), preventing clipped tabs like "Disaster Recovery" on narrow or medium viewports.
+- **Resilient Image Link Normalization & Hotlink Proxy**: Added automatic conversion of Google Drive sharing links (`drive.google.com/file/d/...`), Imgur links (`imgur.com/...`), and Dropbox links (`dl=0` $\rightarrow$ `raw=1`), with `referrerPolicy="no-referrer"` and automated CDN proxy fallback (`images.weserv.nl`) across item cards, detail pages, and upload inputs.
+- **Playwright Audit Verification Suite**: Added comprehensive end-to-end test suite (`e2e/user_audit_fixes_verification.spec.ts`) testing 0-stock notifications, oval logo silhouettes, sub-tab scrollability, strict `"DELETE"` purge confirmation, and image URL normalization.
+
+### Changed
+
+- **Clean-Slate Purge Confirmation String**: Simplified dangerous catalog wipe confirmation keyword strictly to `"DELETE"` (replacing `"PURGE ALL ITEMS"`).
+
 ## [2.4.0] - 2026-10-04
 
 ### Added

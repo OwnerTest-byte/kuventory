@@ -225,11 +225,11 @@ function SidebarNavigation({
       ) : (
         <div className="h-18 shrink-0 flex items-center justify-between border-b border-[#2E2320] px-4 transition-all bg-[#1F1816]">
           <Link to="/inventory" className="flex items-center gap-3 min-w-0 group" onClick={closeMobileMenu}>
-            <div className="w-9 h-9 rounded-xl bg-[#2A201C] border border-[#3E302A] p-1 flex items-center justify-center shrink-0 shadow-xs transition-colors group-hover:border-[#C5A059]/50">
+            <div className="h-9 w-14 rounded-full bg-[#2A201C] border border-[#C5A059]/40 p-1 flex items-center justify-center shrink-0 shadow-xs transition-colors group-hover:border-[#C5A059]/70">
               <img 
                 src="/pics/logo-transparent.png" 
                 alt="KUVENTORY" 
-                className="h-7 w-auto object-contain" 
+                className="h-6 w-auto object-contain" 
                 onError={(e) => { e.currentTarget.src = '/pics/logo-original.png'; }} 
               />
             </div>

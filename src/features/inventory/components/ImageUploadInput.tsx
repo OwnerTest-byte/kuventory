@@ -11,6 +11,38 @@ interface ImageUploadInputProps {
   hideHeaderLabel?: boolean;
 }
 
+// Normalizes and transforms common sharing links (Google Drive, Imgur, Dropbox, scheme-less) into direct image URLs
+export function normalizeImageUrl(input: string): string {
+  let url = input.trim();
+  if (!url) return '';
+  if (url.startsWith('data:image/')) return url;
+
+  // Auto-prefix protocol if missing
+  if (!/^https?:\/\//i.test(url)) {
+    url = 'https://' + url;
+  }
+
+  // 1. Google Drive view/open links -> direct lh3 link
+  const gdriveMatch = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/i);
+  if (gdriveMatch) {
+    return `https://lh3.googleusercontent.com/d/${gdriveMatch[1]}`;
+  }
+
+  // 2. Imgur page links -> direct i.imgur.com link
+  const imgurMatch = url.match(/^https?:\/\/(?:www\.)?imgur\.com\/(?:gallery\/)?([a-zA-Z0-9]+)$/i);
+  if (imgurMatch) {
+    return `https://i.imgur.com/${imgurMatch[1]}.jpg`;
+  }
+
+  // 3. Dropbox links -> direct raw link
+  if (url.includes('dropbox.com')) {
+    const cleanDrop = url.replace(/[?&]dl=[01]/, '').replace(/[?&]raw=1/, '');
+    return cleanDrop + (cleanDrop.includes('?') ? '&' : '?') + 'raw=1';
+  }
+
+  return url;
+}
+
 export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
   value,
   onChange,
@@ -123,15 +155,52 @@ export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
     e.preventDefault();
     if (!urlInput.trim()) return;
 
-    const trimmed = urlInput.trim();
-    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('data:image/')) {
+    const normalized = normalizeImageUrl(urlInput);
+    if (!normalized.startsWith('http://') && !normalized.startsWith('https://') && !normalized.startsWith('data:image/')) {
       setErrorMessage('Please enter a valid web image URL starting with http:// or https://');
       return;
     }
 
     setErrorMessage(null);
-    onChange(trimmed);
-    setUrlInput('');
+    setIsProcessing(true);
+
+    // Pre-test image with no-referrer
+    const testImg = new window.Image();
+    testImg.referrerPolicy = 'no-referrer';
+    
+    testImg.onload = () => {
+      setIsProcessing(false);
+      onChange(normalized);
+      setUrlInput('');
+    };
+
+    testImg.onerror = () => {
+      // Attempt proxy fallback for hotlink-protected links
+      if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+        const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(normalized)}`;
+        const proxyImg = new window.Image();
+        proxyImg.referrerPolicy = 'no-referrer';
+        proxyImg.onload = () => {
+          setIsProcessing(false);
+          onChange(proxyUrl);
+          setUrlInput('');
+        };
+        proxyImg.onerror = () => {
+          setIsProcessing(false);
+          // Apply normalized link anyway so user has choice, with informational alert
+          onChange(normalized);
+          setUrlInput('');
+          setErrorMessage('Notice: This external host restricts previews. The link was saved.');
+        };
+        proxyImg.src = proxyUrl;
+      } else {
+        setIsProcessing(false);
+        onChange(normalized);
+        setUrlInput('');
+      }
+    };
+
+    testImg.src = normalized;
   };
 
   const handleClearImage = () => {
@@ -182,10 +251,17 @@ export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
             <img
               src={value}
               alt="Item preview"
+              referrerPolicy="no-referrer"
               className="w-full h-full object-contain"
               onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-                setErrorMessage('Image URL could not be loaded.');
+                const target = e.currentTarget;
+                if (!target.dataset.triedProxy && (value.startsWith('http://') || value.startsWith('https://')) && !value.includes('weserv.nl')) {
+                  target.dataset.triedProxy = 'true';
+                  target.src = `https://images.weserv.nl/?url=${encodeURIComponent(value)}`;
+                } else {
+                  target.style.display = 'none';
+                  setErrorMessage('Image URL could not be loaded directly (host restricts hotlinking).');
+                }
               }}
             />
           </div>

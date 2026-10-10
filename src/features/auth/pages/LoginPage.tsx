@@ -38,13 +38,13 @@ export function LoginPage() {
         <div className="relative z-10 flex flex-col items-center gap-4 text-center my-auto w-full max-w-sm">
           {/* Brand Emblem */}
           <div className="relative group">
-            <div className="w-28 h-28 rounded-2xl overflow-hidden border border-[#3E302A] shadow-xl bg-[#2A201C] flex items-center justify-center p-3 transition-transform duration-300 group-hover:scale-105">
+            <div className="w-44 h-22 rounded-full overflow-hidden border border-[#C5A059]/40 shadow-xl bg-[#2A201C] flex items-center justify-center px-4 py-2 transition-transform duration-300 group-hover:scale-105">
               <img 
                 src="/pics/logo-transparent.png" 
                 alt="KUVENTORY Logo" 
-                width={112}
-                height={112}
-                className="w-full h-full object-contain" 
+                width={160}
+                height={68}
+                className="w-full h-full object-contain filter drop-shadow-sm" 
                 onError={(e) => { 
                   e.currentTarget.src = '/pics/logo-original.png'; 
                 }} 
@@ -92,13 +92,13 @@ export function LoginPage() {
         <div className="w-full flex-1 flex flex-col items-center justify-center my-auto py-2 max-w-md">
           {/* Mobile Header: Compact & Direct */}
           <div className="lg:hidden mb-6 flex flex-col items-center gap-2 w-full text-center">
-            <div className="w-14 h-14 rounded-2xl bg-card border border-border p-2 flex items-center justify-center shadow-xs">
+            <div className="w-32 h-14 rounded-full bg-card border border-[#C5A059]/40 p-2 flex items-center justify-center shadow-xs">
               <img 
                 src="/pics/logo-transparent.png" 
                 alt="KUVENTORY Logo" 
-                width={56}
-                height={56}
-                className="w-full h-full object-contain" 
+                width={110}
+                height={44}
+                className="w-full h-full object-contain filter drop-shadow-xs" 
                 onError={(e) => { e.currentTarget.src = '/pics/logo-original.png'; }} 
               />
             </div>
