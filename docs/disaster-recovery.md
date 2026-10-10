@@ -90,9 +90,27 @@ Before applying any restored data over live tables:
 
 - **FREQUENT**: Retained for 14 days (automated prune).
 - **DAILY**: Retained for 180 days.
-- **MONTHLY**: Retained for 12 months.
+- **MONTHLY**: Retained for 12 months (365 days) with immutable compliance lock.
 - **NEVER PRUNED**:
   - The latest verified recovery point.
   - Recovery points marked `is_protected = true`.
   - Checkpoints associated with an unresolved incident report.
   - The current pre-restore safety snapshot.
+
+---
+
+## 7. Monthly Auto-Save Engine & 1-Click Point-in-Time Restore
+
+Implemented in `/settings?tab=master` (`MasterRecoveryTab.tsx`):
+
+1. **Automated Monthly Checkpoint Detection:**
+   - Detects if a checkpoint exists for the current calendar month (`MONTHLY_AUTOSAVE_YYYY_MM`).
+   - If missing, displays an urgent prompt and provides a 1-click **Save Monthly State Now** action.
+2. **365-Day Immutable Lock (`is_protected = true`):**
+   - Automatically tags monthly checkpoints with immutable protection, preventing deletion by standard prune routines.
+3. **Point-In-Time Restore Dialog:**
+   - In the save-state inspection dialog, the Master Admin can review the exact state payload (items, categories, batches, counts).
+   - Clicking **Restore System to this Checkpoint**:
+     1. Automatically captures a `PRE_RESTORE_SAFETY_SNAPSHOT` of current live data.
+     2. Restores items and batches to the checkpointed state.
+     3. Invalidates all React Query caches to synchronize the frontend immediately.

@@ -190,7 +190,7 @@ export function NotificationPopup() {
           )}
         >
           {/* Subtle Top Accent Glow */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-[#C5A059] to-primary/80" />
+          <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-primary via-[#C5A059] to-primary/80" />
 
           <div className="flex items-start gap-3">
             <div className="p-2 rounded-lg bg-muted/80 border border-border mt-0.5">

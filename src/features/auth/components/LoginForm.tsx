@@ -168,7 +168,7 @@ export function LoginForm() {
       
       <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-5" aria-label="Sign In Form">
         {(authError || sessionLeaseError) && (
-          <div className="p-3.5 text-sm font-semibold text-rose-200 text-destructive bg-rose-950/80 border border-rose-500/40 rounded-xl flex items-center gap-2.5 animate-in fade-in" role="alert">
+          <div className="p-3.5 text-sm font-semibold text-rose-200 bg-rose-950/80 border border-rose-500/40 rounded-xl flex items-center gap-2.5 animate-in fade-in" role="alert">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
             <div className="text-left">
               <span className="font-bold block tracking-wide">{sessionLeaseError || authError}</span>
@@ -196,7 +196,7 @@ export function LoginForm() {
               name="email"
               required
               aria-invalid={!!errors.email}
-              className="h-12 min-h-[48px] text-base rounded-xl transition-all duration-200 focus-visible:border-blue-600 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-0 focus-visible:outline-none"
+              className="h-12 min-h-12 text-base rounded-xl transition-all duration-200 focus-visible:border-blue-600 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-0 focus-visible:outline-none"
             />
             {errors.email && (
               <p className="text-sm text-destructive" id="email-error">
@@ -208,7 +208,7 @@ export function LoginForm() {
           <div className="space-y-2 text-left">
             <Label htmlFor="password" className="text-sm font-semibold inline-block py-1">Password</Label>
             <div className={cn(
-              "flex items-center h-12 min-h-[48px] w-full rounded-xl border border-input bg-card transition-all duration-200",
+              "flex items-center h-12 min-h-12 w-full rounded-xl border border-input bg-card transition-all duration-200",
               "focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-0 focus-within:outline-none",
               errors.password ? "border-destructive ring-1 ring-destructive" : ""
             )}>
@@ -228,7 +228,7 @@ export function LoginForm() {
               <button
                 type="button"
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="h-12 w-12 min-h-[48px] min-w-[48px] flex items-center justify-center text-muted-foreground hover:text-foreground focus:outline-none focus-visible:outline-none rounded-r-xl cursor-pointer shrink-0"
+                className="h-12 w-12 min-h-12 min-w-12 flex items-center justify-center text-muted-foreground hover:text-foreground focus:outline-none focus-visible:outline-none rounded-r-xl cursor-pointer shrink-0"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -243,14 +243,14 @@ export function LoginForm() {
         </div>
 
         <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 gap-8">
-          <div className="flex items-center space-x-2.5 min-h-[48px] py-1">
+          <div className="flex items-center space-x-2.5 min-h-12 py-1">
             <input 
               type="checkbox" 
               id="remember" 
               name="remember" 
-              className="rounded border-input text-primary focus:ring-primary h-5 w-5 min-h-[20px] min-w-[20px] cursor-pointer" 
+              className="rounded border-input text-primary focus:ring-primary h-5 w-5 min-h-5 min-w-5 cursor-pointer" 
             />
-            <label htmlFor="remember" className="font-medium cursor-pointer select-none py-3 text-sm min-h-[48px] flex items-center">
+            <label htmlFor="remember" className="font-medium cursor-pointer select-none py-3 text-sm min-h-12 flex items-center">
               Remember me
             </label>
           </div>
@@ -262,7 +262,7 @@ export function LoginForm() {
               setForgotError(null);
               setIsForgotModalOpen(true);
             }}
-            className="text-primary hover:underline font-semibold min-h-[48px] px-3 py-3 flex items-center text-sm cursor-pointer"
+            className="text-primary hover:underline font-semibold min-h-12 px-3 py-3 flex items-center text-sm cursor-pointer"
           >
             Forgot password?
           </button>
@@ -270,7 +270,7 @@ export function LoginForm() {
 
         <Button
           type="submit"
-          className="w-full h-12 min-h-[48px] text-base font-bold cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+          className="w-full h-12 min-h-12 text-base font-bold cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
           disabled={isLoading}
         >
           {isLoading ? "Signing in..." : "Sign In"}

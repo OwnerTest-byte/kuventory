@@ -2389,7 +2389,7 @@ export function AdminPage() {
               variant="outline" 
               onClick={() => setIsAddUserOpen(false)} 
               disabled={createUserMutation.isPending} 
-              className="border-border min-h-[44px] h-11 px-4 cursor-pointer"
+              className="border-border min-h-11 h-11 px-4 cursor-pointer"
             >
               Cancel
             </Button>
@@ -2397,7 +2397,7 @@ export function AdminPage() {
               type="button"
               onClick={() => createUserMutation.mutate(newUser)} 
               disabled={!newUser.email || !newUser.password || createUserMutation.isPending}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold min-h-[44px] h-11 px-5 cursor-pointer shadow-xs disabled:opacity-60"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold min-h-11 h-11 px-5 cursor-pointer shadow-xs disabled:opacity-60"
             >
               {createUserMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : 'Create Account'}
             </Button>

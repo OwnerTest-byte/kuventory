@@ -29,11 +29,13 @@ KUVENTORY is a specialized, real-time inventory management system designed for f
 1. Navigate to [https://kuventory.netlify.app](https://kuventory.netlify.app) on any smartphone, tablet, or desktop browser.
 2. Enter your assigned Work Email and Password.
 3. Click **Sign In**. The system will authenticate your session via Supabase JWT and direct you to the operational Dashboard.
-4. **Forgot Password:** Click "Forgot password?" to instantly dispatch an urgent reset notification to the Master Administrator hotline (**09917101298** / `master@kuventory.com`).
+4. **Single-Session Security:** KUVENTORY enforces enterprise session exclusivity. If an account is logged in elsewhere, a clear alert is displayed. Closing your browser tab or window automatically releases your session lease via an asynchronous browser `keepalive` beacon. Quitting the browser automatically terminates active session state for defense-in-depth protection.
+5. **Forgot Password:** Click "Forgot password?" to instantly dispatch an urgent reset notification to the Master Administrator hotline (**09917101298** / `master@kuventory.com`).
 
 ### 1.2 User Interface Layout
 - **Left Navigation Rail (Desktop):** Gives immediate access to Dashboard, Daily Inventory, Items Catalog, FEFO Batches, History, Reports, and Notifications.
-- **Top Header:** Displays the current active business date, connection status, theme toggle (Light / Dark mode), and current profile.
+- **Top Header:** Displays the current active business date, connection status, theme toggle (Light / Dark mode), and current profile. Static bell icons have been removed in favor of direct pop-ups.
+- **Real-Time Notification Pop-Up:** Live notifications appear as interactive floating pop-up cards at the top-right. Clicking a card instantly navigates directly to the referenced entity (e.g., low-stock item or batch).
 - **Mobile Navigation Drawer & Bottom Bar:** On mobile screens (< 768px), an ergonomic bottom bar and slide-out drawer provide quick one-thumb navigation.
 
 ---

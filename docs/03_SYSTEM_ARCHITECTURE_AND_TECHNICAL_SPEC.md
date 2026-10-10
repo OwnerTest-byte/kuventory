@@ -131,3 +131,30 @@ KUVENTORY is tested across 5 viewport classes:
 - **Tablets (768×1024, 820×1180):** 2-column adaptive dashboard grids, collapsible navigation rail.
 - **Laptops (1280×800, 1366×768, 1440×900):** Multi-column data tables, side-by-side metric charts.
 - **Desktops (1920×1080):** Comprehensive full-width inventory console with quick-action panels.
+
+---
+
+## 7. Real-Time Notification & Session Lifecycle Architecture
+
+### 7.1 Real-Time Floating Pop-Up Notification Engine
+- **Notification Bell Deprecation:** Static bell icons have been removed from the header navigation.
+- **Floating Toast System:** `NotificationPopup.tsx` mounts globally and connects directly to the Supabase Realtime channel for the `public.notifications` table.
+- **1-Click Entity Redirection:** When an alert is clicked, it marks the notification as read via `useMarkNotificationAsRead` and executes `getNotificationRoute(notif)`:
+  - `LOW_STOCK` / `OUT_OF_STOCK` $\rightarrow$ `/reports/low-stock`
+  - `EXPIRING_SOON` / `EXPIRED` $\rightarrow$ `/items?tab=batches`
+  - Direct items $\rightarrow$ `/items/:id`
+  - `PASSWORD_RESET` $\rightarrow$ `/settings?tab=users`
+  - `DAILY_SHEET` $\rightarrow$ `/daily-inventory`
+
+### 7.2 Session Lease Exclusivity & Fast Teardown Beacon
+- **30-Second Lease Window:** The active session lease expires after 30 seconds if unrenewed, supported by a 10-second background heartbeat.
+- **Asynchronous `keepalive` Beacon:** Wired to `pagehide` and `beforeunload`, `releaseSessionLeaseBeacon()` uses `fetch(..., { keepalive: true })` to release the session lease instantly when the user navigates away or closes the tab.
+- **Browser Quit Auto-Logout:** Uses a `sessionStorage` session token to identify when the user closed and reopened their browser, immediately clearing stale sessions to preserve enterprise security.
+
+### 7.3 Master Admin Live Telemetry & Save-State Engine
+- **Instant Feed Pre-Fetch:** `prefetchTelemetry()` seeds the live activity stream on component mount with the latest 25 audit logs and 25 stock movements.
+- **Monthly Auto-Save Engine:** Automatically generates monthly system checkpoints (`MONTHLY_AUTOSAVE_YYYY_MM`) with a 365-day immutable compliance lock.
+- **1-Click Restore:** Point-in-time restore with automated pre-restore safety snapshot generation.
+
+### 7.4 Zero Dead Code Guarantee
+- All orphaned, unreferenced, or superseded files (`NotificationBell.tsx`, `LoginFeatureSlider.tsx`, `use-mobile.ts`) have been permanently removed. Full production builds compile cleanly with zero TypeScript errors.

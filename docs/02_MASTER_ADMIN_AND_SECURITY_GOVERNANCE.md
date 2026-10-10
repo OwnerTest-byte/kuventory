@@ -78,9 +78,10 @@ In accordance with KUVENTORY security directives:
 
 Accessible exclusively by `master@kuventory.com`, the Master Console provides 6 specialized operational tools:
 
-### 4.1 Real-Time Telemetry & Latency Monitor
+### 4.1 Real-Time Telemetry & Live Activity Stream
 - Actively probes PostgREST API and Realtime WebSocket round-trip response times (ms).
-- Live health indicators for Database Connection, Auth Engine, Realtime Sync, and Storage Subsystems.
+- **Instant Feed Population on Mount:** Automatically pre-fetches the latest 25 system audit logs and 25 stock movements on mount so telemetry is visible immediately with 0ms latency.
+- Live health indicators for Database Connection, Auth Engine, Realtime Sync, and Storage Subsystems with real-time WebSocket change streaming.
 
 ### 4.2 1-Click Live Database Backup Snapshot (Preventive)
 - Creates an instant, point-in-time JSON snapshot of the entire KUVENTORY production database.
@@ -103,6 +104,11 @@ Accessible exclusively by `master@kuventory.com`, the Master Console provides 6 
 ### 4.6 Master Audit Trail
 - Full chronological ledger recording every high-risk Master Admin action: user role changes, maintenance activations, restore executions, and emergency locks.
 - Stored immutably with timestamp, actor email, IP/client metadata, and action parameters.
+
+### 4.7 Automated Monthly Save-State Engine & Checkpoint Restore
+- **Monthly Checkpointing:** Automatically detects or creates monthly baseline snapshots (`MONTHLY_AUTOSAVE_YYYY_MM`).
+- **365-Day Immutable Lock:** Checkpoints are tagged with immutable compliance protection against accidental purging.
+- **Point-in-Time Preview & 1-Click Restore:** Allows full preview of checkpoint contents (items, stock counts, categories, batches) and offers a **Restore System to this Checkpoint** button with automated pre-restore safety snapshot generation.
 
 ---
 

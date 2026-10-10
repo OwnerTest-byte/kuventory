@@ -29,9 +29,10 @@ KUVENTORY employs a dual-tier testing strategy to ensure deterministic business 
 │    • master_admin_flow.spec.ts:                 15 / 15 PASSED (100%)       │
 │    • qa_frontend.spec.ts:                       40 / 40 PASSED (100%)       │
 │    • responsive_multi_device.spec.ts:           20 / 20 PASSED (100%)       │
+│    • notification_popup.spec.ts:                 5 / 5  PASSED (100%)       │
 │                                                                             │
 │  [ Total Playwright Real-Browser Tests ]                                    │
-│    • 90 / 90 Scenarios Passed (100% Zero-Defect Pass Rate)                  │
+│    • 95 / 95 Scenarios Passed (100% Zero-Defect Pass Rate)                  │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -47,7 +48,8 @@ KUVENTORY employs a dual-tier testing strategy to ensure deterministic business 
 | `master_admin_flow.spec.ts` | Tier 0 Master Admin telemetry, JSON backup snapshot download, drift heal, 403 barriers. | 5 Profiles | 15 / 15 | ✅ 100% PASS |
 | `qa_frontend.spec.ts` | Full login flow, zero-stock expiry filtering, worker-first copy, report generation & re-export. | 5 Profiles | 40 / 40 | ✅ 100% PASS |
 | `responsive_multi_device.spec.ts` | All 10 viewport dimensions (360×800 to 1920×1080), touch target bounding box ≥ 44px, zero overflow. | 10 Viewports | 20 / 20 | ✅ 100% PASS |
-| **Total Playwright Suites** | **Comprehensive Real-Browser Verification** | **All 5 Profiles** | **90 / 90** | **100% Pass** |
+| `notification_popup.spec.ts` | Removal of bell icon, floating real-time popup appearance, and 1-click entity redirection. | 5 Profiles | 5 / 5 | ✅ 100% PASS |
+| **Total Playwright Suites** | **Comprehensive Real-Browser Verification** | **All 5 Profiles** | **95 / 95** | **100% Pass** |
 
 ---
 
