@@ -22,32 +22,45 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [focusedField, setFocusedField] = useState<'beg' | 'add' | 'am' | 'pm' | null>(null);
+  const dirtyFieldsRef = useRef<Set<'beg' | 'add' | 'am' | 'pm'>>(new Set());
   const mutation = useUpsertDailyItem(date);
 
-  const lastSyncedRef = useRef({ id: item.id, date, add: item.add_qty });
-
-  // Sync state when date, item, or external add changes
+  // Sync state when remote data changes (e.g. from another worker editing concurrently)
   useEffect(() => {
-    if (lastSyncedRef.current.id !== item.id || lastSyncedRef.current.date !== date) {
-      lastSyncedRef.current = { id: item.id, date, add: item.add_qty };
+    if (focusedField !== 'beg' && !dirtyFieldsRef.current.has('beg')) {
       setBeg(item.beginning_qty.toString());
-      setAdd(item.add_qty.toString());
-      setAm(item.sales_am.toString());
-      setPm(item.sales_pm.toString());
-    } else if (lastSyncedRef.current.add !== item.add_qty) {
-      lastSyncedRef.current.add = item.add_qty;
+    }
+    if (focusedField !== 'add' && !dirtyFieldsRef.current.has('add')) {
       setAdd(item.add_qty.toString());
     }
-  }, [item.id, date, item.beginning_qty, item.add_qty, item.sales_am, item.sales_pm]);
+    if (focusedField !== 'am' && !dirtyFieldsRef.current.has('am')) {
+      setAm(item.sales_am.toString());
+    }
+    if (focusedField !== 'pm' && !dirtyFieldsRef.current.has('pm')) {
+      setPm(item.sales_pm.toString());
+    }
+  }, [item.id, date, item.beginning_qty, item.add_qty, item.sales_am, item.sales_pm, focusedField]);
 
-  const saveRow = async (newBeg: string, newAdd: string, newAm: string, newPm: string) => {
+  const saveRow = async (
+    newBeg: string, 
+    newAdd: string, 
+    newAm: string, 
+    newPm: string, 
+    fieldTriggered?: 'beg' | 'add' | 'am' | 'pm'
+  ) => {
     if (isReadOnly) return;
     const numBeg = Math.max(0, parseFloat(newBeg) || 0);
     const numAdd = Math.max(0, parseFloat(newAdd) || 0);
     const numAm = Math.max(0, parseFloat(newAm) || 0);
     const numPm = Math.max(0, parseFloat(newPm) || 0);
 
+    const changed = fieldTriggered 
+      ? [fieldTriggered] 
+      : Array.from(dirtyFieldsRef.current);
+
     if (
+      changed.length === 0 &&
       numBeg === item.beginning_qty &&
       numAdd === item.add_qty &&
       numAm === item.sales_am &&
@@ -64,7 +77,13 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
         add: numAdd,
         am: numAm,
         pm: numPm,
+        changedFields: changed.length > 0 ? changed : undefined,
       });
+      if (fieldTriggered) {
+        dirtyFieldsRef.current.delete(fieldTriggered);
+      } else {
+        dirtyFieldsRef.current.clear();
+      }
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2500);
     } catch (err) {
@@ -85,6 +104,8 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
       sanitized = '0';
     }
 
+    dirtyFieldsRef.current.add(field);
+
     let nextBeg = beg;
     let nextAdd = add;
     let nextAm = am;
@@ -97,16 +118,17 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
 
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
-      saveRow(nextBeg, nextAdd, nextAm, nextPm);
+      saveRow(nextBeg, nextAdd, nextAm, nextPm, field);
     }, 350);
   };
 
-  const handleBlur = () => {
+  const handleBlur = (field: 'beg' | 'add' | 'am' | 'pm') => {
+    setFocusedField(null);
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    saveRow(beg, add, am, pm);
+    saveRow(beg, add, am, pm, field);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, field: 'beg' | 'add' | 'am' | 'pm') => {
     // Strictly block negative number keys
     if (e.key === '-' || e.key === 'Minus') {
       e.preventDefault();
@@ -114,7 +136,7 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
     }
     if (e.key === 'Enter') {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
-      saveRow(beg, add, am, pm);
+      saveRow(beg, add, am, pm, field);
       // Move focus or blur
       (e.target as HTMLInputElement).blur();
     }
@@ -168,9 +190,10 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
             min="0"
             step="any"
             value={beg} 
+            onFocus={() => setFocusedField('beg')}
             onChange={e => handleInputChange('beg', e.target.value)}
-            onBlur={handleBlur}
-            onKeyDown={handleKeyDown}
+            onBlur={() => handleBlur('beg')}
+            onKeyDown={e => handleKeyDown(e, 'beg')}
             disabled={isReadOnly}
             className={inputClass}
             aria-label={`${item.items?.item_name} Beginning Quantity`}
@@ -185,10 +208,11 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
               min="0"
               step="any"
               value={add} 
+              onFocus={() => setFocusedField('add')}
               onClick={() => { if (!isReadOnly) setIsModalOpen(true); }}
               onChange={e => handleInputChange('add', e.target.value)}
-              onBlur={handleBlur}
-              onKeyDown={handleKeyDown}
+              onBlur={() => handleBlur('add')}
+              onKeyDown={e => handleKeyDown(e, 'add')}
               disabled={isReadOnly}
               title={isReadOnly ? undefined : "Click + or enter stock batch (Expiration Date required)"}
               className={`${inputClass} pr-9 font-bold text-primary`}
@@ -222,9 +246,10 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
             min="0"
             step="any"
             value={am} 
+            onFocus={() => setFocusedField('am')}
             onChange={e => handleInputChange('am', e.target.value)}
-            onBlur={handleBlur}
-            onKeyDown={handleKeyDown}
+            onBlur={() => handleBlur('am')}
+            onKeyDown={e => handleKeyDown(e, 'am')}
             disabled={isReadOnly}
             className={inputClass}
             aria-label={`${item.items?.item_name} Sales AM`}
@@ -238,9 +263,10 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
             min="0"
             step="any"
             value={pm} 
+            onFocus={() => setFocusedField('pm')}
             onChange={e => handleInputChange('pm', e.target.value)}
-            onBlur={handleBlur}
-            onKeyDown={handleKeyDown}
+            onBlur={() => handleBlur('pm')}
+            onKeyDown={e => handleKeyDown(e, 'pm')}
             disabled={isReadOnly}
             className={inputClass}
             aria-label={`${item.items?.item_name} Sales PM`}

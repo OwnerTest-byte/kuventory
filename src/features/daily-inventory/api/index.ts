@@ -142,16 +142,47 @@ export async function fetchOrCreateDailyInventory(date: string): Promise<DailyIn
  */
 export async function updateDailyInventoryItem(params: {
   id: string;
-  beg: number;
-  add: number;
-  am: number;
-  pm: number;
+  beg?: number;
+  add?: number;
+  am?: number;
+  pm?: number;
+  changedFields?: ('beg' | 'add' | 'am' | 'pm')[];
 }): Promise<any> {
-  // Strict non-negative inventory rule: inputs cannot be negative, clamp to 0
-  const safeBeg = Math.max(0, Number(params.beg) || 0);
-  const safeAdd = Math.max(0, Number(params.add) || 0);
-  const safeAm = Math.max(0, Number(params.am) || 0);
-  const safePm = Math.max(0, Number(params.pm) || 0);
+  // 1. Fetch current database record and session state
+  const { data: currentItem, error: fetchErr } = await supabase
+    .from('daily_inventory_items')
+    .select('*, daily_inventory(state)')
+    .eq('id', params.id)
+    .single();
+
+  if (fetchErr) {
+    console.error('Fetch daily inventory item error:', fetchErr);
+    throw fetchErr;
+  }
+
+  // 2. Finalized snapshot immutability guard
+  const sessionState = (currentItem?.daily_inventory as any)?.state;
+  if (sessionState === 'FINALIZED') {
+    throw new Error('This inventory session has been finalized. Finalized reports are immutable and cannot be modified.');
+  }
+
+  // 3. Multi-worker concurrency control:
+  // Only update fields modified by this worker, preserving concurrent remote edits on untouched columns
+  const safeBeg = params.changedFields && !params.changedFields.includes('beg')
+    ? Number(currentItem.beg || 0)
+    : Math.max(0, Number(params.beg ?? currentItem.beg) || 0);
+
+  const safeAdd = params.changedFields && !params.changedFields.includes('add')
+    ? Number(currentItem.add || 0)
+    : Math.max(0, Number(params.add ?? currentItem.add) || 0);
+
+  const safeAm = params.changedFields && !params.changedFields.includes('am')
+    ? Number(currentItem.am || 0)
+    : Math.max(0, Number(params.am ?? currentItem.am) || 0);
+
+  const safePm = params.changedFields && !params.changedFields.includes('pm')
+    ? Number(currentItem.pm || 0)
+    : Math.max(0, Number(params.pm ?? currentItem.pm) || 0);
 
   const { data, error } = await supabase
     .from('daily_inventory_items')

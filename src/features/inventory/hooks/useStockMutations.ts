@@ -11,12 +11,17 @@ export function useStockMutations() {
     queryClient.invalidateQueries({ queryKey: ['batches'] });
     queryClient.invalidateQueries({ queryKey: ['inventory', 'batches'] });
     queryClient.invalidateQueries({ queryKey: ['global-stock-batches'] });
+    queryClient.invalidateQueries({ queryKey: ['global-stock-batches-analytics'] });
+    queryClient.invalidateQueries({ queryKey: ['quickview-batches'] });
     queryClient.invalidateQueries({ queryKey: ['global-stock-history'] });
+    queryClient.invalidateQueries({ queryKey: ['operational-top3-stats'] });
     queryClient.invalidateQueries({ queryKey: ['expiring-batches'] });
     queryClient.invalidateQueries({ queryKey: ['active-expiring-batches'] });
     queryClient.invalidateQueries({ queryKey: ['active-expired-batches'] });
+    queryClient.invalidateQueries({ queryKey: ['today-inventory-session'] });
     queryClient.invalidateQueries({ queryKey: ['dailyInventory'] });
     queryClient.invalidateQueries({ queryKey: ['daily-inventory'] });
+    queryClient.invalidateQueries({ queryKey: ['reports'] });
     queryClient.invalidateQueries({ queryKey: ['notifications'] });
     queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
   };

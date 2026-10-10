@@ -73,6 +73,32 @@ export function useRealtimeSync() {
           queryClient.invalidateQueries({ queryKey: ['global-stock-batches'] });
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['profile'] });
+          queryClient.invalidateQueries({ queryKey: ['profiles'] });
+          queryClient.invalidateQueries({ queryKey: ['user-roles'] });
+          queryClient.invalidateQueries({ queryKey: ['user-list'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'active_user_sessions' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['active-sessions'] });
+          queryClient.invalidateQueries({ queryKey: ['active-user-sessions'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'audit_logs' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['audit-logs'] });
+          queryClient.invalidateQueries({ queryKey: ['system-audit-logs'] });
+        }
+      )
       .subscribe();
 
     return () => {

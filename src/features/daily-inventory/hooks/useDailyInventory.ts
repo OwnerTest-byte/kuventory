@@ -62,8 +62,16 @@ export function useFinalizeDailyInventory(date: string) {
   return useMutation({
     mutationFn: (sessionId: string) => finalizeDailyInventory(sessionId, profile?.id),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.all });
       queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      queryClient.invalidateQueries({ queryKey: ['global-stock-batches'] });
+      queryClient.invalidateQueries({ queryKey: ['global-stock-history'] });
+      queryClient.invalidateQueries({ queryKey: ['active-expiring-batches'] });
+      queryClient.invalidateQueries({ queryKey: ['active-expired-batches'] });
+      queryClient.invalidateQueries({ queryKey: ['today-inventory-session'] });
     },
   });
 }

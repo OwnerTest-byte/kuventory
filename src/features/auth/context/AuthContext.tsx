@@ -147,6 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Send immediate heartbeat on mount
     heartbeatSessionLease();
 
+    // Periodic fallback heartbeat every 10s
     const heartbeatInterval = setInterval(async () => {
       const res = await heartbeatSessionLease();
       if (res.status === 'REVOKED') {
@@ -158,9 +159,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         queryClient.clear();
         alert('Your session has been terminated by an administrator: ' + (res.reason || 'Administrative revocation'));
       }
-    }, 10000); // Fast heartbeat every 10s (grace period is 30s)
+    }, 10000);
 
-    return () => clearInterval(heartbeatInterval);
+    // Instantaneous 0ms realtime session revocation and account deactivation listener
+    const channelName = `session-revocation-${user.id}-${Date.now()}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'active_user_sessions', filter: `user_id=eq.${user.id}` },
+        async (payload: any) => {
+          if (payload.new && payload.new.status === 'REVOKED') {
+            console.warn('Session revoked via realtime event.');
+            sessionStorage.removeItem(BROWSER_SESSION_KEY);
+            await supabase.auth.signOut();
+            setSession(null);
+            setUser(null);
+            queryClient.clear();
+            alert('Your session has been terminated by an administrator: ' + (payload.new.reason || 'Administrative revocation'));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+        async (payload: any) => {
+          if (payload.new) {
+            if (payload.new.is_active === false) {
+              console.warn('Account deactivated via realtime event.');
+              sessionStorage.removeItem(BROWSER_SESSION_KEY);
+              await supabase.auth.signOut();
+              setSession(null);
+              setUser(null);
+              queryClient.clear();
+              alert('Your account has been deactivated by an administrator.');
+            } else {
+              queryClient.invalidateQueries({ queryKey: ['profile'] });
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(heartbeatInterval);
+      supabase.removeChannel(channel);
+    };
   }, [user?.id, session?.access_token, queryClient]);
 
   // Fetch profile when user is authenticated
