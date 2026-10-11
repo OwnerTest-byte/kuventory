@@ -12,22 +12,16 @@ import { ItemFormModal } from '@/features/inventory/components/ItemFormModal';
 import { createItem } from '@/features/inventory/api';
 import { useStockMutations } from '@/features/inventory/hooks/useStockMutations';
 import type { InventoryItem } from '@/features/inventory/types';
+import { getStationMeta, allocateStationIcon } from '../utils/stationIcons';
 import { 
-  Flame, 
-  UtensilsCrossed, 
-  PackageOpen, 
-  ClipboardList, 
   MoveHorizontal, 
   Plus, 
-  Coffee, 
-  Wine, 
-  Cookie, 
-  Sparkles, 
-  Layers, 
-  Tag, 
   Loader2, 
   AlertCircle,
-  Trash2
+  Trash2,
+  ArrowRightLeft,
+  ClipboardList,
+  Search
 } from 'lucide-react';
 
 type DailyEntry = DailyInventorySessionWithEntries['daily_inventory_entries'][number];
@@ -49,86 +43,6 @@ interface StationGroup {
   badgeClass: string;
 }
 
-function getStationMeta(name: string, index: number) {
-  const upper = name.toUpperCase();
-  if (upper.includes('GRILL')) {
-    return {
-      icon: Flame,
-      colorClass: 'text-amber-600 dark:text-amber-400',
-      pillClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
-      badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
-    };
-  }
-  if (upper.includes('CASE')) {
-    return {
-      icon: PackageOpen,
-      colorClass: 'text-emerald-600 dark:text-emerald-400',
-      pillClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
-      badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-    };
-  }
-  if (upper.includes('PORTION')) {
-    return {
-      icon: UtensilsCrossed,
-      colorClass: 'text-blue-600 dark:text-blue-400',
-      pillClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 hover:bg-blue-500/20',
-      badgeClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
-    };
-  }
-  if (upper.includes('BOTTLE')) {
-    return {
-      icon: Wine,
-      colorClass: 'text-cyan-600 dark:text-cyan-400',
-      pillClass: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20 hover:bg-cyan-500/20',
-      badgeClass: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20'
-    };
-  }
-  if (upper.includes('BEVERAGE') || upper.includes('DRINK')) {
-    return {
-      icon: Coffee,
-      colorClass: 'text-purple-600 dark:text-purple-400',
-      pillClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 hover:bg-purple-500/20',
-      badgeClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20'
-    };
-  }
-  if (upper.includes('SNACK')) {
-    return {
-      icon: Cookie,
-      colorClass: 'text-orange-600 dark:text-orange-400',
-      pillClass: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20 hover:bg-orange-500/20',
-      badgeClass: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20'
-    };
-  }
-  // Curated fallbacks
-  const fallbacks = [
-    {
-      icon: Layers,
-      colorClass: 'text-indigo-600 dark:text-indigo-400',
-      pillClass: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20',
-      badgeClass: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20'
-    },
-    {
-      icon: Sparkles,
-      colorClass: 'text-rose-600 dark:text-rose-400',
-      pillClass: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 hover:bg-rose-500/20',
-      badgeClass: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
-    },
-    {
-      icon: Tag,
-      colorClass: 'text-teal-600 dark:text-teal-400',
-      pillClass: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20 hover:bg-teal-500/20',
-      badgeClass: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20'
-    },
-    {
-      icon: ClipboardList,
-      colorClass: 'text-muted-foreground',
-      pillClass: 'bg-muted text-muted-foreground border-border hover:bg-muted/80',
-      badgeClass: 'bg-muted text-muted-foreground border-border'
-    }
-  ];
-  return fallbacks[index % fallbacks.length];
-}
-
 export function InventorySheet({ session, isReadOnly, date }: InventorySheetProps) {
   const queryClient = useQueryClient();
   const { add } = useStockMutations();
@@ -138,13 +52,29 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
   const [newStationName, setNewStationName] = useState('');
   const [stationError, setStationError] = useState<string | null>(null);
 
-  // Add Item Dialog State
+  // Add Item Dialog State (for creating new item)
   const [itemModalStation, setItemModalStation] = useState<{ id: string; name: string } | null>(null);
   const [isSubmittingItem, setIsSubmittingItem] = useState(false);
 
   // Delete Station Dialog State
   const [stationToDelete, setStationToDelete] = useState<StationGroup | null>(null);
   const [isDeletingStation, setIsDeletingStation] = useState(false);
+
+  // Reassign Item Destination Table Dialog State
+  const [reassignItem, setReassignItem] = useState<DailyEntry | null>(null);
+  const [targetStationId, setTargetStationId] = useState<string>('');
+  const [isReassigning, setIsReassigning] = useState(false);
+  const [reassignError, setReassignError] = useState<string | null>(null);
+
+  // Remove Item from Sheet State
+  const [itemToRemove, setItemToRemove] = useState<DailyEntry | null>(null);
+  const [isRemovingFromSheet, setIsRemovingFromSheet] = useState(false);
+
+  // Add Item to Other Supplies Dialog State
+  const [isAddOtherSupplyOpen, setIsAddOtherSupplyOpen] = useState(false);
+  const [otherSupplySearch, setOtherSupplySearch] = useState('');
+  const [isAddingExisting, setIsAddingExisting] = useState(false);
+  const [addExistingError, setAddExistingError] = useState<string | null>(null);
 
   // Query master categories from DB
   const { data: dbCategories = [] } = useQuery({
@@ -156,13 +86,46 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
     }
   });
 
-  // Station Creation Mutation
+  // Query all catalog items for adding existing items to Other Supplies
+  const { data: allCatalogItems = [] } = useQuery({
+    queryKey: ['all-catalog-items-for-daily'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('inventory_items')
+        .select('id, name, unit, category_id, is_active')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isAddOtherSupplyOpen
+  });
+
+  // Items currently on today's worksheet
+  const existingSheetItemIds = useMemo(() => {
+    return new Set(session.daily_inventory_entries?.map(e => e.item_id) || []);
+  }, [session.daily_inventory_entries]);
+
+  // Catalog items eligible to be added to Other Supplies
+  const availableCatalogItems = useMemo(() => {
+    return allCatalogItems.filter((item: any) => {
+      if (existingSheetItemIds.has(item.id)) return false;
+      if (!otherSupplySearch.trim()) return true;
+      return item.name.toLowerCase().includes(otherSupplySearch.trim().toLowerCase());
+    });
+  }, [allCatalogItems, existingSheetItemIds, otherSupplySearch]);
+
+  // Station Creation Mutation with automatic distinct icon allocation
   const addStationMutation = useMutation({
     mutationFn: async (name: string) => {
       setStationError(null);
       const trimmed = name.trim().toUpperCase();
       if (!trimmed) throw new Error('Station name cannot be empty');
-      const { error } = await supabase.from('categories').insert({ name: trimmed });
+      const allocatedIconKey = allocateStationIcon(dbCategories);
+      const { error } = await supabase.from('categories').insert({ 
+        name: trimmed,
+        description: `ICON:${allocatedIconKey}|Station table created on ${new Date().toISOString()}`
+      });
       if (error) throw error;
     },
     onSuccess: async () => {
@@ -263,17 +226,156 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
     }
   };
 
+  // Reassign Item Destination Table Handler
+  const handleConfirmReassign = async () => {
+    if (!reassignItem || !targetStationId) return;
+    setIsReassigning(true);
+    setReassignError(null);
+    try {
+      const targetCat = dbCategories.find(c => c.id === targetStationId);
+      const targetName = targetCat?.name || 'Selected Station';
+      const { error } = await supabase
+        .from('inventory_items')
+        .update({ category_id: targetStationId })
+        .eq('id', reassignItem.item_id);
+      if (error) throw error;
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) }),
+        queryClient.invalidateQueries({ queryKey: ['daily-inventory'] }),
+        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
+        queryClient.invalidateQueries({ queryKey: ['categories'] })
+      ]);
+
+      window.dispatchEvent(new CustomEvent('kuventory:show-toast', {
+        detail: {
+          id: `reassigned-${Date.now()}`,
+          type: 'SYSTEM',
+          title: 'Item Destination Reassigned',
+          message: `"${reassignItem.items?.item_name || 'Item'}" was reassigned to ${targetName}.`,
+          is_read: false,
+          created_at: new Date().toISOString()
+        }
+      }));
+
+      setReassignItem(null);
+      setTargetStationId('');
+    } catch (err: any) {
+      console.error('Failed to reassign destination table:', err);
+      setReassignError(err.message || 'Failed to reassign destination table.');
+    } finally {
+      setIsReassigning(false);
+    }
+  };
+
+  // Remove Item from Sheet Handler
+  const handleConfirmRemoveFromSheet = async () => {
+    if (!itemToRemove) return;
+    setIsRemovingFromSheet(true);
+    try {
+      const { error } = await supabase
+        .from('daily_inventory_items')
+        .delete()
+        .eq('id', itemToRemove.id);
+      if (error) throw error;
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) }),
+        queryClient.invalidateQueries({ queryKey: ['daily-inventory'] })
+      ]);
+
+      window.dispatchEvent(new CustomEvent('kuventory:show-toast', {
+        detail: {
+          id: `removed-from-sheet-${Date.now()}`,
+          type: 'SYSTEM',
+          title: 'Item Removed from Worksheet',
+          message: `"${itemToRemove.items?.item_name || 'Item'}" was removed from today's worksheet. (Catalog item preserved).`,
+          is_read: false,
+          created_at: new Date().toISOString()
+        }
+      }));
+      setItemToRemove(null);
+    } catch (err: any) {
+      console.error('Failed to remove item from sheet:', err);
+      alert(err.message || 'Failed to remove item from worksheet.');
+    } finally {
+      setIsRemovingFromSheet(false);
+    }
+  };
+
+  // Add Existing Item to Other Supplies Handler
+  const handleAddExistingItem = async (catalogItem: any) => {
+    setIsAddingExisting(true);
+    setAddExistingError(null);
+    try {
+      // 1. Get current physical stock for this item
+      const { data: batchData } = await supabase
+        .from('stock_batches')
+        .select('quantity')
+        .eq('item_id', catalogItem.id);
+      const currentStock = (batchData || []).reduce((sum, b) => sum + (Number(b.quantity) || 0), 0);
+
+      // 2. Insert into daily_inventory_items
+      const { error: insertError } = await supabase
+        .from('daily_inventory_items')
+        .insert({
+          daily_inventory_id: session.id,
+          item_id: catalogItem.id,
+          beg: currentStock,
+          add: 0,
+          am: 0,
+          pm: 0,
+          ending: currentStock
+        });
+      if (insertError) throw insertError;
+
+      // 3. Ensure category_id is set to null so it belongs to Other Supplies
+      if (catalogItem.category_id) {
+        await supabase
+          .from('inventory_items')
+          .update({ category_id: null })
+          .eq('id', catalogItem.id);
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) }),
+        queryClient.invalidateQueries({ queryKey: ['daily-inventory'] }),
+        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
+        queryClient.invalidateQueries({ queryKey: ['categories'] })
+      ]);
+
+      window.dispatchEvent(new CustomEvent('kuventory:show-toast', {
+        detail: {
+          id: `added-to-sheet-${Date.now()}`,
+          type: 'SYSTEM',
+          title: 'Item Added to Other Supplies',
+          message: `"${catalogItem.name}" was added to Other Supplies with ${currentStock} ${catalogItem.unit} beginning stock.`,
+          is_read: false,
+          created_at: new Date().toISOString()
+        }
+      }));
+
+      setIsAddOtherSupplyOpen(false);
+      setOtherSupplySearch('');
+    } catch (err: any) {
+      console.error('Failed to add existing item:', err);
+      setAddExistingError(err.message || 'Failed to add item to worksheet');
+    } finally {
+      setIsAddingExisting(false);
+    }
+  };
+
   // Dynamically group items into stations based on categories and worksheet entries
   const { stations, totalItems } = useMemo(() => {
     const rawEntries = session.daily_inventory_entries || [];
     const usedCategoryIds = new Set<string>();
     const stationGroups: StationGroup[] = [];
 
-    // 1. First, create station groups for all database categories
-    dbCategories.forEach((cat, index) => {
+    // 1. First, create station groups for all database categories with persistent distinct icons
+    dbCategories.forEach((cat) => {
       usedCategoryIds.add(cat.id);
       const catUpper = cat.name.toUpperCase();
-      const meta = getStationMeta(cat.name, index);
+      const meta = getStationMeta(cat);
 
       // Find all entries matching this category (by id or name)
       const matched = rawEntries.filter(entry => {
@@ -300,18 +402,14 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
       return !dbCategories.some(c => c.name.toUpperCase() === entrySec);
     });
 
-    if (unassignedItems.length > 0) {
-      stationGroups.push({
-        id: 'unassigned-other',
-        name: 'OTHER SUPPLIES',
-        sectionId: 'section-unassigned',
-        items: unassignedItems,
-        icon: ClipboardList,
-        colorClass: 'text-muted-foreground',
-        pillClass: 'bg-muted text-muted-foreground border-border hover:bg-muted/80',
-        badgeClass: 'bg-muted text-muted-foreground border-border'
-      });
-    }
+    // 3. Always include OTHER SUPPLIES station group so users can access and manage other supplies
+    stationGroups.push({
+      id: 'unassigned-other',
+      name: 'OTHER SUPPLIES',
+      sectionId: 'section-unassigned',
+      items: unassignedItems,
+      ...getStationMeta('OTHER SUPPLIES')
+    });
 
     return {
       stations: stationGroups,
@@ -340,6 +438,7 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
     }), { beg: 0, add: 0, total: 0, am: 0, pm: 0, end: 0 });
 
     const Icon = station.icon;
+    const isOtherSupplies = station.id === 'unassigned-other';
 
     return (
       <div key={station.id} id={station.sectionId} className="mb-8 scroll-mt-20">
@@ -354,7 +453,7 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
             <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${station.badgeClass}`}>
               {tableItems.length} items
             </span>
-            {!isReadOnly && station.id !== 'unassigned-other' && (
+            {!isReadOnly && !isOtherSupplies && (
               <>
                 <Button
                   type="button"
@@ -379,6 +478,18 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
                 </Button>
               </>
             )}
+            {!isReadOnly && isOtherSupplies && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsAddOtherSupplyOpen(true)}
+                className="h-6 px-2 text-[11px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted/80 cursor-pointer rounded-md"
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                Add Item
+              </Button>
+            )}
           </div>
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <MoveHorizontal className="w-3.5 h-3.5 md:hidden text-muted-foreground animate-pulse shrink-0" />
@@ -388,12 +499,12 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
 
         {tableItems.length > 0 ? (
           <div className="bg-card rounded-xl shadow-xs border border-border overflow-hidden">
-            <div className="table-slider-container max-h-[580px] relative overscroll-contain overflow-x-auto">
-              <Table className="w-full text-left border-collapse min-w-[760px]">
+            <div className="table-slider-container max-h-145 relative overscroll-contain overflow-x-auto">
+              <Table className="w-full text-left border-collapse min-w-190">
                 <TableHeader className="sticky top-0 z-20 bg-muted/95 backdrop-blur-xs shadow-2xs">
                   {/* Visual Grouping Super-Header */}
                   <TableRow className="border-b border-border/80 text-[10px] uppercase font-bold tracking-wider">
-                    <TableHead colSpan={2} className="sticky left-0 z-30 bg-muted border-r border-border min-w-[200px] sm:min-w-[220px] py-1.5 px-3 text-muted-foreground">
+                    <TableHead colSpan={2} className="sticky left-0 z-30 bg-muted border-r border-border min-w-50 sm:min-w-55 py-1.5 px-3 text-muted-foreground">
                       Item Identification
                     </TableHead>
                     <TableHead className="text-center py-1.5 px-2 bg-muted/70 text-muted-foreground border-r border-border/60">
@@ -412,7 +523,7 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
                   {/* Column Detail Sub-Header */}
                   <TableRow className="border-b border-border text-xs">
                     <TableHead className="w-10 sm:w-12 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider sticky left-0 z-30 bg-muted border-r border-border">#</TableHead>
-                    <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider sticky left-10 sm:left-12 z-30 bg-muted border-r border-border min-w-[150px] sm:min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">ITEM</TableHead>
+                    <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider sticky left-10 sm:left-12 z-30 bg-muted border-r border-border min-w-37.5 sm:min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">ITEM</TableHead>
                     <TableHead className="text-center w-20 sm:w-24 text-xs font-bold text-muted-foreground uppercase tracking-wider bg-muted/40 border-r border-border/60">BEG</TableHead>
                     <TableHead className="text-center w-20 sm:w-24 text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-500/5">ADD</TableHead>
                     <TableHead className="text-center w-24 sm:w-28 text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider bg-blue-500/15 border-r border-border/60">TOTAL</TableHead>
@@ -429,6 +540,11 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
                       index={index} 
                       isReadOnly={isReadOnly}
                       date={date}
+                      onReassign={!isReadOnly ? (it) => { 
+                        setReassignItem(it); 
+                        setTargetStationId(dbCategories[0]?.id || ''); 
+                      } : undefined}
+                      onRemoveFromSheet={!isReadOnly ? (it) => setItemToRemove(it) : undefined}
                     />
                   ))}
                 </TableBody>
@@ -436,7 +552,7 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
                 <TableBody className="sticky bottom-0 z-20 bg-muted border-t-2 border-border shadow-[0_-2px_4px_-1px_rgba(0,0,0,0.05)]">
                   <TableRow className="hover:bg-muted font-bold">
                     <TableCell className="sticky left-0 z-30 bg-muted text-center font-bold text-xs text-muted-foreground border-r border-border">Σ</TableCell>
-                    <TableCell className="sticky left-10 sm:left-12 z-30 bg-muted border-r border-border text-left text-foreground uppercase tracking-wider text-xs font-black shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] truncate max-w-[180px]">
+                    <TableCell className="sticky left-10 sm:left-12 z-30 bg-muted border-r border-border text-left text-foreground uppercase tracking-wider text-xs font-black shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] truncate max-w-45">
                       TOTAL {station.name}
                     </TableCell>
                     <TableCell className="text-center text-foreground font-mono font-bold text-xs bg-muted/40 border-r border-border/60">{totals.beg}</TableCell>
@@ -458,18 +574,25 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
             <div>
               <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">{station.name}</h3>
               <p className="text-xs text-muted-foreground mt-0.5 max-w-md mx-auto">
-                No active items currently assigned to this station. Add items to track beginning stock, daily deliveries, and shift sales.
+                No items currently assigned to this table.
               </p>
             </div>
-            {!isReadOnly && station.id !== 'unassigned-other' && (
-              <Button 
+            {!isReadOnly && (
+              <Button
                 type="button"
-                size="sm" 
-                onClick={() => setItemModalStation({ id: station.id, name: station.name })}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs h-8 cursor-pointer"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (isOtherSupplies) {
+                    setIsAddOtherSupplyOpen(true);
+                  } else {
+                    setItemModalStation({ id: station.id, name: station.name });
+                  }
+                }}
+                className="text-xs font-bold"
               >
-                <Plus className="w-3.5 h-3.5 mr-1.5" />
-                Add First Item to {station.name}
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Add Item to {station.name}
               </Button>
             )}
           </div>
@@ -480,12 +603,9 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
 
   return (
     <div className="space-y-6">
-      {/* Station Quick-Jump Pills & Add Station Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-border/60">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 no-scrollbar flex-1">
-          <span className="text-xs font-bold text-muted-foreground shrink-0 uppercase tracking-wider mr-1">
-            Stations:
-          </span>
+      {/* Quick Navigation Pills Header */}
+      <div className="flex items-center justify-between gap-3 pb-2 border-b border-border/80 overflow-x-auto">
+        <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none">
           {stations.map(station => {
             const Icon = station.icon;
             return (
@@ -493,10 +613,11 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
                 key={station.id}
                 type="button"
                 onClick={() => scrollToSection(station.sectionId)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all shrink-0 cursor-pointer shadow-2xs ${station.pillClass}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all shrink-0 cursor-pointer shadow-2xs ${station.pillClass}`}
               >
                 <Icon className="w-3.5 h-3.5" />
-                {station.name} ({station.items.length})
+                <span>{station.name}</span>
+                <span className="text-[10px] opacity-75 font-mono">({station.items.length})</span>
               </button>
             );
           })}
@@ -533,7 +654,7 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
               Add New Station / Table
             </DialogTitle>
             <DialogDescription className="text-muted-foreground text-xs">
-              Create a new category station. A dedicated table will be added immediately to this Daily Inventory Worksheet and in all reports.
+              Create a new category station. A dedicated table with a distinct icon will be automatically assigned and saved.
             </DialogDescription>
           </DialogHeader>
 
@@ -631,10 +752,199 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
         </DialogContent>
       </Dialog>
 
-      {/* Add Item to Specific Station Modal */}
+      {/* Reassign Destination Table Dialog */}
+      <Dialog open={!!reassignItem} onOpenChange={(open) => !open && setReassignItem(null)}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <ArrowRightLeft className="w-5 h-5 text-primary" />
+              Reassign Destination Table
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-xs">
+              Move <strong className="text-foreground">{reassignItem?.items?.item_name}</strong> to an active Daily Inventory table.
+              Its stock quantities, batches, and records will be preserved.
+            </DialogDescription>
+          </DialogHeader>
+
+          {reassignError && (
+            <div className="p-3 rounded-lg bg-destructive/15 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{reassignError}</span>
+            </div>
+          )}
+
+          <div className="space-y-3 py-2">
+            <label className="text-xs font-bold text-foreground">
+              Select Destination Station / Table *
+            </label>
+            <select
+              value={targetStationId}
+              onChange={(e) => setTargetStationId(e.target.value)}
+              className="w-full h-10 px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="" disabled>Choose target station...</option>
+              {dbCategories.map(cat => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setReassignItem(null)}
+              disabled={isReassigning}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!targetStationId || isReassigning}
+              onClick={handleConfirmReassign}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer"
+            >
+              {isReassigning ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Moving...</> : 'Move to Destination Table'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove from Sheet Confirmation Dialog */}
+      <Dialog open={!!itemToRemove} onOpenChange={(open) => !open && setItemToRemove(null)}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-rose-500" />
+              Remove Item from Worksheet
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-sm pt-2">
+              Remove <strong className="text-foreground">{itemToRemove?.items?.item_name}</strong> from today's daily inventory worksheet?
+              <span className="block mt-2 text-xs text-muted-foreground">
+                Note: This only removes the item from today's worksheet. The master item, its stock batches, and history remain safely in your inventory catalog.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:justify-end pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setItemToRemove(null)}
+              disabled={isRemovingFromSheet}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmRemoveFromSheet}
+              disabled={isRemovingFromSheet}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-semibold cursor-pointer"
+            >
+              {isRemovingFromSheet ? 'Removing...' : 'Remove from Worksheet'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Item to Other Supplies Dialog */}
+      <Dialog open={isAddOtherSupplyOpen} onOpenChange={setIsAddOtherSupplyOpen}>
+        <DialogContent className="sm:max-w-lg bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2 text-lg">
+              <ClipboardList className="w-5 h-5 text-primary" />
+              Add Item to Other Supplies
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-xs">
+              Add an existing catalog item to Other Supplies, or register a brand-new item.
+            </DialogDescription>
+          </DialogHeader>
+
+          {addExistingError && (
+            <div className="p-3 rounded-lg bg-destructive/15 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{addExistingError}</span>
+            </div>
+          )}
+
+          <div className="space-y-4 py-2">
+            <div className="flex items-center gap-2 border-b border-border pb-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search catalog items..."
+                  value={otherSupplySearch}
+                  onChange={(e) => setOtherSupplySearch(e.target.value)}
+                  className="pl-9 bg-background h-9 text-xs border-border"
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setIsAddOtherSupplyOpen(false);
+                  setItemModalStation({ id: '', name: 'OTHER SUPPLIES' });
+                }}
+                className="h-9 text-xs font-bold border-dashed shrink-0 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Create New Item
+              </Button>
+            </div>
+
+            <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+              {availableCatalogItems.length === 0 ? (
+                <div className="p-6 text-center text-xs text-muted-foreground">
+                  {otherSupplySearch ? 'No matching items found.' : 'All catalog items are already added to this worksheet.'}
+                </div>
+              ) : (
+                availableCatalogItems.map((catItem: any) => (
+                  <div 
+                    key={catItem.id} 
+                    className="p-2.5 rounded-lg border border-border bg-muted/30 hover:bg-muted/60 flex items-center justify-between gap-3 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-foreground truncate">{catItem.name}</div>
+                      <div className="text-[11px] text-muted-foreground">{catItem.unit}</div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isAddingExisting}
+                      onClick={() => handleAddExistingItem(catItem)}
+                      className="h-7 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
+                    >
+                      Add
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsAddOtherSupplyOpen(false);
+                setOtherSupplySearch('');
+              }}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Item to Specific Station Modal (Creates new item) */}
       {itemModalStation && (
         <ItemFormModal
-          defaultCategoryId={itemModalStation.id}
+          defaultCategoryId={itemModalStation.id || undefined}
           onClose={() => setItemModalStation(null)}
           onSubmit={handleCreateItemForStation}
           isSubmitting={isSubmittingItem}

@@ -609,7 +609,11 @@ export function ItemsCatalogPage() {
         isOpen={!!quickViewItem}
         onClose={() => setQuickViewItem(null)}
         onUpdateStock={(stockItem) => setStockUpdateItem(stockItem)}
-        onEdit={(editItem) => { setEditingItem(editItem); setIsModalOpen(true); }}
+        onEdit={(editItem) => {
+          setQuickViewItem(null);
+          setEditingItem(editItem);
+          setIsModalOpen(true);
+        }}
       />
     </div>
   );

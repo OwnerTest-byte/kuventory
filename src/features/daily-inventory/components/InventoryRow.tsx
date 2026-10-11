@@ -3,7 +3,7 @@ import type { DailyInventorySessionWithEntries } from '../api';
 import { useUpsertDailyItem } from '../hooks/useDailyInventory';
 import { AddStockModal } from './AddStockModal';
 import { TableRow, TableCell } from '@/components/ui/table';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, ArrowRightLeft, Trash2 } from 'lucide-react';
 
 type DailyEntry = DailyInventorySessionWithEntries['daily_inventory_entries'][0];
 
@@ -12,9 +12,18 @@ interface InventoryRowProps {
   index: number;
   isReadOnly: boolean;
   date: string;
+  onReassign?: (item: DailyEntry) => void;
+  onRemoveFromSheet?: (item: DailyEntry) => void;
 }
 
-export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly, date }: InventoryRowProps) {
+export const InventoryRow = memo(function InventoryRow({ 
+  item, 
+  index, 
+  isReadOnly, 
+  date,
+  onReassign,
+  onRemoveFromSheet
+}: InventoryRowProps) {
   const [beg, setBeg] = useState(item.beginning_qty.toString());
   const [add, setAdd] = useState(item.add_qty.toString());
   const [am, setAm] = useState(item.sales_am.toString());
@@ -254,6 +263,28 @@ export const InventoryRow = memo(function InventoryRow({ item, index, isReadOnly
               >
                 <span>⚠️</span> INVALID
               </span>
+            )}
+            {onReassign && (
+              <button
+                type="button"
+                onClick={() => onReassign(item)}
+                className="text-[10px] text-primary hover:underline font-semibold flex items-center gap-1 bg-primary/10 hover:bg-primary/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                title="Reassign item to another daily inventory station"
+              >
+                <ArrowRightLeft className="w-2.5 h-2.5" />
+                Reassign Table
+              </button>
+            )}
+            {onRemoveFromSheet && (
+              <button
+                type="button"
+                onClick={() => onRemoveFromSheet(item)}
+                className="text-[10px] text-rose-500 hover:underline font-semibold flex items-center gap-1 bg-rose-500/10 hover:bg-rose-500/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                title="Remove from this worksheet without deleting item from catalog"
+              >
+                <Trash2 className="w-2.5 h-2.5" />
+                Remove
+              </button>
             )}
           </div>
         </TableCell>

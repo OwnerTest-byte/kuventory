@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Edit2, Trash2, Loader2, Tags, AlertCircle } from 'lucide-react';
 import type { Database } from '@/types/supabase';
+import { allocateStationIcon } from '@/features/daily-inventory/utils/stationIcons';
 
 type Category = Database['public']['Tables']['categories']['Row'];
 
@@ -28,7 +29,11 @@ export function CategoriesPage({ embedded }: { embedded?: boolean } = {}) {
 
   const addMutation = useMutation({
     mutationFn: async (name: string) => {
-      const { error } = await supabase.from('categories').insert({ name: name.trim().toUpperCase() });
+      const allocatedIconKey = allocateStationIcon(categories || []);
+      const { error } = await supabase.from('categories').insert({ 
+        name: name.trim().toUpperCase(),
+        description: `ICON:${allocatedIconKey}|Category created on ${new Date().toISOString()}`
+      });
       if (error) throw error;
     },
     onSuccess: () => {

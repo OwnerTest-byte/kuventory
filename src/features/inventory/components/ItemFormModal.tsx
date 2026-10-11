@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useQuery } from '@tanstack/react-query';
@@ -40,6 +41,45 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
   const [error, setError] = useState<string | null>(null);
   const [batchAddedSuccess, setBatchAddedSuccess] = useState<string | null>(null);
 
+  // Track if user has modified any field
+  const isDirty = useMemo(() => {
+    return (
+      formData.item_code !== (item?.item_code || '') ||
+      formData.item_name !== (item?.item_name || '') ||
+      formData.category_id !== (item?.category_id || defaultCategoryId || '') ||
+      formData.description !== (item?.description || '') ||
+      formData.unit !== (item?.unit || 'pcs') ||
+      formData.unit_cost !== (item?.unit_cost?.toString() || '0') ||
+      formData.min_qty !== (item?.min_qty?.toString() || '0') ||
+      formData.supplier_a !== (item?.supplier_a || '') ||
+      formData.supplier_b !== (item?.supplier_b || '') ||
+      formData.image_path !== (item?.image_path || '') ||
+      (!item && (formData.initial_qty !== '0' || formData.initial_expiry_date !== ''))
+    );
+  }, [formData, item, defaultCategoryId]);
+
+  const handleSafeClose = () => {
+    if (isSubmitting) return;
+    if (isDirty) {
+      const confirmDiscard = window.confirm("You have unsaved changes. Are you sure you want to discard them?");
+      if (!confirmDiscard) return;
+    }
+    onClose();
+  };
+
+  // Keyboard navigation & Escape key handling
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        handleSafeClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isDirty, isSubmitting]);
+
   const { data: categories } = useQuery<Category[]>({
     queryKey: ['categories'],
     queryFn: async () => {
@@ -75,6 +115,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setError(null);
 
     const categoryIdToUse = formData.category_id || effectiveCategoryId;
@@ -140,17 +181,41 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4">
-      <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[88vh] border border-border overflow-hidden">
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          handleSafeClose();
+        }
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
+      <div 
+        className="bg-card rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] sm:max-h-[85vh] border border-border overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/40 shrink-0">
-          <h2 className="text-xl font-bold text-foreground">{item ? 'Edit Item' : 'Add New Item'}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close dialog" className="text-muted-foreground hover:text-foreground cursor-pointer">
+          <h2 id="modal-title" className="text-xl font-bold text-foreground">{item ? 'Edit Item' : 'Add New Item'}</h2>
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleSafeClose();
+            }} 
+            aria-label="Close dialog" 
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+          >
             <X className="w-5 h-5" />
-          </Button>
+          </button>
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1 min-h-0 overscroll-contain">
+        <div className="p-6 overflow-y-auto flex-1 min-h-0 overscroll-contain pb-10">
           {error && (
             <div className="mb-6 p-4 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 shadow-sm text-sm font-medium">
               {error}
@@ -164,7 +229,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
             </div>
           )}
 
-          <form id="item-form" onSubmit={handleSubmit} className="space-y-6 pb-4">
+          <form id="item-form" onSubmit={handleSubmit} className="space-y-6 pb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               <div className="space-y-2">
@@ -353,7 +418,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
         </div>
 
         <div className="px-6 py-4 border-t border-border bg-card/98 backdrop-blur-md shrink-0 flex items-center justify-end gap-3 z-10 shadow-xs">
-          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+          <Button type="button" variant="outline" onClick={handleSafeClose} disabled={isSubmitting}>
             Cancel
           </Button>
           <Button 
@@ -366,6 +431,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

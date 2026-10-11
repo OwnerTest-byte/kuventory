@@ -202,21 +202,22 @@ test.describe('User Requested Improvements Suite', () => {
       const newStationHeader = page.locator(`h2:has-text("${testCatName}")`).first();
       await expect(newStationHeader).toBeVisible({ timeout: 10000 });
 
-      // 2. Click "Delete Table" on this station (directly target sibling button in header)
-      const deleteTableBtn = newStationHeader.locator('..').locator('button:has-text("Delete Table")');
-      await expect(deleteTableBtn).toBeVisible();
-      await deleteTableBtn.click({ force: true });
+      // 2. Click "Delete Table" on this station
+      const deleteTableBtn = page.locator(`h2:has-text("${testCatName}") ~ button:has-text("Delete Table")`).first();
+      await expect(deleteTableBtn).toBeVisible({ timeout: 5000 });
+      await deleteTableBtn.scrollIntoViewIfNeeded();
+      await deleteTableBtn.click();
 
       // Confirmation dialog should appear
-      const dialogTitle = page.locator('div[role="dialog"]:has-text("Delete Station Table & Category")');
-      await expect(dialogTitle).toBeVisible();
+      const deleteDialog = page.locator('div[role="dialog"]:has-text("Delete Station Table & Category")');
+      await expect(deleteDialog).toBeVisible({ timeout: 5000 });
 
-      // Click "Delete Table & Category" button
-      const confirmDeleteBtn = page.locator('button:has-text("Delete Table & Category")');
-      await confirmDeleteBtn.click({ force: true });
+      // Click "Delete Table & Category" button within the confirmation dialog
+      const confirmDeleteBtn = deleteDialog.locator('button:has-text("Delete Table & Category")');
+      await confirmDeleteBtn.click();
 
       // Verify the station header is removed from the worksheet
-      await expect(newStationHeader).toHaveCount(0, { timeout: 10000 });
+      await expect(page.locator(`h2:has-text("${testCatName}")`)).not.toBeVisible({ timeout: 10000 });
 
       // Also verify that the category is removed from categories table in Supabase
       const isCatDeleted = await page.evaluate(async (name) => {
