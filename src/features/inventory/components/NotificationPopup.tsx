@@ -11,6 +11,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useNotifications, useMarkNotificationAsRead } from '../hooks/useNotifications';
+import { useItems } from '../hooks/useItems';
 import { getNotificationRoute } from '../utils/notificationRouter';
 import { supabase } from '@/lib/supabase';
 import type { AppNotification } from '../types';
@@ -46,6 +47,7 @@ export function NotificationPopup() {
   const navigate = useNavigate();
   const [activeToasts, setActiveToasts] = useState<ActiveToast[]>([]);
   const { data: notifications = [] } = useNotifications();
+  const { items = [] } = useItems();
   const markAsRead = useMarkNotificationAsRead();
   const activeToastsRef = useRef<ActiveToast[]>([]);
   useEffect(() => {
@@ -138,7 +140,7 @@ export function NotificationPopup() {
     }
 
     // 3. 1-Click Redirect to the exact notification route
-    const destination = getNotificationRoute(notif);
+    const destination = getNotificationRoute(notif, items);
     navigate(destination);
   };
 

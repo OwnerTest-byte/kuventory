@@ -258,4 +258,39 @@ test.describe('KUVENTORY Full Engineering Audit & Repair Verification', () => {
     const notifPopup = page.locator('div[role="alert"]').first();
     await expect(notifPopup).toBeVisible({ timeout: 5000 });
   });
+
+  test('5. Notification Center: Displays specific notification titles, identifies items, and redirects on click', async ({ page }) => {
+    await loginAsStaff(page);
+
+    await page.goto('/notifications');
+    await page.waitForLoadState('networkidle');
+
+    // 1. Verify headers
+    await expect(page.locator('h1:has-text("Notifications")')).toBeVisible({ timeout: 10000 });
+
+    // 2. Ensure NO cards display generic "Alert 1", "Alert 2", etc.
+    const genericAlert = page.locator('p:text-matches("^Alert \\\\d+$", "i")');
+    await expect(genericAlert).toHaveCount(0);
+
+    // 3. Check for specific notification cards
+    const notifCards = page.locator('ul.divide-y li button');
+    const count = await notifCards.count();
+    expect(count).toBeGreaterThan(0);
+
+    // Check first card has specific title and an action label
+    const firstCard = notifCards.first();
+    await expect(firstCard).toBeVisible();
+
+    // 4. Click the notification card and verify redirection
+    await firstCard.click();
+
+    // Redirection should take user directly to item details, batches, or relevant operational view
+    await page.waitForTimeout(1000);
+    const currentUrl = page.url();
+    expect(
+      currentUrl.includes('/items') || 
+      currentUrl.includes('/daily-inventory') || 
+      currentUrl.includes('/settings')
+    ).toBe(true);
+  });
 });

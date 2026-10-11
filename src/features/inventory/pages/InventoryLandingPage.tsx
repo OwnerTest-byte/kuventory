@@ -324,35 +324,43 @@ export function InventoryLandingPage() {
               No active alerts. All stock thresholds and batch expirations are healthy.
             </div>
           ) : (
-            notifications.slice(0, 4).map((notif) => (
-              <div
-                key={notif.id}
-                onClick={() => navigate(getNotificationRoute(notif))}
-                className="p-4 flex items-start justify-between gap-3 hover:bg-muted/30 transition-colors cursor-pointer group"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 shrink-0">
-                    {notif.type === 'EXPIRED' || notif.type === 'OUT_OF_STOCK' ? (
-                      <AlertOctagon className="w-4 h-4 text-rose-500" />
-                    ) : (
-                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+            notifications.slice(0, 4).map((notif) => {
+              const matchedItem = notif.item_id ? items.find(i => i.id === notif.item_id) : undefined;
+              const isGeneric = !notif.title || /^(alert|notification)\s*\d*$/i.test(notif.title.trim());
+              const displayTitle = isGeneric
+                ? (matchedItem ? `${notif.type.replace('_', ' ')}: ${matchedItem.item_name}` : 'Inventory Alert')
+                : notif.title;
+
+              return (
+                <div
+                  key={notif.id}
+                  onClick={() => navigate(getNotificationRoute(notif, items))}
+                  className="p-4 flex items-start justify-between gap-3 hover:bg-muted/30 transition-colors cursor-pointer group"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 shrink-0">
+                      {notif.type === 'EXPIRED' || notif.type === 'OUT_OF_STOCK' ? (
+                        <AlertOctagon className="w-4 h-4 text-rose-500" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-amber-500" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold text-foreground">{displayTitle}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{notif.message}</p>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-[10px] text-muted-foreground">
+                      {format(new Date(notif.created_at), 'h:mm a')}
+                    </span>
+                    {!notif.is_read && (
+                      <span className="block w-2 h-2 rounded-full bg-primary ml-auto mt-1" />
                     )}
                   </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-foreground">{notif.title}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{notif.message}</p>
-                  </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <span className="text-[10px] text-muted-foreground">
-                    {format(new Date(notif.created_at), 'h:mm a')}
-                  </span>
-                  {!notif.is_read && (
-                    <span className="block w-2 h-2 rounded-full bg-primary ml-auto mt-1" />
-                  )}
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </CardContent>
       </Card>

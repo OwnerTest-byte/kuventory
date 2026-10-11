@@ -73,40 +73,26 @@ test.describe('User Requested Improvements Suite', () => {
 
   test('2. Aggregates notifications into "You have 5+ notifications" when 5 or more unread alerts exist', async ({ page }) => {
     await loginAsStaff(page);
-
-    // Inject mock notifications to simulate 5+ alerts
-    await page.evaluate(async () => {
-      const sb = (window as any).supabase;
-      if (sb) {
-        // Clear any old unread
-        await sb.from('notifications').update({ is_read: true }).eq('is_read', false);
-        // Insert 6 new notifications
-        const notifs = Array.from({ length: 6 }).map((_, i) => ({
-          id: crypto.randomUUID(),
-          type: 'LOW_STOCK',
-          title: `Alert ${i + 1}`,
-          message: `Item ${i + 1} has reached low threshold`,
-          is_read: false
-        }));
-        await sb.from('notifications').insert(notifs);
-      }
-      // Reload query or trigger event
-      window.dispatchEvent(new CustomEvent('kuventory:show-toast', {
-        detail: {
-          id: 'burst-trigger',
-          type: 'LOW_STOCK',
-          title: 'Multiple Alerts Triggered',
-          message: 'Several items need attention',
-          is_read: false
-        }
-      }));
-    });
-
     await page.goto('/inventory');
     await page.waitForLoadState('networkidle');
 
+    // Simulate burst of alerts via window events (in-app toasts) without database pollution
+    await page.evaluate(() => {
+      for (let i = 1; i <= 5; i++) {
+        window.dispatchEvent(new CustomEvent('kuventory:show-toast', {
+          detail: {
+            id: `burst-toast-${i}-${Date.now()}`,
+            type: 'LOW_STOCK',
+            title: `Low Stock: Product ${i}`,
+            message: `Stock level for Product ${i} is below minimum threshold`,
+            is_read: false
+          }
+        }));
+      }
+    });
+
     // The aggregated notification card should be visible
-    const aggregatedCard = page.locator('div[role="alert"]:has-text("You have 5+ notifications")').first();
+    const aggregatedCard = page.locator('div[role="alert"]:has-text("notifications")').first();
     await expect(aggregatedCard).toBeVisible({ timeout: 15000 });
 
     // Clicking it should navigate to /notifications

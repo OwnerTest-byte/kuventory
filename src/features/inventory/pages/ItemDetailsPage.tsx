@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getItemById, getBatches, getStockMovementHistory, archiveItem } from '../api';
 import { useItems } from '../hooks/useItems';
@@ -26,8 +26,16 @@ import type { InventoryStock } from '../types';
 export function ItemDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab') as 'overview' | 'batches' | 'history' | null;
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'batches' | 'history'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'batches' | 'history'>(tabFromUrl || 'overview');
+
+  useEffect(() => {
+    if (tabFromUrl && (tabFromUrl === 'overview' || tabFromUrl === 'batches' || tabFromUrl === 'history')) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
   const [isUpdateStockOpen, setIsUpdateStockOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);

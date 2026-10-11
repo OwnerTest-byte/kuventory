@@ -94,6 +94,38 @@ describe('notificationRouter - getNotificationRoute', () => {
     expect(getNotificationRoute(notification)).toBe('/daily-inventory');
   });
 
+  it('routes to /items/:id?tab=batches for EXPIRING_SOON when item_id is provided', () => {
+    const notification: AppNotification = {
+      id: 'notif-9',
+      title: 'Expiring Soon: Fresh Milk',
+      message: 'Fresh milk expires in 2 days',
+      type: 'EXPIRING_SOON',
+      item_id: 'item-milk-123',
+      is_read: false,
+      created_at: new Date().toISOString(),
+    };
+
+    expect(getNotificationRoute(notification)).toBe('/items/item-milk-123?tab=batches');
+  });
+
+  it('resolves item route by matching item name from availableItems when item_id is omitted', () => {
+    const notification: AppNotification = {
+      id: 'notif-10',
+      title: 'Low Stock Alert',
+      message: 'Pork BBQ has reached low threshold',
+      type: 'LOW_STOCK',
+      is_read: false,
+      created_at: new Date().toISOString(),
+    };
+
+    const mockCatalog: any[] = [
+      { id: 'pork-bbq-uuid', item_name: 'Pork BBQ' },
+      { id: 'chicken-uuid', item_name: 'Chicken Wings' }
+    ];
+
+    expect(getNotificationRoute(notification, mockCatalog)).toBe('/items/pork-bbq-uuid');
+  });
+
   it('falls back to /notifications for general notification without specific target', () => {
     const notification: AppNotification = {
       id: 'notif-8',
