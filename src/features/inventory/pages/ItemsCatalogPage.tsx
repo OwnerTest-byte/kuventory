@@ -509,7 +509,7 @@ export function ItemsCatalogPage() {
                                   size="sm" 
                                   className="h-7 border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-bold text-xs gap-1.5"
                                   onClick={() => handleToggleArchive(item)}
-                                  title="Restore SKU back to active catalog"
+                                  title="Restore item back to active catalog"
                                 >
                                   <RotateCcw className="w-3.5 h-3.5 text-emerald-600" />
                                   Restore
@@ -519,7 +519,7 @@ export function ItemsCatalogPage() {
                                   size="sm" 
                                   className="h-7 border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-xs gap-1.5"
                                   onClick={() => handleDelete(item)}
-                                  title="Permanently purge SKU from database"
+                                  title="Permanently purge item from database"
                                 >
                                   <Trash2 className="w-3.5 h-3.5 text-rose-600" />
                                   Delete
@@ -558,7 +558,7 @@ export function ItemsCatalogPage() {
                                   size="icon" 
                                   className="h-7 w-7 text-slate-400 hover:text-amber-600 hover:bg-amber-50"
                                   onClick={() => handleToggleArchive(item)}
-                                  title="Archive SKU"
+                                  title="Archive item"
                                 >
                                   <Archive className="w-3.5 h-3.5" />
                                 </Button>
@@ -567,7 +567,7 @@ export function ItemsCatalogPage() {
                                   size="icon" 
                                   className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                                   onClick={() => handleDelete(item)}
-                                  title="Delete SKU permanently"
+                                  title="Delete item permanently"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </Button>

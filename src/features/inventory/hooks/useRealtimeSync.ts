@@ -75,6 +75,17 @@ export function useRealtimeSync() {
       )
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'categories' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['categories'] });
+          queryClient.invalidateQueries({ queryKey: ['dailyInventory'] });
+          queryClient.invalidateQueries({ queryKey: ['daily-inventory'] });
+          queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          queryClient.invalidateQueries({ queryKey: ['items'] });
+        }
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'profiles' },
         () => {
           queryClient.invalidateQueries({ queryKey: ['profile'] });

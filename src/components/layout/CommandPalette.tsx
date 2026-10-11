@@ -181,7 +181,7 @@ export function CommandPalette({ isOpen, onClose, onOpenNewItem }: CommandPalett
                       </div>
                       <div>
                         <div className="font-semibold text-foreground">{item.item_name}</div>
-                        <div className="text-xs text-muted-foreground">SKU: {item.item_code} • {item.category_name || 'Item'}</div>
+                        <div className="text-xs text-muted-foreground">Code: {item.item_code} • {item.category_name || 'Item'}</div>
                       </div>
                     </div>
                     <div className="text-right">

@@ -184,7 +184,7 @@ export function DailyInventoryPage() {
                 Shift Reconciliation Progress
               </span>
               <span className="font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-md font-mono text-[11px]">
-                {completedCount} of {totalEntries} SKUs ({completionPct}%)
+                {completedCount} of {totalEntries} items ({completionPct}%)
               </span>
             </div>
 
@@ -317,7 +317,7 @@ export function DailyInventoryPage() {
             {finalizedSnapshot && (
               <div className="grid grid-cols-2 gap-2.5 p-3 rounded-xl bg-muted/40 border border-border text-xs text-left">
                 <div className="p-2.5 rounded-lg bg-card border border-border/70">
-                  <span className="text-muted-foreground block text-[11px]">Total SKUs</span>
+                  <span className="text-muted-foreground block text-[11px]">Total Items</span>
                   <span className="font-bold text-foreground text-sm font-mono">{finalizedSnapshot.totalItems} Items</span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-card border border-border/70">

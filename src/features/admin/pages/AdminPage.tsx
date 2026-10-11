@@ -1902,7 +1902,7 @@ export function AdminPage() {
                 <span className="text-base font-black text-foreground">PostgreSQL 15 (Supabase Cloud)</span>
               </div>
               <div className="p-4 rounded-lg bg-muted/40 border border-border">
-                <span className="font-bold text-muted-foreground uppercase tracking-wider block mb-1">Active Business SKUs</span>
+                <span className="font-bold text-muted-foreground uppercase tracking-wider block mb-1">Active Business Items</span>
                 <span className="text-base font-black text-primary">32 Items (Grilled, Portion, Cases)</span>
               </div>
             </div>

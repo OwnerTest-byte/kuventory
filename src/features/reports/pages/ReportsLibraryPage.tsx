@@ -273,7 +273,7 @@ export function ReportsLibraryPage() {
             <div className="bg-card p-5 rounded-xl border border-border shadow-xs">
               <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Catalog Items</span>
               <div className="text-2xl font-black text-foreground mt-2">
-                {inventory.length} SKUs
+                {inventory.length} items
               </div>
               <span className="text-xs text-muted-foreground mt-1 block">In {categories.length} categories</span>
             </div>

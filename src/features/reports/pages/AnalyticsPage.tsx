@@ -225,7 +225,7 @@ export function AnalyticsPage() {
                 ₱{analyticsSummary.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Sum of active items &times; unit cost</p>
+            <p className="text-xs text-muted-foreground mt-1">Total inventory stock value</p>
           </CardContent>
         </Card>
 
@@ -242,7 +242,7 @@ export function AnalyticsPage() {
                 {analyticsSummary.totalUnits.toLocaleString()}
               </span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Across {analyticsSummary.activeSkus} active catalog SKUs</p>
+            <p className="text-xs text-muted-foreground mt-1">Across {analyticsSummary.activeSkus} active items in catalog</p>
           </CardContent>
         </Card>
 
@@ -506,7 +506,7 @@ export function AnalyticsPage() {
               <thead>
                 <tr className="bg-muted/60 border-b border-border text-muted-foreground">
                   <th className="px-5 py-3 font-semibold uppercase tracking-wider text-[11px]">Category</th>
-                  <th className="px-5 py-3 font-semibold uppercase tracking-wider text-[11px] text-center">SKUs</th>
+                  <th className="px-5 py-3 font-semibold uppercase tracking-wider text-[11px] text-center">Items</th>
                   <th className="px-5 py-3 font-semibold uppercase tracking-wider text-[11px] text-right">Total Units</th>
                   <th className="px-5 py-3 font-semibold uppercase tracking-wider text-[11px] text-right">Total Valuation</th>
                 </tr>

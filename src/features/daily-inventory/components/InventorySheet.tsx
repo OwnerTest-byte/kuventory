@@ -26,7 +26,8 @@ import {
   Layers, 
   Tag, 
   Loader2, 
-  AlertCircle 
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 
 type DailyEntry = DailyInventorySessionWithEntries['daily_inventory_entries'][number];
@@ -141,6 +142,10 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
   const [itemModalStation, setItemModalStation] = useState<{ id: string; name: string } | null>(null);
   const [isSubmittingItem, setIsSubmittingItem] = useState(false);
 
+  // Delete Station Dialog State
+  const [stationToDelete, setStationToDelete] = useState<StationGroup | null>(null);
+  const [isDeletingStation, setIsDeletingStation] = useState(false);
+
   // Query master categories from DB
   const { data: dbCategories = [] } = useQuery({
     queryKey: ['categories'],
@@ -169,6 +174,60 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
     },
     onError: (err: any) => {
       setStationError(err.message || 'Failed to create station table');
+    }
+  });
+
+  // Delete Station Mutation (unlinks items and deletes from categories table)
+  const deleteStationMutation = useMutation({
+    mutationFn: async (station: StationGroup) => {
+      setIsDeletingStation(true);
+      try {
+        // 1. Unlink items from this category so foreign key constraint ON DELETE RESTRICT doesn't fail
+        const { error: unlinkError } = await supabase
+          .from('inventory_items')
+          .update({ category_id: null })
+          .eq('category_id', station.id);
+        if (unlinkError) throw unlinkError;
+
+        // 2. Delete the category from categories table
+        const { error: catDeleteError } = await supabase
+          .from('categories')
+          .delete()
+          .eq('id', station.id);
+        if (catDeleteError) throw catDeleteError;
+      } finally {
+        setIsDeletingStation(false);
+      }
+    },
+    onSuccess: async (_data, variables) => {
+      // Optimistically remove category from cache immediately for instant UI reaction
+      queryClient.setQueryData(['categories'], (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter((c: any) => c.id !== variables.id);
+      });
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['categories'] }),
+        queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.all }),
+        queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) }),
+        queryClient.invalidateQueries({ queryKey: ['daily-inventory'] }),
+        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
+      ]);
+      setStationToDelete(null);
+      window.dispatchEvent(new CustomEvent('kuventory:show-toast', {
+        detail: {
+          id: `station-deleted-${Date.now()}`,
+          type: 'SYSTEM',
+          title: 'Station Table Deleted',
+          message: 'The station table and its category were deleted.',
+          is_read: false,
+          created_at: new Date().toISOString()
+        }
+      }));
+    },
+    onError: (err: any) => {
+      console.error('Failed to delete station:', err);
+      alert(err.message || 'Failed to delete station table and category.');
     }
   });
 
@@ -293,19 +352,32 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
               {station.name}
             </h2>
             <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${station.badgeClass}`}>
-              {tableItems.length} SKUs
+              {tableItems.length} items
             </span>
             {!isReadOnly && station.id !== 'unassigned-other' && (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => setItemModalStation({ id: station.id, name: station.name })}
-                className="h-6 px-2 text-[11px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted/80 cursor-pointer rounded-md"
-              >
-                <Plus className="w-3 h-3 mr-1" />
-                Add Item
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setItemModalStation({ id: station.id, name: station.name })}
+                  className="h-6 px-2 text-[11px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted/80 cursor-pointer rounded-md"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Item
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setStationToDelete(station)}
+                  className="h-6 px-2 text-[11px] font-bold text-rose-500/80 hover:text-rose-600 hover:bg-rose-500/10 cursor-pointer rounded-md transition-colors"
+                  title={`Delete ${station.name} table and its category`}
+                >
+                  <Trash2 className="w-3 h-3 mr-1" />
+                  Delete Table
+                </Button>
+              </>
             )}
           </div>
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -516,6 +588,46 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Station & Category Confirmation Dialog */}
+      <Dialog open={!!stationToDelete} onOpenChange={(open) => !open && setStationToDelete(null)}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-rose-500" />
+              Delete Station Table & Category
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-sm pt-2">
+              Are you sure you want to delete the <strong className="text-foreground">{stationToDelete?.name}</strong> table?
+              This will automatically remove the category from the system so you don't need to visit the Categories page.
+              {stationToDelete && stationToDelete.items.length > 0 && (
+                <span className="block mt-2 text-amber-600 dark:text-amber-400 font-medium">
+                  Notice: {stationToDelete.items.length} item(s) in this station will be unlinked from this category.
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:justify-end pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStationToDelete(null)}
+              disabled={isDeletingStation}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => stationToDelete && deleteStationMutation.mutate(stationToDelete)}
+              disabled={isDeletingStation}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-semibold cursor-pointer"
+            >
+              {isDeletingStation ? 'Deleting...' : 'Delete Table & Category'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -141,16 +141,16 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-card rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh] border border-border">
-        <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/40 rounded-t-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4">
+      <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[88vh] border border-border overflow-hidden">
+        <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/40 shrink-0">
           <h2 className="text-xl font-bold text-foreground">{item ? 'Edit Item' : 'Add New Item'}</h2>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close dialog" className="text-muted-foreground hover:text-foreground cursor-pointer">
             <X className="w-5 h-5" />
           </Button>
         </div>
 
-        <div className="p-6 overflow-y-auto">
+        <div className="p-6 overflow-y-auto flex-1 min-h-0 overscroll-contain">
           {error && (
             <div className="mb-6 p-4 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 shadow-sm text-sm font-medium">
               {error}
@@ -164,7 +164,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
             </div>
           )}
 
-          <form id="item-form" onSubmit={handleSubmit} className="space-y-6">
+          <form id="item-form" onSubmit={handleSubmit} className="space-y-6 pb-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               <div className="space-y-2">
@@ -207,7 +207,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
                       Add as New Batch to Existing "{(matchedExistingItem as any).name}"
                     </Button>
                     <span className="text-[11px] text-muted-foreground">
-                      or proceed below to register a completely separate SKU item.
+                      or proceed below to register a completely separate item.
                     </span>
                   </div>
                 </div>
@@ -297,7 +297,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
                 </>
               )}
 
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-semibold text-foreground">Unit Cost (₱)</label>
                 <Input 
                   type="number"
@@ -337,7 +337,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
                 ))}
               </datalist>
 
-              <div className="space-y-2 md:col-span-2 pt-1">
+              <div className="space-y-2 md:col-span-2 pt-1 pb-4">
                 <label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                   <ImageIcon className="w-4 h-4 text-primary" />
                   Item Image (Optional)
@@ -352,7 +352,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
           </form>
         </div>
 
-        <div className="px-6 py-4 border-t border-border bg-muted/40 rounded-b-xl flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-border bg-card/98 backdrop-blur-md shrink-0 flex items-center justify-end gap-3 z-10 shadow-xs">
           <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
@@ -360,7 +360,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
             type="submit" 
             form="item-form" 
             disabled={isSubmitting}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold cursor-pointer"
           >
             {isSubmitting ? 'Saving...' : 'Save Item'}
           </Button>

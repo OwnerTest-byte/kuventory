@@ -191,14 +191,22 @@ export function NotificationPopup() {
     }
   };
 
-  if (activeToasts.length === 0) return null;
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const [isAggregatedDismissed, setIsAggregatedDismissed] = useState(false);
+
+  const isHighVolume = unreadCount >= 5 || activeToasts.length >= 3;
+  const showAggregated = isHighVolume && !isAggregatedDismissed;
+  const toastsToShow = activeToasts.slice(0, 1);
+
+  if (!showAggregated && toastsToShow.length === 0) return null;
 
   return (
     <div 
       aria-live="polite"
-      className="fixed top-4 right-4 z-50 flex flex-col gap-2.5 max-w-sm sm:max-w-md w-[calc(100vw-2rem)] sm:w-auto pointer-events-none"
+      className="fixed top-18 right-4 z-50 flex flex-col gap-2.5 max-w-sm sm:max-w-md w-[calc(100vw-2rem)] sm:w-auto pointer-events-none"
     >
-      {activeToasts.map(({ notification }) => (
+      {/* 1. Immediate Operational Action Toast (e.g. Sales Blocked on Zero Stock) */}
+      {toastsToShow.map(({ notification }) => (
         <div
           key={notification.id}
           role="alert"
@@ -253,6 +261,62 @@ export function NotificationPopup() {
           </div>
         </div>
       ))}
+
+      {/* 2. Aggregated Summary Banner for High Volume Unread Alerts */}
+      {showAggregated && (
+        <div
+          role="alert"
+          onClick={() => {
+            setIsAggregatedDismissed(true);
+            navigate('/notifications');
+          }}
+          className="pointer-events-auto cursor-pointer group relative overflow-hidden rounded-xl border border-primary/40 hover:border-primary bg-card/95 text-card-foreground backdrop-blur-md p-4 shadow-xl transition-all duration-200 hover:shadow-2xl hover:scale-[1.01] active:scale-[0.99]"
+        >
+          {/* Subtle Top Accent Glow */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-primary via-[#C5A059] to-primary/80" />
+
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20 text-primary mt-0.5">
+              <ShieldAlert className="w-5 h-5 shrink-0" />
+            </div>
+
+            <div className="flex-1 min-w-0 pr-6">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[11px] font-black uppercase tracking-wider text-primary font-mono">
+                  Inventory Alerts
+                </span>
+                <span className="text-[10px] text-muted-foreground/80">• Just now</span>
+              </div>
+
+              <h4 className="text-sm font-bold text-foreground leading-snug group-hover:text-primary transition-colors">
+                You have {unreadCount >= 5 ? '5+' : unreadCount} notifications
+              </h4>
+
+              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                Click to view and manage all alerts in your Notification Center
+              </p>
+
+              <div className="mt-2.5 flex items-center gap-1 text-xs font-semibold text-primary group-hover:underline">
+                <span>Open Notification Center</span>
+                <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+              </div>
+            </div>
+
+            {/* Dismiss Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsAggregatedDismissed(true);
+              }}
+              className="absolute top-3 right-3 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+              aria-label="Dismiss notifications summary"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -601,7 +601,7 @@ export function AppLayout() {
             >
               <span className="flex items-center gap-2">
                 <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" />
-                <span>Search items, SKU, suppliers...</span>
+                <span>Search items, codes, suppliers...</span>
               </span>
               <kbd className="px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground bg-card border border-border rounded">
                 Ctrl + K

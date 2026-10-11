@@ -95,7 +95,7 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
             </div>
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-border mt-3 text-xs text-muted-foreground">
-            <span>Item SKU: <strong className="text-foreground font-mono">{item.item_code}</strong></span>
+            <span>Item Code: <strong className="text-foreground font-mono">{item.item_code}</strong></span>
             <span>Current Stock: <strong className="text-emerald-500 font-semibold">{item.current_qty} {item.unit}</strong></span>
           </div>
         </DialogHeader>
