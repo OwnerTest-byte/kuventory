@@ -28,7 +28,7 @@ export function formatUserDisplayName(
   const last = (profile.last_name || '').trim();
   if (!last) return first;
   
-  // Prevent duplication like "Master Admin Admin"
+  // Prevent duplication like "Super Admin Admin"
   const firstLower = first.toLowerCase();
   const lastLower = last.toLowerCase();
   if (firstLower === lastLower || firstLower.endsWith(` ${lastLower}`) || firstLower.includes(lastLower)) {

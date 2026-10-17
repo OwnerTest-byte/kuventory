@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { pingSupabaseKeepalive } from '@/lib/keepalive';
 
-interface MasterRealtimeTabProps {
+interface SuperRealtimeTabProps {
   realtimeEvents: Array<{
     id: string;
     source: string;
@@ -32,7 +32,7 @@ interface MasterRealtimeTabProps {
   setIsRealtimePaused: (paused: boolean) => void;
 }
 
-export function MasterRealtimeTab({
+export function SuperRealtimeTab({
   realtimeEvents,
   setRealtimeEvents,
   realtimeChannelStatus,
@@ -40,7 +40,7 @@ export function MasterRealtimeTab({
   setRealtimePingMs,
   isRealtimePaused,
   setIsRealtimePaused,
-}: MasterRealtimeTabProps) {
+}: SuperRealtimeTabProps) {
   const [isPinging, setIsPinging] = useState(false);
 
   const handlePing = async () => {
@@ -125,7 +125,7 @@ export function MasterRealtimeTab({
           <div className="p-3.5 rounded-xl bg-muted/30 border border-border">
             <span className="text-muted-foreground text-[11px] block">Channel Name</span>
             <span className="font-mono font-bold text-foreground text-xs mt-0.5 block truncate">
-              master-live-activity-stream
+              super-live-activity-stream
             </span>
           </div>
           <div className="p-3.5 rounded-xl bg-muted/30 border border-border">

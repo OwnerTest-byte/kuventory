@@ -108,6 +108,27 @@ export function useRealtimeSync() {
         () => {
           queryClient.invalidateQueries({ queryKey: ['audit-logs'] });
           queryClient.invalidateQueries({ queryKey: ['system-audit-logs'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-audit-logs'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'system_settings' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['system-settings'] });
+          queryClient.invalidateQueries({ queryKey: ['system_setting'] });
+          queryClient.invalidateQueries({ queryKey: ['system-maintenance-lock'] });
+          queryClient.invalidateQueries({ queryKey: ['super-automations'] });
+          queryClient.invalidateQueries({ queryKey: ['super-deployments'] });
+          queryClient.invalidateQueries({ queryKey: ['super-incidents'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_session_leases' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['active-session-leases'] });
+          queryClient.invalidateQueries({ queryKey: ['user-session-leases'] });
         }
       )
       .subscribe();

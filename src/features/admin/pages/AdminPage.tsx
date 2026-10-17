@@ -760,7 +760,7 @@ export function AdminPage() {
     }
   };
 
-  // Finalized Sheets for Master Admin Force Override (Correct Table: daily_inventory)
+  // Finalized Sheets for Super Admin Force Override (Correct Table: daily_inventory)
   const { data: finalizedSheets = [], isLoading: isLoadingFinalizedSheets } = useQuery({
     queryKey: ['finalized-sheets-master'],
     enabled: isMasterAdmin,
@@ -2004,7 +2004,7 @@ export function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Master Admin Force Override Dialog */}
+      {/* Super Admin Force Override Dialog */}
       <Dialog open={!!selectedSheetForOverride} onOpenChange={(open) => !open && setSelectedSheetForOverride(null)}>
         <DialogContent className="max-w-md bg-card border-border text-foreground">
           <DialogHeader>

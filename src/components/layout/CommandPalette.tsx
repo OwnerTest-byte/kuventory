@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { 
@@ -36,19 +36,6 @@ export function CommandPalette({ isOpen, onClose, onOpenNewItem }: CommandPalett
     queryFn: getInventory,
     enabled: isOpen,
   });
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
-        e.preventDefault();
-        if (isOpen) {
-          onClose();
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
 
   const navLinks = [
     { label: 'Dashboard', path: '/inventory', icon: LayoutDashboard, category: 'Navigation' },

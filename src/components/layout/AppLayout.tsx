@@ -482,11 +482,13 @@ export function AppLayout() {
   // Keyboard shortcut: Ctrl+K to toggle Command Palette, Ctrl+[ to toggle sidebar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K' || e.code === 'KeyK')) {
         e.preventDefault();
+        e.stopPropagation();
         setIsCommandOpen(prev => !prev);
-      } else if ((e.ctrlKey || e.metaKey) && e.key === '[') {
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === '[' || e.code === 'BracketLeft')) {
         e.preventDefault();
+        e.stopPropagation();
         toggleSidebar();
       }
     };

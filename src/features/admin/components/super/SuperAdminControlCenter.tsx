@@ -30,7 +30,7 @@ import { SuperSecurityTab } from './SuperSecurityTab';
 import { SuperIncidentsTab } from './SuperIncidentsTab';
 import { SuperLogsTab } from './SuperLogsTab';
 import { SuperSettingsTab } from './SuperSettingsTab';
-import { MasterRealtimeTab } from '../master/MasterRealtimeTab';
+import { SuperRealtimeTab } from './SuperRealtimeTab';
 
 interface SuperAdminControlCenterProps {
   userEmail: string;
@@ -393,7 +393,7 @@ export function SuperAdminControlCenter({
 
       {/* Sub-Tab 7: Monitoring */}
       {activeSubTab === 'monitoring' && (
-        <MasterRealtimeTab
+        <SuperRealtimeTab
           realtimeEvents={realtimeEvents}
           setRealtimeEvents={setRealtimeEvents}
           realtimeChannelStatus={realtimeChannelStatus}
