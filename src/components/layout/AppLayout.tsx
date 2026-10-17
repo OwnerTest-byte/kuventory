@@ -196,7 +196,7 @@ function SidebarNavigation({
   const userInitials = getUserInitials(profile || user?.email);
   const userDisplayName = formatUserDisplayName(profile, user?.email);
 
-  const isMasterUser = role === 'MASTER_ADMIN' || user?.email === 'master@kuventory.com';
+  const isSuperUser = role === 'SUPER_ADMIN' || user?.email === 'superadmin@kuventory.com' || role === 'MASTER_ADMIN' || user?.email === 'master@kuventory.com';
   const unreadCount = useUnreadNotificationsCount();
 
   const navList = [
@@ -209,11 +209,11 @@ function SidebarNavigation({
       }
       return item;
     }),
-    ...(isMasterUser ? [{ 
+    ...(isSuperUser ? [{ 
       name: 'Super Admin', 
       to: '/settings?tab=super_admin', 
       icon: Crown, 
-      badge: 'ROOT' 
+      badge: 'ADMIN' 
     }] : [])
   ];
 
@@ -381,7 +381,7 @@ function SidebarNavigation({
             <Link
               to="/settings?tab=account"
               onClick={closeMobileMenu}
-              title={`${userDisplayName} (${role === 'MASTER_ADMIN' ? 'Super Admin' : role === 'ADMIN' ? 'Administrator' : 'Staff'})`}
+              title={`${userDisplayName} (${(role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN') ? 'Super Admin' : role === 'ADMIN' ? 'Administrator' : 'Staff'})`}
               className="h-9 w-9 rounded-full bg-[#611A1F] text-white flex items-center justify-center font-bold text-xs shrink-0 border border-[#C5A059]/40 cursor-pointer shadow-xs hover:ring-2 hover:ring-[#C5A059] transition-all"
             >
               {userInitials}
@@ -413,7 +413,7 @@ function SidebarNavigation({
                 </span>
                 <span className={cn(
                   "text-[9px] uppercase font-bold tracking-wider inline-block px-1.5 py-0.5 rounded w-fit mt-0.5 border",
-                  role === 'MASTER_ADMIN' 
+                  (role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN') 
                     ? "bg-[#C5A059]/20 text-[#DFB748] border-[#C5A059]/40" 
                     : role === 'ADMIN'
                     ? "bg-[#611A1F]/30 text-[#E57373] border-[#611A1F]/50"

@@ -108,8 +108,8 @@ export function LoginForm() {
     }
   };
 
-  const MASTER_ADMIN_HOTLINE = '09917101298';
-  const MASTER_ADMIN_EMAIL = 'master@kuventory.com';
+  const SUPER_ADMIN_HOTLINE = '09917101298';
+  const SUPER_ADMIN_EMAIL = 'superadmin@kuventory.com';
 
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,7 +121,7 @@ export function LoginForm() {
     const emailToReset = forgotEmail.trim().toLowerCase();
 
     try {
-      // 1. Dispatch real-time alert directly to Master Admin via database RPC
+      // 1. Dispatch real-time alert directly to Super Admin via database RPC
       const { data: rpcData, error: rpcError } = await supabase.rpc('request_password_reset', {
         p_email: emailToReset,
       });
@@ -131,7 +131,7 @@ export function LoginForm() {
         await supabase.from('notifications').insert({
           type: 'PASSWORD_RESET',
           title: `Password Reset Request: ${emailToReset}`,
-          message: `Staff member (${emailToReset}) requested a password reset. Call or SMS Super Admin hotline: ${MASTER_ADMIN_HOTLINE}, or reset password in Admin Settings.`,
+          message: `Staff member (${emailToReset}) requested a password reset. Call or SMS Super Admin hotline: ${SUPER_ADMIN_HOTLINE}, or reset password in Admin Settings.`,
           target_id: '/settings?tab=users',
         } as any);
       }
@@ -148,10 +148,10 @@ export function LoginForm() {
 
       setForgotMessage(
         rpcData?.message || 
-        `Password reset request has been dispatched directly to the Super Admin! For immediate clearance, call or text ${MASTER_ADMIN_HOTLINE}.`
+        `Password reset request has been dispatched directly to the Super Admin! For immediate clearance, call or text ${SUPER_ADMIN_HOTLINE}.`
       );
     } catch (err: any) {
-      setForgotError(err.message || `Unable to send reset request. Please contact the Super Admin directly at ${MASTER_ADMIN_HOTLINE}.`);
+      setForgotError(err.message || `Unable to send reset request. Please contact the Super Admin directly at ${SUPER_ADMIN_HOTLINE}.`);
     } finally {
       setIsSendingReset(false);
     }
@@ -335,24 +335,24 @@ export function LoginForm() {
                 <div>
                   <p className="text-[11px] text-muted-foreground font-medium">Hotline / Mobile:</p>
                   <a 
-                    href={`tel:${MASTER_ADMIN_HOTLINE}`} 
+                    href={`tel:${SUPER_ADMIN_HOTLINE}`} 
                     className="font-mono text-base font-black text-primary hover:underline flex items-center gap-1.5"
-                    aria-label={`Call Super Admin at ${MASTER_ADMIN_HOTLINE}`}
+                    aria-label={`Call Super Admin at ${SUPER_ADMIN_HOTLINE}`}
                   >
                     <Phone className="w-3.5 h-3.5 shrink-0" />
-                    {MASTER_ADMIN_HOTLINE}
+                    {SUPER_ADMIN_HOTLINE}
                   </a>
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0">
                   <a
-                    href={`tel:${MASTER_ADMIN_HOTLINE}`}
+                    href={`tel:${SUPER_ADMIN_HOTLINE}`}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 transition-colors shadow-2xs"
                   >
                     <Phone className="w-3 h-3" /> Call
                   </a>
                   <a
-                    href={`sms:${MASTER_ADMIN_HOTLINE}`}
+                    href={`sms:${SUPER_ADMIN_HOTLINE}`}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-card border border-border text-foreground font-bold text-xs hover:bg-muted transition-colors shadow-2xs"
                   >
                     <MessageSquare className="w-3 h-3" /> SMS
@@ -363,11 +363,11 @@ export function LoginForm() {
               <div className="pt-1 border-t border-primary/10 flex items-center justify-between text-[11px] text-muted-foreground">
                 <span>Email Assistance:</span>
                 <a 
-                  href={`mailto:${MASTER_ADMIN_EMAIL}`}
+                  href={`mailto:${SUPER_ADMIN_EMAIL}`}
                   className="font-mono text-primary hover:underline flex items-center gap-1 font-semibold"
                 >
                   <Mail className="w-3 h-3" />
-                  {MASTER_ADMIN_EMAIL}
+                  {SUPER_ADMIN_EMAIL}
                 </a>
               </div>
             </div>

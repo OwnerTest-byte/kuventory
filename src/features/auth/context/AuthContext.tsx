@@ -223,11 +223,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('Profile fetch warning (using metadata fallback):', error.message);
         }
 
-        const isMaster = user.email === 'master@kuventory.com';
-        const isAdmin = user.email === 'admin@kuventory.com';
+        const isSuper = user.email === 'superadmin@kuventory.com' || user.email === 'master@kuventory.com' || user.user_metadata?.role === 'SUPER_ADMIN' || user.user_metadata?.role === 'MASTER_ADMIN' || data?.role === 'SUPER_ADMIN' || data?.role === 'MASTER_ADMIN';
+        const isAdmin = user.email === 'admin@kuventory.com' || user.user_metadata?.role === 'ADMIN' || data?.role === 'ADMIN';
         const roleFromMeta = (user.user_metadata?.role as Role) || 'USER';
         const roleFromDb = data?.role as Role;
-        const resolvedRole: Role = isMaster ? 'MASTER_ADMIN' : (isAdmin ? 'ADMIN' : (roleFromDb || roleFromMeta));
+        const resolvedRole: Role = isSuper ? 'SUPER_ADMIN' : (isAdmin ? 'ADMIN' : (roleFromDb || roleFromMeta));
 
         return {
           id: user.id,
@@ -239,9 +239,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } as Profile;
       } catch (err) {
         console.warn('Profile query exception:', err);
-        const isMaster = user.email === 'master@kuventory.com';
+        const isSuper = user.email === 'superadmin@kuventory.com' || user.email === 'master@kuventory.com' || user.user_metadata?.role === 'SUPER_ADMIN' || user.user_metadata?.role === 'MASTER_ADMIN';
         const isAdmin = user.email === 'admin@kuventory.com';
-        const fallbackRole: Role = isMaster ? 'MASTER_ADMIN' : (isAdmin ? 'ADMIN' : ((user.user_metadata?.role as Role) || 'USER'));
+        const fallbackRole: Role = isSuper ? 'SUPER_ADMIN' : (isAdmin ? 'ADMIN' : ((user.user_metadata?.role as Role) || 'USER'));
         return {
           id: user.id,
           role: fallbackRole,
@@ -270,10 +270,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isLoading = isSessionLoading || (!!user && isProfileLoading);
-  const isMasterUser = user?.email === 'master@kuventory.com';
-  const isAdminUser = user?.email === 'admin@kuventory.com';
-  const role: Role = isMasterUser 
-    ? 'MASTER_ADMIN' 
+  const isSuperUser = user?.email === 'superadmin@kuventory.com' || user?.email === 'master@kuventory.com' || profile?.role === 'SUPER_ADMIN' || profile?.role === 'MASTER_ADMIN' || user?.user_metadata?.role === 'SUPER_ADMIN' || user?.user_metadata?.role === 'MASTER_ADMIN';
+  const isAdminUser = user?.email === 'admin@kuventory.com' || profile?.role === 'ADMIN' || user?.user_metadata?.role === 'ADMIN';
+  const role: Role = isSuperUser 
+    ? 'SUPER_ADMIN' 
     : (isAdminUser ? 'ADMIN' : (profile?.role ?? (user?.user_metadata?.role as Role) ?? 'USER'));
 
   const clearSessionLeaseError = () => setSessionLeaseError(null);

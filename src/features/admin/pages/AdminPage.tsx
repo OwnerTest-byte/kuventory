@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -7,8 +7,7 @@ import { pingSupabaseKeepalive, getLastKeepaliveTimestamp } from '@/lib/keepaliv
 import { 
   Users, Shield, Loader2, Plus, Trash2, Store, Bell, Activity, 
   Info, CheckCircle2, AlertCircle, Save, Database, KeyRound, RefreshCw, Layers,
-  Lock, Eye, EyeOff, Server, Cpu, Crown, AlertTriangle, RotateCcw, Radio, HardDrive,
-  ChevronLeft, ChevronRight
+  Lock, Eye, EyeOff, Server, Cpu, Crown, RotateCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -24,20 +23,11 @@ import {
   type EstablishmentSettings, 
   type NotificationSettings 
 } from '@/features/admin/api/settings';
-import { MasterOverviewTab } from '../components/master/MasterOverviewTab';
-import { MasterSystemHealthTab } from '../components/master/MasterSystemHealthTab';
-import { MasterInventoryHealthTab } from '../components/master/MasterInventoryHealthTab';
-import { MasterSecurityTab } from '../components/master/MasterSecurityTab';
-import { MasterRealtimeTab } from '../components/master/MasterRealtimeTab';
-import { MasterStorageBackupsTab } from '../components/master/MasterStorageBackupsTab';
-import { MasterRecoveryTab } from '../components/master/MasterRecoveryTab';
-import { MasterIntegrityTab } from '../components/master/MasterIntegrityTab';
-import { MasterIncidentsTab } from '../components/master/MasterIncidentsTab';
-import { MasterAuditTab } from '../components/master/MasterAuditTab';
+import { SuperAdminControlCenter } from '../components/super/SuperAdminControlCenter';
 
 interface ProfileRow {
   id: string;
-  role: 'MASTER_ADMIN' | 'ADMIN' | 'USER';
+  role: 'SUPER_ADMIN' | 'MASTER_ADMIN' | 'ADMIN' | 'USER';
   display_name: string | null;
   created_at: string;
 }
@@ -45,20 +35,21 @@ interface ProfileRow {
 export function AdminPage() {
   const queryClient = useQueryClient();
   const { user, profile, role } = useAuth();
-  const isMasterAdmin = role === 'MASTER_ADMIN' || user?.email === 'master@kuventory.com';
-  const isAdmin = role === 'ADMIN' || user?.email === 'admin@kuventory.com' || isMasterAdmin;
+  const isSuperAdmin = role === 'SUPER_ADMIN' || user?.email === 'superadmin@kuventory.com' || role === 'MASTER_ADMIN' || user?.email === 'master@kuventory.com';
+  const isMasterAdmin = isSuperAdmin;
+  const isAdmin = role === 'ADMIN' || user?.email === 'admin@kuventory.com' || isSuperAdmin;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get('tab');
 
-  const allowedTabs = isMasterAdmin
+  const allowedTabs = isSuperAdmin
     ? ['account', 'restaurant', 'users', 'notifications', 'activity', 'super_admin', 'master', 'about'] 
     : isAdmin
     ? ['account', 'restaurant', 'users', 'notifications', 'activity', 'about'] 
     : ['account', 'restaurant', 'about'];
 
   const normalizedUrlTab = (urlTab === 'master' || urlTab === 'super_admin')
-    ? (isMasterAdmin ? 'super_admin' : 'account')
+    ? (isSuperAdmin ? 'super_admin' : 'account')
     : urlTab;
 
   const activeTab = (normalizedUrlTab && allowedTabs.includes(normalizedUrlTab))
@@ -67,113 +58,7 @@ export function AdminPage() {
 
   const [activitySubTab, setActivitySubTab] = useState<'stock' | 'database' | 'logins'>('stock');
 
-  // Super Admin Sub-Navigation State (Overview, System Health, Inventory Health, Security, Realtime, Backups, Recovery, Data Integrity, Incidents, Audit)
-  const urlSubTab = searchParams.get('subtab');
-  const validSubTabs = [
-    'overview', 'system_health', 'inventory_health', 'security', 
-    'realtime', 'storage_backups', 'recovery', 'integrity', 'incidents', 'audit'
-  ];
-  const masterSubTab = (urlSubTab && validSubTabs.includes(urlSubTab)) ? urlSubTab : 'overview';
-
-  const handleSubTabChange = (newSubTab: string) => {
-    setSearchParams({ tab: 'super_admin', subtab: newSubTab });
-  };
-
-  const subTabsRef = useRef<HTMLDivElement>(null);
-  const scrollSubTabs = (direction: 'left' | 'right') => {
-    if (subTabsRef.current) {
-      subTabsRef.current.scrollBy({
-        left: direction === 'left' ? -240 : 240,
-        behavior: 'smooth'
-      });
-    }
-  };
-
-  // Real-Time Derived Inventory & Control Metrics for Master Admin
-  const { data: masterStats = {
-    activeItems: 12,
-    totalStockUnits: 0,
-    lowStock: 0,
-    outOfStock: 0,
-    expiringSoon: 0,
-    expired: 0,
-    depletedBatches: 0,
-    privilegedUsers: 5,
-    auditLogs: 0,
-  }, refetch: refetchMasterStats } = useQuery({
-    queryKey: ['master-control-stats'],
-    queryFn: async () => {
-      const { data: items } = await supabase.from('inventory_items').select('id, min_quantity, is_active').eq('is_active', true);
-      const { data: batches } = await supabase.from('stock_batches').select('id, item_id, quantity, expiry_date');
-      const { data: profs } = await supabase.from('profiles').select('id, role').in('role', ['MASTER_ADMIN', 'ADMIN']);
-      const { count: auditCount } = await supabase.from('audit_logs').select('*', { count: 'exact', head: true });
-
-      const today = new Date().toISOString().split('T')[0];
-      const sevenDays = new Date();
-      sevenDays.setDate(sevenDays.getDate() + 7);
-      const sevenDaysStr = sevenDays.toISOString().split('T')[0];
-
-      let totalStockUnits = 0;
-      let depletedBatches = 0;
-      let expiringSoon = 0;
-      let expired = 0;
-      const itemStockMap = new Map<string, number>();
-
-      batches?.forEach(b => {
-        const qty = Number(b.quantity);
-        if (qty > 0) {
-          totalStockUnits += qty;
-          itemStockMap.set(b.item_id, (itemStockMap.get(b.item_id) || 0) + qty);
-          if (b.expiry_date) {
-            if (b.expiry_date < today) {
-              expired += 1;
-            } else if (b.expiry_date <= sevenDaysStr) {
-              expiringSoon += 1;
-            }
-          }
-        } else {
-          depletedBatches += 1;
-        }
-      });
-
-      let lowStock = 0;
-      let outOfStock = 0;
-      items?.forEach(i => {
-        const stock = itemStockMap.get(i.id) || 0;
-        if (stock === 0) outOfStock += 1;
-        else if (stock < (i.min_quantity || 10)) lowStock += 1;
-      });
-
-      return {
-        activeItems: items?.length || 0,
-        totalStockUnits,
-        lowStock,
-        outOfStock,
-        expiringSoon,
-        expired,
-        depletedBatches,
-        privilegedUsers: profs?.length || 5,
-        auditLogs: auditCount || 0,
-      };
-    },
-    enabled: isMasterAdmin,
-  });
-
-  // Privileged Accounts Query
-  const { data: privilegedUsers = [] } = useQuery({
-    queryKey: ['master-privileged-accounts'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, role, display_name, created_at')
-        .in('role', ['MASTER_ADMIN', 'ADMIN']);
-      if (error) return [];
-      return data || [];
-    },
-    enabled: isMasterAdmin,
-  });
-
-  // Keepalive test state
+  // Keepalive test state for About tab
   const [keepaliveTesting, setKeepaliveTesting] = useState(false);
   const [keepaliveResult, setKeepaliveResult] = useState<{ success: boolean; latencyMs: number; timestamp: string } | null>(null);
 
@@ -525,25 +410,6 @@ export function AdminPage() {
 
   // Master Console State: Backups, Restorations, Real-time Telemetry, Contingencies
   const [isExportingBackup, setIsExportingBackup] = useState(false);
-  const [backupStats, setBackupStats] = useState<{ timestamp: string; count: number; filename: string } | null>(null);
-
-  // Restore State
-  const [, setRestoreFile] = useState<File | null>(null);
-  const [restoreData, setRestoreData] = useState<any | null>(null);
-  const [isRestoring, setIsRestoring] = useState(false);
-  const [restoreSuccess, setRestoreSuccess] = useState<string | null>(null);
-  const [restoreError, setRestoreError] = useState<string | null>(null);
-  const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = useState(false);
-  const [restoreValidation, setRestoreValidation] = useState<{
-    valid: boolean;
-    timestamp?: string;
-    itemCount?: number;
-    batchCount?: number;
-    sheetCount?: number;
-    categoryCount?: number;
-    errors?: string[];
-  } | null>(null);
-
   // Telemetry & Real-Time Monitoring State
   const [realtimeEvents, setRealtimeEvents] = useState<Array<{
     id: string;
@@ -562,11 +428,7 @@ export function AdminPage() {
   const [rebalanceResult, setRebalanceResult] = useState<string | null>(null);
   const [isCleaningBatches, setIsCleaningBatches] = useState(false);
   const [cleanBatchResult, setCleanBatchResult] = useState<string | null>(null);
-  const [isPurgingItems, setIsPurgingItems] = useState(false);
-  const [purgeSuccess, setPurgeSuccess] = useState<string | null>(null);
-  const [purgeError, setPurgeError] = useState<string | null>(null);
-  const [isPurgeConfirmOpen, setIsPurgeConfirmOpen] = useState(false);
-  const [purgeConfirmText, setPurgeConfirmText] = useState('');
+
   const [isMaintenanceToggling, setIsMaintenanceToggling] = useState(false);
 
   // Real-time Activity & Telemetry Subscription for Authorized Admins
@@ -827,139 +689,12 @@ export function AdminPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      setBackupStats({
-        timestamp: new Date().toISOString(),
-        count: totalRecords,
-        filename
-      });
+      console.log('Full system backup generated:', filename, totalRecords);
     } catch (err: any) {
       console.error('Backup error:', err);
       alert('Failed to generate full system backup: ' + (err.message || 'Unknown error'));
     } finally {
       setIsExportingBackup(false);
-    }
-  };
-
-  // Dry-run restore validator
-  const handleValidateRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setRestoreFile(file);
-    setRestoreError(null);
-    setRestoreSuccess(null);
-
-    try {
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-
-      const errors: string[] = [];
-      if (!parsed.app || parsed.app !== 'KUVENTORY') {
-        errors.push('File header is missing valid KUVENTORY application signature.');
-      }
-      if (!parsed.tables || typeof parsed.tables !== 'object') {
-        errors.push('Archive is missing required database tables object.');
-      }
-
-      const itemCount = (parsed.tables?.inventory_items || parsed.tables?.items)?.length || 0;
-      const batchCount = (parsed.tables?.stock_batches || parsed.tables?.inventory_batches)?.length || 0;
-      const sheetCount = (parsed.tables?.daily_inventory || parsed.tables?.daily_inventory_sheets)?.length || 0;
-      const categoryCount = parsed.tables?.categories?.length || 0;
-
-      if (errors.length > 0) {
-        setRestoreValidation({ valid: false, errors });
-        setRestoreData(null);
-      } else {
-        setRestoreValidation({
-          valid: true,
-          timestamp: parsed.created_at,
-          itemCount,
-          batchCount,
-          sheetCount,
-          categoryCount
-        });
-        setRestoreData(parsed);
-      }
-    } catch (err: any) {
-      setRestoreValidation({
-        valid: false,
-        errors: ['Corrupted or invalid JSON format: ' + err.message]
-      });
-      setRestoreData(null);
-    }
-  };
-
-  // Execute Point-in-time Disaster Restore
-  const handleExecuteRestore = async () => {
-    if (!restoreData || !restoreData.tables) {
-      setRestoreError('No valid backup snapshot is loaded.');
-      return;
-    }
-
-    setIsRestoring(true);
-    setRestoreError(null);
-    setRestoreSuccess(null);
-
-    try {
-      const tables = restoreData.tables;
-      const categories = tables.categories || [];
-      const items = tables.inventory_items || tables.items || [];
-      const batches = tables.stock_batches || tables.inventory_batches || [];
-      const movements = tables.stock_movements || [];
-      const sheets = tables.daily_inventory || tables.daily_inventory_sheets || [];
-      const sheetItems = tables.daily_inventory_items || [];
-      const settings = tables.system_settings || [];
-
-      // 1. Restore categories if present
-      if (categories.length > 0) {
-        const { error: catErr } = await supabase.from('categories').upsert(categories, { onConflict: 'id' });
-        if (catErr) console.warn('Categories restore notice:', catErr.message);
-      }
-
-      // 2. Restore inventory items
-      if (items.length > 0) {
-        const { error: itemErr } = await supabase.from('inventory_items').upsert(items, { onConflict: 'id' });
-        if (itemErr) throw new Error('Error restoring items: ' + itemErr.message);
-      }
-
-      // 3. Restore stock batches
-      if (batches.length > 0) {
-        const { error: batchErr } = await supabase.from('stock_batches').upsert(batches, { onConflict: 'id' });
-        if (batchErr) throw new Error('Error restoring batches: ' + batchErr.message);
-      }
-
-      // 4. Restore stock movements
-      if (movements.length > 0) {
-        const { error: movErr } = await supabase.from('stock_movements').upsert(movements, { onConflict: 'id' });
-        if (movErr) console.warn('Movements restore notice:', movErr.message);
-      }
-
-      // 5. Restore daily inventory sheets & items
-      if (sheets.length > 0) {
-        const { error: sheetErr } = await supabase.from('daily_inventory').upsert(sheets, { onConflict: 'id' });
-        if (sheetErr) console.warn('Sheets restore notice:', sheetErr.message);
-      }
-      if (sheetItems.length > 0) {
-        const { error: sheetItemErr } = await supabase.from('daily_inventory_items').upsert(sheetItems, { onConflict: 'id' });
-        if (sheetItemErr) console.warn('Sheet items restore notice:', sheetItemErr.message);
-      }
-
-      // 6. Restore system settings
-      if (settings.length > 0) {
-        for (const s of settings) {
-          if (s.key && s.value) {
-            await supabase.from('system_settings').upsert({ key: s.key, value: s.value }, { onConflict: 'key' });
-          }
-        }
-      }
-
-      queryClient.invalidateQueries();
-      setRestoreSuccess('RESTORED');
-      setIsRestoreConfirmOpen(false);
-    } catch (err: any) {
-      console.error('Disaster restore error:', err);
-      setRestoreError(err.message || 'RESTORE FAILED');
-    } finally {
-      setIsRestoring(false);
     }
   };
 
@@ -1022,47 +757,6 @@ export function AdminPage() {
       setCleanBatchResult('Batch cleanup error: ' + (err.message || 'Unknown error'));
     } finally {
       setIsCleaningBatches(false);
-    }
-  };
-
-  // Contingency: Clean-Slate Item Purge (Keep Categories & Users)
-  const handlePurgeAllItems = async () => {
-    if (purgeConfirmText !== 'DELETE') {
-      setPurgeError('Please type "DELETE" exactly to confirm.');
-      return;
-    }
-
-    setIsPurgingItems(true);
-    setPurgeError(null);
-    setPurgeSuccess(null);
-
-    try {
-      const { data: items, error: fetchErr } = await supabase.from('inventory_items').select('id');
-      if (fetchErr) throw fetchErr;
-
-      if (items && items.length > 0) {
-        for (const it of items) {
-          await supabase.rpc('remove_inventory_item', { p_item_id: it.id });
-        }
-      }
-
-      await supabase.from('daily_inventory_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('stock_movements').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('stock_batches').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('daily_inventory').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('report_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('reports').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await supabase.from('inventory_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-
-      queryClient.invalidateQueries();
-      setPurgeSuccess('All inventory items, batches, movements, and sheets have been purged. All 7 categories and staff user accounts remain 100% intact.');
-      setIsPurgeConfirmOpen(false);
-      setPurgeConfirmText('');
-    } catch (err: any) {
-      console.error('Purge error:', err);
-      setPurgeError(err.message || 'Failed to purge items');
-    } finally {
-      setIsPurgingItems(false);
     }
   };
 
@@ -2076,229 +1770,42 @@ export function AdminPage() {
         </TabsContent>
 
         {/* TAB 6: SUPER ADMIN CONSOLE (STANDALONE DEVELOPER ROOT) */}
-        {isMasterAdmin && (
+        {isSuperAdmin && (
           <TabsContent value={activeTab === 'master' ? 'master' : 'super_admin'} className="space-y-6">
-            <div className="space-y-6">
-              {/* Super Admin Sub-Navigation Header with Smooth Navigation & Scroll Controls */}
-                <div className="relative w-full min-w-0 max-w-full flex items-center group">
-                  <button
-                    type="button"
-                    aria-label="Scroll tabs left"
-                    onClick={() => scrollSubTabs('left')}
-                    className="hidden sm:flex absolute -left-2 z-10 w-7 h-7 rounded-full bg-card/95 border border-border shadow-md items-center justify-center text-muted-foreground hover:text-foreground hover:scale-110 transition-all cursor-pointer backdrop-blur-xs"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-
-                  <div 
-                    ref={subTabsRef}
-                    className="w-full min-w-0 max-w-full flex items-center gap-1.5 p-1.5 rounded-2xl bg-muted/80 border border-border overflow-x-auto scroll-smooth touch-pan-x shadow-2xs py-2 scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground/30"
-                  >
-                    {[
-                      { id: 'overview', label: 'Overview', icon: Crown },
-                      { id: 'system_health', label: 'System Health', icon: Server },
-                      { id: 'inventory_health', label: 'Inventory & FEFO', icon: Layers },
-                      { id: 'security', label: 'Security & Access', icon: Shield },
-                      { id: 'realtime', label: 'Realtime Telemetry', icon: Radio },
-                      { id: 'storage_backups', label: 'Storage & Backups', icon: HardDrive },
-                      { id: 'recovery', label: 'Disaster Recovery', icon: RotateCcw },
-                      { id: 'integrity', label: 'Data Integrity', icon: CheckCircle2 },
-                      { id: 'incidents', label: 'Incidents & Override', icon: AlertTriangle },
-                      { id: 'audit', label: 'Audit Trail', icon: Activity },
-                    ].map((nav) => {
-                      const Icon = nav.icon;
-                      const isActive = masterSubTab === nav.id;
-                      return (
-                        <button
-                          key={nav.id}
-                          type="button"
-                          onClick={() => handleSubTabChange(nav.id)}
-                          className={cn(
-                            "inline-flex items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer shrink-0 select-none",
-                            isActive
-                              ? "bg-primary text-primary-foreground shadow-xs"
-                              : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                          )}
-                        >
-                          <Icon className={cn("w-3.5 h-3.5", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
-                          <span>{nav.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <button
-                    type="button"
-                    aria-label="Scroll tabs right"
-                    onClick={() => scrollSubTabs('right')}
-                    className="hidden sm:flex absolute -right-2 z-10 w-7 h-7 rounded-full bg-card/95 border border-border shadow-md items-center justify-center text-muted-foreground hover:text-foreground hover:scale-110 transition-all cursor-pointer backdrop-blur-xs"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Sub-Tab 1: Overview */}
-                {masterSubTab === 'overview' && (
-                  <MasterOverviewTab
-                    userEmail={user?.email || 'master@kuventory.com'}
-                    realtimePingMs={realtimePingMs}
-                    realtimeChannelStatus={realtimeChannelStatus}
-                    isRealtimePaused={isRealtimePaused}
-                    setIsRealtimePaused={setIsRealtimePaused}
-                    realtimeEvents={realtimeEvents}
-                    maintenanceLocked={!!maintenanceSetting?.locked}
-                    onToggleMaintenance={handleToggleMaintenanceMode}
-                    isMaintenanceToggling={isMaintenanceToggling}
-                    onFlushCache={() => {
-                      queryClient.invalidateQueries();
-                      alert('Global application query cache invalidated successfully.');
-                    }}
-                    onPingDatabase={async () => {
-                      const res = await pingSupabaseKeepalive();
-                      if (res) setRealtimePingMs(res.latencyMs);
-                    }}
-                    onSelectSubTab={handleSubTabChange}
-                    counts={{
-                      activeItems: masterStats.activeItems,
-                      totalStockUnits: masterStats.totalStockUnits,
-                      lowStock: masterStats.lowStock,
-                      outOfStock: masterStats.outOfStock,
-                      expiringSoon: masterStats.expiringSoon,
-                      expired: masterStats.expired,
-                      depletedBatches: masterStats.depletedBatches,
-                      privilegedUsers: privilegedUsers.length || 5,
-                      auditLogs: masterStats.auditLogs,
-                    }}
-                  />
-                )}
-
-                {/* Sub-Tab 2: System Health */}
-                {masterSubTab === 'system_health' && (
-                  <MasterSystemHealthTab
-                    realtimePingMs={realtimePingMs}
-                    realtimeChannelStatus={realtimeChannelStatus}
-                    onRefreshHealth={() => {
-                      refetchMasterStats();
-                      refetchMaintenance();
-                    }}
-                    auditLogsCount={masterStats.auditLogs}
-                  />
-                )}
-
-                {/* Sub-Tab 3: Inventory Health & FEFO */}
-                {masterSubTab === 'inventory_health' && (
-                  <MasterInventoryHealthTab
-                    counts={{
-                      activeItems: masterStats.activeItems,
-                      totalStockUnits: masterStats.totalStockUnits,
-                      lowStock: masterStats.lowStock,
-                      outOfStock: masterStats.outOfStock,
-                      expiringSoon: masterStats.expiringSoon,
-                      expired: masterStats.expired,
-                      depletedBatches: masterStats.depletedBatches,
-                    }}
-                    onRebalanceStockDrift={handleRebalanceStockDrift}
-                    isRebalancingStock={isRebalancingStock}
-                    rebalanceResult={rebalanceResult}
-                    onCleanNegativeBatches={handleCleanNegativeBatches}
-                    isCleaningBatches={isCleaningBatches}
-                    cleanBatchResult={cleanBatchResult}
-                    onOpenPurgeConfirm={() => {
-                      setPurgeConfirmText('');
-                      setPurgeError(null);
-                      setPurgeSuccess(null);
-                      setIsPurgeConfirmOpen(true);
-                    }}
-                    purgeSuccess={purgeSuccess}
-                  />
-                )}
-
-                {/* Sub-Tab 4: Security & Access Control */}
-                {masterSubTab === 'security' && (
-                  <MasterSecurityTab
-                    maintenanceSetting={maintenanceSetting}
-                    onToggleMaintenance={handleToggleMaintenanceMode}
-                    isMaintenanceToggling={isMaintenanceToggling}
-                    privilegedUsers={privilegedUsers}
-                    visitorLogs={visitorLogs}
-                    onOpenResetPassword={(u) => {
-                      setResetPasswordTarget(u);
-                      setTargetNewPassword('');
-                      setResetPasswordError(null);
-                      setResetPasswordSuccess(null);
-                    }}
-                  />
-                )}
-
-                {/* Sub-Tab 5: Realtime Telemetry */}
-                {masterSubTab === 'realtime' && (
-                  <MasterRealtimeTab
-                    realtimeEvents={realtimeEvents}
-                    setRealtimeEvents={setRealtimeEvents}
-                    realtimeChannelStatus={realtimeChannelStatus}
-                    realtimePingMs={realtimePingMs}
-                    setRealtimePingMs={setRealtimePingMs}
-                    isRealtimePaused={isRealtimePaused}
-                    setIsRealtimePaused={setIsRealtimePaused}
-                  />
-                )}
-
-                {/* Sub-Tab 6: Storage & Backups */}
-                {masterSubTab === 'storage_backups' && (
-                  <MasterStorageBackupsTab
-                    onExportBackup={handleExportFullBackup}
-                    isExportingBackup={isExportingBackup}
-                    backupStats={backupStats}
-                    counts={{
-                      activeItems: masterStats.activeItems,
-                      totalStockUnits: masterStats.totalStockUnits,
-                      auditLogs: masterStats.auditLogs,
-                    }}
-                  />
-                )}
-
-                {/* Sub-Tab 7: Disaster Recovery */}
-                {masterSubTab === 'recovery' && (
-                  <MasterRecoveryTab
-                    onValidateRestoreFile={handleValidateRestoreFile}
-                    restoreValidation={restoreValidation}
-                    onOpenConfirmModal={() => setIsRestoreConfirmOpen(true)}
-                    isRestoring={isRestoring}
-                    restoreSuccess={restoreSuccess}
-                    restoreError={restoreError}
-                  />
-                )}
-
-                {/* Sub-Tab 8: Data Integrity */}
-                {masterSubTab === 'integrity' && (
-                  <MasterIntegrityTab />
-                )}
-
-                {/* Sub-Tab 9: Incidents & Override */}
-                {masterSubTab === 'incidents' && (
-                  <MasterIncidentsTab
-                    finalizedSheets={finalizedSheets}
-                    isLoadingFinalizedSheets={isLoadingFinalizedSheets}
-                    onOpenForceOverride={(sheet) => {
-                      setSelectedSheetForOverride(sheet);
-                      setOverrideReason('');
-                      setOverrideError(null);
-                      setOverrideSuccess(null);
-                    }}
-                    overrideSuccess={overrideSuccess}
-                    overrideError={overrideError}
-                  />
-                )}
-
-                {/* Sub-Tab 10: Audit Trail */}
-                {masterSubTab === 'audit' && (
-                  <MasterAuditTab
-                    auditLogs={auditLogs}
-                    isLoadingAuditLogs={isLoadingAuditLogs}
-                    onRefreshAudits={refetchAudits}
-                  />
-                )}
-              </div>
+            <SuperAdminControlCenter
+              userEmail={user?.email || 'superadmin@kuventory.com'}
+              maintenanceLocked={maintenanceSetting?.locked || false}
+              onToggleMaintenance={handleToggleMaintenanceMode}
+              isMaintenanceToggling={isMaintenanceToggling}
+              realtimePingMs={realtimePingMs}
+              setRealtimePingMs={setRealtimePingMs}
+              realtimeChannelStatus={realtimeChannelStatus}
+              realtimeEvents={realtimeEvents}
+              setRealtimeEvents={setRealtimeEvents}
+              isRealtimePaused={isRealtimePaused}
+              setIsRealtimePaused={setIsRealtimePaused}
+              onRebalanceStockDrift={handleRebalanceStockDrift}
+              isRebalancingStock={isRebalancingStock}
+              rebalanceResult={rebalanceResult}
+              onCleanNegativeBatches={handleCleanNegativeBatches}
+              isCleaningBatches={isCleaningBatches}
+              cleanBatchResult={cleanBatchResult}
+              onExportFullBackup={handleExportFullBackup}
+              isExportingBackup={isExportingBackup}
+              finalizedSheets={finalizedSheets}
+              isLoadingFinalizedSheets={isLoadingFinalizedSheets}
+              onOpenForceOverride={(sheet) => {
+                setSelectedSheetForOverride(sheet);
+                setOverrideReason('');
+                setOverrideError(null);
+                setOverrideSuccess(null);
+              }}
+              overrideSuccess={overrideSuccess}
+              overrideError={overrideError}
+              auditLogs={auditLogs}
+              isLoadingAuditLogs={isLoadingAuditLogs}
+              refetchAudits={refetchAudits}
+            />
           </TabsContent>
         )}
       </Tabs>
@@ -2557,122 +2064,6 @@ export function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Disaster Recovery Restore Confirmation Modal */}
-      <Dialog open={isRestoreConfirmOpen} onOpenChange={setIsRestoreConfirmOpen}>
-        <DialogContent className="max-w-md bg-card border-border text-foreground">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-foreground">
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
-              Confirm Database Snapshot Restoration
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              This action will synchronize your database with the selected backup snapshot.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-2 text-foreground">
-            <p className="font-semibold text-amber-600 dark:text-amber-400">
-              Snapshot Details:
-            </p>
-            <div className="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
-              <div>Items: <strong>{restoreValidation?.itemCount}</strong></div>
-              <div>Batches: <strong>{restoreValidation?.batchCount}</strong></div>
-              <div>Categories: <strong>{restoreValidation?.categoryCount}</strong></div>
-              <div>Sheets: <strong>{restoreValidation?.sheetCount}</strong></div>
-            </div>
-            <p className="text-[11px] text-muted-foreground pt-1">
-              Existing matching records will be updated and missing records will be inserted.
-            </p>
-          </div>
-
-          <DialogFooter className="pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsRestoreConfirmOpen(false)}
-              disabled={isRestoring}
-              className="border-border text-foreground"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={handleExecuteRestore}
-              disabled={isRestoring}
-              className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
-            >
-              {isRestoring ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RotateCcw className="w-4 h-4 mr-2" />}
-              Confirm & Restore Now
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Clean-Slate Item Purge Confirmation Modal */}
-      <Dialog open={isPurgeConfirmOpen} onOpenChange={setIsPurgeConfirmOpen}>
-        <DialogContent className="max-w-md bg-card border-border text-foreground">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="w-5 h-5" />
-              Clean-Slate Reset Confirmation
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              This will remove all inventory items, stock batches, movements, and sheets.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-xs space-y-2 text-foreground">
-            <p className="font-bold text-destructive">
-              What will be preserved:
-            </p>
-            <ul className="list-disc list-inside text-[11px] space-y-0.5 text-muted-foreground">
-              <li>All 7 Categories (Beverages, Snacks, GRILLED STOCK, etc.) remain intact.</li>
-              <li>All Staff and Administrator accounts remain intact.</li>
-              <li>Store settings & branches remain intact.</li>
-            </ul>
-            <p className="text-[11px] text-destructive pt-1">
-              To confirm, type <strong className="font-mono bg-destructive/20 px-1 py-0.5 rounded">DELETE</strong> below:
-            </p>
-          </div>
-
-          {purgeError && (
-            <div className="p-3 text-xs text-destructive bg-destructive/15 rounded-md border border-destructive/20 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              {purgeError}
-            </div>
-          )}
-
-          <div className="space-y-1.5 py-1">
-            <Input
-              value={purgeConfirmText}
-              onChange={(e) => setPurgeConfirmText(e.target.value)}
-              placeholder="Type DELETE"
-              className="font-mono text-sm bg-card border-border text-foreground h-11"
-            />
-          </div>
-
-          <DialogFooter className="pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsPurgeConfirmOpen(false)}
-              disabled={isPurgingItems}
-              className="border-border text-foreground"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={handlePurgeAllItems}
-              disabled={isPurgingItems || purgeConfirmText !== 'DELETE'}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold"
-            >
-              {isPurgingItems ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
-              Permanently Purge Items
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

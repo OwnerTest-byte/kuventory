@@ -26,18 +26,30 @@ function recordResult(category, target, status, details = '') {
 }
 
 async function verifyAll() {
-  // 1. Authenticate as Master Admin
+  // 1. Authenticate as Super Admin
   console.log('--- STEP 1: AUTHENTICATION CHECK ---');
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email: 'master@kuventory.com',
-    password: 'MasterAdmin2026!'
+    email: 'superadmin@kuventory.com',
+    password: 'SuperAdmin2026!'
   });
 
   if (authError) {
-    recordResult('AUTH', 'Master Admin Login', 'FAILED', authError.message);
+    recordResult('AUTH', 'Super Admin Account Login', 'FAILED', authError.message);
     process.exit(1);
   } else {
-    recordResult('AUTH', 'Master Admin Login', 'PASSED', `User ID: ${authData.user.id}`);
+    recordResult('AUTH', 'Super Admin Account Login', 'PASSED', `User ID: ${authData.user.id}`);
+  }
+
+  // Also verify root superadmin credential
+  const rootClient = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
+  const { data: rootAuth, error: rootAuthErr } = await rootClient.auth.signInWithPassword({
+    email: 'master@kuventory.com',
+    password: 'SuperAdmin2026!'
+  });
+  if (rootAuthErr) {
+    recordResult('AUTH', 'Root Super Admin Login', 'FAILED', rootAuthErr.message);
+  } else {
+    recordResult('AUTH', 'Root Super Admin Login', 'PASSED', `User ID: ${rootAuth.user.id}`);
   }
 
   // Claim temporary session lease for verification runner
@@ -142,13 +154,13 @@ async function verifyAll() {
 
   // Disaster Recovery Checkpoint RPC
   try {
-    const { data: cpData, error: cpErr } = await supabase.rpc('create_recovery_checkpoint', {
-      p_name: 'Master Connectivity Verification Checkpoint',
+    const { data: cpData, error: cpErr } = await rootClient.rpc('create_recovery_checkpoint', {
+      p_name: 'Super Admin Connectivity Verification Checkpoint',
       p_retention_class: 'FREQUENT',
       p_is_protected: false
     });
     if (cpErr) recordResult('RPC', 'create_recovery_checkpoint', 'FAILED', cpErr.message);
-    else recordResult('RPC', 'create_recovery_checkpoint', 'PASSED', `Checkpoint Code: ${cpData?.checkpoint_code || cpData}`);
+    else recordResult('RPC', 'create_recovery_checkpoint', 'PASSED', `Checkpoint Code: ${cpData?.checkpoint_code || cpData?.point_code || cpData}`);
   } catch (err) {
     recordResult('RPC', 'create_recovery_checkpoint', 'FAILED', err.message);
   }
