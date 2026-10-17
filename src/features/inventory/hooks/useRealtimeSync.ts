@@ -131,6 +131,14 @@ export function useRealtimeSync() {
           queryClient.invalidateQueries({ queryKey: ['user-session-leases'] });
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'recovery_points' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['recovery-points'] });
+          queryClient.invalidateQueries({ queryKey: ['super-recovery-points'] });
+        }
+      )
       .subscribe();
 
     return () => {
