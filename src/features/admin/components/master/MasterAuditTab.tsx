@@ -40,7 +40,7 @@ export function MasterAuditTab({
             <div className="flex items-center gap-2">
               <Activity className="w-5 h-5 text-primary" />
               <h2 className="text-xl font-bold tracking-tight text-foreground">
-                Master Security & Administrative Audit Trail
+                Super Admin Security & Administrative Audit Trail
               </h2>
             </div>
             <p className="text-xs text-muted-foreground mt-1">

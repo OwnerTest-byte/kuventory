@@ -332,7 +332,7 @@ export function MasterSecurityTab({
                           ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30" 
                           : "bg-primary/15 text-primary border border-primary/20"
                       )}>
-                        {isMaster ? 'MASTER_ADMIN (Tier 0)' : 'ADMIN (Level 1)'}
+                        {isMaster ? 'SUPER_ADMIN (Tier 0)' : 'ADMIN (Level 1)'}
                       </span>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">

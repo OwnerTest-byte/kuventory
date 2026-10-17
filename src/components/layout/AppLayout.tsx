@@ -173,12 +173,12 @@ function SidebarNavigation({
       return location.pathname.startsWith('/reports');
     }
 
-    if (to === '/settings?tab=master') {
-      return (location.pathname === '/settings' || location.pathname === '/admin') && location.search.includes('tab=master');
+    if (to === '/settings?tab=super_admin' || to === '/settings?tab=master') {
+      return (location.pathname === '/settings' || location.pathname === '/admin') && (location.search.includes('tab=super_admin') || location.search.includes('tab=master'));
     }
 
     if (to === '/settings') {
-      return (location.pathname === '/settings' || location.pathname === '/admin') && !location.search.includes('tab=master');
+      return (location.pathname === '/settings' || location.pathname === '/admin') && !location.search.includes('tab=super_admin') && !location.search.includes('tab=master');
     }
 
     return location.pathname === to;

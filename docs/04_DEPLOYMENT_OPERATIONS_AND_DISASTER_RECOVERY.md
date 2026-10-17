@@ -84,7 +84,7 @@ Database backups do **not** automatically restore binary objects stored via Supa
 
 | Asset Category | Storage Destination | Frequency | Retention | Recovery Mechanism |
 | :--- | :--- | :--- | :--- | :--- |
-| **PostgreSQL Database** | Supabase Cloud Automated Snapshots + Local Master JSON Snapshots | Daily automated + On-demand Master Admin 1-click snapshot | 30 days rolling (PITR: 7 days) | Stored procedure replay / Master Admin Restore Engine |
+| **PostgreSQL Database** | Supabase Cloud Automated Snapshots + Local Super Admin JSON Snapshots | Daily automated + On-demand Super Admin 1-click snapshot | 30 days rolling (PITR: 7 days) | Stored procedure replay / Super Admin Restore Engine |
 | **Report Documents** | Immutable PostgreSQL records in `reports` and `report_items` | Database snapshots | Permanent | On-demand byte-for-byte PDF/Excel re-export |
 | **Product Photography** | Repository `/public/pics/` bundled into deployment | Git Version Control | Indefinite | Re-deployed automatically with frontend bundle |
 | **Schema Migrations** | `supabase/migrations/*.sql` in GitHub repository | Git Version Control | Indefinite | `npx supabase db push` |
@@ -93,7 +93,7 @@ Database backups do **not** automatically restore binary objects stored via Supa
 
 ## 4. Disaster Recovery Restoration Procedure
 
-Restoration is a high-risk operation that must be authorized exclusively by the **Master Administrator** (`master@kuventory.com`).
+Restoration is a high-risk operation that must be authorized exclusively by the **Super Administrator** (`master@kuventory.com`).
 
 ```
 [Incident Declared]
@@ -120,7 +120,7 @@ Restoration is a high-risk operation that must be authorized exclusively by the 
 ### 4.1 Step-by-Step Restoration Workflow
 1. **Declare Incident & Lock Site:**
    - Log into `master@kuventory.com`.
-   - In `/settings?tab=master`, toggle **Emergency Maintenance Mode** to `ACTIVE`. This prevents concurrent user edits during recovery.
+   - In `/settings?tab=super_admin`, toggle **Emergency Maintenance Mode** to `ACTIVE`. This prevents concurrent user edits during recovery.
 2. **Select Recovery Snapshot:**
    - Under **Disaster Recovery Center**, select the verified backup file (`kuventory_master_backup_[timestamp].json`).
 3. **Execute Dry-Run Inspection:**
@@ -131,24 +131,24 @@ Restoration is a high-risk operation that must be authorized exclusively by the 
    - The restore engine synchronizes items, categories, batches, movements, and sheets without dropping table schemas.
 5. **Post-Restore Verification Checklist:**
    - [ ] Database connection responds within normal latency ($\le 200\text{ms}$).
-   - [ ] Auth engine authenticates Master Admin, Store Admin, and Staff.
+   - [ ] Auth engine authenticates Super Admin, Store Admin, and Staff.
    - [ ] Item catalog and active batches display correct balances.
    - [ ] Stock balance drift analyzer reports zero discrepancies.
    - [ ] Daily inventory sheets load properly.
    - [ ] Historical finalized reports can be viewed and re-exported.
 6. **Re-Open Service:**
-   - Deactivate Maintenance Mode in the Master Console.
-   - Log incident completion in the Master Audit Trail.
+   - Deactivate Maintenance Mode in the Super Admin Console.
+   - Log incident completion in the Super Admin Audit Trail.
 
 ---
 
 ## 5. Contingency Playbooks
 
 ### Playbook A: Accidental Record Deletion
-- **Action:** Restore the affected record from the latest Master Admin JSON snapshot, or leverage the soft-delete (`archived_at`) restoration interface in the Admin Console.
+- **Action:** Restore the affected record from the latest Super Admin JSON snapshot, or leverage the soft-delete (`archived_at`) restoration interface in the Admin Console.
 
 ### Playbook B: Database Migration Failure
 - **Action:** Revert to the prior Git commit, push to `main` to trigger Netlify redeploy, and execute down-migration SQL via Supabase SQL Editor.
 
 ### Playbook C: Compromised Admin Account
-- **Action:** Master Admin logs in, navigates to `/settings?tab=users`, immediately resets the compromised user's password or revokes their account status, and audits recent stock movements for unauthorized changes.
+- **Action:** Super Admin logs in, navigates to `/settings?tab=users`, immediately resets the compromised user's password or revokes their account status, and audits recent stock movements for unauthorized changes.

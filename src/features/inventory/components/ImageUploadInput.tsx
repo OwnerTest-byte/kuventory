@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Link as LinkIcon, X, Image as ImageIcon, Loader2, RefreshCw, Camera } from 'lucide-react';
+import { Upload, Link as LinkIcon, X, Image as ImageIcon, Loader2, RefreshCw, Camera, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -11,7 +11,7 @@ interface ImageUploadInputProps {
   hideHeaderLabel?: boolean;
 }
 
-// Normalizes and transforms common sharing links (Google Drive, Imgur, Dropbox, scheme-less) into direct image URLs
+// Normalizes and transforms common sharing links (Google Drive, Imgur, Dropbox, Google Images, GitHub, Postimages, scheme-less) into direct image URLs
 export function normalizeImageUrl(input: string): string {
   let url = input.trim();
   if (!url) return '';
@@ -28,16 +28,45 @@ export function normalizeImageUrl(input: string): string {
     return `https://lh3.googleusercontent.com/d/${gdriveMatch[1]}`;
   }
 
-  // 2. Imgur page links -> direct i.imgur.com link
+  // 2. Google Images search result link -> extract direct imgurl parameter
+  if (url.includes('google.') && url.includes('/imgres')) {
+    try {
+      const parsed = new URL(url);
+      const direct = parsed.searchParams.get('imgurl');
+      if (direct) return decodeURIComponent(direct);
+    } catch {
+      // fallback
+    }
+  }
+
+  // 3. Imgur page links -> direct i.imgur.com link
   const imgurMatch = url.match(/^https?:\/\/(?:www\.)?imgur\.com\/(?:gallery\/)?([a-zA-Z0-9]+)$/i);
   if (imgurMatch) {
     return `https://i.imgur.com/${imgurMatch[1]}.jpg`;
   }
 
-  // 3. Dropbox links -> direct raw link
+  // 4. Dropbox links -> direct raw link
   if (url.includes('dropbox.com')) {
     const cleanDrop = url.replace(/[?&]dl=[01]/, '').replace(/[?&]raw=1/, '');
     return cleanDrop + (cleanDrop.includes('?') ? '&' : '?') + 'raw=1';
+  }
+
+  // 5. GitHub blob URLs -> raw.githubusercontent.com
+  const githubBlobMatch = url.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/(.+)$/i);
+  if (githubBlobMatch) {
+    return `https://raw.githubusercontent.com/${githubBlobMatch[1]}/${githubBlobMatch[2]}/${githubBlobMatch[3]}`;
+  }
+
+  // 6. Postimages page links -> direct i.postimg.cc link
+  const postimgMatch = url.match(/^https?:\/\/postimg\.cc\/([a-zA-Z0-9]+)$/i);
+  if (postimgMatch) {
+    return `https://i.postimg.cc/${postimgMatch[1]}/image.jpg`;
+  }
+
+  // 7. Wikimedia Commons File: page -> direct FilePath URL
+  const wikiCommonsMatch = url.match(/^https?:\/\/commons\.wikimedia\.org\/wiki\/File:(.+)$/i);
+  if (wikiCommonsMatch) {
+    return `https://commons.wikimedia.org/wiki/Special:FilePath/${wikiCommonsMatch[1]}`;
   }
 
   return url;
@@ -164,39 +193,47 @@ export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
     setErrorMessage(null);
     setIsProcessing(true);
 
+    let completed = false;
+    const finalize = (appliedUrl: string, warning?: string) => {
+      if (completed) return;
+      completed = true;
+      setIsProcessing(false);
+      onChange(appliedUrl);
+      setUrlInput('');
+      if (warning) setErrorMessage(warning);
+    };
+
+    // 2-second timeout safeguard so slow or protected CDNs never freeze the UI
+    const timeoutId = setTimeout(() => {
+      finalize(normalized);
+    }, 2000);
+
     // Pre-test image with no-referrer
     const testImg = new window.Image();
     testImg.referrerPolicy = 'no-referrer';
-    
+
     testImg.onload = () => {
-      setIsProcessing(false);
-      onChange(normalized);
-      setUrlInput('');
+      clearTimeout(timeoutId);
+      finalize(normalized);
     };
 
     testImg.onerror = () => {
+      clearTimeout(timeoutId);
       // Attempt proxy fallback for hotlink-protected links
       if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
         const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(normalized)}`;
         const proxyImg = new window.Image();
         proxyImg.referrerPolicy = 'no-referrer';
         proxyImg.onload = () => {
-          setIsProcessing(false);
-          onChange(proxyUrl);
-          setUrlInput('');
+          finalize(proxyUrl);
         };
         proxyImg.onerror = () => {
-          setIsProcessing(false);
           // Apply normalized link anyway so user has choice, with informational alert
-          onChange(normalized);
-          setUrlInput('');
-          setErrorMessage('Notice: This external host restricts previews. The link was saved.');
+          finalize(normalized, 'Notice: External host restricts hotlink probes. Link was saved.');
         };
         proxyImg.src = proxyUrl;
       } else {
-        setIsProcessing(false);
-        onChange(normalized);
-        setUrlInput('');
+        finalize(normalized);
       }
     };
 
@@ -248,11 +285,12 @@ export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
       {value ? (
         <div className="flex flex-col sm:flex-row items-center gap-3 p-3.5 rounded-xl border border-border bg-muted/30">
           <div className="w-20 h-20 sm:w-16 sm:h-16 rounded-xl bg-card border border-border overflow-hidden shrink-0 flex items-center justify-center p-1 relative shadow-xs">
+            <span className="text-[10px] text-muted-foreground font-semibold uppercase select-none">Preview</span>
             <img
               src={value}
               alt="Item preview"
               referrerPolicy="no-referrer"
-              className="w-full h-full object-contain"
+              className="absolute inset-0 w-full h-full object-contain"
               onError={(e) => {
                 const target = e.currentTarget;
                 if (!target.dataset.triedProxy && (value.startsWith('http://') || value.startsWith('https://')) && !value.includes('weserv.nl')) {
@@ -268,9 +306,22 @@ export const ImageUploadInput: React.FC<ImageUploadInputProps> = ({
 
           <div className="flex-1 min-w-0 w-full text-center sm:text-left space-y-1">
             <p className="text-xs font-semibold text-foreground truncate">Product Photo Set</p>
-            <p className="text-[10px] text-muted-foreground truncate">
-              {value.startsWith('data:') ? 'Local file (WebP optimized)' : value}
-            </p>
+            {value.startsWith('http') ? (
+              <a
+                href={value}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-primary hover:underline font-mono truncate inline-flex items-center gap-1 max-w-full"
+                title="Click to open image link in new tab"
+              >
+                <span className="truncate">{value}</span>
+                <ExternalLink className="w-3 h-3 shrink-0" />
+              </a>
+            ) : (
+              <p className="text-[10px] text-muted-foreground truncate">
+                Local file (WebP optimized)
+              </p>
+            )}
             <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
               <Button
                 type="button"

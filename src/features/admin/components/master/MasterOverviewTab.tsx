@@ -105,7 +105,7 @@ export function MasterOverviewTab({
           <div className="p-3.5 rounded-xl bg-card border border-border/80">
             <span className="text-muted-foreground block font-medium text-[11px]">System Clearance</span>
             <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 mt-0.5">
-              <Crown className="w-3.5 h-3.5 text-amber-500" /> MASTER_ADMIN (Tier 0)
+              <Crown className="w-3.5 h-3.5 text-amber-500" /> SUPER_ADMIN (Tier 0)
             </span>
           </div>
           <div className="p-3.5 rounded-xl bg-card border border-border/80">
@@ -121,7 +121,7 @@ export function MasterOverviewTab({
             </span>
           </div>
           <div className="p-3.5 rounded-xl bg-card border border-border/80">
-            <span className="text-muted-foreground block font-medium text-[11px]">Direct Master Hotline</span>
+            <span className="text-muted-foreground block font-medium text-[11px]">Direct Super Admin Hotline</span>
             <span className="font-bold text-foreground mt-0.5 block font-mono">
               09917101298 (Call / SMS)
             </span>
@@ -129,7 +129,7 @@ export function MasterOverviewTab({
         </div>
       </div>
 
-      {/* The 4 Core Pillars of KUVENTORY Master Admin */}
+      {/* The 4 Core Pillars of KUVENTORY Super Admin */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Pillar 1: System Status */}
         <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-3 flex flex-col justify-between hover:border-border/80 transition-colors">
@@ -235,7 +235,7 @@ export function MasterOverviewTab({
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Privileged Accounts:</span>
-                <span className="font-bold text-foreground">{counts.privilegedUsers} (1 Master, {counts.privilegedUsers - 1} Admin)</span>
+                <span className="font-bold text-foreground">{counts.privilegedUsers} (1 Super Admin, {counts.privilegedUsers - 1} Admin)</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Maintenance Lock:</span>
@@ -400,7 +400,7 @@ export function MasterOverviewTab({
             <Lock className="w-4 h-4 text-amber-500" />
             <h3 className="text-base font-bold text-foreground">Emergency Contingency Controls</h3>
           </div>
-          <span className="text-xs text-muted-foreground">Authorized Master Actions</span>
+          <span className="text-xs text-muted-foreground">Authorized Super Admin Actions</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

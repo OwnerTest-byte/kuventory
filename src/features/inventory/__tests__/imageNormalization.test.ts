@@ -35,4 +35,24 @@ describe('normalizeImageUrl Utility', () => {
     const dropUrl = 'https://www.dropbox.com/s/xyz123/coffee.jpg?dl=0';
     expect(normalizeImageUrl(dropUrl)).toBe('https://www.dropbox.com/s/xyz123/coffee.jpg?raw=1');
   });
+
+  it('extracts direct image URL from Google Images search result URLs', () => {
+    const googleImgUrl = 'https://www.google.com/imgres?imgurl=https%3A%2F%2Fexample.com%2Fbeans.jpg&imgrefurl=https%3A%2F%2Fexample.com';
+    expect(normalizeImageUrl(googleImgUrl)).toBe('https://example.com/beans.jpg');
+  });
+
+  it('transforms GitHub blob URLs to raw user content URLs', () => {
+    const ghUrl = 'https://github.com/user/repo/blob/main/photos/cup.png';
+    expect(normalizeImageUrl(ghUrl)).toBe('https://raw.githubusercontent.com/user/repo/main/photos/cup.png');
+  });
+
+  it('transforms Postimages page URLs to direct image URLs', () => {
+    const postimgUrl = 'https://postimg.cc/ABCD1234';
+    expect(normalizeImageUrl(postimgUrl)).toBe('https://i.postimg.cc/ABCD1234/image.jpg');
+  });
+
+  it('transforms Wikimedia Commons File page URLs to Special:FilePath URLs', () => {
+    const wikiUrl = 'https://commons.wikimedia.org/wiki/File:Espresso.jpg';
+    expect(normalizeImageUrl(wikiUrl)).toBe('https://commons.wikimedia.org/wiki/Special:FilePath/Espresso.jpg');
+  });
 });

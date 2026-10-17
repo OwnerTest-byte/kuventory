@@ -866,7 +866,7 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
             <DialogDescription className="text-muted-foreground text-sm pt-2">
               Remove <strong className="text-foreground">{itemToRemove?.items?.item_name}</strong> from today's daily inventory worksheet?
               <span className="block mt-2 text-xs text-muted-foreground">
-                Note: This only removes the item from today's worksheet. The master item, its stock batches, and history remain safely in your inventory catalog.
+                Note: This only removes the item from today's worksheet. The catalog item, its stock batches, and history remain safely in your inventory catalog.
               </span>
             </DialogDescription>
           </DialogHeader>

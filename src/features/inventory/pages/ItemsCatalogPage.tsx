@@ -437,13 +437,20 @@ export function ItemsCatalogPage() {
                       <tr key={item.id} className="hover:bg-muted/40 transition-colors group">
                         <td className="px-5 py-3.5 sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border min-w-60 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-lg border border-border bg-muted/40 overflow-hidden shrink-0 flex items-center justify-center shadow-2xs">
-                              {item.image_path ? (
+                            <Link 
+                              to={`/items/${item.id}`}
+                              className="w-9 h-9 rounded-lg border border-border bg-muted/40 overflow-hidden shrink-0 flex items-center justify-center shadow-2xs relative group/img cursor-pointer hover:border-primary/50 transition-colors"
+                              title={`View ${item.item_name}`}
+                            >
+                              <span className="font-bold text-[10px] text-muted-foreground uppercase select-none">
+                                {item.item_name.substring(0, 2)}
+                              </span>
+                              {item.image_path && (
                                 <img 
                                   src={item.image_path} 
                                   alt={item.item_name} 
                                   referrerPolicy="no-referrer"
-                                  className="w-full h-full object-cover" 
+                                  className="absolute inset-0 w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-200" 
                                   onError={(e) => {
                                     const target = e.currentTarget;
                                     if (!target.dataset.triedProxy && item.image_path?.startsWith('http') && !item.image_path.includes('weserv.nl')) {
@@ -454,12 +461,8 @@ export function ItemsCatalogPage() {
                                     }
                                   }}
                                 />
-                              ) : (
-                                <span className="font-bold text-[10px] text-muted-foreground uppercase">
-                                  {item.item_name.substring(0, 2)}
-                                </span>
                               )}
-                            </div>
+                            </Link>
                             <div className="min-w-0">
                               <Link 
                                 to={`/items/${item.id}`} 

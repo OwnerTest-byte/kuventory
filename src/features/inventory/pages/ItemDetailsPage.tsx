@@ -16,7 +16,8 @@ import {
   AlertOctagon, 
   RefreshCw,
   PlusCircle,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ExternalLink
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { StockUpdateModal } from '../components/StockUpdateModal';
@@ -215,15 +216,21 @@ export function ItemDetailsPage() {
         <div className="p-6 space-y-5">
           {/* Item Metadata & Specs with Image */}
           <div className="flex flex-col md:flex-row gap-5 items-start">
-            {/* Optional Item Image */}
-            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl border border-border bg-muted/30 overflow-hidden shrink-0 flex items-center justify-center relative group shadow-2xs">
-              {item.image_path ? (
-                <>
+            {/* Optional Item Image & Interactive Links */}
+            <div className="flex flex-col items-center sm:items-start shrink-0">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl border border-border bg-muted/30 overflow-hidden shrink-0 flex items-center justify-center relative group shadow-2xs">
+                {/* Fallback item initials always rendered underneath */}
+                <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground p-2 text-center select-none">
+                  <span className="font-bold text-lg text-muted-foreground uppercase">
+                    {item.item_name.substring(0, 2)}
+                  </span>
+                </div>
+                {item.image_path && (
                   <img 
                     src={item.image_path} 
                     alt={item.item_name} 
                     referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover" 
+                    className="absolute inset-0 w-full h-full object-cover" 
                     onError={(e) => {
                       const target = e.currentTarget;
                       if (!target.dataset.triedProxy && item.image_path?.startsWith('http') && !item.image_path.includes('weserv.nl')) {
@@ -234,26 +241,41 @@ export function ItemDetailsPage() {
                       }
                     }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setIsEditModalOpen(true)}
-                    className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-[11px] font-semibold cursor-pointer"
-                    title="Change item image"
-                  >
-                    <Edit className="w-4 h-4" />
-                    <span>Change</span>
-                  </button>
-                </>
-              ) : (
+                )}
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(true)}
-                  className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-muted-foreground hover:text-primary transition-colors cursor-pointer p-2 text-center"
-                  title="Add item image"
+                  className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-[11px] font-semibold cursor-pointer z-10"
+                  title={item.image_path ? "Change item image" : "Add item image"}
                 >
-                  <ImageIcon className="w-6 h-6 opacity-60" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wider">+ Image</span>
+                  {item.image_path ? (
+                    <>
+                      <Edit className="w-4 h-4" />
+                      <span>Change</span>
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="w-5 h-5 opacity-80" />
+                      <span>+ Image</span>
+                    </>
+                  )}
                 </button>
+              </div>
+              {item.image_path && (
+                <div className="flex items-center gap-2 mt-1.5">
+                  {item.image_path.startsWith('http') && (
+                    <a
+                      href={item.image_path}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                      title="Open full image in new tab"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      <span>View Image Link</span>
+                    </a>
+                  )}
+                </div>
               )}
             </div>
 

@@ -15,7 +15,7 @@ KUVENTORY remains strictly focused on core inventory operations:
 - **Categories & Suppliers**: Category taxonomy and item supplier attributes (Supplier A & Supplier B).
 - **Reports & Analytics**: Immutable report snapshots, operational movement analysis (Top 3 Outgoing, Top 3 Stocked, Top 3 Lowest Stock).
 - **Notifications**: Deduplicated, auto-resolving alerts for low-stock thresholds, expiring lots, and depleted batches.
-- **Master Admin Control Center**: Telemetry, database health, realtime monitoring, storage/backups, recovery checkpoints, integrity audits, and active session revocation.
+- **Super Admin Control Center**: Telemetry, database health, realtime monitoring, storage/backups, recovery checkpoints, integrity audits, and active session revocation.
 
 ---
 
@@ -26,8 +26,8 @@ Clear separation of responsibilities across three rigid tiers:
 | Role | Quota Limit | Scope & Permissions | Key Restrictions |
 | :--- | :--- | :--- | :--- |
 | **USER / STAFF** | Unlimited | Floor operations: worksheet entry, stock receiving, stock deductions, view batches, read alerts. | No user management, no system recovery, no role elevation, cannot access administrative settings. |
-| **ADMIN** | **Max 3 Slots** (`admin@kuventory.com` + 2 active) | Operational administration: item catalog updates, category creation, staff password reset, operational audit review. | Cannot access Disaster Recovery Center, cannot demote/delete Master Admin, cannot bypass quotas. |
-| **MASTER_ADMIN** | **Strictly 1 Account** (`master@kuventory.com`) | Absolute application authority: system telemetry, disaster recovery checkpoints, database restore, session lease revocation, maintenance lockout. | Authenticated legitimately via MFA/strong credentials; all privileged actions audited in `audit_logs`. |
+| **ADMIN** | **Max 3 Slots** (`admin@kuventory.com` + 2 active) | Operational administration: item catalog updates, category creation, staff password reset, operational audit review. | Cannot access Disaster Recovery Center, cannot demote/delete Super Admin, cannot bypass quotas. |
+| **MASTER_ADMIN (Super Admin)** | **Strictly 1 Account** (`master@kuventory.com`) | Absolute application authority: system telemetry, disaster recovery checkpoints, database restore, session lease revocation, maintenance lockout. | Authenticated legitimately via MFA/strong credentials; all privileged actions audited in `audit_logs`. |
 
 ---
 
@@ -84,8 +84,8 @@ FOR UPDATE;
 3. **Heartbeat & Grace Period**:
    - Active client emits a heartbeat every 15 seconds to extend lease (45-second lease window).
    - If Device A crashes or closes without logging out, the lease expires after 45 seconds, permitting subsequent login.
-4. **Master Admin Revocation**:
-   - Master Admin can inspect all active leases in the Control Center and forcefully revoke compromised or orphaned sessions with an audited reason.
+4. **Super Admin Revocation**:
+   - Super Admin can inspect all active leases in the Control Center and forcefully revoke compromised or orphaned sessions with an audited reason.
 
 ---
 
@@ -104,7 +104,7 @@ A recovery point represents a verified, coherent system snapshot tracking:
 
 ### Read-Only State Preview (Rules 49–53)
 
-Master Admin can inspect snapshot metadata and version alignment in an isolated read-only preview drawer. All production mutation is blocked during preview.
+Super Admin can inspect snapshot metadata and version alignment in an isolated read-only preview drawer. All production mutation is blocked during preview.
 
 ---
 
