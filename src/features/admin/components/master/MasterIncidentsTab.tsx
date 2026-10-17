@@ -30,7 +30,7 @@ export function MasterIncidentsTab({
       status: 'RESOLVED',
       area: 'AUTHENTICATION',
       detectedAt: '2026-10-04 01:19:21',
-      description: 'Master Administrator account (master@kuventory.com) provisioned with Tier 0 clearance.',
+      description: 'Super Administrator account (master@kuventory.com) provisioned with Tier 0 clearance.',
       resolution: 'Password tolerance and RLS role synchronization applied successfully.',
     },
     {
@@ -91,7 +91,7 @@ export function MasterIncidentsTab({
             </h3>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            In standard operations, finalized worksheets are cryptographically locked to prevent manipulation. As Master Administrator, you possess Tier 0 authority to unlock a finalized session back to DRAFT state with a mandatory audit reason.
+            In standard operations, finalized worksheets are cryptographically locked to prevent manipulation. As Super Administrator, you possess Tier 0 authority to unlock a finalized session back to DRAFT state with a mandatory audit reason.
           </p>
         </div>
 

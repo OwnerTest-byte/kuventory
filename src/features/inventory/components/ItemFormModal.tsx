@@ -124,9 +124,21 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
       return;
     }
 
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    if (!item && parseFloat(formData.initial_qty) < 0) {
+      setError("Initial stock quantity cannot be negative.");
+      return;
+    }
+
     const initialQtyNum = !item ? Math.max(0, parseFloat(formData.initial_qty) || 0) : 0;
     if (initialQtyNum > 0 && !formData.initial_expiry_date) {
       setError("Expiration date is required when adding initial stock (FEFO tracking)");
+      return;
+    }
+
+    if (formData.initial_expiry_date && formData.initial_expiry_date < todayStr) {
+      setError("Expiration date cannot be in the past. Stock is already expired.");
       return;
     }
 
@@ -165,12 +177,18 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
       return;
     }
 
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (formData.initial_expiry_date < todayStr) {
+      setError("Expiration date cannot be in the past. Stock is already expired.");
+      return;
+    }
+
     try {
       await addStock({
         itemId: (matchedExistingItem as any).id,
         quantity: qty,
         expiryDate: formData.initial_expiry_date || null,
-        reason: 'Restock Batch Delivery (FEFO Expiry Queue)'
+        reason: 'Restock Batch Delivery'
       });
       setBatchAddedSuccess(`ADDED: ${qty} ${(matchedExistingItem as any).unit || 'units'}`);
       setTimeout(() => {
@@ -349,11 +367,12 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
                           REQUIRED FOR FEFO
                         </span>
                       ) : (
-                        <span className="text-[10px] text-muted-foreground uppercase font-bold">FEFO Queued</span>
+                        <span className="text-[10px] text-muted-foreground font-semibold">Optional if 0 stock</span>
                       )}
                     </label>
                     <Input 
                       type="date"
+                      min={new Date().toISOString().split('T')[0]}
                       required={parseFloat(formData.initial_qty) > 0}
                       value={formData.initial_expiry_date}
                       onChange={e => setFormData({ ...formData, initial_expiry_date: e.target.value })}

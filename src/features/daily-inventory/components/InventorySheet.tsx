@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { DailyInventorySessionWithEntries } from '../api';
@@ -21,7 +21,9 @@ import {
   Trash2,
   ArrowRightLeft,
   ClipboardList,
-  Search
+  Search,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 type DailyEntry = DailyInventorySessionWithEntries['daily_inventory_entries'][number];
@@ -46,6 +48,16 @@ interface StationGroup {
 export function InventorySheet({ session, isReadOnly, date }: InventorySheetProps) {
   const queryClient = useQueryClient();
   const { add } = useStockMutations();
+
+  // Station navigation scroll container ref & wheel handler
+  const pillsContainerRef = useRef<HTMLDivElement>(null);
+  const handlePillsWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (pillsContainerRef.current) {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        pillsContainerRef.current.scrollLeft += e.deltaY;
+      }
+    }
+  };
 
   // Add Station Dialog State
   const [isAddStationOpen, setIsAddStationOpen] = useState(false);
@@ -604,23 +616,54 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
   return (
     <div className="space-y-6">
       {/* Quick Navigation Pills Header */}
-      <div className="flex items-center justify-between gap-3 pb-2 border-b border-border/80 overflow-x-auto">
-        <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none">
-          {stations.map(station => {
-            const Icon = station.icon;
-            return (
-              <button
-                key={station.id}
-                type="button"
-                onClick={() => scrollToSection(station.sectionId)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all shrink-0 cursor-pointer shadow-2xs ${station.pillClass}`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{station.name}</span>
-                <span className="text-[10px] opacity-75 font-mono">({station.items.length})</span>
-              </button>
-            );
-          })}
+      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-border/80">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1 relative group">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-7 w-7 shrink-0 rounded-full border-border/80 text-muted-foreground hover:text-foreground hidden sm:flex cursor-pointer shadow-2xs hover:bg-muted/60"
+            onClick={() => pillsContainerRef.current?.scrollBy({ left: -220, behavior: 'smooth' })}
+            title="Scroll left"
+            aria-label="Scroll stations left"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </Button>
+
+          <div
+            ref={pillsContainerRef}
+            onWheel={handlePillsWheel}
+            className="flex items-center gap-2 overflow-x-auto py-1 scroll-smooth flex-1 no-scrollbar select-none"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {stations.map(station => {
+              const Icon = station.icon;
+              return (
+                <button
+                  key={station.id}
+                  type="button"
+                  onClick={() => scrollToSection(station.sectionId)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all shrink-0 cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.98] ${station.pillClass}`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span className="whitespace-nowrap">{station.name}</span>
+                  <span className="text-[10px] opacity-75 font-mono">({station.items.length})</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-7 w-7 shrink-0 rounded-full border-border/80 text-muted-foreground hover:text-foreground hidden sm:flex cursor-pointer shadow-2xs hover:bg-muted/60"
+            onClick={() => pillsContainerRef.current?.scrollBy({ left: 220, behavior: 'smooth' })}
+            title="Scroll right"
+            aria-label="Scroll stations right"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </Button>
         </div>
 
         {!isReadOnly && (
@@ -628,7 +671,7 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
             type="button"
             size="sm"
             onClick={() => setIsAddStationOpen(true)}
-            className="h-8 text-xs font-bold shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer shadow-xs"
+            className="h-8 text-xs font-bold shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer shadow-xs ml-2"
           >
             <Plus className="w-3.5 h-3.5 mr-1.5" />
             Add Station / Table

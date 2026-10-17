@@ -91,7 +91,7 @@ export function MasterSystemHealthTab({
       category: 'NOTIFICATIONS',
       status: 'HEALTHY',
       latency: 'Instant',
-      description: 'Real-time alert dispatch for low stock thresholds, expiry warnings, and Master Admin password reset hotlines.',
+      description: 'Real-time alert dispatch for low stock thresholds, expiry warnings, and Super Admin password reset hotlines.',
       details: 'Deduplicated Dispatch · Read/Unread State Persistence · Sound Alerts',
       icon: Bell,
     },

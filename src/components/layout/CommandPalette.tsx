@@ -39,12 +39,10 @@ export function CommandPalette({ isOpen, onClose, onOpenNewItem }: CommandPalett
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
         if (isOpen) {
           onClose();
-        } else {
-          // Parent handles opening, but let's allow toggling
         }
       }
     };

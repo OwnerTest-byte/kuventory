@@ -1,8 +1,9 @@
 -- 20261003200000_master_admin_and_reset_workflow.sql
 -- Dedicated Master Admin Credentials, Password Reset RPC, and Real-Time Notifications
 
--- 1. Ensure pgcrypto is available
+-- 1. Ensure pgcrypto is available and profiles has phone column
 CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA extensions;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone TEXT;
 
 -- 2. Dedicated Master Admin Account Creation
 DO $$
@@ -105,9 +106,9 @@ BEGIN
     WHERE id = v_master_id;
   END IF;
 
-  -- Also upgrade admin@kuventory.com profile to MASTER_ADMIN if it exists so both logins have full Master privileges
+  -- Ensure admin@kuventory.com remains ADMIN role
   UPDATE public.profiles
-  SET role = 'MASTER_ADMIN'
+  SET role = 'ADMIN'
   WHERE id IN (SELECT id FROM auth.users WHERE LOWER(email) = 'admin@kuventory.com');
 
 END $$;

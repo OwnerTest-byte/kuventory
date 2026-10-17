@@ -42,6 +42,12 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
       return;
     }
 
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (expiry < todayStr) {
+      setErrorMsg('Expiration date cannot be in the past. Stock is already expired.');
+      return;
+    }
+
     try {
       setErrorMsg('');
       
@@ -108,6 +114,7 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
             <input 
               type="date" 
               required
+              min={new Date().toISOString().split('T')[0]}
               value={expiry}
               onChange={e => setExpiry(e.target.value)}
               className="w-full bg-background border border-input rounded-lg p-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"

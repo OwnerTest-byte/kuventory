@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import { useDailyInventory, useFinalizeDailyInventory, dailyInventoryKeys } from '../hooks/useDailyInventory';
 import { InventorySheet } from '../components/InventorySheet';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,34 @@ export function DailyInventoryPage() {
   
   const { data: record, isLoading, error } = useDailyInventory(date);
   const finalizeMutation = useFinalizeDailyInventory(date);
+
+  // Realtime synchronization across devices and automated 30-day sheet archival
+  useEffect(() => {
+    // 1. Automated 30-day archival
+    Promise.resolve(supabase.rpc('archive_old_daily_inventory_sheets')).catch(() => {});
+
+    // 2. Realtime channel subscription
+    const channel = supabase.channel(`daily-sheet-sync-${date}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'daily_inventory' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'daily_inventory_items' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [date, queryClient]);
 
   // Calculate completion progress, totals, and discrepancies
   const { completedCount, discrepancies, totalAm, totalPm, totalEnding, totalEntries } = useMemo(() => {

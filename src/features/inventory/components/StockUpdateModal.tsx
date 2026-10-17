@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { InventoryStock, StockBatch } from '../types';
-import { PlusCircle, MinusCircle, RefreshCw, Layers, Calendar } from 'lucide-react';
+import { PlusCircle, MinusCircle, RefreshCw, Layers, Calendar, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface StockUpdateModalProps {
@@ -53,9 +53,32 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
     if (isPending) return;
     if (quantity === '' || (action !== 'adjust' && quantity <= 0) || (action === 'adjust' && quantity < 0)) return;
     
+    if (action === 'remove') {
+      if (item.current_qty <= 0) {
+        setErrorMsg('Item is currently out of stock. Cannot deduct stock.');
+        return;
+      }
+      if (typeof quantity === 'number' && quantity > item.current_qty) {
+        setErrorMsg(`Cannot deduct ${quantity} ${item.unit}. Maximum available stock is ${item.current_qty} ${item.unit}.`);
+        return;
+      }
+    }
+
     // Strict requirement: Expiration date is required when adding stock
-    if (action === 'add' && !expiryDate) {
-      setErrorMsg('Expiration date is required for new stock batches (FEFO tracking)');
+    if (action === 'add') {
+      if (!expiryDate) {
+        setErrorMsg('Expiration date is required for new stock batches (FEFO tracking)');
+        return;
+      }
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (expiryDate < todayStr) {
+        setErrorMsg('Expiration date cannot be in the past. Stock is already expired.');
+        return;
+      }
+    }
+
+    if (action === 'adjust' && typeof quantity === 'number' && quantity < 0) {
+      setErrorMsg('Stock quantity cannot be negative.');
       return;
     }
 
@@ -104,6 +127,13 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
           {errorMsg && (
             <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
               <span>⚠️</span> {errorMsg}
+            </div>
+          )}
+
+          {action === 'remove' && item.current_qty <= 0 && (
+            <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>This item is currently OUT OF STOCK (0 {item.unit}). Deductions are disabled.</span>
             </div>
           )}
 
@@ -220,6 +250,7 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
                 <Input
                   type="date"
                   required
+                  min={new Date().toISOString().split('T')[0]}
                   value={expiryDate}
                   onChange={(e) => {
                     setExpiryDate(e.target.value);
@@ -339,7 +370,7 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
           <Button 
             type="submit" 
             form="stock-form" 
-            disabled={isPending}
+            disabled={isPending || (action === 'remove' && item.current_qty <= 0)}
             className={`font-semibold shadow-sm text-white ${
               action === 'add' ? 'bg-emerald-600 hover:bg-emerald-700' :
               action === 'remove' ? 'bg-rose-600 hover:bg-rose-700' :

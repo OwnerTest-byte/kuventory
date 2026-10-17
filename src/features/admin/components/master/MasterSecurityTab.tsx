@@ -58,7 +58,7 @@ export function MasterSecurityTab({
     try {
       await revokeUserSessionByAdmin(
         selectedSession.user_id,
-        revocationReason.trim() || 'Revoked by Master Administrator from Security Control Center'
+        revocationReason.trim() || 'Revoked by Super Administrator from Security Control Center'
       );
       await refetchSessions();
       queryClient.invalidateQueries({ queryKey: ['active-user-sessions'] });
@@ -99,11 +99,11 @@ export function MasterSecurityTab({
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs pt-2">
           <div className="p-3.5 rounded-xl bg-muted/30 border border-border">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-[11px]">Tier 0 Master Admin</span>
+              <span className="text-muted-foreground text-[11px]">Tier 0 Super Admin</span>
               <span className="text-[10px] font-mono font-bold text-amber-500 uppercase px-1.5 py-0.5 rounded bg-amber-500/10">1 / 1 (Fixed)</span>
             </div>
             <span className="font-bold text-amber-500 text-sm mt-1 flex items-center gap-1.5">
-              <Crown className="w-4 h-4" /> 1 Master Admin (Root)
+              <Crown className="w-4 h-4" /> 1 Super Admin (Root)
             </span>
           </div>
           <div className="p-3.5 rounded-xl bg-muted/30 border border-border">

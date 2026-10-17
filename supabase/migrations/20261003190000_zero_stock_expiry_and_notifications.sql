@@ -3,9 +3,11 @@
 -- Description: Enforce zero-stock expiry business rules and instant notification cleanup.
 -- ============================================================================
 
+-- Ensure batch_code column exists on stock_batches
+ALTER TABLE public.stock_batches ADD COLUMN IF NOT EXISTS batch_code TEXT;
+UPDATE public.stock_batches SET batch_code = 'BATCH-' || UPPER(SUBSTRING(id::text, 1, 8)) WHERE batch_code IS NULL;
+
 -- 1. Create Active Expiring Stock View
--- Strictly filters out batches with quantity <= 0.
--- Historical records remain untouched in stock_batches and stock_movements.
 CREATE OR REPLACE VIEW public.active_expiring_stock_view AS
 SELECT 
   sb.id AS batch_id,

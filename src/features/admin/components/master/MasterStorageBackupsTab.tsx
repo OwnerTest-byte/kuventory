@@ -160,7 +160,7 @@ export function MasterStorageBackupsTab({
           <span>Immutable Backup Policy</span>
         </div>
         <p className="leading-relaxed">
-          In strict compliance with Master Admin standards: backups are never simulated. Clicking export retrieves every active table row directly from PostgreSQL and packages them into a portable, standard JSON schema ready for validation and point-in-time disaster recovery.
+          In strict compliance with Super Admin standards: backups are never simulated. Clicking export retrieves every active table row directly from PostgreSQL and packages them into a portable, standard JSON schema ready for validation and point-in-time disaster recovery.
         </p>
       </div>
     </div>

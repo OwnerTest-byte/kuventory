@@ -66,7 +66,7 @@ export function MasterOverviewTab({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold tracking-tight text-foreground">
-                  Master Administrator Control Center
+                  Super Administrator Control Center
                 </h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                   Tier 0 Root

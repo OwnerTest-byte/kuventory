@@ -121,7 +121,7 @@ function AppBreadcrumbs() {
     else if (tab === 'users') page = 'Staff & Users';
     else if (tab === 'notifications' || tab === 'preferences') page = 'Preferences & Alerts';
     else if (tab === 'activity' || tab === 'logs') page = 'Activity Audit Trail';
-    else if (tab === 'master') page = 'Master Admin Console';
+    else if (tab === 'super_admin' || tab === 'master') page = 'Super Admin Console';
     else if (tab === 'about') page = 'About & Diagnostics';
     else page = 'System Settings';
   }
@@ -197,7 +197,6 @@ function SidebarNavigation({
   const userDisplayName = formatUserDisplayName(profile, user?.email);
 
   const isMasterUser = role === 'MASTER_ADMIN' || user?.email === 'master@kuventory.com';
-  const isAdminUser = role === 'ADMIN' || user?.email === 'admin@kuventory.com' || isMasterUser;
   const unreadCount = useUnreadNotificationsCount();
 
   const navList = [
@@ -210,11 +209,11 @@ function SidebarNavigation({
       }
       return item;
     }),
-    ...(isAdminUser ? [{ 
-      name: 'Master Admin', 
-      to: '/settings?tab=master', 
+    ...(isMasterUser ? [{ 
+      name: 'Super Admin', 
+      to: '/settings?tab=super_admin', 
       icon: Crown, 
-      badge: isMasterUser ? 'ROOT' : 'RESTRICTED' 
+      badge: 'ROOT' 
     }] : [])
   ];
 
@@ -382,7 +381,7 @@ function SidebarNavigation({
             <Link
               to="/settings?tab=account"
               onClick={closeMobileMenu}
-              title={`${userDisplayName} (${role === 'MASTER_ADMIN' ? 'Master Admin' : role === 'ADMIN' ? 'Administrator' : 'Staff'})`}
+              title={`${userDisplayName} (${role === 'MASTER_ADMIN' ? 'Super Admin' : role === 'ADMIN' ? 'Administrator' : 'Staff'})`}
               className="h-9 w-9 rounded-full bg-[#611A1F] text-white flex items-center justify-center font-bold text-xs shrink-0 border border-[#C5A059]/40 cursor-pointer shadow-xs hover:ring-2 hover:ring-[#C5A059] transition-all"
             >
               {userInitials}
@@ -480,10 +479,13 @@ export function AppLayout() {
   const searchParams = new URLSearchParams(location.search);
   const currentTab = searchParams.get('tab');
 
-  // Keyboard shortcut: Ctrl+[ to toggle sidebar
+  // Keyboard shortcut: Ctrl+K to toggle Command Palette, Ctrl+[ to toggle sidebar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === '[') {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setIsCommandOpen(prev => !prev);
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '[') {
         e.preventDefault();
         toggleSidebar();
       }
@@ -493,19 +495,21 @@ export function AppLayout() {
   }, []);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!user) return;
     const hasLoggedVisit = sessionStorage.getItem('has_logged_visit');
     if (!hasLoggedVisit) {
       supabase.from('visitor_logs').insert({
-        user_id: profile.id,
-        user_email: user?.email || 'unknown',
+        user_id: user.id,
+        user_email: user.email || 'unknown',
       }).then(({ error }) => {
         if (!error) {
           sessionStorage.setItem('has_logged_visit', 'true');
+        } else {
+          console.warn('Visitor log recording notice:', error.message);
         }
       });
     }
-  }, [profile, user]);
+  }, [user]);
 
   const handleCreateItem = async (
     data: Omit<InventoryItem, 'id' | 'is_archived' | 'created_at' | 'updated_at' | 'current_qty'>,

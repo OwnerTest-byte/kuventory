@@ -131,7 +131,7 @@ export function LoginForm() {
         await supabase.from('notifications').insert({
           type: 'PASSWORD_RESET',
           title: `Password Reset Request: ${emailToReset}`,
-          message: `Staff member (${emailToReset}) requested a password reset. Call or SMS Master Admin hotline: ${MASTER_ADMIN_HOTLINE}, or reset password in Admin Settings.`,
+          message: `Staff member (${emailToReset}) requested a password reset. Call or SMS Super Admin hotline: ${MASTER_ADMIN_HOTLINE}, or reset password in Admin Settings.`,
           target_id: '/settings?tab=users',
         } as any);
       }
@@ -142,16 +142,16 @@ export function LoginForm() {
           redirectTo: `${window.location.origin}/reset-password`,
         });
       } catch (authErr) {
-        // Ignore SMTP delivery failures since Master Admin is already notified
+        // Ignore SMTP delivery failures since Super Admin is already notified
         console.warn('Direct SMTP reset skipped or unconfigured:', authErr);
       }
 
       setForgotMessage(
         rpcData?.message || 
-        `Password reset request has been dispatched directly to the Master Admin! For immediate clearance, call or text ${MASTER_ADMIN_HOTLINE}.`
+        `Password reset request has been dispatched directly to the Super Admin! For immediate clearance, call or text ${MASTER_ADMIN_HOTLINE}.`
       );
     } catch (err: any) {
-      setForgotError(err.message || `Unable to send reset request. Please contact the Master Admin directly at ${MASTER_ADMIN_HOTLINE}.`);
+      setForgotError(err.message || `Unable to send reset request. Please contact the Super Admin directly at ${MASTER_ADMIN_HOTLINE}.`);
     } finally {
       setIsSendingReset(false);
     }
@@ -324,7 +324,7 @@ export function LoginForm() {
               <div className="flex items-center justify-between">
                 <span className="font-bold text-xs text-primary flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
-                  Master Admin Direct Hotline
+                  Super Admin Direct Hotline
                 </span>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                   Priority Support
@@ -337,7 +337,7 @@ export function LoginForm() {
                   <a 
                     href={`tel:${MASTER_ADMIN_HOTLINE}`} 
                     className="font-mono text-base font-black text-primary hover:underline flex items-center gap-1.5"
-                    aria-label={`Call Master Admin at ${MASTER_ADMIN_HOTLINE}`}
+                    aria-label={`Call Super Admin at ${MASTER_ADMIN_HOTLINE}`}
                   >
                     <Phone className="w-3.5 h-3.5 shrink-0" />
                     {MASTER_ADMIN_HOTLINE}
@@ -391,7 +391,7 @@ export function LoginForm() {
                 ) : (
                   <Send className="w-4 h-4 mr-2" />
                 )}
-                Dispatch to Master Admin
+                Dispatch to Super Admin
               </Button>
             </DialogFooter>
           </form>

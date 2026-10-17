@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -51,17 +51,23 @@ export function AdminPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get('tab');
 
-  const allowedTabs = (isMasterAdmin || isAdmin)
-    ? ['account', 'restaurant', 'users', 'notifications', 'activity', 'master', 'about'] 
+  const allowedTabs = isMasterAdmin
+    ? ['account', 'restaurant', 'users', 'notifications', 'activity', 'super_admin', 'master', 'about'] 
+    : isAdmin
+    ? ['account', 'restaurant', 'users', 'notifications', 'activity', 'about'] 
     : ['account', 'restaurant', 'about'];
 
-  const activeTab = (urlTab && allowedTabs.includes(urlTab))
-    ? urlTab
+  const normalizedUrlTab = (urlTab === 'master' || urlTab === 'super_admin')
+    ? (isMasterAdmin ? 'super_admin' : 'account')
+    : urlTab;
+
+  const activeTab = (normalizedUrlTab && allowedTabs.includes(normalizedUrlTab))
+    ? normalizedUrlTab
     : (isAdmin ? 'restaurant' : 'account');
 
   const [activitySubTab, setActivitySubTab] = useState<'stock' | 'database' | 'logins'>('stock');
 
-  // Master Admin Sub-Navigation State (Overview, System Health, Inventory Health, Security, Realtime, Backups, Recovery, Data Integrity, Incidents, Audit)
+  // Super Admin Sub-Navigation State (Overview, System Health, Inventory Health, Security, Realtime, Backups, Recovery, Data Integrity, Incidents, Audit)
   const urlSubTab = searchParams.get('subtab');
   const validSubTabs = [
     'overview', 'system_health', 'inventory_health', 'security', 
@@ -70,7 +76,7 @@ export function AdminPage() {
   const masterSubTab = (urlSubTab && validSubTabs.includes(urlSubTab)) ? urlSubTab : 'overview';
 
   const handleSubTabChange = (newSubTab: string) => {
-    setSearchParams({ tab: 'master', subtab: newSubTab });
+    setSearchParams({ tab: 'super_admin', subtab: newSubTab });
   };
 
   const subTabsRef = useRef<HTMLDivElement>(null);
@@ -386,12 +392,18 @@ export function AdminPage() {
 
   // Fetch real users from public.profiles
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
-    queryKey: ['profiles-admin'],
+    queryKey: ['profiles-admin', isMasterAdmin],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('profiles')
         .select('id, role, display_name, created_at')
         .order('created_at', { ascending: false });
+
+      if (!isMasterAdmin) {
+        query = query.neq('role', 'MASTER_ADMIN');
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Fetch profiles error:', error);
@@ -400,6 +412,11 @@ export function AdminPage() {
       return data as ProfileRow[];
     }
   });
+
+  const visibleUsers = useMemo(() => {
+    if (isMasterAdmin) return users;
+    return users.filter(u => u.role !== 'MASTER_ADMIN');
+  }, [users, isMasterAdmin]);
 
   // Toggle role mutation
   const toggleRoleMutation = useMutation({
@@ -552,71 +569,74 @@ export function AdminPage() {
   const [purgeConfirmText, setPurgeConfirmText] = useState('');
   const [isMaintenanceToggling, setIsMaintenanceToggling] = useState(false);
 
-  // Real-time Activity & Telemetry Subscription
+  // Real-time Activity & Telemetry Subscription for Authorized Admins
   useEffect(() => {
-    if (!isMasterAdmin) return;
+    if (!isAdmin) return;
 
-    // Pre-fetch recent telemetry records so the live activity table is populated immediately
-    const prefetchTelemetry = async () => {
-      try {
-        const [auditRes, stockRes] = await Promise.all([
-          supabase.from('audit_logs').select('id, action, target_table, created_at').order('created_at', { ascending: false }).limit(25),
-          supabase.from('stock_movements').select('id, type, quantity_change, reason, created_at').order('created_at', { ascending: false }).limit(25),
-        ]);
+    if (isMasterAdmin) {
+      // Pre-fetch recent telemetry records so the live activity table is populated immediately
+      const prefetchTelemetry = async () => {
+        try {
+          const [auditRes, stockRes] = await Promise.all([
+            supabase.from('audit_logs').select('id, action, target_table, created_at').order('created_at', { ascending: false }).limit(25),
+            supabase.from('stock_movements').select('id, type, quantity_change, reason, created_at').order('created_at', { ascending: false }).limit(25),
+          ]);
 
-        const initial: Array<{
-          id: string;
-          source: string;
-          action: string;
-          summary: string;
-          timestamp: string;
-          badge: string;
-        }> = [];
+          const initial: Array<{
+            id: string;
+            source: string;
+            action: string;
+            summary: string;
+            timestamp: string;
+            badge: string;
+          }> = [];
 
-        auditRes.data?.forEach((log: any) => {
-          initial.push({
-            id: String(log.id),
-            source: 'audit_logs',
-            action: log.action || 'AUDIT_LOG',
-            summary: log.target_table ? `${log.action || 'Action'} on ${log.target_table}` : (log.action || 'System Audit Record'),
-            timestamp: log.created_at,
-            badge: 'AUDIT'
+          auditRes.data?.forEach((log: any) => {
+            initial.push({
+              id: String(log.id),
+              source: 'audit_logs',
+              action: log.action || 'AUDIT_LOG',
+              summary: log.target_table ? `${log.action || 'Action'} on ${log.target_table}` : (log.action || 'System Audit Record'),
+              timestamp: log.created_at,
+              badge: 'AUDIT'
+            });
           });
-        });
 
-        stockRes.data?.forEach((mov: any) => {
-          initial.push({
-            id: String(mov.id),
-            source: 'stock_movements',
-            action: mov.type || 'STOCK_EVENT',
-            summary: `Stock change: ${mov.quantity_change > 0 ? '+' : ''}${mov.quantity_change} (${mov.reason || 'Ledger event'})`,
-            timestamp: mov.created_at,
-            badge: 'LEDGER'
+          stockRes.data?.forEach((mov: any) => {
+            initial.push({
+              id: String(mov.id),
+              source: 'stock_movements',
+              action: mov.type || 'STOCK_EVENT',
+              summary: `Stock change: ${mov.quantity_change > 0 ? '+' : ''}${mov.quantity_change} (${mov.reason || 'Ledger event'})`,
+              timestamp: mov.created_at,
+              badge: 'LEDGER'
+            });
           });
-        });
 
-        initial.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        setRealtimeEvents(initial.slice(0, 50));
-      } catch (err) {
-        console.warn('Initial telemetry pre-fetch warning:', err);
-      }
-    };
+          initial.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+          setRealtimeEvents(initial.slice(0, 50));
+        } catch (err) {
+          console.warn('Initial telemetry pre-fetch warning:', err);
+        }
+      };
 
-    prefetchTelemetry();
+      prefetchTelemetry();
 
-    // Ping Supabase Keepalive
-    pingSupabaseKeepalive().then(res => {
-      if (res) setRealtimePingMs(res.latencyMs);
-    });
+      pingSupabaseKeepalive().then(res => {
+        if (res) setRealtimePingMs(res.latencyMs);
+      });
+    }
 
-    const pingInterval = setInterval(async () => {
+    const pingInterval = isMasterAdmin ? setInterval(async () => {
       const res = await pingSupabaseKeepalive();
       if (res) setRealtimePingMs(res.latencyMs);
-    }, 25000);
+    }, 25000) : null;
 
-    const channel = supabase.channel('master-live-activity-stream')
+    const channel = supabase.channel('admin-live-activity-stream')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs' }, (payload: any) => {
-        if (isRealtimePaused) return;
+        queryClient.invalidateQueries({ queryKey: ['admin-audit-logs'] });
+        queryClient.invalidateQueries({ queryKey: ['master-control-stats'] });
+        if (isRealtimePaused || !isMasterAdmin) return;
         const newRecord = payload.new || {};
         setRealtimeEvents(prev => [
           {
@@ -631,7 +651,9 @@ export function AdminPage() {
         ]);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_movements' }, (payload: any) => {
-        if (isRealtimePaused) return;
+        queryClient.invalidateQueries({ queryKey: ['admin-activity-logs'] });
+        queryClient.invalidateQueries({ queryKey: ['master-control-stats'] });
+        if (isRealtimePaused || !isMasterAdmin) return;
         const newRecord = payload.new || {};
         setRealtimeEvents(prev => [
           {
@@ -645,8 +667,26 @@ export function AdminPage() {
           ...prev.slice(0, 49)
         ]);
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'visitor_logs' }, (payload: any) => {
+        queryClient.invalidateQueries({ queryKey: ['admin-visitor-logs'] });
+        if (isRealtimePaused || !isMasterAdmin) return;
+        const newRecord = payload.new || {};
+        setRealtimeEvents(prev => [
+          {
+            id: String(newRecord.id || Math.random()),
+            source: 'visitor_logs',
+            action: 'LOGIN',
+            summary: `Staff login: ${newRecord.user_email || 'Staff member'}`,
+            timestamp: newRecord.visited_at || new Date().toISOString(),
+            badge: 'AUTH'
+          },
+          ...prev.slice(0, 49)
+        ]);
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_inventory' }, (payload: any) => {
-        if (isRealtimePaused) return;
+        queryClient.invalidateQueries({ queryKey: ['finalized-sheets-master'] });
+        queryClient.invalidateQueries({ queryKey: ['dailyInventory'] });
+        if (isRealtimePaused || !isMasterAdmin) return;
         const newRecord = payload.new || {};
         setRealtimeEvents(prev => [
           {
@@ -665,10 +705,10 @@ export function AdminPage() {
       });
 
     return () => {
-      clearInterval(pingInterval);
+      if (pingInterval) clearInterval(pingInterval);
       supabase.removeChannel(channel);
     };
-  }, [isMasterAdmin, isRealtimePaused]);
+  }, [isAdmin, isMasterAdmin, isRealtimePaused, queryClient]);
 
   // Maintenance Lock Setting
   const { data: maintenanceSetting, refetch: refetchMaintenance } = useQuery({
@@ -1096,7 +1136,7 @@ export function AdminPage() {
           ) : (
             <Shield className="w-8 h-8 text-primary" />
           )}
-          {isMasterAdmin ? 'Master System Administration' : 'System Settings & Administration'}
+          {isMasterAdmin ? 'Super Admin Console' : 'System Settings & Administration'}
         </h1>
         <p className="text-muted-foreground mt-1 font-medium text-sm">
           {isMasterAdmin 
@@ -1116,7 +1156,7 @@ export function AdminPage() {
           {isAdmin && (
             <>
               <TabsTrigger value="users" className="font-semibold text-xs sm:text-sm">
-                <Users className="w-4 h-4 mr-2" /> Staff & Users ({users.length})
+                <Users className="w-4 h-4 mr-2" /> Staff & Users ({visibleUsers.length})
               </TabsTrigger>
               <TabsTrigger value="notifications" className="font-semibold text-xs sm:text-sm">
                 <Bell className="w-4 h-4 mr-2" /> Preferences & Alerts
@@ -1126,25 +1166,15 @@ export function AdminPage() {
               </TabsTrigger>
             </>
           )}
-          {(isMasterAdmin || isAdmin) && (
+          {isMasterAdmin && (
             <TabsTrigger 
-              value="master" 
+              value="super_admin" 
               className={cn(
                 "font-semibold text-xs sm:text-sm border transition-all",
-                isMasterAdmin 
-                  ? "bg-linear-to-r from-amber-500/15 to-amber-600/10 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:border-amber-500/50" 
-                  : "text-muted-foreground hover:text-foreground border-transparent hover:border-border"
+                "bg-linear-to-r from-amber-500/15 to-amber-600/10 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:border-amber-500/50"
               )}
             >
-              {isMasterAdmin ? (
-                <>
-                  <Crown className="w-4 h-4 mr-2 text-amber-500" /> Master Admin
-                </>
-              ) : (
-                <>
-                  <Shield className="w-4 h-4 mr-2 text-rose-500" /> Master Admin
-                </>
-              )}
+              <Crown className="w-4 h-4 mr-2 text-amber-500" /> Super Admin
             </TabsTrigger>
           )}
           <TabsTrigger value="about" className="font-semibold text-xs sm:text-sm">
@@ -1355,9 +1385,11 @@ export function AdminPage() {
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-sm font-bold text-foreground">Authorized Users & Roles</h2>
-                <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                  1 Master Admin (Root)
-                </span>
+                {isMasterAdmin && (
+                  <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                    1 Super Admin (Developer Root)
+                  </span>
+                )}
                 <span className={cn(
                   "text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full border",
                   users.filter(u => u.role === 'ADMIN').length >= 3
@@ -1368,7 +1400,9 @@ export function AdminPage() {
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Only 1 Master Admin and up to 3 Administrators are permitted. Staff users perform daily inventory counting.
+                {isMasterAdmin 
+                  ? 'Only 1 Super Admin and up to 3 Administrators are permitted. Staff users perform daily inventory counting.' 
+                  : 'Up to 3 Administrators are permitted. Staff users perform daily inventory counting.'}
               </p>
             </div>
             <Button onClick={() => setIsAddUserOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs sm:text-sm">
@@ -1392,12 +1426,12 @@ export function AdminPage() {
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-12 text-muted-foreground font-medium">Loading user profiles...</TableCell>
                   </TableRow>
-                ) : users.length === 0 ? (
+                ) : visibleUsers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-12 text-muted-foreground font-medium">No user profiles found.</TableCell>
                   </TableRow>
                 ) : (
-                  users.map(u => {
+                  visibleUsers.map(u => {
                     const isTargetMaster = u.role === 'MASTER_ADMIN';
                     const isTargetAdmin = u.role === 'ADMIN';
                     const isSelf = u.id === user?.id;
@@ -1440,7 +1474,7 @@ export function AdminPage() {
                           )}>
                             {isTargetMaster && <Crown className="w-3 h-3 text-amber-500" />}
                             {isTargetAdmin && <Shield className="w-3 h-3 text-primary" />}
-                            {isTargetMaster ? 'MASTER ADMIN' : isTargetAdmin ? 'ADMIN' : 'STAFF'}
+                            {isTargetMaster ? 'SUPER ADMIN' : isTargetAdmin ? 'ADMIN' : 'STAFF'}
                           </span>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs">
@@ -2041,71 +2075,11 @@ export function AdminPage() {
           </div>
         </TabsContent>
 
-        {/* TAB 6: MASTER ADMIN CONSOLE (TIER 0 ROOT AUTHORITY) OR ACCESS DENIED FOR STANDARD ADMIN */}
-        {(isMasterAdmin || isAdmin) && (
-          <TabsContent value="master" className="space-y-6">
-            {!isMasterAdmin ? (
-              /* STRICT ACCESS DENIED SECURITY BARRIER FOR STANDARD ADMIN */
-              <div className="p-8 sm:p-12 rounded-2xl bg-card border border-rose-500/30 shadow-md space-y-6 max-w-3xl mx-auto text-center my-6">
-                <div className="w-16 h-16 rounded-3xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-500 mx-auto shadow-inner">
-                  <Lock className="w-8 h-8 text-rose-600 dark:text-rose-400 animate-pulse" />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold uppercase tracking-wider">
-                    <Shield className="w-3.5 h-3.5" /> 403 Forbidden · Tier 0 Boundary
-                  </div>
-                  <h2 className="text-2xl font-bold tracking-tight text-foreground">
-                    Master Administrator Clearance Required
-                  </h2>
-                  <p className="text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed">
-                    The Master Admin Console contains high-risk disaster recovery mechanisms, raw database snapshot engines, live telemetry streams, and emergency system locks. Standard Administrators do not possess clearance for Tier 0 governance.
-                  </p>
-                </div>
-
-                {/* Security Audit Badge & Current Identity */}
-                <div className="p-4 rounded-xl bg-muted/40 border border-border text-xs text-left space-y-2.5 max-w-lg mx-auto">
-                  <div className="flex items-center justify-between pb-2 border-b border-border">
-                    <span className="text-muted-foreground font-medium">Authenticated Identity:</span>
-                    <span className="font-bold text-foreground font-mono">{user?.email || 'admin@kuventory.com'}</span>
-                  </div>
-                  <div className="flex items-center justify-between pb-2 border-b border-border">
-                    <span className="text-muted-foreground font-medium">Assigned Operational Role:</span>
-                    <span className="font-bold text-primary">ADMIN (Level 1 Operational Administrator)</span>
-                  </div>
-                  <div className="flex items-center justify-between pb-2 border-b border-border">
-                    <span className="text-muted-foreground font-medium">Required Authorization:</span>
-                    <span className="font-bold text-amber-500">MASTER_ADMIN (Tier 0 Absolute Governance)</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground font-medium">Security Enforcement:</span>
-                    <span className="font-bold text-emerald-500 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Active Zero-Trust Policy
-                    </span>
-                  </div>
-                </div>
-
-                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-                  <Button
-                    onClick={() => handleTabChange('restaurant')}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs px-6 py-2.5 rounded-xl cursor-pointer shadow-xs w-full sm:w-auto"
-                  >
-                    <Store className="w-4 h-4 mr-2" />
-                    Return to Admin Console
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleTabChange('users')}
-                    className="font-bold text-xs px-6 py-2.5 rounded-xl border-border text-foreground hover:bg-muted cursor-pointer w-full sm:w-auto"
-                  >
-                    <Users className="w-4 h-4 mr-2" />
-                    Manage Staff & Users
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Master Admin Sub-Navigation Header with Smooth Navigation & Scroll Controls */}
+        {/* TAB 6: SUPER ADMIN CONSOLE (STANDALONE DEVELOPER ROOT) */}
+        {isMasterAdmin && (
+          <TabsContent value={activeTab === 'master' ? 'master' : 'super_admin'} className="space-y-6">
+            <div className="space-y-6">
+              {/* Super Admin Sub-Navigation Header with Smooth Navigation & Scroll Controls */}
                 <div className="relative w-full min-w-0 max-w-full flex items-center group">
                   <button
                     type="button"
@@ -2325,7 +2299,6 @@ export function AdminPage() {
                   />
                 )}
               </div>
-            )}
           </TabsContent>
         )}
       </Tabs>
@@ -2406,7 +2379,7 @@ export function AdminPage() {
                   value="ADMIN" 
                   disabled={!isMasterAdmin || users.filter(u => u.role === 'ADMIN').length >= 3}
                 >
-                  System Administrator {!isMasterAdmin ? '(Only Master Admin can assign)' : users.filter(u => u.role === 'ADMIN').length >= 3 ? '(Quota 3/3 Full)' : `(${users.filter(u => u.role === 'ADMIN').length}/3 filled)`}
+                  System Administrator {!isMasterAdmin ? '(Only Super Admin can assign)' : users.filter(u => u.role === 'ADMIN').length >= 3 ? '(Quota 3/3 Full)' : `(${users.filter(u => u.role === 'ADMIN').length}/3 filled)`}
                 </option>
               </select>
               {users.filter(u => u.role === 'ADMIN').length >= 3 && (
@@ -2533,7 +2506,7 @@ export function AdminPage() {
               Force Reopen Finalized Sheet
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              You are using Tier 0 Master Admin authority to unlock sheet date <strong className="text-foreground">{selectedSheetForOverride?.inventory_date}</strong> back to DRAFT state.
+              You are using Tier 0 Super Admin authority to unlock sheet date <strong className="text-foreground">{selectedSheetForOverride?.inventory_date}</strong> back to DRAFT state.
             </DialogDescription>
           </DialogHeader>
 

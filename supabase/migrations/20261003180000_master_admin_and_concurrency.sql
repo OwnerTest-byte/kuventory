@@ -94,6 +94,7 @@ END;
 $$;
 
 -- C. Update admin_create_user to support MASTER_ADMIN role creation
+DROP FUNCTION IF EXISTS public.admin_create_user;
 CREATE OR REPLACE FUNCTION public.admin_create_user(
   p_email TEXT,
   p_password TEXT,
