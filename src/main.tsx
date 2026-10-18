@@ -5,7 +5,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './context/ThemeContext.tsx';
 import { ErrorBoundary } from './components/common/ErrorBoundary.tsx';
 import { App } from './app/App.tsx';
+import { supabase } from './lib/supabase';
 import './index.css';
+
+if (typeof window !== 'undefined') {
+  (window as any).supabase = supabase;
+}
 
 const queryClient = new QueryClient();
 

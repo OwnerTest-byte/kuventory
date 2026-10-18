@@ -147,6 +147,7 @@ export async function updateDailyInventoryItem(params: {
   am?: number;
   pm?: number;
   changedFields?: ('beg' | 'add' | 'am' | 'pm')[];
+  allowCorrection?: boolean;
 }): Promise<any> {
   // 1. Fetch current database record and session state
   const { data: currentItem, error: fetchErr } = await supabase
@@ -162,8 +163,8 @@ export async function updateDailyInventoryItem(params: {
 
   // 2. Finalized snapshot immutability guard
   const sessionState = (currentItem?.daily_inventory as any)?.state;
-  if (sessionState === 'FINALIZED') {
-    throw new Error('This inventory session has been finalized. Finalized reports are immutable and cannot be modified.');
+  if (sessionState === 'FINALIZED' && !params.allowCorrection) {
+    throw new Error('This inventory session has been finalized. Finalized reports are immutable and cannot be modified without entering Correction Mode.');
   }
 
   // 3. Multi-worker concurrency control:

@@ -5,27 +5,35 @@
 
 ---
 
-### Document Summary
+## Document Summary
 
 - **Production URL:** [https://kuventory.netlify.app](https://kuventory.netlify.app)
-- **Version:** Version 2.4.0 (Production Release)
+- **Version:** Version 2.6.0 (Production Release)
 - **Word Document File:** [`KUVENTORY_USER_GUIDE.docx`](./KUVENTORY_USER_GUIDE.docx)
-- **Target Audience:** All System Users (**Staff** and **Administrators**)
+- **Target Audience:** All System Users (**Staff**, **Administrators**, and **Super Admins**)
 
 ---
 
 ## Table of Contents
 
 1. [System Purpose & User Roles](#1-system-purpose--user-roles)
-2. [Getting Started & Navigation](#2-getting-started--navigation)
-3. [Daily Inventory Worksheet (Step-by-Step Shift Routine)](#3-daily-inventory-worksheet)
+2. [Getting Started, Navigation & Secure Logout](#2-getting-started-navigation--secure-logout)
+3. [Daily Inventory Worksheet & Shift Routine](#3-daily-inventory-worksheet)
+   - 3.1 Core Mathematical Formulas
+   - 3.2 Shift Count & Finalization Workflow
+   - 3.3 Correcting a Finalized Day (Audited Revisions & Differential FEFO)
 4. [Managing Stations & Custom Category Tables](#4-managing-stations--custom-category-tables)
 5. [Inventory Items Catalog](#5-inventory-items-catalog)
 6. [Stock Management & FEFO Batches (Add, Deduct, Adjust)](#6-stock-management--fefo-batches)
-7. [Reports Library & Data Exports](#7-reports-library--data-exports)
+7. [Reports Library, Historical Snapshots & Data Exports](#7-reports-library--data-exports)
 8. [Real-Time Notification Center](#8-real-time-notification-center)
-9. [Administration & Settings (Admins Only)](#9-administration--settings-admins-only)
-10. [Troubleshooting & Common Operational Solutions](#10-troubleshooting--common-operational-solutions)
+9. [Administration, Password Recovery Log & Settings](#9-administration--settings-admins-only)
+   - 9.1 Staff & User Management
+   - 9.2 Password Reset Requests Log (Admin & Super Admin)
+   - 9.3 Establishment Profile & Branding
+   - 9.4 Notification Settings & Thresholds
+10. [Standalone Super Admin Control Plane & Emergency Lockdown](#10-standalone-super-admin-control-plane--emergency-lockdown)
+11. [Troubleshooting & Common Operational Solutions](#11-troubleshooting--common-operational-solutions)
 
 ---
 
@@ -35,26 +43,37 @@ KUVENTORY is a specialized, practical inventory management system engineered to 
 
 ### User Roles in KUVENTORY
 
-KUVENTORY provides two clear user roles with database-enforced permissions:
+KUVENTORY provides three distinct user roles with database- and route-enforced permissions:
 
 | User Role | Primary Responsibilities | System Permissions |
 | :--- | :--- | :--- |
-| **User (Staff)** | Daily operational inventory recording, shift count verification, sales deductions, stock additions, and reading notifications. | Can access Dashboard, Daily Inventory Worksheet, Items Catalog, Batches (FEFO), Movement History, Reports Library, and Notification Center. |
-| **Admin (Manager)** | Complete operational management, staff account creation, role assignment, category/station management, report reopening, and system configuration. | Full access to all areas **PLUS** User Management, Categories configuration, System Settings, Restaurant Profile, and Global Archival controls. |
+| **User (Staff)** | Daily operational inventory recording, shift count verification, sales deductions, stock additions, and reading notifications. | Access to Dashboard, Daily Inventory Worksheet (draft mode), Items Catalog, Batches (FEFO), Movement History, Reports Library, and Notification Center. |
+| **Admin (Manager)** | Operational management, staff account creation, category/station management, finalized report corrections, password reset request review, and restaurant profile. | Full staff capabilities **PLUS** User Management, Password Reset Requests log, Finalized Day Audited Corrections, Categories configuration, System Settings, and Profile controls. |
+| **Super Admin** | Autonomous infrastructure oversight, database operations, emergency lockdown enforcement, system-wide recovery, and disaster prevention. | Dedicated standalone access to `/super-admin`, authoritative Emergency Maintenance Lockdown (`NORMAL`, `MAINTENANCE`, `RECOVERY`), migration tracking, and platform health. |
 
 > [!IMPORTANT]
-> **Role Distinction:** Users focus on daily operational tasks. Administrators have exclusive access to manage staff accounts, reset passwords, create/edit categories, and reopen finalized reports.
+> **Role Distinction & Standalone Control Plane:** Users handle daily floor operations. Admins oversee team management and audited finalized sheet adjustments. Super Admin operates outside ordinary Settings via a secure, standalone control plane.
 
 ---
 
-## 2. Getting Started & Navigation
+## 2. Getting Started, Navigation & Secure Logout
 
 ### 2.1 Logging In to KUVENTORY
 
-1. **Access the Web Application:** Open any modern web browser (Google Chrome, Safari, Edge) on your smartphone, tablet, or PC and go to: `https://kuventory.netlify.app`
+1. **Access the Web Application:** Open any modern web browser (Google Chrome, Safari, Edge, Firefox) on your smartphone, tablet, or PC and go to: `https://kuventory.netlify.app`
 2. **Enter Credentials:** Type your registered Work Email and Password in the login fields.
 3. **Sign In:** Click the **Sign In to KUVENTORY** button. You will be taken directly to the main Dashboard.
-4. **Forgot Password:** If you forgot your password, click **Forgot password?** below the password input. Enter your email to receive an instant secure reset link.
+4. **Forgot Password:** If you forgot your password, click **Forgot password?** below the password input. Enter your email and click **Dispatch to Super Admin**. Your request is logged immediately in the administrator audit log with an opaque, non-disclosing confirmation message for maximum account security.
+
+### 2.2 Secure Logout with Confirmation
+
+KUVENTORY protects against accidental logouts and unsaved work:
+- Whenever you click **Logout** (from the sidebar, top header, or mobile navigation), a confirmation modal appears:
+  - **Prompt:** `"Log out? Are you sure you want to log out?"`
+  - **Cancel:** Dismisses the dialog and keeps your current session, worksheets, and state completely intact.
+  - **Log Out:** Securely terminates your active session, invalidates the database lease token, clears sensitive caches, and redirects to the login screen.
+- **Unsaved Work Alert:** If you have pending edits on the Daily Inventory sheet, an amber warning notifies you before logging out.
+- **Emergency Lockdown Exception:** In the event of a security-enforced session revocation or backend emergency lockdown, access is terminated immediately without waiting for a confirmation dialog.
 
 > [!TIP]
 > **Install as an App (PWA):** On mobile or tablet, tap your browser's menu (or share button) and select **Add to Home Screen** to install KUVENTORY as a high-speed Progressive Web App that opens like a native app.
@@ -104,6 +123,23 @@ KUVENTORY automatically calculates balances in real time so staff never have to 
 
 > [!IMPORTANT]
 > **Automatic Real-Time Autosave:** As you type numbers in the worksheet, KUVENTORY automatically saves changes after a 350ms pause. You will see the indicator change to **Saved** with a green checkmark. Your draft is protected even if the page is accidentally closed.
+
+### 3.3 Correcting a Finalized Day (Audited Revisions & Differential FEFO)
+
+When an audit error, missed delivery, or typo is discovered on an already-finalized daily sheet, authorized managers (`ADMIN` and `SUPER_ADMIN`) can execute an audited correction without losing historical data:
+
+1. **Open the Finalized Sheet:** Navigate to Daily Inventory and select the finalized date, or click **Correct Finalized Day** from the Dashboard or Reports listing.
+2. **Click "Correct Finalized Day":** A high-visibility button appears in the top action bar when viewing any finalized sheet.
+3. **Audit Confirmation & Rationale Prompt:** A modal prompts for an **Audit Reason** (e.g., *"Late evening delivery of 10 cases missed before closing count"*). Entering a clear rationale is mandatory for compliance.
+4. **Active Correction Mode:** An amber status banner indicates that you are in active correction mode. The input fields for beginning quantities, additions, and sales deductions become editable.
+5. **Differential FEFO Stock Reconciliation (Zero Duplicate Movements):**
+   - When you click **Save Correction**, KUVENTORY calculates the *exact delta* between the previously finalized count and your corrected values.
+   - Authoritative catalog inventory and active FEFO batches are reconciled using atomic differential adjustments.
+   - **Crucial Safety Guarantee:** Prior stock transactions are never blindly re-executed. Deliveries are never added twice, and previous sales deductions are never subtracted twice.
+6. **Immutable Revision Trail:**
+   - The original finalized report snapshot is permanently retained as **Revision 1**.
+   - A new immutable snapshot is generated as **Revision 2** (or subsequent revision number), tagging the author, timestamp, and audit reason.
+7. **Inspect Prior Revisions:** Click the **Revision History** button at any time to view a side-by-side modal displaying all past revisions, who corrected them, when, and the specific reason provided.
 
 ---
 
@@ -221,9 +257,9 @@ The Notification Center (`/notifications`) alerts users to critical inventory ev
 
 ---
 
-## 9. Administration & Settings (Admins Only)
+## 9. Administration, Password Recovery Log & Settings (Admins Only)
 
-The Settings area (`/settings`) allows system personalization and administrative staff controls. Admins have access to exclusive management tabs:
+The Settings area (`/settings`) allows system personalization, user account provisioning, and recovery auditing.
 
 ### 9.1 Staff & User Management (Admin Only)
 
@@ -232,11 +268,19 @@ The Settings area (`/settings`) allows system personalization and administrative
 3. **Change User Roles:** Use the role selector to switch an existing staff member between `USER` and `ADMIN`.
 4. **Reset Staff Password:** If a staff member forgets their password, click `Reset Password` beside their name and input a new secure password for them.
 
-### 9.2 Establishment Profile (Admin Only)
+### 9.2 Password Reset Requests Log (Admin & Super Admin)
+
+Under Settings -> **Staff & Users** -> **Password Reset Requests**, administrators can inspect inbound account recovery attempts:
+- **Captured Fields:** Request ID, User Email (normalized), Request Timestamp, Current Status, and Action.
+- **Supported Statuses:** `NEW`, `NOTIFIED`, `IN REVIEW`, `RESOLVED`, `EXPIRED`, `FAILED`.
+- **Reviewing a Request:** Administrators can click **Review / Resolve** to mark a request resolved after contacting the employee or generating a controlled credential.
+- **Security Protections:** Passwords, reset tokens, and raw recovery URLs are *never* stored in database logs. Requesters always receive an identical opaque message preventing user enumeration.
+
+### 9.3 Establishment Profile (Admin Only)
 
 Under Settings -> **Establishment**, Admins can update the store name, contact phone number, address, and upload an official business logo. This branding automatically appears on generated PDF and Excel reports.
 
-### 9.3 Notification Settings & Thresholds (Admin Only)
+### 9.4 Notification Settings & Thresholds (Admin Only)
 
 Admins can customize system-wide alert triggers:
 - **Low Stock Alert:** Enable/disable system-wide low stock banners.
@@ -244,14 +288,37 @@ Admins can customize system-wide alert triggers:
 
 ---
 
-## 10. Troubleshooting & Common Operational Solutions
+## 10. Standalone Super Admin Control Plane & Emergency Lockdown
+
+Super Admin is maintained as an isolated, standalone administrative plane (`/super-admin`), completely outside the ordinary Settings menu.
+
+### 10.1 Access & Authorization
+
+- **Direct Route:** `/super-admin` guarded by the database-enforced `RequireSuperAdmin` role check.
+- **Unauthorized Handling:** Users with role `USER` or `ADMIN` attempting to access `/super-admin` are immediately blocked with a 403 Forbidden alert and redirected to `/`.
+
+### 10.2 Emergency Maintenance Lockdown
+
+Super Admins can place the entire application into an authoritative maintenance lockdown:
+- **Supported States:**
+  - `NORMAL`: All store operations, logins, and API mutations function normally.
+  - `MAINTENANCE`: The entire application locks. Non-super users are prevented from logging in, navigating protected screens, or submitting stock mutations. Active sessions immediately render an Emergency Lockdown screen.
+  - `RECOVERY`: Read-only audit mode for database restorations and data consistency verifications.
+- **Backend & Database Enforcement:** Enforcement is built into database triggers, RLS policies, and API routing. Users cannot bypass the lockdown screen through API calls or developer tools.
+- **Ending Lockdown:** Only an authorized Super Admin can deactivate the lockdown by selecting `NORMAL` and verifying system health.
+
+---
+
+## 11. Troubleshooting & Common Operational Solutions
 
 | Operational Scenario | Likely Cause | Corrective Action Steps |
 | :--- | :--- | :--- |
 | **Ending Stock displays negative (highlighted in red)** | More units were entered under SALES AM or SALES PM than existed in Total Stock (`BEG + ADD`). | 1. Verify if incoming deliveries were received but not recorded in the ADD column.<br>2. Recount physical shelf items.<br>3. Check if sales entries were mistyped (e.g. typed 20 instead of 2). |
-| **Worksheet is locked and cannot be edited** | The daily worksheet has already been Finalized for this date. | Finalized sheets are locked to prevent tampering. If a correction is required, an Admin can reopen the sheet or make an Adjustment in the Items Catalog. |
+| **Worksheet is locked and shows "Finalized"** | The daily worksheet has already been Finalized for this date. | Authorized Admins and Super Admins can click **Correct Finalized Day** at the top right, enter a required audit reason, make the necessary corrections, and save a new tracked revision. |
+| **Clicking Logout opens a confirmation modal** | Intentional security feature to prevent accidental session termination and loss of work. | Click **Log Out** to confirm exit, or click **Cancel** to continue working on your sheet. |
+| **Emergency Maintenance screen appears** | Super Admin has placed the platform into an authoritative maintenance lockdown. | Floor operations are temporarily halted for database maintenance or safety updates. Wait for management notification once the system returns to Normal status. |
 | **Internet connection drops during shift count** | Kiosk Wi-Fi fluctuation. | **Do NOT** refresh or close the browser tab. KUVENTORY caches entries locally. As soon as connectivity returns, changes automatically sync with the cloud. |
-| **Staff member cannot access Admin or Settings tabs** | Account is assigned the `USER` role. | User accounts have restricted permissions for security. Contact an Admin to upgrade your role if management access is required. |
+| **Staff member cannot access Admin or Super Admin tabs** | Account is assigned the `USER` role. | User accounts have restricted permissions for security. Contact an Admin or Super Admin to upgrade your role if management access is required. |
 | **Batch expired notification is showing** | Stock batch passed its recorded expiry date. | Inspect the physical stock. If expired, remove from service shelves, open **Update Stock**, select **Remove**, choose **Expired inventory**, and deduct the quantity. |
 
 ---

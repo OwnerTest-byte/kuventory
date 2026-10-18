@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/context/AuthContext';
@@ -7,7 +7,7 @@ import { pingSupabaseKeepalive, getLastKeepaliveTimestamp } from '@/lib/keepaliv
 import { 
   Users, Shield, Loader2, Plus, Trash2, Store, Bell, Activity, 
   Info, CheckCircle2, AlertCircle, Save, Database, KeyRound, RefreshCw, Layers,
-  Lock, Eye, EyeOff, Server, Cpu, Crown, RotateCcw
+  Lock, Eye, EyeOff, Server, Cpu, Crown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -23,7 +23,11 @@ import {
   type EstablishmentSettings, 
   type NotificationSettings 
 } from '@/features/admin/api/settings';
-import { SuperAdminControlCenter } from '../components/super/SuperAdminControlCenter';
+import { 
+  fetchPasswordResetRequests, 
+  updatePasswordResetRequestStatus, 
+  type PasswordResetRequest 
+} from '@/features/auth/services/passwordResetService';
 
 interface ProfileRow {
   id: string;
@@ -34,6 +38,7 @@ interface ProfileRow {
 
 export function AdminPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { user, profile, role } = useAuth();
   const isSuperAdmin = role === 'SUPER_ADMIN' || user?.email === 'superadmin@kuventory.com' || role === 'MASTER_ADMIN' || user?.email === 'master@kuventory.com';
   const isMasterAdmin = isSuperAdmin;
@@ -42,19 +47,45 @@ export function AdminPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get('tab');
 
-  const allowedTabs = isSuperAdmin
-    ? ['account', 'restaurant', 'users', 'notifications', 'activity', 'super_admin', 'master', 'about'] 
-    : isAdmin
+  // Super Admin is a standalone area (/super-admin) - redirect if accessed via Settings tab
+  useEffect(() => {
+    if (urlTab === 'super_admin' || urlTab === 'master') {
+      if (isSuperAdmin) {
+        navigate('/super-admin', { replace: true });
+      } else {
+        setSearchParams({ tab: 'account' });
+      }
+    }
+  }, [urlTab, isSuperAdmin, navigate, setSearchParams]);
+
+  const allowedTabs = isAdmin
     ? ['account', 'restaurant', 'users', 'notifications', 'activity', 'about'] 
     : ['account', 'restaurant', 'about'];
 
-  const normalizedUrlTab = (urlTab === 'master' || urlTab === 'super_admin')
-    ? (isSuperAdmin ? 'super_admin' : 'account')
-    : urlTab;
-
-  const activeTab = (normalizedUrlTab && allowedTabs.includes(normalizedUrlTab))
-    ? normalizedUrlTab
+  const activeTab = (urlTab && allowedTabs.includes(urlTab))
+    ? urlTab
     : (isAdmin ? 'restaurant' : 'account');
+
+  // Fetch Password Reset Requests Log (Admin & Super Admin)
+  const { 
+    data: passwordResetRequests = [], 
+    isLoading: isLoadingResetRequests, 
+    refetch: refetchResetRequests 
+  } = useQuery({
+    queryKey: ['password-reset-requests'],
+    queryFn: fetchPasswordResetRequests,
+    enabled: isAdmin,
+    refetchInterval: 15000,
+  });
+
+  const updateResetStatusMutation = useMutation({
+    mutationFn: async ({ id, status, notes }: { id: string; status: PasswordResetRequest['status']; notes?: string }) => {
+      await updatePasswordResetRequestStatus(id, status, notes);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['password-reset-requests'] });
+    },
+  });
 
   const [activitySubTab, setActivitySubTab] = useState<'stock' | 'database' | 'logins'>('stock');
 
@@ -408,434 +439,15 @@ export function AdminPage() {
     }
   });
 
-  // Master Console State: Backups, Restorations, Real-time Telemetry, Contingencies
-  const [isExportingBackup, setIsExportingBackup] = useState(false);
-  // Telemetry & Real-Time Monitoring State
-  const [realtimeEvents, setRealtimeEvents] = useState<Array<{
-    id: string;
-    source: string;
-    action: string;
-    summary: string;
-    timestamp: string;
-    badge: string;
-  }>>([]);
-  const [realtimeChannelStatus, setRealtimeChannelStatus] = useState<string>('CONNECTING');
-  const [realtimePingMs, setRealtimePingMs] = useState<number | null>(null);
-  const [isRealtimePaused, setIsRealtimePaused] = useState(false);
-
-  // Contingency State: Stock Rebalancer, Maintenance Mode, Purge
-  const [isRebalancingStock, setIsRebalancingStock] = useState(false);
-  const [rebalanceResult, setRebalanceResult] = useState<string | null>(null);
-  const [isCleaningBatches, setIsCleaningBatches] = useState(false);
-  const [cleanBatchResult, setCleanBatchResult] = useState<string | null>(null);
-
-  const [isMaintenanceToggling, setIsMaintenanceToggling] = useState(false);
-
-  // Real-time Activity & Telemetry Subscription for Authorized Admins
-  useEffect(() => {
-    if (!isAdmin) return;
-
-    if (isMasterAdmin) {
-      // Pre-fetch recent telemetry records so the live activity table is populated immediately
-      const prefetchTelemetry = async () => {
-        try {
-          const [auditRes, stockRes] = await Promise.all([
-            supabase.from('audit_logs').select('id, action, target_table, created_at').order('created_at', { ascending: false }).limit(25),
-            supabase.from('stock_movements').select('id, type, quantity_change, reason, created_at').order('created_at', { ascending: false }).limit(25),
-          ]);
-
-          const initial: Array<{
-            id: string;
-            source: string;
-            action: string;
-            summary: string;
-            timestamp: string;
-            badge: string;
-          }> = [];
-
-          auditRes.data?.forEach((log: any) => {
-            initial.push({
-              id: String(log.id),
-              source: 'audit_logs',
-              action: log.action || 'AUDIT_LOG',
-              summary: log.target_table ? `${log.action || 'Action'} on ${log.target_table}` : (log.action || 'System Audit Record'),
-              timestamp: log.created_at,
-              badge: 'AUDIT'
-            });
-          });
-
-          stockRes.data?.forEach((mov: any) => {
-            initial.push({
-              id: String(mov.id),
-              source: 'stock_movements',
-              action: mov.type || 'STOCK_EVENT',
-              summary: `Stock change: ${mov.quantity_change > 0 ? '+' : ''}${mov.quantity_change} (${mov.reason || 'Ledger event'})`,
-              timestamp: mov.created_at,
-              badge: 'LEDGER'
-            });
-          });
-
-          initial.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-          setRealtimeEvents(initial.slice(0, 50));
-        } catch (err) {
-          console.warn('Initial telemetry pre-fetch warning:', err);
-        }
-      };
-
-      prefetchTelemetry();
-
-      pingSupabaseKeepalive().then(res => {
-        if (res) setRealtimePingMs(res.latencyMs);
-      });
-    }
-
-    const pingInterval = isMasterAdmin ? setInterval(async () => {
-      const res = await pingSupabaseKeepalive();
-      if (res) setRealtimePingMs(res.latencyMs);
-    }, 25000) : null;
-
-    const channel = supabase.channel('admin-live-activity-stream')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs' }, (payload: any) => {
-        queryClient.invalidateQueries({ queryKey: ['admin-audit-logs'] });
-        queryClient.invalidateQueries({ queryKey: ['master-control-stats'] });
-        if (isRealtimePaused || !isMasterAdmin) return;
-        const newRecord = payload.new || {};
-        setRealtimeEvents(prev => [
-          {
-            id: String(newRecord.id || Math.random()),
-            source: 'audit_logs',
-            action: newRecord.action || payload.eventType,
-            summary: newRecord.target_table ? `${newRecord.action || 'Action'} on ${newRecord.target_table}` : (newRecord.action || 'System Audit Logged'),
-            timestamp: newRecord.created_at || new Date().toISOString(),
-            badge: payload.eventType
-          },
-          ...prev.slice(0, 49)
-        ]);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_movements' }, (payload: any) => {
-        queryClient.invalidateQueries({ queryKey: ['admin-activity-logs'] });
-        queryClient.invalidateQueries({ queryKey: ['master-control-stats'] });
-        if (isRealtimePaused || !isMasterAdmin) return;
-        const newRecord = payload.new || {};
-        setRealtimeEvents(prev => [
-          {
-            id: String(newRecord.id || Math.random()),
-            source: 'stock_movements',
-            action: newRecord.type || payload.eventType,
-            summary: `Stock change: ${newRecord.quantity_change > 0 ? '+' : ''}${newRecord.quantity_change} (${newRecord.reason || 'Ledger event'})`,
-            timestamp: newRecord.created_at || new Date().toISOString(),
-            badge: payload.eventType
-          },
-          ...prev.slice(0, 49)
-        ]);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'visitor_logs' }, (payload: any) => {
-        queryClient.invalidateQueries({ queryKey: ['admin-visitor-logs'] });
-        if (isRealtimePaused || !isMasterAdmin) return;
-        const newRecord = payload.new || {};
-        setRealtimeEvents(prev => [
-          {
-            id: String(newRecord.id || Math.random()),
-            source: 'visitor_logs',
-            action: 'LOGIN',
-            summary: `Staff login: ${newRecord.user_email || 'Staff member'}`,
-            timestamp: newRecord.visited_at || new Date().toISOString(),
-            badge: 'AUTH'
-          },
-          ...prev.slice(0, 49)
-        ]);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_inventory' }, (payload: any) => {
-        queryClient.invalidateQueries({ queryKey: ['finalized-sheets-master'] });
-        queryClient.invalidateQueries({ queryKey: ['dailyInventory'] });
-        if (isRealtimePaused || !isMasterAdmin) return;
-        const newRecord = payload.new || {};
-        setRealtimeEvents(prev => [
-          {
-            id: String(newRecord.id || Math.random()),
-            source: 'daily_inventory',
-            action: newRecord.state || payload.eventType,
-            summary: `Worksheet session (${newRecord.inventory_date || ''}) set to ${newRecord.state || 'active'}`,
-            timestamp: newRecord.updated_at || newRecord.created_at || new Date().toISOString(),
-            badge: payload.eventType
-          },
-          ...prev.slice(0, 49)
-        ]);
-      })
-      .subscribe((status) => {
-        setRealtimeChannelStatus(status === 'SUBSCRIBED' ? 'CONNECTED' : status);
-      });
-
-    return () => {
-      if (pingInterval) clearInterval(pingInterval);
-      supabase.removeChannel(channel);
-    };
-  }, [isAdmin, isMasterAdmin, isRealtimePaused, queryClient]);
-
-  // Maintenance Lock Setting
-  const { data: maintenanceSetting, refetch: refetchMaintenance } = useQuery({
-    queryKey: ['system-maintenance-lock'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('system_settings')
-        .select('*')
-        .eq('key', 'maintenance_lock')
-        .maybeSingle();
-      if (error || !data) return { locked: false, reason: '' };
-      return data.value as { locked: boolean; reason: string; locked_at?: string };
-    }
-  });
-
-  const handleToggleMaintenanceMode = async () => {
-    setIsMaintenanceToggling(true);
-    const nextLocked = !maintenanceSetting?.locked;
-    try {
-      const { error } = await supabase.from('system_settings').upsert({
-        key: 'maintenance_lock',
-        value: {
-          locked: nextLocked,
-          reason: nextLocked ? 'Emergency Store Audit & Physical Stock Count in progress' : '',
-          locked_at: nextLocked ? new Date().toISOString() : null,
-          locked_by: user?.email || 'master@kuventory.com'
-        }
-      }, { onConflict: 'key' });
-      if (error) throw error;
-      refetchMaintenance();
-    } catch (err: any) {
-      alert('Failed to update maintenance mode: ' + (err.message || 'Unknown error'));
-    } finally {
-      setIsMaintenanceToggling(false);
-    }
-  };
-
-  // Full System Snapshot Backup (Real Table Names)
-  const handleExportFullBackup = async () => {
-    setIsExportingBackup(true);
-    try {
-      const [
-        itemsRes,
-        batchesRes,
-        dailyInvRes,
-        dailyItemsRes,
-        movementsRes,
-        categoriesRes,
-        reportsRes,
-        reportItemsRes,
-        settingsRes,
-        profilesRes
-      ] = await Promise.all([
-        supabase.from('inventory_items').select('*'),
-        supabase.from('stock_batches').select('*'),
-        supabase.from('daily_inventory').select('*'),
-        supabase.from('daily_inventory_items').select('*'),
-        supabase.from('stock_movements').select('*'),
-        supabase.from('categories').select('*'),
-        supabase.from('reports').select('*'),
-        supabase.from('report_items').select('*'),
-        supabase.from('system_settings').select('*'),
-        supabase.from('profiles').select('id, role, display_name, first_name, last_name, created_at')
-      ]);
-
-      const totalRecords = 
-        (itemsRes.data?.length || 0) + 
-        (batchesRes.data?.length || 0) + 
-        (dailyInvRes.data?.length || 0) + 
-        (dailyItemsRes.data?.length || 0) + 
-        (movementsRes.data?.length || 0) +
-        (categoriesRes.data?.length || 0) +
-        (reportsRes.data?.length || 0) +
-        (reportItemsRes.data?.length || 0);
-
-      const backupData = {
-        app: 'KUVENTORY',
-        version: '2.0.0',
-        environment: 'production',
-        backup_type: 'FULL_SYSTEM_SNAPSHOT',
-        created_at: new Date().toISOString(),
-        created_by: user?.email || 'master@kuventory.com',
-        tables: {
-          categories: categoriesRes.data || [],
-          inventory_items: itemsRes.data || [],
-          stock_batches: batchesRes.data || [],
-          stock_movements: movementsRes.data || [],
-          daily_inventory: dailyInvRes.data || [],
-          daily_inventory_items: dailyItemsRes.data || [],
-          reports: reportsRes.data || [],
-          report_items: reportItemsRes.data || [],
-          system_settings: settingsRes.data || [],
-          profiles: profilesRes.data || []
-        },
-        meta: {
-          total_categories: categoriesRes.data?.length || 0,
-          total_items: itemsRes.data?.length || 0,
-          total_batches: batchesRes.data?.length || 0,
-          total_sheets: dailyInvRes.data?.length || 0,
-          total_sheet_items: dailyItemsRes.data?.length || 0,
-          total_movements: movementsRes.data?.length || 0,
-          total_records: totalRecords
-        }
-      };
-
-      const jsonStr = JSON.stringify(backupData, null, 2);
-      const blob = new Blob([jsonStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const filename = `kuventory_master_backup_${format(new Date(), 'yyyy-MM-dd_HHmmss')}.json`;
-      
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      console.log('Full system backup generated:', filename, totalRecords);
-    } catch (err: any) {
-      console.error('Backup error:', err);
-      alert('Failed to generate full system backup: ' + (err.message || 'Unknown error'));
-    } finally {
-      setIsExportingBackup(false);
-    }
-  };
-
-  // Contingency: Stock Balance Drift Auto-Healing (Rebalancer)
-  const handleRebalanceStockDrift = async () => {
-    setIsRebalancingStock(true);
-    setRebalanceResult(null);
-    try {
-      const [itemsRes, batchesRes] = await Promise.all([
-        supabase.from('inventory_items').select('id, name, min_quantity, version'),
-        supabase.from('stock_batches').select('id, item_id, quantity, expiry_date, version')
-      ]);
-
-      const items = itemsRes.data || [];
-      const batches = batchesRes.data || [];
-
-      // Touch items to increment OCC version and align clients
-      for (const item of items) {
-        await supabase
-          .from('inventory_items')
-          .update({ version: (item.version || 1) + 1, updated_at: new Date().toISOString() })
-          .eq('id', item.id);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['inventory-items'] });
-      queryClient.invalidateQueries({ queryKey: ['stock-batches'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
-
-      setRebalanceResult(`Audit complete: ${items.length} catalog items audited, ${batches.length} batches verified across FEFO ledger. Concurrency versions harmonized.`);
-    } catch (err: any) {
-      setRebalanceResult('Stock drift audit error: ' + (err.message || 'Unknown error'));
-    } finally {
-      setIsRebalancingStock(false);
-    }
-  };
-
-  // Contingency: Clean Negative & Depleted Batches
-  const handleCleanNegativeBatches = async () => {
-    setIsCleaningBatches(true);
-    setCleanBatchResult(null);
-    try {
-      const { data: badBatches, error: fetchErr } = await supabase
-        .from('stock_batches')
-        .select('id, quantity')
-        .lte('quantity', 0);
-      if (fetchErr) throw fetchErr;
-
-      let deleted = 0;
-      if (badBatches && badBatches.length > 0) {
-        for (const b of badBatches) {
-          const { error: delErr } = await supabase.from('stock_batches').delete().eq('id', b.id);
-          if (!delErr) deleted++;
-        }
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['stock-batches'] });
-      queryClient.invalidateQueries({ queryKey: ['inventory-items'] });
-      setCleanBatchResult(`Scan completed: ${badBatches?.length || 0} depleted/phantom batches found. ${deleted} purged.`);
-    } catch (err: any) {
-      setCleanBatchResult('Batch cleanup error: ' + (err.message || 'Unknown error'));
-    } finally {
-      setIsCleaningBatches(false);
-    }
-  };
-
-  // Finalized Sheets for Super Admin Force Override (Correct Table: daily_inventory)
-  const { data: finalizedSheets = [], isLoading: isLoadingFinalizedSheets } = useQuery({
-    queryKey: ['finalized-sheets-master'],
-    enabled: isMasterAdmin,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('daily_inventory')
-        .select('*')
-        .eq('state', 'FINALIZED')
-        .order('inventory_date', { ascending: false })
-        .limit(20);
-      if (error) {
-        console.error('Error fetching finalized sheets:', error);
-        return [];
-      }
-      return data || [];
-    }
-  });
-
-  // Force Override State
-  const [selectedSheetForOverride, setSelectedSheetForOverride] = useState<any | null>(null);
-  const [overrideReason, setOverrideReason] = useState('');
-  const [isOverriding, setIsOverriding] = useState(false);
-  const [overrideSuccess, setOverrideSuccess] = useState<string | null>(null);
-  const [overrideError, setOverrideError] = useState<string | null>(null);
-
-  const handleForceOverrideSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedSheetForOverride || !overrideReason.trim()) {
-      setOverrideError('A valid audit justification reason is required for Master Override.');
-      return;
-    }
-
-    setIsOverriding(true);
-    setOverrideError(null);
-    setOverrideSuccess(null);
-
-    try {
-      const { error } = await supabase.rpc('force_override_daily_inventory', {
-        p_daily_inventory_id: selectedSheetForOverride.id
-      });
-
-      if (error) throw error;
-
-      setOverrideSuccess(`Sheet for ${selectedSheetForOverride.inventory_date} successfully forced open to DRAFT.`);
-      queryClient.invalidateQueries({ queryKey: ['finalized-sheets-master'] });
-      queryClient.invalidateQueries({ queryKey: ['daily-sheets'] });
-      queryClient.invalidateQueries({ queryKey: ['daily-inventory'] });
-      
-      setTimeout(() => {
-        setSelectedSheetForOverride(null);
-        setOverrideReason('');
-        setOverrideSuccess(null);
-      }, 1800);
-    } catch (err: any) {
-      setOverrideError(err.message || 'Failed to force override sheet status');
-    } finally {
-      setIsOverriding(false);
-    }
-  };
-
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6 text-foreground">
       <header className="border-b pb-4 border-border">
         <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-          {isMasterAdmin ? (
-            <Crown className="w-8 h-8 text-amber-500" />
-          ) : (
-            <Shield className="w-8 h-8 text-primary" />
-          )}
-          {isMasterAdmin ? 'Super Admin Console' : 'System Settings & Administration'}
+          <Shield className="w-8 h-8 text-primary" />
+          System Settings & Administration
         </h1>
         <p className="text-muted-foreground mt-1 font-medium text-sm">
-          {isMasterAdmin 
-            ? 'Root operational console with full system authority, automated backups, disaster recovery, and sheet overrides.'
-            : 'Manage restaurant information, staff accounts, system preferences, and security audit logs.'}
+          Manage restaurant information, staff accounts, system preferences, and security audit logs.
         </p>
       </header>
 
@@ -859,17 +471,6 @@ export function AdminPage() {
                 <Activity className="w-4 h-4 mr-2" /> Activity Audit Trail
               </TabsTrigger>
             </>
-          )}
-          {isMasterAdmin && (
-            <TabsTrigger 
-              value="super_admin" 
-              className={cn(
-                "font-semibold text-xs sm:text-sm border transition-all",
-                "bg-linear-to-r from-amber-500/15 to-amber-600/10 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:border-amber-500/50"
-              )}
-            >
-              <Crown className="w-4 h-4 mr-2 text-amber-500" /> Super Admin
-            </TabsTrigger>
           )}
           <TabsTrigger value="about" className="font-semibold text-xs sm:text-sm">
             <Info className="w-4 h-4 mr-2" /> About & Diagnostics
@@ -1244,6 +845,130 @@ export function AdminPage() {
                       </TableRow>
                     );
                   })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* PASSWORD RESET REQUESTS LOG */}
+          <div className="bg-card rounded-xl border border-border shadow-xs overflow-hidden mt-6">
+            <div className="p-4 border-b border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-muted/30">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-foreground">Password Reset & Account Recovery Requests</h3>
+                    <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/20">
+                      {passwordResetRequests.length} Requests Logged
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Real-time log of staff password recovery requests. All requests are securely logged without disclosing secrets or credentials.
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchResetRequests()}
+                disabled={isLoadingResetRequests}
+                className="text-xs font-semibold border-border text-foreground hover:bg-muted"
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5 mr-1.5", isLoadingResetRequests && "animate-spin")} />
+                Refresh Log
+              </Button>
+            </div>
+
+            <Table>
+              <TableHeader className="bg-muted/60 border-b border-border">
+                <TableRow>
+                  <TableHead className="font-bold text-foreground text-xs">Request Code</TableHead>
+                  <TableHead className="font-bold text-foreground text-xs">Account Identifier</TableHead>
+                  <TableHead className="font-bold text-foreground text-xs">Requested At</TableHead>
+                  <TableHead className="font-bold text-foreground text-xs text-center">Lifecycle Status</TableHead>
+                  <TableHead className="font-bold text-foreground text-xs">Notification</TableHead>
+                  <TableHead className="font-bold text-foreground text-xs text-right">Administrative Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoadingResetRequests ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground font-medium text-xs">
+                      <Loader2 className="w-5 h-5 animate-spin mx-auto text-primary mb-2" />
+                      Loading password recovery requests...
+                    </TableCell>
+                  </TableRow>
+                ) : passwordResetRequests.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground font-medium text-xs">
+                      No password reset requests pending.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  passwordResetRequests.map((req) => (
+                    <TableRow key={req.id} className="hover:bg-muted/40">
+                      <TableCell className="font-mono text-xs font-bold text-foreground">
+                        {req.request_code}
+                      </TableCell>
+                      <TableCell className="text-xs font-semibold text-foreground">
+                        {req.email}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {format(new Date(req.requested_at), 'MMM dd, yyyy HH:mm')}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className={cn(
+                          "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border",
+                          req.status === 'NEW' && "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
+                          req.status === 'NOTIFIED' && "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
+                          req.status === 'IN REVIEW' && "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30",
+                          req.status === 'RESOLVED' && "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+                          req.status === 'EXPIRED' && "bg-slate-500/15 text-slate-500 border-slate-500/30",
+                          req.status === 'FAILED' && "bg-rose-500/15 text-rose-500 border-rose-500/30"
+                        )}>
+                          {req.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        <span className="font-mono text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          {req.notification_status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {req.status !== 'IN REVIEW' && req.status !== 'RESOLVED' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[11px] font-bold border-border text-foreground hover:bg-muted"
+                              onClick={() => updateResetStatusMutation.mutate({ id: req.id, status: 'IN REVIEW' })}
+                              disabled={updateResetStatusMutation.isPending}
+                            >
+                              In Review
+                            </Button>
+                          )}
+                          {req.status !== 'RESOLVED' && (
+                            <Button
+                              size="sm"
+                              className="h-7 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                              onClick={() => updateResetStatusMutation.mutate({ id: req.id, status: 'RESOLVED', notes: 'Password reset completed or resolved by Administrator.' })}
+                              disabled={updateResetStatusMutation.isPending}
+                            >
+                              Resolve
+                            </Button>
+                          )}
+                          {req.status === 'RESOLVED' && (
+                            <span className="text-[11px] font-semibold text-emerald-500 flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Resolved
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 )}
               </TableBody>
             </Table>
@@ -1769,45 +1494,6 @@ export function AdminPage() {
           </div>
         </TabsContent>
 
-        {/* TAB 6: SUPER ADMIN CONSOLE (STANDALONE DEVELOPER ROOT) */}
-        {isSuperAdmin && (
-          <TabsContent value={activeTab === 'master' ? 'master' : 'super_admin'} className="space-y-6">
-            <SuperAdminControlCenter
-              userEmail={user?.email || 'superadmin@kuventory.com'}
-              maintenanceLocked={maintenanceSetting?.locked || false}
-              onToggleMaintenance={handleToggleMaintenanceMode}
-              isMaintenanceToggling={isMaintenanceToggling}
-              realtimePingMs={realtimePingMs}
-              setRealtimePingMs={setRealtimePingMs}
-              realtimeChannelStatus={realtimeChannelStatus}
-              realtimeEvents={realtimeEvents}
-              setRealtimeEvents={setRealtimeEvents}
-              isRealtimePaused={isRealtimePaused}
-              setIsRealtimePaused={setIsRealtimePaused}
-              onRebalanceStockDrift={handleRebalanceStockDrift}
-              isRebalancingStock={isRebalancingStock}
-              rebalanceResult={rebalanceResult}
-              onCleanNegativeBatches={handleCleanNegativeBatches}
-              isCleaningBatches={isCleaningBatches}
-              cleanBatchResult={cleanBatchResult}
-              onExportFullBackup={handleExportFullBackup}
-              isExportingBackup={isExportingBackup}
-              finalizedSheets={finalizedSheets}
-              isLoadingFinalizedSheets={isLoadingFinalizedSheets}
-              onOpenForceOverride={(sheet) => {
-                setSelectedSheetForOverride(sheet);
-                setOverrideReason('');
-                setOverrideError(null);
-                setOverrideSuccess(null);
-              }}
-              overrideSuccess={overrideSuccess}
-              overrideError={overrideError}
-              auditLogs={auditLogs}
-              isLoadingAuditLogs={isLoadingAuditLogs}
-              refetchAudits={refetchAudits}
-            />
-          </TabsContent>
-        )}
       </Tabs>
 
       {/* Add User Modal */}
@@ -2003,67 +1689,6 @@ export function AdminPage() {
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Super Admin Force Override Dialog */}
-      <Dialog open={!!selectedSheetForOverride} onOpenChange={(open) => !open && setSelectedSheetForOverride(null)}>
-        <DialogContent className="max-w-md bg-card border-border text-foreground">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-foreground">
-              <Crown className="w-5 h-5 text-amber-500" />
-              Force Reopen Finalized Sheet
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              You are using Tier 0 Super Admin authority to unlock sheet date <strong className="text-foreground">{selectedSheetForOverride?.inventory_date}</strong> back to DRAFT state.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleForceOverrideSubmit} className="space-y-4 py-2">
-            {overrideError && (
-              <div className="p-3 text-xs text-destructive bg-destructive/15 rounded-md border border-destructive/20 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                {overrideError}
-              </div>
-            )}
-            {overrideSuccess && (
-              <div className="p-3 text-xs text-emerald-500 bg-emerald-500/15 rounded-md border border-emerald-500/20 font-bold flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
-                {overrideSuccess}
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-foreground">Mandatory Audit Justification / Reason</Label>
-              <Input
-                value={overrideReason}
-                onChange={(e) => setOverrideReason(e.target.value)}
-                placeholder="e.g. Recount variance approved by Store Owner"
-                className="text-sm bg-card border-border text-foreground h-11"
-                required
-              />
-            </div>
-
-            <DialogFooter className="pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setSelectedSheetForOverride(null)}
-                className="border-border text-foreground cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isOverriding || !overrideReason.trim()}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer"
-              >
-                {isOverriding ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RotateCcw className="w-4 h-4 mr-2" />}
-                Reopen to DRAFT
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
     </div>
   );
 }

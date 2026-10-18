@@ -16,7 +16,8 @@ import {
   Layers, 
   CheckCircle2, 
   BarChart3,
-  Bell
+  Bell,
+  Edit3
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -25,7 +26,9 @@ import { getNotificationRoute } from '../utils/notificationRouter';
 
 export function InventoryLandingPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const isAuthorizedToCorrect = role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN' || 
+    user?.email === 'superadmin@kuventory.com' || user?.email === 'master@kuventory.com' || user?.email === 'admin@kuventory.com';
 
   // 1. Fetch Inventory Items
   const { data: items = [] } = useQuery({
@@ -149,7 +152,7 @@ export function InventoryLandingPage() {
           </Card>
         </Link>
 
-        {/* Low Stock */}
+        {/* Low Stock (strictly 0 < current_qty <= min_qty) */}
         <Link to="/items" className="block focus:outline-none">
           <Card className="bg-card border-border hover:border-amber-500/50 transition-colors cursor-pointer h-full">
             <CardContent className="p-4 sm:p-5">
@@ -161,12 +164,12 @@ export function InventoryLandingPage() {
               </div>
               <div className="mt-3">
                 <span className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400">
-                  {summary.lowStockCount + summary.outOfStockCount}
+                  {summary.lowStockCount}
                 </span>
                 <span className="text-xs text-muted-foreground ml-1.5">items</span>
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">
-                {summary.outOfStockCount > 0 ? `${summary.outOfStockCount} out of stock` : 'Requires restock'}
+                {summary.outOfStockCount > 0 ? `${summary.outOfStockCount} items depleted (zero stock)` : 'All other items above threshold'}
               </p>
             </CardContent>
           </Card>
@@ -251,21 +254,34 @@ export function InventoryLandingPage() {
             </p>
           </div>
 
-          <Button
-            onClick={() => navigate('/daily-inventory')}
-            className={`font-semibold text-xs sm:text-sm shrink-0 shadow-xs cursor-pointer min-h-11 ${
-              isFinalizedToday
-                ? 'bg-muted text-foreground hover:bg-muted/80'
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-            }`}
-          >
-            {isFinalizedToday
-              ? 'View Completed Sheet'
-              : isDraftToday
-              ? 'Continue Counting'
-              : 'Start Today’s Count'}
-            <ArrowRight className="w-4 h-4 ml-1.5" />
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            {isFinalizedToday && isAuthorizedToCorrect && (
+              <Button
+                variant="outline"
+                onClick={() => navigate('/daily-inventory?correct=true')}
+                className="border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 font-bold text-xs sm:text-sm shrink-0 cursor-pointer min-h-11"
+              >
+                <Edit3 className="w-4 h-4 mr-1.5" />
+                Correct Finalized Day
+              </Button>
+            )}
+
+            <Button
+              onClick={() => navigate('/daily-inventory')}
+              className={`font-semibold text-xs sm:text-sm shrink-0 shadow-xs cursor-pointer min-h-11 ${
+                isFinalizedToday
+                  ? 'bg-muted text-foreground hover:bg-muted/80'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              }`}
+            >
+              {isFinalizedToday
+                ? 'View Completed Sheet'
+                : isDraftToday
+                ? 'Continue Counting'
+                : 'Start Today’s Count'}
+              <ArrowRight className="w-4 h-4 ml-1.5" />
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

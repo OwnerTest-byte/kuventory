@@ -5,6 +5,18 @@ All notable changes to KUVENTORY will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-10-18
+
+### Added
+
+- **Finalized Daily Inventory Revision Workflow**: Authorized users (`ADMIN`, `SUPER_ADMIN`) can unlock and correct finalized inventory sheets. All modified values are calculated differentials-reconciled against physical on-hand stock and FEFO batches, guaranteeing strictly zero duplicate stock deductions or additions. Automatically maintains immutable revision snapshots in `daily_inventory_revisions` with reason, editor, timestamp, and stock adjustments.
+- **Dedicated Standalone Super Admin Route (`/super-admin`)**: Completely decoupled Super Admin from Settings navigation. Super Admin now operates on an isolated standalone control plane protected by `RequireSuperAdmin`, with breadcrumbs, direct URL guards, and responsive sidebar navigation.
+- **Authoritative Emergency Maintenance Lockdown**: Enforces real database-level maintenance lockdown via `system_settings.maintenance_lock` (`NORMAL`, `MAINTENANCE`, `RECOVERY`). Non-super users are blocked at login pre-flight, intercepted on protected routes, and blocked from database mutations with a dedicated emergency maintenance screen. Super Admin retains access via `/super-admin`.
+- **Centralized Logout Confirmation Modal**: Added an accessible confirmation dialog ("Log out? Are you sure you want to log out?") across sidebar, header, and mobile navigation, complete with unsaved work warnings. Forced session terminations (lockdown, session lease revocation) remain immediate.
+- **Staff Password Reset Request Logging**: Added `password_reset_requests` table and administrative review log under Settings -> Users tab. Captures recovery requests with status tracking (`NEW`, `NOTIFIED`, `IN REVIEW`, `RESOLVED`, `EXPIRED`, `FAILED`) and dispatches realtime admin alerts, while returning secure, non-disclosing messages without leaking credentials or account existence.
+- **Context-Aware Dashboard Actions & Metric Accuracy**: Distinguishes Low Stock (`0 < qty <= min_qty`) from Out-of-Stock (`qty === 0`). Contextualizes Today's Daily Inventory card with dynamic actions (Start Inventory, Continue Counting, View Completed Sheet, and Correct Finalized Day).
+- **Playwright E2E Suite (`critical_workflow_repairs.spec.ts`)**: Comprehensive end-to-end test suite testing finalized corrections, logout confirmation, emergency lockdown, password recovery logging, and responsive multi-device layouts.
+
 ## [2.5.0] - 2026-10-10
 
 ### Added

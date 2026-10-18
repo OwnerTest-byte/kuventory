@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/features/auth/context/AuthContext';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
-import { RequireAuth } from '@/features/auth/components/RequireAuth';
+import { RequireAuth, RequireSuperAdmin } from '@/features/auth/components/RequireAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { InventoryLandingPage } from '@/features/inventory/pages/InventoryLandingPage';
 import { Loader2 } from 'lucide-react';
@@ -17,6 +17,7 @@ const ItemDetailsPage = lazy(() => import('@/features/inventory/pages/ItemDetail
 const ReportViewPage = lazy(() => import('@/features/reports/pages/ReportViewPage').then(module => ({ default: module.ReportViewPage })));
 const ReportsLibraryPage = lazy(() => import('@/features/reports/pages/ReportsLibraryPage').then(module => ({ default: module.ReportsLibraryPage })));
 const AdminPage = lazy(() => import('@/features/admin/pages/AdminPage').then(module => ({ default: module.AdminPage })));
+const SuperAdminPage = lazy(() => import('@/features/admin/pages/SuperAdminPage').then(module => ({ default: module.SuperAdminPage })));
 const NotificationCenter = lazy(() => import('@/features/inventory/pages/NotificationCenter').then(module => ({ default: module.NotificationCenter })));
 const AnalyticsPage = lazy(() => import('@/features/reports/pages/AnalyticsPage').then(module => ({ default: module.AnalyticsPage })));
 const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage').then(module => ({ default: module.ResetPasswordPage })));
@@ -90,6 +91,13 @@ export function App() {
             <Route path="/admin" element={
               <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
             } />
+
+            {/* Dedicated Standalone Super Admin Route */}
+            <Route element={<RequireSuperAdmin />}>
+              <Route path="/super-admin" element={
+                <Suspense fallback={<FallbackLoader />}><SuperAdminPage /></Suspense>
+              } />
+            </Route>
 
             {/* Fallback for authenticated users */}
             <Route path="*" element={<Navigate to="/inventory" replace />} />

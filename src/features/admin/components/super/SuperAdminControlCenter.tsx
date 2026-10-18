@@ -104,7 +104,7 @@ export function SuperAdminControlCenter({
   const activeSubTab = (urlSubTab && validSubTabs.includes(urlSubTab)) ? urlSubTab : 'overview';
 
   const handleSubTabChange = (newSubTab: string) => {
-    setSearchParams({ tab: 'super_admin', subtab: newSubTab });
+    setSearchParams({ subtab: newSubTab });
   };
 
   const subTabsRef = useRef<HTMLDivElement>(null);

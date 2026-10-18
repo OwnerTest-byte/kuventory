@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils';
 
 import { claimSessionLease } from '../services/sessionLeaseService';
 import { useAuth } from '../context/AuthContext';
+import { getMaintenanceStatus } from '@/features/admin/services/maintenanceService';
+import { submitPasswordResetRequest } from '@/features/auth/services/passwordResetService';
 
 export const loginSchema = z.object({
   email: z.string().min(1, 'invalid email address').email('invalid email address'),
@@ -55,6 +57,16 @@ export function LoginForm() {
     clearSessionLeaseError();
 
     const email = data.email.trim().toLowerCase();
+    const isSuperUserAttempt = email === 'superadmin@kuventory.com' || email === 'master@kuventory.com';
+
+    // 1. Emergency Maintenance Pre-flight check
+    const maint = await getMaintenanceStatus();
+    if (maint.locked && !isSuperUserAttempt) {
+      setAuthError('EMERGENCY MAINTENANCE LOCKDOWN ACTIVE: System access is currently restricted to authorized Super Administrators during database maintenance.');
+      setIsLoading(false);
+      return;
+    }
+
     const candidatePasswords = [data.password];
     
     // Auto-tolerance: if user omits or includes trailing exclamation mark, try both
@@ -83,6 +95,15 @@ export function LoginForm() {
     }
 
     if (authSuccess && activeSession) {
+      // 2. Emergency Maintenance Post-auth check (prevent bypass)
+      if (maint.locked && !isSuperUserAttempt) {
+        await supabase.auth.signOut();
+        sessionStorage.removeItem('kuventory_browser_session_active');
+        setAuthError('EMERGENCY MAINTENANCE LOCKDOWN ACTIVE: System access is currently restricted to authorized Super Administrators during database maintenance.');
+        setIsLoading(false);
+        return;
+      }
+
       // Enforce Rule 11 & 12: Single Active Session Per Account (First Session Wins)
       const claimResult = await claimSessionLease(activeSession.access_token.slice(-16));
       if (!claimResult.success) {
@@ -121,35 +142,18 @@ export function LoginForm() {
     const emailToReset = forgotEmail.trim().toLowerCase();
 
     try {
-      // 1. Dispatch real-time alert directly to Super Admin via database RPC
-      const { data: rpcData, error: rpcError } = await supabase.rpc('request_password_reset', {
-        p_email: emailToReset,
-      });
+      const result = await submitPasswordResetRequest(emailToReset);
 
-      if (rpcError) {
-        // Fallback: direct insert to notifications table if RPC is unmigrated
-        await supabase.from('notifications').insert({
-          type: 'PASSWORD_RESET',
-          title: `Password Reset Request: ${emailToReset}`,
-          message: `Staff member (${emailToReset}) requested a password reset. Call or SMS Super Admin hotline: ${SUPER_ADMIN_HOTLINE}, or reset password in Admin Settings.`,
-          target_id: '/settings?tab=users',
-        } as any);
-      }
-
-      // 2. Also try standard Supabase auth reset link as background fallback
+      // Also trigger Supabase auth reset email as background fallback
       try {
         await supabase.auth.resetPasswordForEmail(emailToReset, {
           redirectTo: `${window.location.origin}/reset-password`,
         });
       } catch (authErr) {
-        // Ignore SMTP delivery failures since Super Admin is already notified
         console.warn('Direct SMTP reset skipped or unconfigured:', authErr);
       }
 
-      setForgotMessage(
-        rpcData?.message || 
-        `Password reset request has been dispatched directly to the Super Admin! For immediate clearance, call or text ${SUPER_ADMIN_HOTLINE}.`
-      );
+      setForgotMessage(result.message);
     } catch (err: any) {
       setForgotError(err.message || `Unable to send reset request. Please contact the Super Admin directly at ${SUPER_ADMIN_HOTLINE}.`);
     } finally {

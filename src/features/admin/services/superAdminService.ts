@@ -526,3 +526,80 @@ export async function fetchSystemTelemetry(): Promise<SystemTelemetry> {
     pingMs
   };
 }
+
+/**
+ * Export full JSON snapshot backup of all tables
+ */
+export async function exportFullSystemBackup(userEmail: string = 'superadmin@kuventory.com'): Promise<{ filename: string; totalRecords: number }> {
+  const [
+    categoriesRes, itemsRes, batchesRes, movementsRes,
+    dailyInvRes, dailyItemsRes, reportsRes, reportItemsRes,
+    settingsRes, profilesRes
+  ] = await Promise.all([
+    supabase.from('categories').select('*'),
+    supabase.from('inventory_items').select('*'),
+    supabase.from('stock_batches').select('*'),
+    supabase.from('stock_movements').select('*'),
+    supabase.from('daily_inventory').select('*'),
+    supabase.from('daily_inventory_items').select('*'),
+    supabase.from('reports').select('*'),
+    supabase.from('report_items').select('*'),
+    supabase.from('system_settings').select('*'),
+    supabase.from('profiles').select('*')
+  ]);
+
+  const totalRecords =
+    (categoriesRes.data?.length || 0) +
+    (itemsRes.data?.length || 0) +
+    (batchesRes.data?.length || 0) +
+    (movementsRes.data?.length || 0) +
+    (dailyInvRes.data?.length || 0) +
+    (dailyItemsRes.data?.length || 0) +
+    (reportsRes.data?.length || 0) +
+    (reportItemsRes.data?.length || 0);
+
+  const backupData = {
+    app: 'KUVENTORY',
+    version: '2.0.0',
+    environment: 'production',
+    backup_type: 'FULL_SYSTEM_SNAPSHOT',
+    created_at: new Date().toISOString(),
+    created_by: userEmail,
+    tables: {
+      categories: categoriesRes.data || [],
+      inventory_items: itemsRes.data || [],
+      stock_batches: batchesRes.data || [],
+      stock_movements: movementsRes.data || [],
+      daily_inventory: dailyInvRes.data || [],
+      daily_inventory_items: dailyItemsRes.data || [],
+      reports: reportsRes.data || [],
+      report_items: reportItemsRes.data || [],
+      system_settings: settingsRes.data || [],
+      profiles: profilesRes.data || []
+    },
+    meta: {
+      total_categories: categoriesRes.data?.length || 0,
+      total_items: itemsRes.data?.length || 0,
+      total_batches: batchesRes.data?.length || 0,
+      total_sheets: dailyInvRes.data?.length || 0,
+      total_sheet_items: dailyItemsRes.data?.length || 0,
+      total_movements: movementsRes.data?.length || 0,
+      total_records: totalRecords
+    }
+  };
+
+  const jsonStr = JSON.stringify(backupData, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const filename = `kuventory_super_backup_${new Date().toISOString().slice(0, 10)}.json`;
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  return { filename, totalRecords };
+}

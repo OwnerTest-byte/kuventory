@@ -1,8 +1,11 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useMaintenanceStatus } from '../hooks/useMaintenanceStatus';
+import { EmergencyMaintenanceScreen } from '@/components/common/EmergencyMaintenanceScreen';
 
 export function RequireAuth() {
   const { session, isLoading } = useAuth();
+  const { isEnforced, maintenance, refetch } = useMaintenanceStatus();
   const location = useLocation();
 
   if (isLoading) {
@@ -15,6 +18,11 @@ export function RequireAuth() {
 
   if (!session) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Emergency Maintenance Backend/Frontend Lockdown Gate
+  if (isEnforced) {
+    return <EmergencyMaintenanceScreen maintenance={maintenance} onRefresh={refetch} />;
   }
 
   return <Outlet />;

@@ -28,6 +28,8 @@ import { cn, formatUserDisplayName, formatRoleLabel, getUserInitials } from '@/l
 import { Button } from '@/components/ui/button';
 import { NotificationPopup } from '@/features/inventory/components/NotificationPopup';
 import { releaseSessionLease } from '@/features/auth/services/sessionLeaseService';
+import { useLogoutPrompt } from '@/features/auth/hooks/useLogoutPrompt';
+import { LogoutConfirmationModal } from '@/components/common/LogoutConfirmationModal';
 import { CommandPalette } from './CommandPalette';
 import { ItemFormModal } from '@/features/inventory/components/ItemFormModal';
 import { useItems } from '@/features/inventory/hooks/useItems';
@@ -114,6 +116,9 @@ function AppBreadcrumbs() {
     else if (location.pathname === '/reports/low-stock') page = 'Low Stock Report';
     else if (location.pathname === '/reports/expiry') page = 'Expiry & Waste Report';
     else page = 'Reports Library';
+  } else if (location.pathname === '/super-admin') {
+    section = 'Administration';
+    page = 'Super Admin Control Center';
   } else if (location.pathname === '/settings' || location.pathname === '/admin') {
     section = 'Settings';
     if (tab === 'account') page = 'My Account & Password';
@@ -121,7 +126,6 @@ function AppBreadcrumbs() {
     else if (tab === 'users') page = 'Staff & Users';
     else if (tab === 'notifications' || tab === 'preferences') page = 'Preferences & Alerts';
     else if (tab === 'activity' || tab === 'logs') page = 'Activity Audit Trail';
-    else if (tab === 'super_admin' || tab === 'master') page = 'Super Admin Console';
     else if (tab === 'about') page = 'About & Diagnostics';
     else page = 'System Settings';
   }
@@ -140,13 +144,15 @@ interface SidebarNavigationProps {
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   onOpenSearch?: () => void;
+  onPromptLogout?: (unsaved?: boolean) => void;
 }
 
 function SidebarNavigation({ 
   closeMobileMenu, 
   isCollapsed = false, 
   onToggleCollapse,
-  onOpenSearch
+  onOpenSearch,
+  onPromptLogout
 }: SidebarNavigationProps) {
   const { role, profile, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -173,18 +179,22 @@ function SidebarNavigation({
       return location.pathname.startsWith('/reports');
     }
 
-    if (to === '/settings?tab=super_admin' || to === '/settings?tab=master') {
-      return (location.pathname === '/settings' || location.pathname === '/admin') && (location.search.includes('tab=super_admin') || location.search.includes('tab=master'));
+    if (to === '/super-admin') {
+      return location.pathname === '/super-admin';
     }
 
     if (to === '/settings') {
-      return (location.pathname === '/settings' || location.pathname === '/admin') && !location.search.includes('tab=super_admin') && !location.search.includes('tab=master');
+      return (location.pathname === '/settings' || location.pathname === '/admin');
     }
 
     return location.pathname === to;
   };
 
   const handleLogout = async () => {
+    if (onPromptLogout) {
+      onPromptLogout(false);
+      return;
+    }
     try {
       await releaseSessionLease();
     } catch (e) {
@@ -211,9 +221,9 @@ function SidebarNavigation({
     }),
     ...(isSuperUser ? [{ 
       name: 'Super Admin', 
-      to: '/settings?tab=super_admin', 
+      to: '/super-admin', 
       icon: Crown, 
-      badge: 'ADMIN' 
+      badge: 'ROOT' 
     }] : [])
   ];
 
@@ -536,14 +546,14 @@ export function AppLayout() {
   const userInitials = getUserInitials(profile || user?.email);
   const userDisplayName = formatUserDisplayName(profile, user?.email);
 
-  const handleLogout = async () => {
-    try {
-      await releaseSessionLease();
-    } catch (e) {
-      console.warn('Error releasing session lease:', e);
-    }
-    await supabase.auth.signOut();
-  };
+  const { 
+    isModalOpen: isLogoutModalOpen, 
+    hasUnsavedChanges: hasLogoutUnsavedChanges, 
+    isLoggingOut, 
+    promptLogout, 
+    cancelLogout, 
+    confirmLogout 
+  } = useLogoutPrompt();
 
   return (
     <div className="flex h-dvh min-h-dvh max-h-dvh bg-background text-foreground overflow-hidden font-sans">
@@ -559,6 +569,7 @@ export function AppLayout() {
           isCollapsed={isSidebarCollapsed} 
           onToggleCollapse={toggleSidebar}
           onOpenSearch={() => setIsCommandOpen(true)}
+          onPromptLogout={promptLogout}
         />
       </aside>
 
@@ -576,6 +587,7 @@ export function AppLayout() {
                 setMobileMenuOpen(false);
                 setIsCommandOpen(true);
               }}
+              onPromptLogout={promptLogout}
             />
           </div>
         </div>
@@ -769,7 +781,7 @@ export function AppLayout() {
               </Link>
               <button
                 type="button"
-                onClick={handleLogout}
+                onClick={() => promptLogout(false)}
                 className="h-8 w-8 flex items-center justify-center rounded-xl text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
                 title="Sign Out"
                 aria-label="Sign Out"
@@ -859,6 +871,15 @@ export function AppLayout() {
           onSubmit={handleCreateItem}
         />
       )}
+
+      {/* Global User-Initiated Logout Confirmation Modal */}
+      <LogoutConfirmationModal
+        isOpen={isLogoutModalOpen}
+        onClose={cancelLogout}
+        onConfirm={confirmLogout}
+        isLoggingOut={isLoggingOut}
+        hasUnsavedChanges={hasLogoutUnsavedChanges}
+      />
     </div>
   );
 }

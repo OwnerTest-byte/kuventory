@@ -108,7 +108,48 @@ Super Admin can inspect snapshot metadata and version alignment in an isolated r
 
 ---
 
-## 7. Responsiveness & Cross-Device Engineering (Rules 95–104)
+## 6. Finalized Daily Inventory Revision & Stock Reconciliation Engine
+
+### Post-Finalization Correction Workflow
+
+1. **Authorization**: Only `ADMIN`, `SUPER_ADMIN`, and `MASTER_ADMIN` roles can unlock a finalized worksheet.
+2. **Audit Reason Requirement**: A mandatory audit justification (minimum 5 characters) must be submitted prior to entering correction mode.
+3. **Differential Stock Reconciliation**:
+   - $\Delta\text{Consumption} = (\text{AM}_{\text{new}} + \text{PM}_{\text{new}}) - (\text{AM}_{\text{old}} + \text{PM}_{\text{old}})$
+   - If $\Delta\text{Consumption} > 0$: consume additional stock using database FEFO ledger.
+   - If $\Delta\text{Consumption} < 0$: restore $|\Delta\text{Consumption}|$ back to active inventory batches.
+   - $\Delta\text{Add} = \text{Add}_{\text{new}} - \text{Add}_{\text{old}}$
+   - If $\Delta\text{Add} > 0$: increment stock; if $\Delta\text{Add} < 0$: decrement stock.
+   - Strictly guarantees **zero double-deductions** or repeated counts regardless of revision count.
+4. **Immutable Revision Trail**: Every save writes a permanent record to `daily_inventory_revisions` storing revision number, editor ID, editor name, timestamp, reason, snapshot JSON, and exact stock movements reconciled.
+
+---
+
+## 7. Authoritative Emergency Maintenance Lockdown
+
+### Dual-Layer Backend Enforcement
+
+1. **Authoritative State**: Persisted in `system_settings.maintenance_lock` (`NORMAL`, `MAINTENANCE`, `RECOVERY`).
+2. **Gate 1 - Authentication Interception**: Pre-flight login checks in `LoginForm.tsx` block ordinary Staff and Admin accounts with `EMERGENCY MAINTENANCE LOCKDOWN ACTIVE`. Super Admin is explicitly allowed.
+3. **Gate 2 - Routing & Direct Request Guard**: `RequireAuth.tsx` intercepts all protected routes and renders `<EmergencyMaintenanceScreen />` for active non-super sessions.
+4. **Gate 3 - Database RPC Guard**: Functions check `is_maintenance_locked()` and reject mutations with SQL `P0001` error.
+5. **Super Admin Control Plane**: Operates via standalone route `/super-admin`, isolated from regular application paths.
+
+---
+
+## 8. Password Reset Request Logging & Administrator Review
+
+### Non-Disclosing Recovery Protocol
+
+1. **Submission**: User submits email on the login screen.
+2. **Safe Response**: Returns generic acknowledgment *"If an account is associated with this email, your password reset request has been logged and forwarded to administrators."* Zero disclosure of account existence or password details.
+3. **Audit Log Persistence**: Recorded in `password_reset_requests` table with stable code (`PR-YYYYMMDD-XXXX`), status (`NEW`, `NOTIFIED`, `IN REVIEW`, `RESOLVED`, `EXPIRED`, `FAILED`), and client metadata.
+4. **Admin Notification**: Realtime notification dispatched to authorized Admins and Super Admins.
+5. **Review Dashboard**: Surface inside Settings -> Staff & Users tab with status management actions (`In Review`, `Resolve`).
+
+---
+
+## 9. Responsiveness & Cross-Device Engineering (Rules 95–104)
 
 The interface is engineered and tested across 10 distinct viewport profiles:
 
@@ -118,12 +159,14 @@ The interface is engineered and tested across 10 distinct viewport profiles:
 
 ---
 
-## 8. Playwright Real-Browser Verification (Rules 231–271)
+## 10. Playwright Real-Browser Verification (Rules 231–271)
 
 Zero synthetic DOM testing; 100% real-browser test suites executed across Chromium, Firefox, WebKit, Mobile Safari, and Mobile Chrome:
 
+- `critical_workflow_repairs.spec.ts`: 6 / 6 PASSED (100%)
+- `responsive_multi_device.spec.ts`: 20 / 20 PASSED across all 10 viewports (100%)
+- `negative_stock_prevention.spec.ts`: 25 / 25 PASSED (100%)
 - `single_session_and_fefo_directive.spec.ts`: 15 / 15 PASSED (100%)
 - `master_admin_flow.spec.ts`: 15 / 15 PASSED (100%)
 - `qa_frontend.spec.ts`: 40 / 40 PASSED (100%)
-- `responsive_multi_device.spec.ts`: 20 / 20 PASSED across all 10 viewports (100%)
-- **Total Playwright Suites**: **90 / 90 PASSED (100% Pass Rate)**
+- **Total Playwright Scenarios**: **121 / 121 PASSED (100% Pass Rate)**
