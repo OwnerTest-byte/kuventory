@@ -2,6 +2,7 @@ import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { badgeVariants } from "@/components/ui/badge"
 import type { VariantProps } from "class-variance-authority"
+import { format as dateFnsFormat, isValid } from "date-fns"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -63,5 +64,28 @@ export function getUserInitials(
   const parts = name.split(/\s+/);
   if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   return parts[0][0]?.toUpperCase() || 'U';
+}
+
+/**
+ * Safely format date strings, numbers, or Date objects without throwing
+ * RangeError: Invalid time value when given null, undefined, empty string, or invalid formats.
+ */
+export function formatSafeDate(
+  dateVal: string | number | Date | null | undefined,
+  formatStr: string = 'MMM dd, yyyy hh:mm a',
+  fallback: string = '—'
+): string {
+  if (!dateVal || dateVal === '' || dateVal === 'Scheduled by backend') {
+    return fallback;
+  }
+  try {
+    const d = typeof dateVal === 'string' || typeof dateVal === 'number' ? new Date(dateVal) : dateVal;
+    if (!isValid(d) || isNaN(d.getTime())) {
+      return fallback;
+    }
+    return dateFnsFormat(d, formatStr);
+  } catch {
+    return fallback;
+  }
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/context/AuthContext';
@@ -6,11 +6,6 @@ import { pingSupabaseKeepalive } from '@/lib/keepalive';
 import { SuperAdminControlCenter } from '../components/super/SuperAdminControlCenter';
 import { getMaintenanceStatus, setMaintenanceLockdown } from '../services/maintenanceService';
 import { exportFullSystemBackup } from '../services/superAdminService';
-import { Crown, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 export function SuperAdminPage() {
   const queryClient = useQueryClient();
@@ -24,13 +19,13 @@ export function SuperAdminPage() {
     queryFn: getMaintenanceStatus,
   });
 
-  const handleToggleMaintenanceMode = async () => {
+  const handleToggleMaintenanceMode = async (customReason?: string) => {
     setIsMaintenanceToggling(true);
     const nextLocked = !maintenanceSetting?.locked;
     try {
       await setMaintenanceLockdown(
         nextLocked, 
-        nextLocked ? 'Manual emergency maintenance lockdown activated by Super Admin' : '', 
+        customReason || (nextLocked ? 'Manual emergency maintenance lockdown activated by Super Admin' : ''), 
         userEmail
       );
       await refetchMaintenance();
@@ -140,39 +135,6 @@ export function SuperAdminPage() {
     };
   }, [isRealtimePaused]);
 
-  // 3. Contingency Operations
-  const [isRebalancingStock, setIsRebalancingStock] = useState(false);
-  const [rebalanceResult, setRebalanceResult] = useState<string | null>(null);
-  const [isCleaningBatches, setIsCleaningBatches] = useState(false);
-  const [cleanBatchResult, setCleanBatchResult] = useState<string | null>(null);
-
-  const handleRebalanceStockDrift = async () => {
-    setIsRebalancingStock(true);
-    setRebalanceResult(null);
-    try {
-      await new Promise((r) => setTimeout(r, 600));
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      setRebalanceResult('Stock drift analysis completed: All batches reconciled with zero drift.');
-    } catch (e: any) {
-      setRebalanceResult('Rebalance error: ' + (e.message || 'Unknown error'));
-    } finally {
-      setIsRebalancingStock(false);
-    }
-  };
-
-  const handleCleanNegativeBatches = async () => {
-    setIsCleaningBatches(true);
-    setCleanBatchResult(null);
-    try {
-      await new Promise((r) => setTimeout(r, 500));
-      queryClient.invalidateQueries({ queryKey: ['global-stock-batches'] });
-      setCleanBatchResult('Batches verified: Zero zero-quantity stale batches remaining.');
-    } catch (e: any) {
-      setCleanBatchResult('Cleaner error: ' + (e.message || 'Unknown error'));
-    } finally {
-      setIsCleaningBatches(false);
-    }
-  };
 
   // 4. Backups
   const [isExportingBackup, setIsExportingBackup] = useState(false);
@@ -187,92 +149,6 @@ export function SuperAdminPage() {
     }
   };
 
-  // 5. Finalized Sheets & Force Override
-  const { data: finalizedSheets = [], isLoading: isLoadingFinalizedSheets } = useQuery({
-    queryKey: ['finalized-sheets-super'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('daily_inventory')
-        .select('*')
-        .eq('state', 'FINALIZED')
-        .order('inventory_date', { ascending: false })
-        .limit(20);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const [selectedSheetForOverride, setSelectedSheetForOverride] = useState<any>(null);
-  const [overrideReason, setOverrideReason] = useState('');
-  const [isOverriding, setIsOverriding] = useState(false);
-  const [overrideSuccess, setOverrideSuccess] = useState<string | null>(null);
-  const [overrideError, setOverrideError] = useState<string | null>(null);
-
-  const handleForceOverrideSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedSheetForOverride || !overrideReason.trim()) {
-      setOverrideError('A valid audit justification reason is required for Super Admin Override.');
-      return;
-    }
-
-    setIsOverriding(true);
-    setOverrideError(null);
-    setOverrideSuccess(null);
-
-    try {
-      let rpcSuccess = false;
-      try {
-        const { error: rpcErr } = await supabase.rpc('force_override_daily_inventory', {
-          p_daily_inventory_id: selectedSheetForOverride.id,
-        });
-        if (!rpcErr) rpcSuccess = true;
-      } catch (err) {
-        console.warn('RPC force_override_daily_inventory fallback:', err);
-      }
-
-      if (!rpcSuccess) {
-        // Direct table update fallback
-        const { error: updateErr } = await supabase
-          .from('daily_inventory')
-          .update({
-            state: 'DRAFT',
-            finalized_by: null,
-            finalized_at: null,
-          })
-          .eq('id', selectedSheetForOverride.id);
-
-        if (updateErr) throw updateErr;
-      }
-
-      // Log to audit trail
-      try {
-        await supabase.from('audit_logs').insert({
-          user_id: user?.id,
-          user_name: userEmail,
-          role: 'SUPER_ADMIN',
-          action: 'FORCE_REOPEN_DAILY_INVENTORY',
-          target: selectedSheetForOverride.inventory_date,
-          details: `Unlocked sheet date ${selectedSheetForOverride.inventory_date}. Justification: ${overrideReason.trim()}`,
-        } as any);
-      } catch (auditErr) {
-        console.warn('Audit log error:', auditErr);
-      }
-
-      setOverrideSuccess(`Successfully unlocked sheet ${selectedSheetForOverride.inventory_date} to DRAFT!`);
-      queryClient.invalidateQueries({ queryKey: ['finalized-sheets-super'] });
-      queryClient.invalidateQueries({ queryKey: ['dailyInventory'] });
-
-      setTimeout(() => {
-        setSelectedSheetForOverride(null);
-        setOverrideReason('');
-        setOverrideSuccess(null);
-      }, 1500);
-    } catch (err: any) {
-      setOverrideError(err.message || 'Failed to force override sheet.');
-    } finally {
-      setIsOverriding(false);
-    }
-  };
 
   // 6. Audit Logs
   const { data: auditLogs = [], isLoading: isLoadingAuditLogs, refetch: refetchAudits } = useQuery({
@@ -302,89 +178,12 @@ export function SuperAdminPage() {
         setRealtimeEvents={setRealtimeEvents}
         isRealtimePaused={isRealtimePaused}
         setIsRealtimePaused={setIsRealtimePaused}
-        onRebalanceStockDrift={handleRebalanceStockDrift}
-        isRebalancingStock={isRebalancingStock}
-        rebalanceResult={rebalanceResult}
-        onCleanNegativeBatches={handleCleanNegativeBatches}
-        isCleaningBatches={isCleaningBatches}
-        cleanBatchResult={cleanBatchResult}
         onExportFullBackup={handleExportFullBackup}
         isExportingBackup={isExportingBackup}
-        finalizedSheets={finalizedSheets}
-        isLoadingFinalizedSheets={isLoadingFinalizedSheets}
-        onOpenForceOverride={(sheet) => setSelectedSheetForOverride(sheet)}
-        overrideSuccess={overrideSuccess}
-        overrideError={overrideError}
         auditLogs={auditLogs}
         isLoadingAuditLogs={isLoadingAuditLogs}
         refetchAudits={refetchAudits}
       />
-
-      {/* Super Admin Force Override Dialog */}
-      <Dialog open={!!selectedSheetForOverride} onOpenChange={(open) => !open && setSelectedSheetForOverride(null)}>
-        <DialogContent className="max-w-md bg-card border-border text-foreground">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-foreground">
-              <Crown className="w-5 h-5 text-amber-500" />
-              Force Reopen Finalized Sheet
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              You are using Tier 0 Super Admin authority to unlock sheet date <strong className="text-foreground">{selectedSheetForOverride?.inventory_date}</strong> back to DRAFT state.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleForceOverrideSubmit} className="space-y-4 py-2">
-            {overrideError && (
-              <div className="p-3 text-xs text-destructive bg-destructive/15 rounded-md border border-destructive/20 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                {overrideError}
-              </div>
-            )}
-            {overrideSuccess && (
-              <div className="p-3 text-xs text-emerald-500 bg-emerald-500/15 rounded-md border border-emerald-500/20 font-bold flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
-                {overrideSuccess}
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-foreground">Mandatory Audit Justification / Reason</Label>
-              <Input
-                value={overrideReason}
-                onChange={(e) => setOverrideReason(e.target.value)}
-                placeholder="e.g. Recount variance approved by Store Owner"
-                className="text-sm bg-card border-border text-foreground h-11"
-                required
-              />
-            </div>
-
-            <DialogFooter className="pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setSelectedSheetForOverride(null)}
-                className="border-border text-foreground cursor-pointer"
-                disabled={isOverriding}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer"
-                disabled={isOverriding}
-              >
-                {isOverriding ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Unlocking...
-                  </>
-                ) : (
-                  'Authorize Reopen'
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

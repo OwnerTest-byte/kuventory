@@ -15,8 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
-import { cn, formatUserDisplayName, formatRoleLabel } from '@/lib/utils';
+import { cn, formatUserDisplayName, formatRoleLabel, formatSafeDate } from '@/lib/utils';
 import { 
   useSystemSetting, 
   useUpdateSystemSetting, 
@@ -773,7 +772,7 @@ export function AdminPage() {
                           </span>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs">
-                          {format(new Date(u.created_at), 'MMM dd, yyyy')}
+                          {formatSafeDate(u.created_at, 'MMM dd, yyyy')}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -917,7 +916,7 @@ export function AdminPage() {
                         {req.email}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {format(new Date(req.requested_at), 'MMM dd, yyyy HH:mm')}
+                        {formatSafeDate(req.requested_at, 'MMM dd, yyyy HH:mm')}
                       </TableCell>
                       <TableCell className="text-center">
                         <span className={cn(
@@ -1166,7 +1165,7 @@ export function AdminPage() {
                       activityMovements.map((act: any) => (
                         <TableRow key={act.movement_id} className="hover:bg-muted/40 text-xs">
                           <TableCell className="font-mono text-muted-foreground">
-                            {format(new Date(act.created_at), 'MMM dd, yyyy h:mm:ss a')}
+                            {formatSafeDate(act.created_at, 'MMM dd, yyyy h:mm:ss a')}
                           </TableCell>
                           <TableCell className="font-bold text-foreground">
                             {act.actor_name || 'System / Admin'}
@@ -1237,7 +1236,7 @@ export function AdminPage() {
                       auditLogs.map((log: any) => (
                         <TableRow key={log.id} className="hover:bg-muted/40 text-xs">
                           <TableCell className="font-mono text-muted-foreground">
-                            {format(new Date(log.created_at), 'MMM dd, yyyy h:mm:ss a')}
+                            {formatSafeDate(log.created_at, 'MMM dd, yyyy h:mm:ss a')}
                           </TableCell>
                           <TableCell>
                             <span className={`inline-flex px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[10px] ${
@@ -1304,7 +1303,7 @@ export function AdminPage() {
                       visitorLogs.map((log: any) => (
                         <TableRow key={log.id} className="hover:bg-muted/40 text-xs">
                           <TableCell className="font-mono text-muted-foreground">
-                            {format(new Date(log.visited_at), 'MMM dd, yyyy h:mm:ss a')}
+                            {formatSafeDate(log.visited_at, 'MMM dd, yyyy h:mm:ss a')}
                           </TableCell>
                           <TableCell className="font-bold text-foreground">
                             {log.user_email}

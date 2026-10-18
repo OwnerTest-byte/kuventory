@@ -5,8 +5,7 @@ import {
   Cog, Radio, AlertTriangle, FileText, Settings,
   ChevronLeft, ChevronRight, Crown
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { cn, formatSafeDate } from '@/lib/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -16,8 +15,7 @@ import {
   fetchAutomations, 
   toggleAutomation, 
   triggerAutomationJob, 
-  fetchIncidents, 
-  resolveIncident 
+  fetchIncidents 
 } from '../../services/superAdminService';
 
 import { SuperOverviewTab } from './SuperOverviewTab';
@@ -35,7 +33,7 @@ import { SuperRealtimeTab } from './SuperRealtimeTab';
 interface SuperAdminControlCenterProps {
   userEmail: string;
   maintenanceLocked: boolean;
-  onToggleMaintenance: () => void;
+  onToggleMaintenance: (reason?: string) => void;
   isMaintenanceToggling: boolean;
   realtimePingMs: number | null;
   setRealtimePingMs: (ms: number | null) => void;
@@ -44,19 +42,8 @@ interface SuperAdminControlCenterProps {
   setRealtimeEvents: any;
   isRealtimePaused: boolean;
   setIsRealtimePaused: (p: boolean) => void;
-  onRebalanceStockDrift: () => Promise<void>;
-  isRebalancingStock: boolean;
-  rebalanceResult: string | null;
-  onCleanNegativeBatches: () => Promise<void>;
-  isCleaningBatches: boolean;
-  cleanBatchResult: string | null;
   onExportFullBackup: () => Promise<void>;
   isExportingBackup: boolean;
-  finalizedSheets: any[];
-  isLoadingFinalizedSheets: boolean;
-  onOpenForceOverride: (sheet: any) => void;
-  overrideSuccess: string | null;
-  overrideError: string | null;
   auditLogs: any[];
   isLoadingAuditLogs: boolean;
   refetchAudits: () => void;
@@ -74,19 +61,8 @@ export function SuperAdminControlCenter({
   setRealtimeEvents,
   isRealtimePaused,
   setIsRealtimePaused,
-  onRebalanceStockDrift,
-  isRebalancingStock,
-  rebalanceResult,
-  onCleanNegativeBatches,
-  isCleaningBatches,
-  cleanBatchResult,
   onExportFullBackup,
   isExportingBackup,
-  finalizedSheets,
-  isLoadingFinalizedSheets,
-  onOpenForceOverride,
-  overrideSuccess,
-  overrideError,
   auditLogs,
   isLoadingAuditLogs,
   refetchAudits
@@ -182,11 +158,6 @@ export function SuperAdminControlCenter({
     return res;
   };
 
-  const handleResolveIncident = async (incidentId: string) => {
-    await resolveIncident(incidentId);
-    await refetchIncidents();
-    queryClient.invalidateQueries({ queryKey: ['super-incidents'] });
-  };
 
   // Recent activity feed aggregated from real logs
   const recentActivity = useMemo(() => {
@@ -233,7 +204,7 @@ export function SuperAdminControlCenter({
         id: `audit-${l.id || idx}`,
         type: 'audit',
         title: `${l.action || 'Audit Record'} on ${l.target_table || 'system'}`,
-        timestamp: format(new Date(l.created_at || Date.now()), 'hh:mm a'),
+        timestamp: formatSafeDate(l.created_at, 'hh:mm a', 'Recent'),
         status: l.action?.includes('DELETE') ? 'warning' : 'success'
       });
     });
@@ -359,12 +330,6 @@ export function SuperAdminControlCenter({
           onPingDatabase={() => {
             refetchTelemetry();
           }}
-          onRebalanceStockDrift={onRebalanceStockDrift}
-          isRebalancingStock={isRebalancingStock}
-          rebalanceResult={rebalanceResult}
-          onCleanNegativeBatches={onCleanNegativeBatches}
-          isCleaningBatches={isCleaningBatches}
-          cleanBatchResult={cleanBatchResult}
           onRefresh={refetchTelemetry}
         />
       )}
@@ -410,6 +375,7 @@ export function SuperAdminControlCenter({
           maintenanceLocked={maintenanceLocked}
           onToggleMaintenance={onToggleMaintenance}
           isMaintenanceToggling={isMaintenanceToggling}
+          userEmail={userEmail}
         />
       )}
 
@@ -417,13 +383,8 @@ export function SuperAdminControlCenter({
       {activeSubTab === 'incidents' && (
         <SuperIncidentsTab
           incidents={incidents}
-          onResolveIncident={handleResolveIncident}
-          finalizedSheets={finalizedSheets}
-          isLoadingFinalizedSheets={isLoadingFinalizedSheets}
-          onOpenForceOverride={onOpenForceOverride}
-          overrideSuccess={overrideSuccess}
-          overrideError={overrideError}
           onRefresh={refetchIncidents}
+          userEmail={userEmail}
         />
       )}
 
@@ -438,7 +399,9 @@ export function SuperAdminControlCenter({
 
       {/* Sub-Tab 11: Settings */}
       {activeSubTab === 'settings' && (
-        <SuperSettingsTab />
+        <SuperSettingsTab
+          userEmail={userEmail}
+        />
       )}
     </div>
   );

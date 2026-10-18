@@ -3,8 +3,7 @@ import {
   Cog, Play, CheckCircle2, Loader2, RefreshCw 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { cn, formatSafeDate } from '@/lib/utils';
 import type { AutomationJob } from '../../services/superAdminService';
 
 interface SuperAutomationsTabProps {
@@ -121,15 +120,19 @@ export function SuperAutomationsTab({
                         "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
                         job.lastStatus === 'Success' 
                           ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30"
-                          : "bg-destructive/15 text-destructive border border-destructive/30"
+                          : job.lastStatus === 'Failed'
+                          ? "bg-destructive/15 text-destructive border border-destructive/30"
+                          : job.lastStatus === 'Running'
+                          ? "bg-primary/15 text-primary border border-primary/30 animate-pulse"
+                          : "bg-muted text-muted-foreground border border-border"
                       )}>
                         {job.lastStatus}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{job.description}</p>
                     <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground font-mono mt-1.5">
-                      <span>Last run: {format(new Date(job.lastRunAt), 'MMM dd, hh:mm a')} ({job.lastDurationMs}ms)</span>
-                      <span>Next run: {format(new Date(job.nextRunAt), 'MMM dd, hh:mm a')}</span>
+                      <span>Last run: {formatSafeDate(job.lastRunAt, 'MMM dd, hh:mm a', 'Never run')} ({job.lastDurationMs}ms)</span>
+                      <span>Next run: {formatSafeDate(job.nextRunAt, 'MMM dd, hh:mm a', job.nextRunAt || 'Scheduled by backend')}</span>
                     </div>
                   </div>
                 </div>

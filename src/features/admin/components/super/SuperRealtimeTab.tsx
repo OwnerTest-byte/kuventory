@@ -4,8 +4,7 @@ import {
   ShieldCheck, Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, formatSafeDate } from '@/lib/utils';
 import { pingSupabaseKeepalive } from '@/lib/keepalive';
 
 interface SuperRealtimeTabProps {
@@ -182,7 +181,7 @@ export function SuperRealtimeTab({
                     </span>
                   </div>
                   <span className="text-[11px] font-mono text-muted-foreground shrink-0 ml-3">
-                    {format(new Date(evt.timestamp), 'HH:mm:ss')}
+                    {formatSafeDate(evt.timestamp, 'HH:mm:ss', '--:--:--')}
                   </span>
                 </div>
               ))}
