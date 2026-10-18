@@ -34,9 +34,9 @@ export function DailyInventoryPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const { role, profile, user } = useAuth();
-  const isAuthorizedToCorrect = role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN' || 
-    user?.email === 'superadmin@kuventory.com' || user?.email === 'master@kuventory.com' || user?.email === 'admin@kuventory.com';
+  const { profile, user } = useAuth();
+  // All authenticated users (Staff, Admins, Super Admins) are authorized to correct a finalized day with an audit reason
+  const isAuthorizedToCorrect = !!user;
 
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
@@ -294,8 +294,8 @@ export function DailyInventoryPage() {
           </div>
         </div>
         
-        {/* Top Header Desktop Action Buttons */}
-        <div className="hidden sm:flex flex-wrap items-center gap-2 sm:gap-3">
+        {/* Top Header Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Button 
             variant="outline" 
             onClick={() => {
@@ -876,7 +876,7 @@ export function DailyInventoryPage() {
               }}
               className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-9 px-3 shadow-sm cursor-pointer"
             >
-              Correct
+              Correct Finalized Day
             </Button>
           )}
 

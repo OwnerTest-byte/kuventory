@@ -112,7 +112,7 @@ Super Admin can inspect snapshot metadata and version alignment in an isolated r
 
 ### Post-Finalization Correction Workflow
 
-1. **Authorization**: Only `ADMIN`, `SUPER_ADMIN`, and `MASTER_ADMIN` roles can unlock a finalized worksheet.
+1. **Authorization**: All authenticated operational users (`USER`/Staff, `ADMIN`, and `SUPER_ADMIN`) can unlock a finalized worksheet to correct discrepancies or omissions, provided a valid audit justification is recorded.
 2. **Audit Reason Requirement**: A mandatory audit justification (minimum 5 characters) must be submitted prior to entering correction mode.
 3. **Differential Stock Reconciliation**:
    - $\Delta\text{Consumption} = (\text{AM}_{\text{new}} + \text{PM}_{\text{new}}) - (\text{AM}_{\text{old}} + \text{PM}_{\text{old}})$

@@ -47,12 +47,12 @@ KUVENTORY provides three distinct user roles with database- and route-enforced p
 
 | User Role | Primary Responsibilities | System Permissions |
 | :--- | :--- | :--- |
-| **User (Staff)** | Daily operational inventory recording, shift count verification, sales deductions, stock additions, and reading notifications. | Access to Dashboard, Daily Inventory Worksheet (draft mode), Items Catalog, Batches (FEFO), Movement History, Reports Library, and Notification Center. |
-| **Admin (Manager)** | Operational management, staff account creation, category/station management, finalized report corrections, password reset request review, and restaurant profile. | Full staff capabilities **PLUS** User Management, Password Reset Requests log, Finalized Day Audited Corrections, Categories configuration, System Settings, and Profile controls. |
+| **User (Staff)** | Daily operational inventory recording, shift count verification, sales deductions, stock additions, audited finalized sheet corrections, and reading notifications. | Access to Dashboard, Daily Inventory Worksheet (draft and audited finalized correction modes), Items Catalog, Batches (FEFO), Movement History, Reports Library, and Notification Center. |
+| **Admin (Manager)** | Operational management, staff account creation, category/station management, finalized report corrections, password reset request review, and restaurant profile. | Full staff capabilities **PLUS** User Management, Password Reset Requests log, Categories configuration, System Settings, and Profile controls. |
 | **Super Admin** | Autonomous infrastructure oversight, database operations, emergency lockdown enforcement, system-wide recovery, and disaster prevention. | Dedicated standalone access to `/super-admin`, authoritative Emergency Maintenance Lockdown (`NORMAL`, `MAINTENANCE`, `RECOVERY`), migration tracking, and platform health. |
 
 > [!IMPORTANT]
-> **Role Distinction & Standalone Control Plane:** Users handle daily floor operations. Admins oversee team management and audited finalized sheet adjustments. Super Admin operates outside ordinary Settings via a secure, standalone control plane.
+> **Role Distinction & Standalone Control Plane:** Both Staff and Admins can record daily counts and execute audited corrections on finalized sheets with a required change rationale. Admins have exclusive access to staff user management and password reset logs. Super Admin operates outside ordinary Settings via a secure, standalone control plane.
 
 ---
 
@@ -126,7 +126,7 @@ KUVENTORY automatically calculates balances in real time so staff never have to 
 
 ### 3.3 Correcting a Finalized Day (Audited Revisions & Differential FEFO)
 
-When an audit error, missed delivery, or typo is discovered on an already-finalized daily sheet, authorized managers (`ADMIN` and `SUPER_ADMIN`) can execute an audited correction without losing historical data:
+When an audit error, missed delivery, or typo is discovered on an already-finalized daily sheet, authorized users (**Staff**, **Admins**, and **Super Admins**) can execute an audited correction without losing historical data:
 
 1. **Open the Finalized Sheet:** Navigate to Daily Inventory and select the finalized date, or click **Correct Finalized Day** from the Dashboard or Reports listing.
 2. **Click "Correct Finalized Day":** A high-visibility button appears in the top action bar when viewing any finalized sheet.

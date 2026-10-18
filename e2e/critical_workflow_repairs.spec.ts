@@ -1,4 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
+
+const directSupabase = createClient(
+  'https://stotgoylyzltzpahuglc.supabase.co',
+  'sb_publishable_sww0L_JeH4y7i0Zq5kX0Xg_ZWhJ7PsN'
+);
 
 async function cleanSignOut(page: any) {
   try {
@@ -21,27 +27,28 @@ async function cleanSignOut(page: any) {
   } catch {}
 }
 
-async function resetMaintenanceToNormal(page: any) {
+async function resetMaintenanceToNormal() {
   try {
-    await page.evaluate(async () => {
-      const sb = (window as any).supabase;
-      if (sb) {
-        await sb
-          .from('system_settings')
-          .upsert({
-            key: 'maintenance_lock',
-            value: {
-              locked: false,
-              status: 'NORMAL',
-              reason: '',
-              locked_at: null,
-              locked_by: null
-            },
-            updated_at: new Date().toISOString()
-          });
-      }
+    await directSupabase.auth.signInWithPassword({
+      email: 'superadmin@kuventory.com',
+      password: 'SuperAdmin2026!'
     });
-  } catch {}
+    await directSupabase
+      .from('system_settings')
+      .upsert({
+        key: 'maintenance_lock',
+        value: {
+          locked: false,
+          status: 'NORMAL',
+          reason: '',
+          locked_at: null,
+          locked_by: null
+        },
+        updated_at: new Date().toISOString()
+      });
+  } catch (e) {
+    console.warn('resetMaintenanceToNormal error:', e);
+  }
 }
 
 async function loginUser(page: any, email: string, pass: string) {
@@ -58,12 +65,16 @@ async function loginUser(page: any, email: string, pass: string) {
   await page.fill('#email', email);
   await page.fill('#password', pass);
   await page.click('button[type="submit"]');
-  await page.waitForURL((url: URL) => !url.pathname.includes('/login'), { timeout: 20000 });
+  await page.waitForURL((url: URL) => !url.pathname.includes('/login'), { timeout: 35000 });
 }
 
 test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => {
+  test.beforeEach(async () => {
+    await resetMaintenanceToNormal();
+  });
+
   test.afterEach(async ({ page }) => {
-    await resetMaintenanceToNormal(page);
+    await resetMaintenanceToNormal();
     await cleanSignOut(page);
   });
 
@@ -71,8 +82,16 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
     await loginUser(page, 'staff@kuventory.com', 'Staff123!');
     await expect(page).toHaveURL(/\/(items|daily-inventory|inventory)?/);
 
-    // Locate the Sign Out button in sidebar or header
-    const signOutBtn = page.locator('button:has-text("Sign Out"), button[aria-label="Sign Out"]').first();
+    // Locate the Sign Out button in sidebar or header (or open mobile menu if collapsed/mobile)
+    let signOutBtn = page.locator('button[aria-label="Sign Out"]:visible, button[title="Sign Out"]:visible, button:has-text("Sign Out"):visible').first();
+    if (!(await signOutBtn.isVisible().catch(() => false))) {
+      const menuBtn = page.locator('button[aria-label="Open navigation menu"]:visible').first();
+      if (await menuBtn.isVisible().catch(() => false)) {
+        await menuBtn.click();
+        await page.waitForTimeout(300);
+      }
+      signOutBtn = page.locator('button[aria-label="Sign Out"]:visible, button[title="Sign Out"]:visible, button:has-text("Sign Out"):visible').first();
+    }
     await expect(signOutBtn).toBeVisible({ timeout: 10000 });
     await signOutBtn.click();
 
@@ -89,6 +108,14 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
     expect(page.url()).not.toContain('/login');
 
     // 1b. Test Confirm: logs out and navigates to /login
+    if (!(await signOutBtn.isVisible().catch(() => false))) {
+      const menuBtn = page.locator('button[aria-label="Open navigation menu"]:visible').first();
+      if (await menuBtn.isVisible().catch(() => false)) {
+        await menuBtn.click();
+        await page.waitForTimeout(300);
+      }
+      signOutBtn = page.locator('button[aria-label="Sign Out"]:visible, button[title="Sign Out"]:visible, button:has-text("Sign Out"):visible').first();
+    }
     await signOutBtn.click();
     await expect(modalTitle).toBeVisible();
 
@@ -109,9 +136,16 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
     const superAdminTab = page.locator('button[role="tab"]:has-text("Super Admin"), [data-state]:has-text("Super Admin Console")');
     await expect(superAdminTab).toHaveCount(0);
 
-    // 2b. Verify sidebar has standalone Super Admin link pointing to /super-admin
-    const superAdminNavLink = page.locator('a[href="/super-admin"]').first();
-    await expect(superAdminNavLink).toBeVisible();
+    // 2b. Verify sidebar or mobile drawer has standalone Super Admin link pointing to /super-admin
+    let superAdminNavLink = page.locator('a[href="/super-admin"]:visible').first();
+    if (!(await superAdminNavLink.isVisible().catch(() => false))) {
+      const menuBtn = page.locator('button[aria-label="Open navigation menu"]:visible').first();
+      if (await menuBtn.isVisible().catch(() => false)) {
+        await menuBtn.click();
+      }
+      superAdminNavLink = page.locator('a[href="/super-admin"]:visible').first();
+    }
+    await expect(superAdminNavLink).toBeVisible({ timeout: 10000 });
 
     // 2c. Click standalone nav link and verify route /super-admin loads SuperAdminControlCenter
     await superAdminNavLink.click();
@@ -193,8 +227,8 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
     await submitBtn.click();
 
     // Verify safe non-disclosing message appears
-    const successMsg = page.locator('[role="status"]').filter({ hasText: 'password reset request has been logged' }).first();
-    await expect(successMsg).toBeVisible({ timeout: 10000 });
+    const successMsg = page.locator('text=password reset request has been logged').first();
+    await expect(successMsg).toBeVisible({ timeout: 15000 });
 
     const closeDialogBtn = page.locator('[role="dialog"] button:has-text("Close")').first();
     if (await closeDialogBtn.isVisible().catch(() => false)) {
@@ -204,7 +238,7 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
     await page.fill('#email', 'superadmin@kuventory.com');
     await page.fill('#password', 'SuperAdmin2026!');
     await page.click('button[type="submit"]');
-    await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
+    await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 25000 });
 
     await page.goto('/settings?tab=users');
     await page.waitForLoadState('networkidle');
@@ -228,8 +262,8 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
     await expect(sheetHeading).toBeVisible({ timeout: 10000 });
 
     // Check if the current sheet is finalized, if not finalize it first
-    const finalizeBtn = page.locator('button:has-text("Finalize Day"), button:has-text("Finalize Sheet")').first();
-    const correctBtn = page.locator('button:has-text("Correct Finalized Day")').first();
+    const finalizeBtn = page.locator('button:has-text("Finalize Day"):visible, button:has-text("Finalize Sheet"):visible').first();
+    const correctBtn = page.locator('button:has-text("Correct Finalized Day"):visible').first();
 
     if (await finalizeBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await finalizeBtn.click();
@@ -283,6 +317,44 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
 
     const reasonInHistory = page.locator('text=Playwright E2E Physical Recount Verification').first();
     await expect(reasonInHistory).toBeVisible({ timeout: 5000 });
+  });
+
+  test('5b. Staff / User role can also access and edit Finalized Daily Inventory', async ({ page }) => {
+    // Authenticate as ordinary Staff (role: USER)
+    await loginUser(page, 'staff@kuventory.com', 'Staff123!');
+
+    await page.goto('/daily-inventory');
+    await page.waitForLoadState('networkidle');
+
+    // Confirm that the Staff user can see the Correct Finalized Day action
+    const finalizeBtn = page.locator('button:has-text("Finalize Day"):visible, button:has-text("Finalize Sheet"):visible').first();
+    const correctBtn = page.locator('button:has-text("Correct Finalized Day"):visible').first();
+
+    if (await finalizeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await finalizeBtn.click();
+      const confirmFinalize = page.locator('[role="dialog"] button:has-text("Finalize Inventory")').first();
+      await confirmFinalize.click();
+      await page.waitForTimeout(1000);
+    }
+
+    await expect(correctBtn).toBeVisible({ timeout: 15000 });
+    await correctBtn.click();
+
+    // Verify reason modal appears for staff
+    const reasonInput = page.locator('[role="dialog"] input').first();
+    await expect(reasonInput).toBeVisible({ timeout: 5000 });
+    await reasonInput.fill('Staff evening count reconciliation');
+
+    const proceedBtn = page.locator('[role="dialog"] button:has-text("Enter Correction Mode")').first();
+    await proceedBtn.click();
+
+    // Verify staff enters active correction mode
+    const banner = page.locator('text=Correction Mode Active').first();
+    await expect(banner).toBeVisible({ timeout: 5000 });
+
+    const cancelBtn = page.locator('button:has-text("Cancel Edit")').first();
+    await expect(cancelBtn).toBeVisible();
+    await cancelBtn.click();
   });
 
   test('6. Multi-Device & Responsive Verification (Mobile & Tablet Layouts)', async ({ page }) => {

@@ -26,9 +26,9 @@ import { getNotificationRoute } from '../utils/notificationRouter';
 
 export function InventoryLandingPage() {
   const navigate = useNavigate();
-  const { user, role } = useAuth();
-  const isAuthorizedToCorrect = role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN' || 
-    user?.email === 'superadmin@kuventory.com' || user?.email === 'master@kuventory.com' || user?.email === 'admin@kuventory.com';
+  const { user } = useAuth();
+  // All authenticated users (Staff, Admins, Super Admins) are authorized to correct a finalized day with an audit reason
+  const isAuthorizedToCorrect = !!user;
 
   // 1. Fetch Inventory Items
   const { data: items = [] } = useQuery({

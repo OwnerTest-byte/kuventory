@@ -67,12 +67,14 @@ CREATE TABLE IF NOT EXISTS public.daily_inventory_revisions (
 ALTER TABLE public.daily_inventory_revisions ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Admins can view daily inventory revisions" ON public.daily_inventory_revisions;
-CREATE POLICY "Admins can view daily inventory revisions" ON public.daily_inventory_revisions
-  FOR SELECT TO authenticated USING (public.is_admin());
+DROP POLICY IF EXISTS "Authenticated users can view daily inventory revisions" ON public.daily_inventory_revisions;
+CREATE POLICY "Authenticated users can view daily inventory revisions" ON public.daily_inventory_revisions
+  FOR SELECT TO authenticated USING (true);
 
 DROP POLICY IF EXISTS "Admins can insert daily inventory revisions" ON public.daily_inventory_revisions;
-CREATE POLICY "Admins can insert daily inventory revisions" ON public.daily_inventory_revisions
-  FOR INSERT TO authenticated WITH CHECK (public.is_admin());
+DROP POLICY IF EXISTS "Authenticated users can insert daily inventory revisions" ON public.daily_inventory_revisions;
+CREATE POLICY "Authenticated users can insert daily inventory revisions" ON public.daily_inventory_revisions
+  FOR INSERT TO authenticated WITH CHECK (true);
 
 CREATE INDEX IF NOT EXISTS idx_daily_inv_revisions_date ON public.daily_inventory_revisions(inventory_date DESC);
 CREATE INDEX IF NOT EXISTS idx_daily_inv_revisions_sheet ON public.daily_inventory_revisions(daily_inventory_id, revision_number);
@@ -255,10 +257,6 @@ BEGIN
   -- 1. Authorization check
   IF v_auth_uid IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
-  END IF;
-
-  IF NOT public.is_admin() THEN
-    RAISE EXCEPTION 'Access Denied: Only Admin or Super Admin may correct finalized daily inventory sheets.';
   END IF;
 
   -- 2. Maintenance check
