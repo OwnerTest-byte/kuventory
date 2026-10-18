@@ -12,6 +12,7 @@ interface InventoryRowProps {
   index: number;
   isReadOnly: boolean;
   date: string;
+  isCorrectionMode?: boolean;
   onReassign?: (item: DailyEntry) => void;
   onRemoveFromSheet?: (item: DailyEntry) => void;
 }
@@ -21,6 +22,7 @@ export const InventoryRow = memo(function InventoryRow({
   index, 
   isReadOnly, 
   date,
+  isCorrectionMode,
   onReassign,
   onRemoveFromSheet
 }: InventoryRowProps) {
@@ -87,6 +89,7 @@ export const InventoryRow = memo(function InventoryRow({
         am: numAm,
         pm: numPm,
         changedFields: changed.length > 0 ? changed : undefined,
+        allowCorrection: isCorrectionMode,
       });
       if (fieldTriggered) {
         dirtyFieldsRef.current.delete(fieldTriggered);
@@ -413,6 +416,7 @@ export const InventoryRow = memo(function InventoryRow({
           onClose={() => setIsModalOpen(false)}
           item={item}
           date={date}
+          isCorrectionMode={isCorrectionMode}
         />
       )}
     </>

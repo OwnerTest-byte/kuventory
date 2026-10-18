@@ -14,9 +14,10 @@ interface AddStockModalProps {
   onClose: () => void;
   item: DailyEntry;
   date: string;
+  isCorrectionMode?: boolean;
 }
 
-export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProps) {
+export function AddStockModal({ isOpen, onClose, item, date, isCorrectionMode }: AddStockModalProps) {
   const { profile } = useAuth();
   const [qty, setQty] = useState('');
   const [expiry, setExpiry] = useState(() => getBusinessDateStringPlusDays(30));
@@ -75,6 +76,7 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
           add: item.add_qty + numQty,
           am: item.sales_am,
           pm: item.sales_pm,
+          allowCorrection: isCorrectionMode,
         });
       }
 

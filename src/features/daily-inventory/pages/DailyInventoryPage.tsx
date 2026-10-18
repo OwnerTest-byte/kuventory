@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useDailyInventory, useFinalizeDailyInventory, dailyInventoryKeys } from '../hooks/useDailyInventory';
 import { InventorySheet } from '../components/InventorySheet';
@@ -56,9 +56,23 @@ export function DailyInventoryPage() {
   const [showRevisionHistoryModal, setShowRevisionHistoryModal] = useState(false);
   const [revisions, setRevisions] = useState<DailyInventoryRevision[]>([]);
   const [isLoadingRevisions, setIsLoadingRevisions] = useState(false);
+  const [baselineEntries, setBaselineEntries] = useState<any[] | null>(null);
   
   const { data: record, isLoading, error } = useDailyInventory(date);
   const finalizeMutation = useFinalizeDailyInventory(date);
+
+  // Automatically fetch revisions when record.id is loaded so REV badge and history are always live
+  const { data: fetchedRevisions = [] } = useQuery({
+    queryKey: ['daily-inventory-revisions', record?.id],
+    queryFn: () => (record?.id ? fetchDailyInventoryRevisions(record.id) : Promise.resolve([])),
+    enabled: !!record?.id,
+  });
+
+  useEffect(() => {
+    if (fetchedRevisions && fetchedRevisions.length > 0) {
+      setRevisions(fetchedRevisions);
+    }
+  }, [fetchedRevisions]);
 
   // Automatically trigger correction prompt if navigated with ?correct=true
   useEffect(() => {
@@ -96,6 +110,15 @@ export function DailyInventoryPage() {
         { event: '*', schema: 'public', table: 'daily_inventory_items' },
         () => {
           queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'system_settings' },
+        () => {
+          if (record?.id) {
+            queryClient.invalidateQueries({ queryKey: ['daily-inventory-revisions', record.id] });
+          }
         }
       )
       .subscribe();
@@ -171,8 +194,44 @@ export function DailyInventoryPage() {
       alert('Please enter a reason for correcting this finalized day.');
       return;
     }
+    const currentEntries = (record?.daily_inventory_entries || []).map(e => ({
+      id: e.id,
+      item_id: e.item_id,
+      item_name: e.item_name,
+      unit: e.unit,
+      beg: e.beginning_qty,
+      add: e.add_qty,
+      am: e.sales_am,
+      pm: e.sales_pm,
+      ending: e.ending_qty,
+    }));
+    setBaselineEntries(currentEntries);
     setShowCorrectionPrompt(false);
     setIsCorrectionMode(true);
+  };
+
+  const handleCancelCorrection = async () => {
+    if (baselineEntries && baselineEntries.length > 0 && record?.id) {
+      try {
+        for (const item of baselineEntries) {
+          await supabase
+            .from('daily_inventory_items')
+            .update({
+              beg: item.beg,
+              add: item.add,
+              am: item.am,
+              pm: item.pm,
+            })
+            .eq('id', item.id);
+        }
+        await queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) });
+      } catch (err) {
+        console.warn('Error reverting baseline entries on cancel:', err);
+      }
+    }
+    setIsCorrectionMode(false);
+    setCorrectionReason('');
+    setBaselineEntries(null);
   };
 
   const handleSaveCorrectionSubmit = async () => {
@@ -197,6 +256,7 @@ export function DailyInventoryPage() {
         inventoryDate: record.inventory_date,
         reason: correctionReason || 'Audit reconciliation correction',
         correctedItems,
+        baselineItems: baselineEntries || undefined,
         userProfile: {
           id: profile?.id || user?.id,
           email: user?.email,
@@ -216,10 +276,14 @@ export function DailyInventoryPage() {
       await queryClient.invalidateQueries({ queryKey: ['items'] });
       await queryClient.invalidateQueries({ queryKey: ['batches'] });
       await queryClient.invalidateQueries({ queryKey: ['today-inventory-session'] });
+      await queryClient.invalidateQueries({ queryKey: ['daily-inventory-revisions', record.id] });
+      const updatedRevs = await fetchDailyInventoryRevisions(record.id);
+      setRevisions(updatedRevs);
 
       setShowSaveCorrectionDialog(false);
       setIsCorrectionMode(false);
       setCorrectionReason('');
+      setBaselineEntries(null);
       setShowCorrectionSuccessModal(true);
     } catch (err: any) {
       alert(err.message || 'Failed to save correction');
@@ -350,7 +414,7 @@ export function DailyInventoryPage() {
             <>
               <Button
                 variant="outline"
-                onClick={() => setIsCorrectionMode(false)}
+                onClick={handleCancelCorrection}
                 className="border-border text-foreground font-semibold hover:bg-muted cursor-pointer"
               >
                 Cancel Edit
@@ -401,7 +465,7 @@ export function DailyInventoryPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsCorrectionMode(false)}
+              onClick={handleCancelCorrection}
               className="text-xs font-semibold border-border text-foreground hover:bg-muted cursor-pointer"
             >
               Cancel Edit
@@ -515,6 +579,7 @@ export function DailyInventoryPage() {
           session={record} 
           isReadOnly={isFinalized && !isCorrectionMode} 
           date={date}
+          isCorrectionMode={isCorrectionMode}
         />
       )}
 

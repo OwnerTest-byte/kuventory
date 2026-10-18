@@ -154,4 +154,65 @@ describe('Daily Inventory & Dynamic Stations Integration', () => {
     const excessStockDiscrepancy = calculateDiscrepancy(55, 50);
     expect(excessStockDiscrepancy).toBe(5);
   });
+
+  it('calculates monotonically increasing revision numbers and heals legacy duplicates', () => {
+    // Scenario 1: Legacy store had 5 revisions that all had revision_number: 1
+    const legacyRevs = [
+      { id: '1', revision_number: 1, created_at: '2026-10-18T01:00:00Z' },
+      { id: '2', revision_number: 1, created_at: '2026-10-18T02:00:00Z' },
+      { id: '3', revision_number: 1, created_at: '2026-10-18T03:00:00Z' },
+      { id: '4', revision_number: 1, created_at: '2026-10-18T04:00:00Z' },
+      { id: '5', revision_number: 1, created_at: '2026-10-18T05:00:00Z' },
+    ];
+
+    // Resequencing logic
+    const sortedAsc = [...legacyRevs].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    const resequenced = sortedAsc.map((r, idx) => ({ ...r, revision_number: idx + 1 }));
+
+    expect(resequenced.map(r => r.revision_number)).toEqual([1, 2, 3, 4, 5]);
+
+    const maxRev = resequenced.reduce((max, r) => Math.max(max, Number(r.revision_number) || 0), 0);
+    const nextRevNum = Math.max(resequenced.length, maxRev) + 1;
+    expect(nextRevNum).toBe(6);
+  });
+
+  it('correctly calculates consumption and receipts deltas against baseline items', () => {
+    const baseline = [
+      { item_id: 'item-1', beg: 10, add: 0, am: 0, pm: 0, ending: 10 },
+      { item_id: 'item-2', beg: 20, add: 5, am: 4, pm: 6, ending: 15 },
+    ];
+
+    const corrected = [
+      // item-1 had 3 AM sales added
+      { item_id: 'item-1', beg: 10, add: 0, am: 3, pm: 0, ending: 7 },
+      // item-2 had delivery received: add increased from 5 to 10
+      { item_id: 'item-2', beg: 20, add: 10, am: 4, pm: 6, ending: 20 },
+    ];
+
+    const baseMap = new Map(baseline.map(b => [b.item_id, b]));
+
+    const deltas = corrected.map(c => {
+      const b = baseMap.get(c.item_id)!;
+      const oldConsumption = b.am + b.pm;
+      const newConsumption = c.am + c.pm;
+      const deltaConsumption = newConsumption - oldConsumption;
+      const deltaAdd = c.add - b.add;
+      return { item_id: c.item_id, deltaConsumption, deltaAdd };
+    });
+
+    expect(deltas[0]).toEqual({
+      item_id: 'item-1',
+      deltaConsumption: 3, // 3 additional units consumed
+      deltaAdd: 0,
+    });
+
+    expect(deltas[1]).toEqual({
+      item_id: 'item-2',
+      deltaConsumption: 0,
+      deltaAdd: 5, // 5 additional units received
+    });
+  });
 });
+

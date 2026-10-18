@@ -31,6 +31,7 @@ export interface CorrectFinalizedDayParams {
   inventoryDate: string;
   reason: string;
   correctedItems: DailyInventoryCorrectionItem[];
+  baselineItems?: DailyInventoryCorrectionItem[];
   userProfile?: { id?: string; email?: string; displayName?: string } | null;
 }
 
@@ -43,6 +44,7 @@ export async function correctFinalizedDailyInventory({
   inventoryDate,
   reason,
   correctedItems,
+  baselineItems,
   userProfile,
 }: CorrectFinalizedDayParams): Promise<{ success: boolean; revisionNumber: number; message: string }> {
   const cleanReason = reason.trim();
@@ -50,9 +52,12 @@ export async function correctFinalizedDailyInventory({
     throw new Error('A reason for correction is required to update a finalized daily report.');
   }
 
-  // 1. First, attempt the atomic PostgreSQL RPC correct_finalized_daily_inventory
-  let revNum = 1;
+  // 1. Determine accurate, monotonically increasing revision number across DB table and fallback store
+  const existingRevs = await fetchDailyInventoryRevisions(dailyInventoryId);
+  const maxExistingRev = existingRevs.reduce((max, r) => Math.max(max, Number(r.revision_number) || 0), 0);
+  let revNum = Math.max(existingRevs.length, maxExistingRev) + 1;
 
+  // 1a. Attempt the atomic PostgreSQL RPC correct_finalized_daily_inventory
   try {
     const payload = correctedItems.map(item => ({
       item_id: item.item_id,
@@ -70,7 +75,7 @@ export async function correctFinalizedDailyInventory({
     });
 
     if (!rpcErr && rpcData?.success) {
-      revNum = rpcData.revision_number || 1;
+      revNum = rpcData.revision_number || revNum;
       return {
         success: true,
         revisionNumber: revNum,
@@ -99,33 +104,30 @@ export async function correctFinalizedDailyInventory({
     existingMap.set(row.item_id, row);
   });
 
+  // Construct baseline map to accurately calculate changes from before this correction session started
+  const baselineMap = new Map<string, any>();
+  if (baselineItems && baselineItems.length > 0) {
+    baselineItems.forEach(b => baselineMap.set(b.item_id, b));
+  } else if (existingRevs && existingRevs.length > 0 && Array.isArray(existingRevs[0]?.new_values)) {
+    // If no explicit baseline in this memory session, last saved revision's new_values is the baseline
+    existingRevs[0].new_values.forEach((v: any) => baselineMap.set(v.item_id, v));
+  }
+
   const stockAdjustments: any[] = [];
   const oldValuesSnapshot: any[] = [];
   const newValuesSnapshot: any[] = [];
 
-  // Count existing revisions
-  let existingRevsCount = 0;
-  try {
-    const { count } = await supabase
-      .from('daily_inventory_revisions')
-      .select('*', { count: 'exact', head: true })
-      .eq('daily_inventory_id', dailyInventoryId);
-    existingRevsCount = count || 0;
-  } catch (e) {
-    console.warn('Error counting revisions:', e);
-  }
-  revNum = existingRevsCount + 1;
-
   // Process differential stock reconciliation for each item
   for (const corrected of correctedItems) {
     const existing = existingMap.get(corrected.item_id);
+    const baseline = baselineMap.get(corrected.item_id) || existing;
     if (!existing) continue;
 
-    const oldBeg = Number(existing.beg || 0);
-    const oldAdd = Number(existing.add || 0);
-    const oldAm = Number(existing.am || 0);
-    const oldPm = Number(existing.pm || 0);
-    const oldEnding = Number(existing.ending ?? (oldBeg + oldAdd - oldAm - oldPm));
+    const oldBeg = Number(baseline?.beg ?? existing.beg ?? 0);
+    const oldAdd = Number(baseline?.add ?? existing.add ?? 0);
+    const oldAm = Number(baseline?.am ?? existing.am ?? 0);
+    const oldPm = Number(baseline?.pm ?? existing.pm ?? 0);
+    const oldEnding = Number(baseline?.ending ?? existing.ending ?? (oldBeg + oldAdd - oldAm - oldPm));
 
     const newBeg = Math.max(0, Number(corrected.beg) || 0);
     const newAdd = Math.max(0, Number(corrected.add) || 0);
@@ -359,7 +361,38 @@ export async function fetchDailyInventoryRevisions(dailyInventoryId: string): Pr
 
     const settingsVal = settingsData ? (settingsData as any).value : null;
     if (Array.isArray(settingsVal) && settingsVal.length > 0) {
-      return settingsVal as DailyInventoryRevision[];
+      // Ensure revisions are sequentially ordered and numbered chronologically
+      const sortedAsc = [...settingsVal].sort(
+        (a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+      );
+
+      let needsResequence = false;
+      const resequenced = sortedAsc.map((rev, idx) => {
+        const expected = idx + 1;
+        if (Number(rev.revision_number) !== expected) {
+          needsResequence = true;
+          return { ...rev, revision_number: expected };
+        }
+        return rev;
+      });
+
+      const sortedDesc = [...resequenced].sort(
+        (a, b) => Number(b.revision_number || 0) - Number(a.revision_number || 0)
+      );
+
+      // Heal legacy duplicates in persistent storage in the background
+      if (needsResequence) {
+        supabase
+          .from('system_settings')
+          .upsert({
+            key,
+            value: sortedDesc,
+            updated_at: new Date().toISOString(),
+          })
+          .then();
+      }
+
+      return sortedDesc as DailyInventoryRevision[];
     }
 
     return [];

@@ -32,6 +32,7 @@ interface InventorySheetProps {
   session: DailyInventorySessionWithEntries;
   isReadOnly: boolean;
   date: string;
+  isCorrectionMode?: boolean;
 }
 
 interface StationGroup {
@@ -45,7 +46,7 @@ interface StationGroup {
   badgeClass: string;
 }
 
-export function InventorySheet({ session, isReadOnly, date }: InventorySheetProps) {
+export function InventorySheet({ session, isReadOnly, date, isCorrectionMode }: InventorySheetProps) {
   const queryClient = useQueryClient();
   const { add } = useStockMutations();
 
@@ -552,6 +553,7 @@ export function InventorySheet({ session, isReadOnly, date }: InventorySheetProp
                       index={index} 
                       isReadOnly={isReadOnly}
                       date={date}
+                      isCorrectionMode={isCorrectionMode}
                       onReassign={!isReadOnly ? (it) => { 
                         setReassignItem(it); 
                         setTargetStationId(dbCategories[0]?.id || ''); 

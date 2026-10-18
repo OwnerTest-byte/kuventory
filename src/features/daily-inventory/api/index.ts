@@ -281,7 +281,8 @@ export async function updateDailyInventoryItem(params: {
     // 3. Real-time FEFO Batch Synchronization:
     // Ensures physical stock batches in Inventory Catalog match the daily ending stock.
     // When sales occur, deducts batches that expire earliest first (FEFO).
-    if (itemId) {
+    // In Correction Mode (sessionState === 'FINALIZED'), differential ledger reconciliation is authoritatively executed upon saving the finalized correction.
+    if (itemId && sessionState !== 'FINALIZED') {
       const { data: batches } = await supabase
         .from('stock_batches')
         .select('*')
