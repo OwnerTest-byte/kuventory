@@ -22,8 +22,9 @@ function getSupabase() {
 /**
  * GET /api/inventory/batches
  * Fetches batches for an item, strictly excluding depleted batches (quantity > 0).
+ * Requires authenticated session.
  */
-router.get('/batches', async (req, res) => {
+router.get('/batches', authenticateUser, async (req, res) => {
   try {
     const { itemId } = req.query;
     const supabase = getSupabase();

@@ -4,8 +4,6 @@ import { useReport } from '../api/reports';
 import { Download, FileSpreadsheet, FileText, ArrowLeft, Loader2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
-import { exportToPdf } from '../export/pdf';
-import { exportToXlsx } from '../export/xlsx';
 import { exportToCsv } from '../export/csv';
 
 export function ReportViewPage() {
@@ -63,10 +61,13 @@ export function ReportViewPage() {
     }))
   });
 
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     try {
       setIsExportingPdf(true);
+      const { exportToPdf } = await import('../export/pdf');
       exportToPdf(getReportPayload());
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
     } finally {
       setIsExportingPdf(false);
     }
@@ -75,7 +76,10 @@ export function ReportViewPage() {
   const handleExportXlsx = async () => {
     try {
       setIsExportingXlsx(true);
+      const { exportToXlsx } = await import('../export/xlsx');
       await exportToXlsx(getReportPayload());
+    } catch (err) {
+      console.error('Failed to export XLSX:', err);
     } finally {
       setIsExportingXlsx(false);
     }
@@ -85,6 +89,8 @@ export function ReportViewPage() {
     try {
       setIsExportingCsv(true);
       exportToCsv(getReportPayload());
+    } catch (err) {
+      console.error('Failed to export CSV:', err);
     } finally {
       setIsExportingCsv(false);
     }

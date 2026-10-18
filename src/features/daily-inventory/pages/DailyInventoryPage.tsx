@@ -126,7 +126,7 @@ export function DailyInventoryPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [date, queryClient]);
+  }, [date, queryClient, record?.id]);
 
   // Calculate completion progress, totals, and discrepancies
   const { completedCount, discrepancies, totalAm, totalPm, totalEnding, totalEntries } = useMemo(() => {

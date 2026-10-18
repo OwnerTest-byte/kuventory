@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { AppNotification } from '../types';
@@ -9,52 +8,6 @@ import type { AppNotification } from '../types';
  * applies instant in-memory cache updates, and guarantees single-channel lifecycle cleanup.
  */
 export function useNotifications() {
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    // Generate unique channel instance to prevent callback collisions and subscription race conditions
-    const channelName = `notifs-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications' },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newNotif = payload.new as AppNotification;
-            // Instant 0ms cache injection: notification appears immediately in UI
-            queryClient.setQueryData<AppNotification[]>(['notifications'], (old: AppNotification[] | undefined) => {
-              const current = old || [];
-              if (current.some((n: AppNotification) => n.id === newNotif.id)) return current;
-              return [newNotif, ...current];
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedNotif = payload.new as AppNotification;
-            queryClient.setQueryData<AppNotification[]>(['notifications'], (old: AppNotification[] | undefined) => {
-              const current = old || [];
-              return current.map((n: AppNotification) => (n.id === updatedNotif.id ? { ...n, ...updatedNotif } : n));
-            });
-          } else if (payload.eventType === 'DELETE') {
-            const deletedId = (payload.old as any)?.id;
-            if (deletedId) {
-              queryClient.setQueryData<AppNotification[]>(['notifications'], (old: AppNotification[] | undefined) => {
-                const current = old || [];
-                return current.filter((n: AppNotification) => n.id !== deletedId);
-              });
-            }
-          }
-
-          // Background sync to ensure parity with database constraints
-          queryClient.invalidateQueries({ queryKey: ['notifications'] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
-
   return useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {

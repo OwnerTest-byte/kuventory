@@ -14,6 +14,13 @@ export default defineConfig({
   },
   projects: [
     {
+      name: 'chromium',
+      use: {
+        browserName: 'chromium',
+        viewport: { width: 1280, height: 800 },
+      },
+    },
+    {
       name: 'Chrome / Edge (Desktop 1280x800)',
       use: {
         browserName: 'chromium',

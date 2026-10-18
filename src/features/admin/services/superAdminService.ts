@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { getBusinessDateString } from '@/lib/businessDate';
 
 export interface DeploymentRecord {
   id: string;
@@ -25,7 +26,7 @@ export interface AutomationJob {
   schedule: string;
   isEnabled: boolean;
   lastRunAt: string;
-  lastStatus: 'Success' | 'Failed' | 'Running';
+  lastStatus: 'Success' | 'Failed' | 'Running' | 'Idle';
   lastDurationMs: number;
   lastError: string | null;
   nextRunAt: string;
@@ -58,62 +59,10 @@ export interface SystemTelemetry {
   pingMs: number;
 }
 
-// Initial deployment history based on actual verified git commits
-const DEFAULT_DEPLOYMENTS: DeploymentRecord[] = [
-  {
-    id: 'dep-v1.2.8',
-    version: 'v1.2.8',
-    commitHash: 'ba5946e',
-    branch: 'main',
-    environment: 'production',
-    deployedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    status: 'Live',
-    verificationStatus: 'Passed',
-    isCurrent: true,
-    verificationResults: {
-      routes: 'Passed',
-      dbConnection: 'Passed',
-      coreFeatures: 'Passed',
-      performance: 'Passed'
-    }
-  },
-  {
-    id: 'dep-v1.2.7',
-    version: 'v1.2.7',
-    commitHash: '920bb59',
-    branch: 'main',
-    environment: 'production',
-    deployedAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
-    status: 'Superseded',
-    verificationStatus: 'Passed',
-    isCurrent: false,
-    verificationResults: {
-      routes: 'Passed',
-      dbConnection: 'Passed',
-      coreFeatures: 'Passed',
-      performance: 'Passed'
-    }
-  },
-  {
-    id: 'dep-v1.2.6',
-    version: 'v1.2.6',
-    commitHash: '8680196',
-    branch: 'main',
-    environment: 'production',
-    deployedAt: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
-    status: 'Superseded',
-    verificationStatus: 'Passed',
-    isCurrent: false,
-    verificationResults: {
-      routes: 'Passed',
-      dbConnection: 'Passed',
-      coreFeatures: 'Passed',
-      performance: 'Passed'
-    }
-  }
-];
+// Honest deployment history: empty until genuine production deployment events are recorded
+const DEFAULT_DEPLOYMENTS: DeploymentRecord[] = [];
 
-// Initial real background automations
+// Real background automation schedule: starts in unrun 'Idle' state until genuine execution
 const DEFAULT_AUTOMATIONS: AutomationJob[] = [
   {
     jobKey: 'daily_sync',
@@ -121,11 +70,11 @@ const DEFAULT_AUTOMATIONS: AutomationJob[] = [
     description: 'Automated worksheet daily sync and 30-day archival procedure',
     schedule: 'Every day 6:00 AM',
     isEnabled: true,
-    lastRunAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-    lastStatus: 'Success',
-    lastDurationMs: 145,
+    lastRunAt: '',
+    lastStatus: 'Idle',
+    lastDurationMs: 0,
     lastError: null,
-    nextRunAt: new Date(Date.now() + 22 * 3600 * 1000).toISOString()
+    nextRunAt: 'Scheduled by backend'
   },
   {
     jobKey: 'low_stock_alert',
@@ -133,11 +82,11 @@ const DEFAULT_AUTOMATIONS: AutomationJob[] = [
     description: 'Deduplicated threshold analysis and push alert routing',
     schedule: 'Every 15 min',
     isEnabled: true,
-    lastRunAt: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
-    lastStatus: 'Success',
-    lastDurationMs: 65,
+    lastRunAt: '',
+    lastStatus: 'Idle',
+    lastDurationMs: 0,
     lastError: null,
-    nextRunAt: new Date(Date.now() + 7 * 60 * 1000).toISOString()
+    nextRunAt: 'Scheduled by backend'
   },
   {
     jobKey: 'expiry_check',
@@ -145,11 +94,11 @@ const DEFAULT_AUTOMATIONS: AutomationJob[] = [
     description: 'Scans upcoming batch expiries and adjusts FEFO queue',
     schedule: 'Every day 8:00 AM',
     isEnabled: true,
-    lastRunAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-    lastStatus: 'Success',
-    lastDurationMs: 98,
+    lastRunAt: '',
+    lastStatus: 'Idle',
+    lastDurationMs: 0,
     lastError: null,
-    nextRunAt: new Date(Date.now() + 20 * 3600 * 1000).toISOString()
+    nextRunAt: 'Scheduled by backend'
   },
   {
     jobKey: 'report_generation',
@@ -157,11 +106,11 @@ const DEFAULT_AUTOMATIONS: AutomationJob[] = [
     description: 'Compiles daily stock movement and variance report',
     schedule: 'Every day 12:00 AM',
     isEnabled: true,
-    lastRunAt: new Date(Date.now() - 8 * 3600 * 1000).toISOString(),
-    lastStatus: 'Success',
-    lastDurationMs: 312,
+    lastRunAt: '',
+    lastStatus: 'Idle',
+    lastDurationMs: 0,
     lastError: null,
-    nextRunAt: new Date(Date.now() + 16 * 3600 * 1000).toISOString()
+    nextRunAt: 'Scheduled by backend'
   },
   {
     jobKey: 'backup_snapshot',
@@ -169,11 +118,11 @@ const DEFAULT_AUTOMATIONS: AutomationJob[] = [
     description: 'Generates verified state checkpoint in recovery registry',
     schedule: 'Every day 2:00 AM',
     isEnabled: true,
-    lastRunAt: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
-    lastStatus: 'Success',
-    lastDurationMs: 240,
+    lastRunAt: '',
+    lastStatus: 'Idle',
+    lastDurationMs: 0,
     lastError: null,
-    nextRunAt: new Date(Date.now() + 18 * 3600 * 1000).toISOString()
+    nextRunAt: 'Scheduled by backend'
   }
 ];
 
@@ -340,50 +289,87 @@ export async function toggleAutomation(jobKey: string, isEnabled: boolean): Prom
 export async function triggerAutomationJob(jobKey: string): Promise<{ success: boolean; durationMs: number; message: string }> {
   const startTime = Date.now();
   let message = 'Job executed successfully.';
+  let isSuccess = true;
+  let jobError: string | null = null;
 
   try {
     if (jobKey === 'daily_sync') {
-      try {
-        await supabase.rpc('archive_old_daily_inventories');
-        message = 'Archived daily inventory sheets older than 30 days.';
-      } catch {
-        message = 'Daily inventory synchronization routine completed.';
-      }
+      const { error } = await supabase.rpc('archive_old_daily_inventories');
+      if (error) throw error;
+      message = 'Archived daily inventory sheets older than 30 days.';
     } else if (jobKey === 'low_stock_alert') {
-      const { data: lowItems } = await supabase
+      const { data: lowItems, error } = await supabase
         .from('inventory_stock_view')
-        .select('name, total_quantity, min_quantity')
+        .select('id, name, total_quantity, min_quantity, unit')
         .lte('total_quantity', 10);
-      message = `Analyzed stock thresholds: ${lowItems?.length || 0} low stock items found.`;
+      if (error) throw error;
+
+      const today = getBusinessDateString();
+      if (lowItems && lowItems.length > 0) {
+        for (const it of lowItems) {
+          await supabase.from('notifications').upsert({
+            type: 'LOW_STOCK',
+            title: `Low Stock: ${it.name}`,
+            message: `${it.name} is down to ${it.total_quantity} ${it.unit || 'pcs'} (threshold: ${it.min_quantity || 10}).`,
+            item_id: it.id,
+            target_id: `/items/${it.id}`,
+            dedup_key: `LOW_${it.id}_${today}`,
+            is_read: false,
+            created_at: new Date().toISOString()
+          }, { onConflict: 'dedup_key' });
+        }
+      }
+      message = `Analyzed stock thresholds: ${lowItems?.length || 0} low stock items evaluated and notified.`;
     } else if (jobKey === 'expiry_check') {
-      const today = new Date().toISOString().split('T')[0];
-      const { data: expBatches } = await supabase
+      const today = getBusinessDateString();
+      const { data: expBatches, error } = await supabase
         .from('stock_batches')
-        .select('id')
+        .select('id, item_id, expiry_date, quantity, inventory_items(name)')
         .lte('expiry_date', today)
         .gt('quantity', 0);
-      message = `Scanned batch expiries: ${expBatches?.length || 0} expired batches flagged for FEFO rebalance.`;
+      if (error) throw error;
+
+      if (expBatches && expBatches.length > 0) {
+        for (const b of expBatches) {
+          const itemName = (b.inventory_items as any)?.name || 'Item';
+          await supabase.from('notifications').upsert({
+            type: 'EXPIRING_SOON',
+            title: `Expired Batch: ${itemName}`,
+            message: `Batch ${b.id.substring(0, 8)} of ${itemName} expired on ${b.expiry_date}. Immediate action required.`,
+            item_id: b.item_id,
+            target_id: `/items/${b.item_id}`,
+            dedup_key: `EXP_${b.id}_${today}`,
+            is_read: false,
+            created_at: new Date().toISOString()
+          }, { onConflict: 'dedup_key' });
+        }
+      }
+      message = `Scanned batch expiries: ${expBatches?.length || 0} expired batches identified and flagged.`;
     } else if (jobKey === 'backup_snapshot') {
-      message = 'System state snapshot recorded in recovery registry.';
+      const result = await exportFullSystemBackup();
+      message = `System state backup verified: ${result.totalRecords} records secured.`;
     } else {
       message = 'Reconciliation and report snapshot compiled.';
     }
   } catch (err: any) {
-    message = err.message || 'Execution failed';
+    isSuccess = false;
+    jobError = err.message || 'Execution failed';
+    message = `Job failed: ${jobError}`;
+    console.error(`Automation job ${jobKey} failed:`, err);
   }
 
-  const durationMs = Math.max(65, Date.now() - startTime);
+  const durationMs = Math.max(10, Date.now() - startTime);
 
-  // Update in persisted list
+  // Update in persisted list with HONEST status
   const automations = await fetchAutomations();
   const updated = automations.map(a => {
     if (a.jobKey === jobKey) {
       return {
         ...a,
         lastRunAt: new Date().toISOString(),
-        lastStatus: 'Success' as const,
+        lastStatus: (isSuccess ? 'Success' : 'Failed') as any,
         lastDurationMs: durationMs,
-        lastError: null
+        lastError: jobError
       };
     }
     return a;
@@ -401,11 +387,11 @@ export async function triggerAutomationJob(jobKey: string): Promise<{ success: b
       action: 'TRIGGER_AUTOMATION',
       target_table: 'system_automations',
       target_id: jobKey,
-      details: { jobKey, durationMs, message, executed_at: new Date().toISOString() }
+      details: { jobKey, durationMs, success: isSuccess, message, executed_at: new Date().toISOString() }
     });
   } catch {}
 
-  return { success: true, durationMs, message };
+  return { success: isSuccess, durationMs, message };
 }
 
 export async function fetchIncidents(): Promise<IncidentRecord[]> {
@@ -443,19 +429,8 @@ export async function fetchIncidents(): Promise<IncidentRecord[]> {
     }
   } catch {}
 
-  return [
-    {
-      id: 'inc-001',
-      title: 'Scheduled Daily Worksheet Sync Completed',
-      description: 'Automated nightly sync reconciled 0 item discrepancies.',
-      severity: 'INFO',
-      status: 'RESOLVED',
-      component: 'Daily Inventory',
-      createdAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
-      resolvedAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
-      resolvedBy: 'Auto-Healer'
-    }
-  ];
+  // Honest state: no fabricated incident record when empty
+  return [];
 }
 
 export async function resolveIncident(incidentId: string): Promise<boolean> {
@@ -503,7 +478,11 @@ export async function fetchSystemTelemetry(): Promise<SystemTelemetry> {
     supabase.from('user_session_leases').select('*', { count: 'exact', head: true }).gt('lease_expires_at', new Date().toISOString())
   ]);
 
-  const pingMs = Math.max(15, Date.now() - start);
+  const pingMs = Math.max(1, Date.now() - start);
+
+  const hasDbError = Boolean(
+    itemsRes.error || batchesRes.error || movementsRes.error || dailyRes.error || leasesRes.error
+  );
 
   const incidents = await fetchIncidents();
   const openIncidents = incidents.filter(i => i.status !== 'RESOLVED').length;
@@ -511,17 +490,19 @@ export async function fetchSystemTelemetry(): Promise<SystemTelemetry> {
   const automations = await fetchAutomations();
   const failedAutomations = automations.filter(a => a.lastStatus === 'Failed').length;
 
+  const dbStatus = hasDbError ? 'Degraded' : 'Healthy';
+
   return {
-    itemsCount: itemsRes.count || 0,
-    batchesCount: batchesRes.count || 0,
-    movementsCount: movementsRes.count || 0,
-    dailyCount: dailyRes.count || 0,
-    activeLeases: leasesRes.count || 1,
+    itemsCount: itemsRes.count ?? 0,
+    batchesCount: batchesRes.count ?? 0,
+    movementsCount: movementsRes.count ?? 0,
+    dailyCount: dailyRes.count ?? 0,
+    activeLeases: leasesRes.count ?? 0, // Honest zero count
     activeIncidents: openIncidents,
     failedAutomations,
-    databaseStatus: 'Healthy',
+    databaseStatus: dbStatus,
     storageStatus: 'Healthy',
-    applicationStatus: 'Healthy',
+    applicationStatus: hasDbError ? 'Degraded' : 'Healthy',
     serverTime: new Date().toISOString(),
     pingMs
   };

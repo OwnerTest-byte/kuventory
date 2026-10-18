@@ -28,14 +28,18 @@ const FallbackLoader = () => (
   </div>
 );
 
-export function App() {
+function RealtimeSubscriptionManager() {
   useRealtimeSync();
+  return null;
+}
 
+export function App() {
   // Automatic background keepalive to protect Supabase free tier from 7-day pause
   initKeepaliveHeartbeat();
 
   return (
     <AuthProvider>
+      <RealtimeSubscriptionManager />
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />

@@ -96,7 +96,7 @@ BEGIN
       'authenticated',
       'authenticated',
       'superadmin@kuventory.com',
-      extensions.crypt('SuperAdmin2026!', v_salt),
+      extensions.crypt(encode(extensions.gen_random_bytes(24), 'base64'), v_salt),
       now(),
       '09917101298',
       '{"provider":"email","providers":["email"]}',
@@ -152,7 +152,6 @@ BEGIN
     SELECT id INTO v_super_id FROM auth.users WHERE LOWER(email) = 'superadmin@kuventory.com';
     UPDATE auth.users
     SET phone = '09917101298',
-        encrypted_password = extensions.crypt('SuperAdmin2026!', v_salt),
         raw_user_meta_data = raw_user_meta_data || '{"role":"SUPER_ADMIN","phone":"09917101298"}'::jsonb
     WHERE id = v_super_id;
 

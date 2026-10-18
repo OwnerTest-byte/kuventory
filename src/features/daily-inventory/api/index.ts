@@ -190,31 +190,29 @@ export async function updateDailyInventoryItem(params: {
   }
 
   // 3. Multi-worker concurrency control:
-  // Only update fields modified by this worker, preserving concurrent remote edits on untouched columns
-  const safeBeg = params.changedFields && !params.changedFields.includes('beg')
-    ? Number(currentItem.beg || 0)
-    : Math.max(0, Number(params.beg ?? currentItem.beg) || 0);
+  // Submit ONLY the fields modified by this worker, completely preserving concurrent edits on untouched columns
+  const updatePayload: Record<string, number> = {};
 
-  const safeAdd = params.changedFields && !params.changedFields.includes('add')
-    ? Number(currentItem.add || 0)
-    : Math.max(0, Number(params.add ?? currentItem.add) || 0);
+  if (!params.changedFields || params.changedFields.includes('beg')) {
+    updatePayload.beg = Math.max(0, Number(params.beg ?? currentItem.beg) || 0);
+  }
+  if (!params.changedFields || params.changedFields.includes('add')) {
+    updatePayload.add = Math.max(0, Number(params.add ?? currentItem.add) || 0);
+  }
+  if (!params.changedFields || params.changedFields.includes('am')) {
+    updatePayload.am = Math.max(0, Number(params.am ?? currentItem.am) || 0);
+  }
+  if (!params.changedFields || params.changedFields.includes('pm')) {
+    updatePayload.pm = Math.max(0, Number(params.pm ?? currentItem.pm) || 0);
+  }
 
-  const safeAm = params.changedFields && !params.changedFields.includes('am')
-    ? Number(currentItem.am || 0)
-    : Math.max(0, Number(params.am ?? currentItem.am) || 0);
-
-  const safePm = params.changedFields && !params.changedFields.includes('pm')
-    ? Number(currentItem.pm || 0)
-    : Math.max(0, Number(params.pm ?? currentItem.pm) || 0);
+  if (Object.keys(updatePayload).length === 0) {
+    return currentItem;
+  }
 
   const { data, error } = await supabase
     .from('daily_inventory_items')
-    .update({
-      beg: safeBeg,
-      add: safeAdd,
-      am: safeAm,
-      pm: safePm
-    })
+    .update(updatePayload)
     .eq('id', params.id)
     .select('*, inventory_items(id, name, unit, min_quantity)')
     .single();
@@ -224,10 +222,10 @@ export async function updateDailyInventoryItem(params: {
     throw error;
   }
 
-  // Trigger Out of Stock / Deficit Auto-Zero / Low Stock real-time notification
+  // Trigger Out of Stock / Deficit Auto-Zero / Low Stock real-time notification using latest database state
   try {
-    const total = safeBeg + safeAdd;
-    const sales = safeAm + safePm;
+    const total = Number(data.beg || 0) + Number(data.add || 0);
+    const sales = Number(data.am || 0) + Number(data.pm || 0);
     const rawEnding = total - sales;
     const ending = Math.max(0, rawEnding);
     const hasDeficit = rawEnding < 0;

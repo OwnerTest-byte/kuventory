@@ -223,9 +223,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('Profile fetch warning (using metadata fallback):', error.message);
         }
 
-        // SEC-01 & C3: Authoritative role resolution from database; never trust user metadata for privilege
-        const isSuper = user.email === 'superadmin@kuventory.com' || user.email === 'master@kuventory.com' || data?.role === 'SUPER_ADMIN' || data?.role === 'MASTER_ADMIN';
-        const isAdmin = user.email === 'admin@kuventory.com' || data?.role === 'ADMIN' || isSuper;
+        // SEC-01 & C3: Authoritative role resolution from database; never trust user email or metadata for privilege
+        const isSuper = data?.role === 'SUPER_ADMIN' || data?.role === 'MASTER_ADMIN';
+        const isAdmin = isSuper || data?.role === 'ADMIN';
         const roleFromDb = data?.role as Role;
         const resolvedRole: Role = isSuper ? 'SUPER_ADMIN' : (isAdmin ? 'ADMIN' : (roleFromDb || 'USER'));
 
@@ -239,12 +239,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } as Profile;
       } catch (err) {
         console.warn('Profile query exception (failing closed to least-privileged role):', err);
-        const isSuper = user.email === 'superadmin@kuventory.com' || user.email === 'master@kuventory.com';
-        const isAdmin = user.email === 'admin@kuventory.com';
-        const fallbackRole: Role = isSuper ? 'SUPER_ADMIN' : (isAdmin ? 'ADMIN' : 'USER');
         return {
           id: user.id,
-          role: fallbackRole,
+          role: 'USER' as Role,
           first_name: user.email?.split('@')[0] || 'User',
           last_name: '',
           created_at: new Date().toISOString(),
@@ -270,9 +267,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isLoading = isSessionLoading || (!!user && isProfileLoading);
-  // Authoritative fail-closed role check (FE-01)
-  const isSuperUser = user?.email === 'superadmin@kuventory.com' || user?.email === 'master@kuventory.com' || profile?.role === 'SUPER_ADMIN' || profile?.role === 'MASTER_ADMIN';
-  const isAdminUser = user?.email === 'admin@kuventory.com' || profile?.role === 'ADMIN' || isSuperUser;
+  // Authoritative fail-closed role check from database profile
+  const isSuperUser = profile?.role === 'SUPER_ADMIN' || profile?.role === 'MASTER_ADMIN';
+  const isAdminUser = isSuperUser || profile?.role === 'ADMIN';
   const role: Role = isSuperUser 
     ? 'SUPER_ADMIN' 
     : (isAdminUser ? 'ADMIN' : (profile?.role ?? 'USER'));

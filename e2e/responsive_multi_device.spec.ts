@@ -65,9 +65,13 @@ test.describe('Responsive Adaptability Across All Required Viewports (Rules 149-
       // Verify title is visible
       await expect(page.getByRole('heading', { name: /DAILY INVENTORY/i })).toBeVisible({ timeout: 10000 });
 
-      // Verify table or worksheet container is accessible
-      const tableExists = await page.locator('table').count();
-      expect(tableExists).toBeGreaterThanOrEqual(0);
+      // Verify actual worksheet container or table view is rendered and accessible
+      const worksheetContainer = page.locator('table, [data-testid="inventory-sheet"], [role="table"]').first();
+      await expect(worksheetContainer).toBeVisible({ timeout: 10000 });
+
+      // Verify headers or rows exist and are interactive
+      const headerOrRowCount = await page.locator('th, tr, [data-testid="inventory-row"]').count();
+      expect(headerOrRowCount).toBeGreaterThan(0);
 
       // Verify page layout doesn't horizontally blow out main body
       const hasBodyOverflow = await page.evaluate(() => {

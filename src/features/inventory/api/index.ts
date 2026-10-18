@@ -105,7 +105,7 @@ export async function getBatches(itemId: string): Promise<StockBatch[]> {
     item_id: b.item_id,
     batch_code: `BATCH-${b.id.substring(0, 6).toUpperCase()}`,
     quantity: Number(b.quantity || 0),
-    initial_quantity: Number(b.quantity || 0),
+    initial_quantity: Number(b.initial_quantity ?? b.quantity ?? 0),
     expiry_date: b.expiry_date || '2099-12-31',
     created_at: b.created_at,
   })) as StockBatch[];
@@ -129,7 +129,7 @@ export async function addStock(params: {
     p_item_id: params.itemId,
     p_quantity: safeQty,
     p_expiry_date: params.expiryDate || '2099-12-31',
-    p_received_date: params.receivedDate || new Date().toISOString().split('T')[0],
+    p_received_date: params.receivedDate || getBusinessDateString(),
     p_reason: params.reason || 'Stock Received',
   });
 
@@ -151,7 +151,7 @@ export async function syncItemToTodayDailyInventory(
   changes: { addDelta?: number; salesDelta?: number; targetEnding?: number }
 ): Promise<void> {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getBusinessDateString();
 
     // 1. Fetch or create today's daily_inventory worksheet
     let { data: session } = await supabase
@@ -248,7 +248,7 @@ export async function removeStock(params: {
   if (requestedQty > available) {
     // Physical inventory deficit: cannot be negative, log discrepancy notification
     const deficit = Number((requestedQty - available).toFixed(2));
-    const today = new Date().toISOString().split('T')[0];
+    const today = getBusinessDateString();
     try {
       await supabase.from('notifications').upsert({
         type: 'STOCK_DISCREPANCY',
@@ -285,7 +285,7 @@ export async function removeStock(params: {
   try {
     const updatedItem = await getItemById(params.itemId);
     if (updatedItem.current_qty <= 0) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getBusinessDateString();
       await supabase.from('notifications').upsert({
         type: 'OUT_OF_STOCK',
         title: `Out of Stock: ${item.item_name}`,
@@ -324,7 +324,18 @@ export async function adjustStock(params: {
     return;
   }
 
-  // Fallback: client calculation
+  // Fail-closed on business, permission, constraint, or validation errors
+  // Only fall back to client calculation if the RPC function is genuinely missing in the database
+  const isRpcMissing = rpcErr.code === 'PGRST202' ||
+    rpcErr.message?.includes('could not find the function') ||
+    rpcErr.message?.includes('function public.adjust_stock_to_target does not exist');
+
+  if (!isRpcMissing) {
+    console.error('adjust_stock_to_target database error:', rpcErr);
+    throw new Error(rpcErr.message || 'Stock adjustment failed at database level.');
+  }
+
+  // Fallback: client calculation only if RPC not installed
   const item = await getItemById(params.itemId);
 
   if (params.targetQuantity < 0) {
@@ -363,7 +374,7 @@ export async function adjustStock(params: {
   }
 
   if (safeTarget === 0) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getBusinessDateString();
     try {
       await supabase.from('notifications').upsert({
         type: 'OUT_OF_STOCK',
