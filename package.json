@@ -18,6 +18,9 @@
     "backup:schedule": "node scripts/backup-db.mjs",
     "docs:dev-logs": "node scripts/build-dev-logs-docx.mjs"
   },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "overrides": {
     "uuid": "^11.1.1"
   },

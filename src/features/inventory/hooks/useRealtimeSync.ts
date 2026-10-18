@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { dailyInventoryKeys } from '@/features/daily-inventory/hooks/useDailyInventory';
 
 export function useRealtimeSync() {
   const queryClient = useQueryClient();
@@ -30,7 +31,7 @@ export function useRealtimeSync() {
           queryClient.invalidateQueries({ queryKey: ['inventory'] });
           queryClient.invalidateQueries({ queryKey: ['items'] });
           queryClient.invalidateQueries({ queryKey: ['item'] });
-          queryClient.invalidateQueries({ queryKey: ['dailyInventory'] });
+          queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.all });
           queryClient.invalidateQueries({ queryKey: ['daily-inventory'] });
         }
       )
@@ -56,7 +57,7 @@ export function useRealtimeSync() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'daily_inventory' },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['dailyInventory'] });
+          queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.all });
           queryClient.invalidateQueries({ queryKey: ['daily-inventory'] });
           queryClient.invalidateQueries({ queryKey: ['reports'] });
         }
@@ -65,7 +66,7 @@ export function useRealtimeSync() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'daily_inventory_items' },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['dailyInventory'] });
+          queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.all });
           queryClient.invalidateQueries({ queryKey: ['daily-inventory'] });
           queryClient.invalidateQueries({ queryKey: ['inventory'] });
           queryClient.invalidateQueries({ queryKey: ['items'] });

@@ -28,6 +28,9 @@ export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Remember Me State (wired to persistence preference)
+  const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('kuventory_remember_me') === 'true');
+
   // Forgot Password State
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
@@ -41,6 +44,10 @@ export function LoginForm() {
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: localStorage.getItem('kuventory_remembered_email') || '',
+      password: '',
+    },
   });
 
   const handleScrollToViewOnFocus = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -56,75 +63,87 @@ export function LoginForm() {
     setAuthError(null);
     clearSessionLeaseError();
 
-    const email = data.email.trim().toLowerCase();
-    const isSuperUserAttempt = email === 'superadmin@kuventory.com' || email === 'master@kuventory.com';
+    try {
+      const email = data.email.trim().toLowerCase();
+      const isSuperUserAttempt = email === 'superadmin@kuventory.com' || email === 'master@kuventory.com';
 
-    // 1. Emergency Maintenance Pre-flight check
-    const maint = await getMaintenanceStatus();
-    if (maint.locked && !isSuperUserAttempt) {
-      setAuthError('EMERGENCY MAINTENANCE LOCKDOWN ACTIVE: System access is currently restricted to authorized Super Administrators during database maintenance.');
-      setIsLoading(false);
-      return;
-    }
-
-    const candidatePasswords = [data.password];
-    
-    // Auto-tolerance: if user omits or includes trailing exclamation mark, try both
-    if (data.password.endsWith('!')) {
-      candidatePasswords.push(data.password.slice(0, -1));
-    } else {
-      candidatePasswords.push(data.password + '!');
-    }
-
-    let authSuccess = false;
-    let lastError: any = null;
-    let activeSession: any = null;
-
-    for (const pwd of candidatePasswords) {
-      const { data: signInData, error } = await supabase.auth.signInWithPassword({
-        email,
-        password: pwd,
-      });
-
-      if (!error && signInData?.session) {
-        authSuccess = true;
-        activeSession = signInData.session;
-        break;
-      }
-      lastError = error;
-    }
-
-    if (authSuccess && activeSession) {
-      // 2. Emergency Maintenance Post-auth check (prevent bypass)
+      // 1. Emergency Maintenance Pre-flight check
+      const maint = await getMaintenanceStatus();
       if (maint.locked && !isSuperUserAttempt) {
-        await supabase.auth.signOut();
-        sessionStorage.removeItem('kuventory_browser_session_active');
         setAuthError('EMERGENCY MAINTENANCE LOCKDOWN ACTIVE: System access is currently restricted to authorized Super Administrators during database maintenance.');
-        setIsLoading(false);
         return;
       }
 
-      // Enforce Rule 11 & 12: Single Active Session Per Account (First Session Wins)
-      const claimResult = await claimSessionLease(activeSession.access_token.slice(-16));
-      if (!claimResult.success) {
-        // Device B was denied! Terminate Device B session cleanly so Device A is completely undisturbed
-        await supabase.auth.signOut();
-        sessionStorage.removeItem('kuventory_browser_session_active');
-        setAuthError(
-          claimResult.reason === 'OCCUPIED' || claimResult.message?.toLowerCase().includes('active')
-            ? 'ACCOUNT IN USE'
-            : (claimResult.message || 'ACCOUNT IN USE')
-        );
-        setIsLoading(false);
-        return;
+      const candidatePasswords = [data.password];
+      
+      // Auto-tolerance: if user omits or includes trailing exclamation mark, try both
+      if (data.password.endsWith('!')) {
+        candidatePasswords.push(data.password.slice(0, -1));
+      } else {
+        candidatePasswords.push(data.password + '!');
       }
-      sessionStorage.setItem('kuventory_browser_session_active', '1');
-    } else if (!authSuccess && lastError) {
-      const isInvalidCreds = 
-        lastError.message.toLowerCase().includes('invalid') || 
-        lastError.message.toLowerCase().includes('credential') || 
-        lastError.message.toLowerCase().includes('user not found');
-      setAuthError(isInvalidCreds ? 'INVALID LOGIN' : 'TRY AGAIN');
+
+      let authSuccess = false;
+      let lastError: any = null;
+      let activeSession: any = null;
+
+      for (const pwd of candidatePasswords) {
+        const { data: signInData, error } = await supabase.auth.signInWithPassword({
+          email,
+          password: pwd,
+        });
+
+        if (!error && signInData?.session) {
+          authSuccess = true;
+          activeSession = signInData.session;
+          break;
+        }
+        lastError = error;
+      }
+
+      if (authSuccess && activeSession) {
+        // Wire Remember Me preference
+        if (rememberMe) {
+          localStorage.setItem('kuventory_remembered_email', email);
+          localStorage.setItem('kuventory_remember_me', 'true');
+        } else {
+          localStorage.removeItem('kuventory_remembered_email');
+          localStorage.removeItem('kuventory_remember_me');
+        }
+
+        // 2. Emergency Maintenance Post-auth check (prevent bypass)
+        if (maint.locked && !isSuperUserAttempt) {
+          await supabase.auth.signOut();
+          sessionStorage.removeItem('kuventory_browser_session_active');
+          setAuthError('EMERGENCY MAINTENANCE LOCKDOWN ACTIVE: System access is currently restricted to authorized Super Administrators during database maintenance.');
+          return;
+        }
+
+        // Enforce Rule 11 & 12: Single Active Session Per Account (First Session Wins)
+        const claimResult = await claimSessionLease(activeSession.access_token.slice(-16));
+        if (!claimResult.success) {
+          // Device B was denied! Terminate Device B session cleanly so Device A is completely undisturbed
+          await supabase.auth.signOut();
+          sessionStorage.removeItem('kuventory_browser_session_active');
+          setAuthError(
+            claimResult.reason === 'OCCUPIED' || claimResult.message?.toLowerCase().includes('active')
+              ? 'ACCOUNT IN USE'
+              : (claimResult.message || 'ACCOUNT IN USE')
+          );
+          return;
+        }
+        sessionStorage.setItem('kuventory_browser_session_active', '1');
+      } else if (!authSuccess && lastError) {
+        const isInvalidCreds = 
+          lastError.message.toLowerCase().includes('invalid') || 
+          lastError.message.toLowerCase().includes('credential') || 
+          lastError.message.toLowerCase().includes('user not found');
+        setAuthError(isInvalidCreds ? 'INVALID LOGIN' : 'TRY AGAIN');
+      }
+    } catch (err: any) {
+      console.error('Unhandled login error:', err);
+      setAuthError(err?.message || 'Connection error. Please verify network access.');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -252,6 +271,17 @@ export function LoginForm() {
               type="checkbox" 
               id="remember" 
               name="remember" 
+              checked={rememberMe}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setRememberMe(checked);
+                if (checked) {
+                  localStorage.setItem('kuventory_remember_me', 'true');
+                } else {
+                  localStorage.removeItem('kuventory_remember_me');
+                  localStorage.removeItem('kuventory_remembered_email');
+                }
+              }}
               className="rounded border-input text-primary focus:ring-primary h-5 w-5 min-h-5 min-w-5 cursor-pointer" 
             />
             <label htmlFor="remember" className="font-medium cursor-pointer select-none py-3 text-sm min-h-12 flex items-center">

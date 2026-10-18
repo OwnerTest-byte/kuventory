@@ -2,16 +2,23 @@ import { useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useReportsList } from '../api/reports';
 import { useQuery } from '@tanstack/react-query';
-import { getInventory, getStockMovementHistory } from '@/features/inventory/api';
+import { 
+  getInventory, 
+  getStockMovementHistory, 
+  getAllActiveBatches, 
+  getArchivedItems 
+} from '@/features/inventory/api';
 import { 
   FileText, ChevronLeft, ChevronRight, BarChart3, AlertTriangle, 
-  ArrowDownRight, ArrowUpRight, RefreshCw, Download
+  ArrowDownRight, ArrowUpRight, RefreshCw, Download, Clock, Archive, ShieldAlert
 } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
+import { downloadCsv, escapeCsvField } from '../export/csv';
+import { getBusinessDateString } from '@/lib/businessDate';
 
 export function ReportsLibraryPage() {
   const location = useLocation();
@@ -20,14 +27,18 @@ export function ReportsLibraryPage() {
   const activeTab = useMemo(() => {
     if (location.pathname === '/reports/inventory') return 'valuation';
     if (location.pathname === '/reports/movement') return 'movements';
-    if (location.pathname === '/reports/low-stock' || location.pathname === '/reports/expiry') return 'alerts';
+    if (location.pathname === '/reports/low-stock') return 'low-stock';
+    if (location.pathname === '/reports/expiry') return 'expiry';
+    if (location.pathname === '/reports/archived') return 'archived';
     return 'daily-sheets';
   }, [location.pathname]);
 
   const handleTabChange = (val: string) => {
     if (val === 'valuation') navigate('/reports/inventory');
     else if (val === 'movements') navigate('/reports/movement');
-    else if (val === 'alerts') navigate('/reports/low-stock');
+    else if (val === 'low-stock') navigate('/reports/low-stock');
+    else if (val === 'expiry') navigate('/reports/expiry');
+    else if (val === 'archived') navigate('/reports/archived');
     else navigate('/reports');
   };
 
@@ -86,12 +97,114 @@ export function ReportsLibraryPage() {
     return movements.filter(m => m.created_at.startsWith(movementFilterDate));
   }, [movements, movementFilterDate]);
 
-  // Tab 4: Low Stock & Expiry alerts
+  const todayBusinessStr = useMemo(() => getBusinessDateString(), []);
+
+  // Tab 4: Low Stock alerts
   const lowStockItems = useMemo(() => {
     return inventory
-      .filter(i => i.current_qty <= i.min_qty)
+      .filter(item => item.current_qty <= item.min_qty)
       .sort((a, b) => (b.min_qty - b.current_qty) - (a.min_qty - a.current_qty));
   }, [inventory]);
+
+  // Tab 5: Expiry Risk & Active Batches
+  const { data: batches = [], isLoading: isBatchesLoading } = useQuery({
+    queryKey: ['report-active-batches'],
+    queryFn: getAllActiveBatches,
+  });
+
+  const [expirySearch, setExpirySearch] = useState('');
+  const [expiryStatusFilter, setExpiryStatusFilter] = useState<'ALL' | 'EXPIRED' | 'EXPIRING_SOON' | 'HEALTHY'>('ALL');
+
+  const analyzedBatches = useMemo(() => {
+    return batches.map(b => {
+      let status: 'EXPIRED' | 'EXPIRING_SOON' | 'HEALTHY' | 'NO_EXPIRY' = 'NO_EXPIRY';
+      let daysRemaining: number | null = null;
+      if (b.expiry_date) {
+        const expTime = new Date(b.expiry_date).getTime();
+        const nowTime = new Date(todayBusinessStr).getTime();
+        daysRemaining = Math.ceil((expTime - nowTime) / (1000 * 60 * 60 * 24));
+        if (daysRemaining < 0) {
+          status = 'EXPIRED';
+        } else if (daysRemaining <= 30) {
+          status = 'EXPIRING_SOON';
+        } else {
+          status = 'HEALTHY';
+        }
+      }
+      return {
+        ...b,
+        status,
+        daysRemaining,
+        itemName: b.inventory_items?.name || 'Unknown Item',
+        categoryName: b.inventory_items?.categories?.name || 'General',
+        unit: b.inventory_items?.unit || 'pcs',
+        unitCost: Number(b.inventory_items?.unit_cost || 0),
+      };
+    });
+  }, [batches, todayBusinessStr]);
+
+  const filteredBatches = useMemo(() => {
+    return analyzedBatches.filter(b => {
+      const matchSearch = b.itemName.toLowerCase().includes(expirySearch.toLowerCase()) ||
+                          b.categoryName.toLowerCase().includes(expirySearch.toLowerCase());
+      const matchStatus = expiryStatusFilter === 'ALL' || b.status === expiryStatusFilter;
+      return matchSearch && matchStatus;
+    });
+  }, [analyzedBatches, expirySearch, expiryStatusFilter]);
+
+  const expiredCount = useMemo(() => analyzedBatches.filter(b => b.status === 'EXPIRED').length, [analyzedBatches]);
+  const expiringSoonCount = useMemo(() => analyzedBatches.filter(b => b.status === 'EXPIRING_SOON').length, [analyzedBatches]);
+
+  const exportExpiryCSV = () => {
+    if (filteredBatches.length === 0) return;
+    const headers = ['Batch ID', 'Item Name', 'Category', 'Quantity', 'Unit', 'Received Date', 'Expiry Date', 'Status', 'Days Remaining'];
+    const rows = filteredBatches.map(b => [
+      escapeCsvField(b.id),
+      escapeCsvField(b.itemName),
+      escapeCsvField(b.categoryName),
+      escapeCsvField(b.quantity),
+      escapeCsvField(b.unit),
+      escapeCsvField(b.received_date || ''),
+      escapeCsvField(b.expiry_date || 'N/A'),
+      escapeCsvField(b.status),
+      escapeCsvField(b.daysRemaining !== null ? b.daysRemaining : 'N/A'),
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    downloadCsv(`KUVENTORY_Expiry_Risk_${todayBusinessStr}.csv`, csvContent);
+  };
+
+  // Tab 6: Archived Catalog Items
+  const { data: archivedItems = [], isLoading: isArchivedLoading } = useQuery({
+    queryKey: ['report-archived-items'],
+    queryFn: getArchivedItems,
+  });
+
+  const [archivedSearch, setArchivedSearch] = useState('');
+
+  const filteredArchived = useMemo(() => {
+    return archivedItems.filter(item => {
+      const search = archivedSearch.toLowerCase();
+      const name = (item.name || '').toLowerCase();
+      const cat = (item.categories?.name || '').toLowerCase();
+      const desc = (item.description || '').toLowerCase();
+      return name.includes(search) || cat.includes(search) || desc.includes(search);
+    });
+  }, [archivedItems, archivedSearch]);
+
+  const exportArchivedCSV = () => {
+    if (filteredArchived.length === 0) return;
+    const headers = ['Item Name', 'Category', 'Unit', 'Unit Cost (PHP)', 'Min Quantity', 'Archived / Inactive At'];
+    const rows = filteredArchived.map(i => [
+      escapeCsvField(i.name),
+      escapeCsvField(i.categories?.name || 'General'),
+      escapeCsvField(i.unit || 'pcs'),
+      escapeCsvField(Number(i.unit_cost || 0).toFixed(2)),
+      escapeCsvField(i.min_quantity || 0),
+      escapeCsvField(i.updated_at ? format(new Date(i.updated_at), 'yyyy-MM-dd HH:mm') : 'N/A'),
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    downloadCsv(`KUVENTORY_Archived_Catalog_${todayBusinessStr}.csv`, csvContent);
+  };
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -105,22 +218,17 @@ export function ReportsLibraryPage() {
     if (filteredValuation.length === 0) return;
     const headers = ['Item Code', 'Item Name', 'Category', 'Unit', 'Unit Cost (PHP)', 'Current Stock', 'Total Value (PHP)', 'Status'];
     const rows = filteredValuation.map(i => [
-      `"${i.item_code}"`,
-      `"${i.item_name}"`,
-      `"${i.category_name || ''}"`,
-      `"${i.unit}"`,
-      i.unit_cost.toFixed(2),
-      i.current_qty,
-      (i.current_qty * i.unit_cost).toFixed(2),
-      i.current_qty <= 0 ? 'Out of Stock' : i.current_qty <= i.min_qty ? 'Low Stock' : 'In Stock'
+      escapeCsvField(i.item_code),
+      escapeCsvField(i.item_name),
+      escapeCsvField(i.category_name || ''),
+      escapeCsvField(i.unit),
+      escapeCsvField(i.unit_cost.toFixed(2)),
+      escapeCsvField(i.current_qty),
+      escapeCsvField((i.current_qty * i.unit_cost).toFixed(2)),
+      escapeCsvField(i.current_qty <= 0 ? 'Out of Stock' : i.current_qty <= i.min_qty ? 'Low Stock' : 'In Stock')
     ]);
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `KUVENTORY_Stock_Valuation_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
+    downloadCsv(`KUVENTORY_Stock_Valuation_${todayBusinessStr}.csv`, csvContent);
   };
 
   return (
@@ -132,7 +240,7 @@ export function ReportsLibraryPage() {
             Reports & Analytics Hub
           </h1>
           <p className="text-muted-foreground mt-1 font-medium text-sm">
-            Historical daily inventory worksheets, valuation summaries, and stock audit trails.
+            Historical daily inventory worksheets, valuation summaries, batch expiry monitoring, and stock audit trails.
           </p>
         </div>
       </header>
@@ -148,8 +256,14 @@ export function ReportsLibraryPage() {
           <TabsTrigger value="movements" className="font-semibold text-xs sm:text-sm">
             Movement Audit Trail
           </TabsTrigger>
-          <TabsTrigger value="alerts" className="font-semibold text-xs sm:text-sm">
+          <TabsTrigger value="low-stock" className="font-semibold text-xs sm:text-sm">
             Low Stock Alerts ({lowStockItems.length})
+          </TabsTrigger>
+          <TabsTrigger value="expiry" className="font-semibold text-xs sm:text-sm">
+            Expiry Risk ({expiredCount + expiringSoonCount})
+          </TabsTrigger>
+          <TabsTrigger value="archived" className="font-semibold text-xs sm:text-sm">
+            Archived Catalog ({archivedItems.length})
           </TabsTrigger>
         </TabsList>
 
@@ -465,7 +579,7 @@ export function ReportsLibraryPage() {
         </TabsContent>
 
         {/* TAB 4: LOW STOCK & REPLENISHMENT */}
-        <TabsContent value="alerts" className="space-y-6">
+        <TabsContent value="low-stock" className="space-y-6">
           <div className="bg-amber-500/10 p-4 rounded-xl border border-amber-500/30 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
             <div>
@@ -477,7 +591,7 @@ export function ReportsLibraryPage() {
           </div>
 
           <div className="bg-card rounded-xl border border-border shadow-xs overflow-hidden">
-            <div className="table-slider-container max-h-[calc(100dvh-320px)] min-h-[300px] relative overscroll-contain">
+            <div className="table-slider-container max-h-[calc(100dvh-320px)] min-h-75 relative overscroll-contain">
               <Table className="border-collapse">
                 <TableHeader className="sticky top-0 z-20 bg-muted/60 backdrop-blur-xs border-b border-border shadow-xs">
                   <TableRow>
@@ -539,6 +653,250 @@ export function ReportsLibraryPage() {
                         </TableRow>
                       );
                     })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* TAB 5: EXPIRY RISK & ACTIVE BATCHES */}
+        <TabsContent value="expiry" className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-card p-5 rounded-xl border border-destructive/30 shadow-xs">
+              <span className="text-xs font-bold text-destructive uppercase tracking-wider flex items-center gap-1.5">
+                <ShieldAlert className="w-4 h-4 text-destructive" /> Expired Batches
+              </span>
+              <div className="text-2xl font-black text-destructive mt-2">
+                {expiredCount} {expiredCount === 1 ? 'batch' : 'batches'}
+              </div>
+              <span className="text-xs text-muted-foreground mt-1 block">Past expiration date; quarantine required</span>
+            </div>
+            <div className="bg-card p-5 rounded-xl border border-amber-500/30 shadow-xs">
+              <span className="text-xs font-bold text-amber-500 uppercase tracking-wider flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-amber-500" /> Expiring Within 30 Days
+              </span>
+              <div className="text-2xl font-black text-amber-500 mt-2">
+                {expiringSoonCount} {expiringSoonCount === 1 ? 'batch' : 'batches'}
+              </div>
+              <span className="text-xs text-muted-foreground mt-1 block">Priority FEFO dispatch required</span>
+            </div>
+            <div className="bg-card p-5 rounded-xl border border-border shadow-xs">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                Total Monitored Batches
+              </span>
+              <div className="text-2xl font-black text-foreground mt-2">
+                {batches.length} active
+              </div>
+              <span className="text-xs text-muted-foreground mt-1 block">Batches with positive physical stock</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl border border-border">
+            <div className="flex flex-wrap gap-3 flex-1 w-full sm:w-auto">
+              <Input
+                placeholder="Search batch item or category..."
+                value={expirySearch}
+                onChange={e => setExpirySearch(e.target.value)}
+                className="max-w-xs bg-card border-border text-foreground text-sm"
+              />
+              <select
+                value={expiryStatusFilter}
+                onChange={e => setExpiryStatusFilter(e.target.value as any)}
+                className="h-10 px-3 py-2 bg-card border border-border text-foreground rounded-md text-sm font-semibold outline-none"
+              >
+                <option value="ALL">All Expiry Statuses</option>
+                <option value="EXPIRED">Expired Only</option>
+                <option value="EXPIRING_SOON">Expiring Soon (&le; 30d)</option>
+                <option value="HEALTHY">Fresh / Healthy</option>
+              </select>
+            </div>
+            <Button onClick={exportExpiryCSV} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs sm:text-sm">
+              <Download className="w-4 h-4 mr-2" /> Export Expiry CSV
+            </Button>
+          </div>
+
+          <div className="bg-card rounded-xl border border-border shadow-xs overflow-hidden">
+            <div className="table-slider-container max-h-[calc(100dvh-320px)] min-h-75 relative overscroll-contain">
+              <Table className="border-collapse">
+                <TableHeader className="sticky top-0 z-20 bg-muted/60 backdrop-blur-xs border-b border-border shadow-xs">
+                  <TableRow>
+                    <TableHead className="font-bold text-foreground sticky left-0 z-30 bg-muted border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item / Batch</TableHead>
+                    <TableHead className="font-bold text-foreground">Category</TableHead>
+                    <TableHead className="text-center font-bold text-foreground">Batch Qty</TableHead>
+                    <TableHead className="font-bold text-foreground">Received Date</TableHead>
+                    <TableHead className="font-bold text-foreground">Expiry Date</TableHead>
+                    <TableHead className="text-center font-bold text-foreground">Timeline</TableHead>
+                    <TableHead className="text-center font-bold text-foreground">Status</TableHead>
+                    <TableHead className="text-right font-bold text-foreground">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isBatchesLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-12 text-muted-foreground font-medium">Loading batch expiry data...</TableCell>
+                    </TableRow>
+                  ) : filteredBatches.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-12 text-muted-foreground font-medium">No batches match the selected criteria.</TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredBatches.map(b => {
+                      const isExpired = b.status === 'EXPIRED';
+                      const isSoon = b.status === 'EXPIRING_SOON';
+                      return (
+                        <TableRow key={b.id} className="hover:bg-muted/40 group">
+                          <TableCell className="font-bold text-foreground sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                            <div className="text-foreground">{b.itemName}</div>
+                            <div className="text-xs text-muted-foreground font-mono">BATCH-{b.id.substring(0, 8).toUpperCase()}</div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted text-foreground">
+                              {b.categoryName}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center font-black text-foreground">
+                            {b.quantity} {b.unit}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-xs font-mono">
+                            {b.received_date ? format(new Date(b.received_date), 'MMM dd, yyyy') : '-'}
+                          </TableCell>
+                          <TableCell className={`font-mono text-xs font-bold ${isExpired ? 'text-destructive' : isSoon ? 'text-amber-500' : 'text-foreground'}`}>
+                            {b.expiry_date ? format(new Date(b.expiry_date), 'MMM dd, yyyy') : 'No Expiry'}
+                          </TableCell>
+                          <TableCell className="text-center text-xs font-semibold">
+                            {b.daysRemaining === null ? (
+                              <span className="text-muted-foreground">-</span>
+                            ) : b.daysRemaining < 0 ? (
+                              <span className="text-destructive font-bold">{Math.abs(b.daysRemaining)}d ago</span>
+                            ) : (
+                              <span className={isSoon ? 'text-amber-500 font-bold' : 'text-emerald-500'}>{b.daysRemaining}d left</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {isExpired ? (
+                              <span className="px-2 py-0.5 rounded text-xs font-bold bg-destructive/15 text-destructive border border-destructive/20">
+                                EXPIRED
+                              </span>
+                            ) : isSoon ? (
+                              <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-500/15 text-amber-500 border border-amber-500/20">
+                                EXPIRING SOON
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/20">
+                                HEALTHY
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {b.inventory_items?.id && (
+                              <Link 
+                                to={`/items/${b.inventory_items.id}`}
+                                className="inline-flex items-center justify-center rounded-md border border-border hover:bg-muted text-foreground font-semibold text-xs px-2.5 py-1 transition-colors"
+                              >
+                                View Item
+                              </Link>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* TAB 6: ARCHIVED CATALOG ITEMS */}
+        <TabsContent value="archived" className="space-y-6">
+          <div className="bg-muted/40 p-4 rounded-xl border border-border flex items-start gap-3">
+            <Archive className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Archived & Deactivated Catalog Items</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Archived items are hidden from daily physical stock counts, but all past movements, snapshots, and financial reports retain their complete audit records.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl border border-border">
+            <div className="flex flex-wrap gap-3 flex-1 w-full sm:w-auto">
+              <Input
+                placeholder="Search archived items by name, category, or notes..."
+                value={archivedSearch}
+                onChange={e => setArchivedSearch(e.target.value)}
+                className="max-w-md bg-card border-border text-foreground text-sm"
+              />
+            </div>
+            <Button onClick={exportArchivedCSV} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs sm:text-sm">
+              <Download className="w-4 h-4 mr-2" /> Export Archived CSV
+            </Button>
+          </div>
+
+          <div className="bg-card rounded-xl border border-border shadow-xs overflow-hidden">
+            <div className="table-slider-container max-h-[calc(100dvh-320px)] min-h-75 relative overscroll-contain">
+              <Table className="border-collapse">
+                <TableHeader className="sticky top-0 z-20 bg-muted/60 backdrop-blur-xs border-b border-border shadow-xs">
+                  <TableRow>
+                    <TableHead className="font-bold text-foreground sticky left-0 z-30 bg-muted border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">Item Name</TableHead>
+                    <TableHead className="font-bold text-foreground">Category</TableHead>
+                    <TableHead className="text-center font-bold text-foreground">Unit</TableHead>
+                    <TableHead className="text-right font-bold text-foreground">Unit Cost</TableHead>
+                    <TableHead className="text-center font-bold text-foreground">Min Threshold</TableHead>
+                    <TableHead className="font-bold text-foreground">Archived Date</TableHead>
+                    <TableHead className="text-center font-bold text-foreground">Status</TableHead>
+                    <TableHead className="text-right font-bold text-foreground">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isArchivedLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-12 text-muted-foreground font-medium">Loading archived catalog...</TableCell>
+                    </TableRow>
+                  ) : filteredArchived.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-12 text-muted-foreground font-medium">No archived or deactivated catalog items found.</TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredArchived.map(item => (
+                      <TableRow key={item.id} className="hover:bg-muted/40 group">
+                        <TableCell className="font-bold text-foreground sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                          <div className="text-foreground">{item.name}</div>
+                          {item.description && (
+                            <div className="text-xs text-muted-foreground truncate max-w-xs">{item.description}</div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted text-foreground">
+                            {item.categories?.name || 'General'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center font-bold text-muted-foreground text-xs">{item.unit || 'pcs'}</TableCell>
+                        <TableCell className="text-right font-semibold text-foreground">
+                          ₱{Number(item.unit_cost || 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-center text-muted-foreground text-xs font-semibold">
+                          {item.min_quantity || 0}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-xs font-mono">
+                          {item.updated_at ? format(new Date(item.updated_at), 'MMM dd, yyyy h:mm a') : '-'}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="px-2 py-0.5 rounded text-xs font-bold bg-muted text-muted-foreground border border-border">
+                            {item.is_archived ? 'Archived' : 'Inactive'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Link 
+                            to={`/items/${item.id}`}
+                            className="inline-flex items-center justify-center rounded-md border border-border hover:bg-muted text-foreground font-semibold text-xs px-2.5 py-1 transition-colors"
+                          >
+                            Details
+                          </Link>
+                        </TableCell>
+                      </TableRow>
+                    ))
                   )}
                 </TableBody>
               </Table>

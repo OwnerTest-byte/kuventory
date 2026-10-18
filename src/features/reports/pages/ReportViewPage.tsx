@@ -43,7 +43,7 @@ export function ReportViewPage() {
     status: report.status as any,
     version: 1,
     generated_at: report.finalized_at || new Date().toISOString(),
-    generated_by: 'Admin',
+    generated_by: (report as any).finalized_by_name || 'Warehouse Administrator',
     report_items: items.map((it: any) => ({
       id: it.id,
       report_id: report.id,

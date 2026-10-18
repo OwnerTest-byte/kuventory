@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { releaseSessionLease } from '../services/sessionLeaseService';
 
@@ -8,6 +9,7 @@ export function useLogoutPrompt() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const promptLogout = useCallback((unsaved = false) => {
     setHasUnsavedChanges(unsaved);
@@ -32,11 +34,12 @@ export function useLogoutPrompt() {
       console.warn('Error signing out:', e);
     } finally {
       sessionStorage.removeItem('kuventory_browser_session_active');
+      queryClient.clear();
       setIsLoggingOut(false);
       setIsModalOpen(false);
       navigate('/login', { replace: true });
     }
-  }, [navigate]);
+  }, [navigate, queryClient]);
 
   return {
     isModalOpen,

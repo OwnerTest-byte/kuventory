@@ -1,3 +1,14 @@
+-- Reconcile legacy August draft schema: Cleanly drop any prototype tables before establishing foundation
+DROP TABLE IF EXISTS public.report_items CASCADE;
+DROP TABLE IF EXISTS public.reports CASCADE;
+DROP TABLE IF EXISTS public.daily_inventory_items CASCADE;
+DROP TABLE IF EXISTS public.daily_inventory CASCADE;
+DROP TABLE IF EXISTS public.stock_movements CASCADE;
+DROP TABLE IF EXISTS public.stock_batches CASCADE;
+DROP TABLE IF EXISTS public.inventory_items CASCADE;
+DROP TABLE IF EXISTS public.categories CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+
 -- 1. PROFILES (Extends auth.users)
 CREATE TABLE public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,

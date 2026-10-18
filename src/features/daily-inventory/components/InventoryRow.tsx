@@ -314,14 +314,11 @@ export const InventoryRow = memo(function InventoryRow({
               min="0"
               step="any"
               value={add} 
-              onFocus={() => setFocusedField('add')}
+              readOnly={true}
               onClick={() => { if (!isReadOnly) setIsModalOpen(true); }}
-              onChange={e => handleInputChange('add', e.target.value)}
-              onBlur={() => handleBlur('add')}
-              onKeyDown={e => handleKeyDown(e, 'add')}
               disabled={isReadOnly}
-              title={isReadOnly ? undefined : "Click + or enter stock batch (Expiration Date required)"}
-              className={`${inputClass} pr-9 font-bold text-primary`}
+              title={isReadOnly ? undefined : "Click to receive delivery batch (Expiration Date required)"}
+              className={`${inputClass} pr-9 font-bold text-primary cursor-pointer selection:bg-transparent`}
               aria-label={`${item.items?.item_name} Add Quantity`}
             />
             {!isReadOnly && (

@@ -58,22 +58,27 @@ export async function getSystemSetting<T>(key: string, fallback: T): Promise<T> 
  * Save a system setting to PostgreSQL.
  */
 export async function setSystemSetting<T>(key: string, value: T): Promise<void> {
-  // Update local cache immediately
-  localStorage.setItem(`kuventory_setting_${key}`, JSON.stringify(value));
-
   const { error } = await supabase.rpc('set_system_setting', {
     p_key: key,
     p_value: value,
   });
 
   if (error) {
-    console.error('set_system_setting RPC error:', error);
+    console.warn('set_system_setting RPC error (trying direct upsert):', error.message);
     // Fallback: direct table upsert
     const { error: upsertErr } = await supabase
       .from('system_settings')
       .upsert({ key, value, updated_at: new Date().toISOString() });
-    if (upsertErr) throw upsertErr;
+    if (upsertErr) {
+      console.error('set_system_setting failed:', upsertErr);
+      throw upsertErr;
+    }
   }
+
+  // Update local cache only AFTER authoritative database write succeeds
+  try {
+    localStorage.setItem(`kuventory_setting_${key}`, JSON.stringify(value));
+  } catch {}
 }
 
 /**

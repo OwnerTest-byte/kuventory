@@ -108,7 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         sessionStorage.removeItem(BROWSER_SESSION_KEY);
         setSession(null);
         setUser(null);
-        queryClient.removeQueries({ queryKey: ['profile'] });
+        queryClient.clear();
         return;
       }
 
@@ -223,25 +223,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('Profile fetch warning (using metadata fallback):', error.message);
         }
 
-        const isSuper = user.email === 'superadmin@kuventory.com' || user.email === 'master@kuventory.com' || user.user_metadata?.role === 'SUPER_ADMIN' || user.user_metadata?.role === 'MASTER_ADMIN' || data?.role === 'SUPER_ADMIN' || data?.role === 'MASTER_ADMIN';
-        const isAdmin = user.email === 'admin@kuventory.com' || user.user_metadata?.role === 'ADMIN' || data?.role === 'ADMIN';
-        const roleFromMeta = (user.user_metadata?.role as Role) || 'USER';
+        // SEC-01 & C3: Authoritative role resolution from database; never trust user metadata for privilege
+        const isSuper = user.email === 'superadmin@kuventory.com' || user.email === 'master@kuventory.com' || data?.role === 'SUPER_ADMIN' || data?.role === 'MASTER_ADMIN';
+        const isAdmin = user.email === 'admin@kuventory.com' || data?.role === 'ADMIN' || isSuper;
         const roleFromDb = data?.role as Role;
-        const resolvedRole: Role = isSuper ? 'SUPER_ADMIN' : (isAdmin ? 'ADMIN' : (roleFromDb || roleFromMeta));
+        const resolvedRole: Role = isSuper ? 'SUPER_ADMIN' : (isAdmin ? 'ADMIN' : (roleFromDb || 'USER'));
 
         return {
           id: user.id,
           role: resolvedRole,
-          first_name: data?.display_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'User',
-          last_name: user.user_metadata?.last_name || '',
+          first_name: data?.display_name || user.email?.split('@')[0] || 'User',
+          last_name: '',
           created_at: data?.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString()
         } as Profile;
       } catch (err) {
-        console.warn('Profile query exception:', err);
-        const isSuper = user.email === 'superadmin@kuventory.com' || user.email === 'master@kuventory.com' || user.user_metadata?.role === 'SUPER_ADMIN' || user.user_metadata?.role === 'MASTER_ADMIN';
+        console.warn('Profile query exception (failing closed to least-privileged role):', err);
+        const isSuper = user.email === 'superadmin@kuventory.com' || user.email === 'master@kuventory.com';
         const isAdmin = user.email === 'admin@kuventory.com';
-        const fallbackRole: Role = isSuper ? 'SUPER_ADMIN' : (isAdmin ? 'ADMIN' : ((user.user_metadata?.role as Role) || 'USER'));
+        const fallbackRole: Role = isSuper ? 'SUPER_ADMIN' : (isAdmin ? 'ADMIN' : 'USER');
         return {
           id: user.id,
           role: fallbackRole,
@@ -270,11 +270,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isLoading = isSessionLoading || (!!user && isProfileLoading);
-  const isSuperUser = user?.email === 'superadmin@kuventory.com' || user?.email === 'master@kuventory.com' || profile?.role === 'SUPER_ADMIN' || profile?.role === 'MASTER_ADMIN' || user?.user_metadata?.role === 'SUPER_ADMIN' || user?.user_metadata?.role === 'MASTER_ADMIN';
-  const isAdminUser = user?.email === 'admin@kuventory.com' || profile?.role === 'ADMIN' || user?.user_metadata?.role === 'ADMIN';
+  // Authoritative fail-closed role check (FE-01)
+  const isSuperUser = user?.email === 'superadmin@kuventory.com' || user?.email === 'master@kuventory.com' || profile?.role === 'SUPER_ADMIN' || profile?.role === 'MASTER_ADMIN';
+  const isAdminUser = user?.email === 'admin@kuventory.com' || profile?.role === 'ADMIN' || isSuperUser;
   const role: Role = isSuperUser 
     ? 'SUPER_ADMIN' 
-    : (isAdminUser ? 'ADMIN' : (profile?.role ?? (user?.user_metadata?.role as Role) ?? 'USER'));
+    : (isAdminUser ? 'ADMIN' : (profile?.role ?? 'USER'));
 
   const clearSessionLeaseError = () => setSessionLeaseError(null);
 

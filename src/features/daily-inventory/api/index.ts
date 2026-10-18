@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { DailyInventorySession, DailyInventoryEntry } from '../../inventory/types';
+import { getBusinessDateString, getBusinessDateStringPlusDays } from '@/lib/businessDate';
 
 export type DailyInventorySessionWithEntries = DailyInventorySession & {
   daily_inventory_entries: (DailyInventoryEntry & {
@@ -14,16 +15,37 @@ export type DailyInventorySessionWithEntries = DailyInventorySession & {
 /**
  * Fetch or create a daily inventory worksheet for the specified date.
  * Uses PostgreSQL create_daily_inventory_draft RPC for atomic generation and automatic beg stock calculation.
+ * Prevents initializing historical past dates with current stock (Finding 2 / FE-04).
  */
 export async function fetchOrCreateDailyInventory(date: string): Promise<DailyInventorySessionWithEntries> {
-  // 1. Call RPC to ensure a draft exists and items are populated with current physical stock
-  const { data: draftId, error: rpcError } = await supabase.rpc('create_daily_inventory_draft', {
-    p_target_date: date
-  });
+  const todayStr = getBusinessDateString();
+  const isPastDate = date < todayStr;
 
-  if (rpcError) {
-    console.error('create_daily_inventory_draft RPC error:', rpcError);
-    // Fallback: try querying directly by inventory_date if already created
+  // 1. Check if a worksheet already exists for this date
+  const { data: existingSheet } = await supabase
+    .from('daily_inventory')
+    .select('id')
+    .eq('inventory_date', date)
+    .maybeSingle();
+
+  let draftId = existingSheet?.id;
+
+  // Restrict creating past-date worksheets with current stock
+  if (!draftId && isPastDate) {
+    throw new Error(`No worksheet exists for ${date}. Creating new worksheets for past dates using current inventory is restricted to protect audit integrity.`);
+  }
+
+  // 2. If no worksheet exists and it is today or future, call RPC to create atomic draft
+  if (!draftId) {
+    const { data: newDraftId, error: rpcError } = await supabase.rpc('create_daily_inventory_draft', {
+      p_target_date: date
+    });
+
+    if (rpcError) {
+      console.error('create_daily_inventory_draft RPC error:', rpcError);
+    } else {
+      draftId = newDraftId;
+    }
   }
 
   // 2. Fetch session from daily_inventory table
@@ -215,7 +237,7 @@ export async function updateDailyInventoryItem(params: {
     const itemName = rawItem?.name || 'Item';
     const itemId = rawItem?.id || data?.item_id;
     const unit = rawItem?.unit || 'pcs';
-    const today = new Date().toISOString().split('T')[0];
+    const today = getBusinessDateString();
 
     // 1. Deficit Auto-Zero Notification: sales exceeded available stock
     if (hasDeficit && itemId) {
@@ -326,15 +348,13 @@ export async function updateDailyInventoryItem(params: {
               reason: 'Daily Inventory Stock Adjustment'
             });
         } else {
-          // No batches existed, create initial batch with 30-day default expiry
-          const defaultExpiry = new Date();
-          defaultExpiry.setDate(defaultExpiry.getDate() + 30);
+          // No batches existed, create initial batch with 30-day default expiry in business timezone
           await supabase
             .from('stock_batches')
             .insert({
               item_id: itemId,
               quantity: toAdd,
-              expiry_date: defaultExpiry.toISOString().split('T')[0],
+              expiry_date: getBusinessDateStringPlusDays(30),
               received_date: today,
               version: 1
             });

@@ -24,6 +24,7 @@ import {
 import { format } from 'date-fns';
 import { cn, formatUserDisplayName } from '@/lib/utils';
 import { useAuth } from '@/features/auth/context/AuthContext';
+import { getBusinessDateString } from '@/lib/businessDate';
 import { 
   correctFinalizedDailyInventory, 
   fetchDailyInventoryRevisions, 
@@ -38,7 +39,8 @@ export function DailyInventoryPage() {
   // All authenticated users (Staff, Admins, Super Admins) are authorized to correct a finalized day with an audit reason
   const isAuthorizedToCorrect = !!user;
 
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  // Use business-timezone date helper (Asia/Manila, UTC+8) or URL searchParam if present
+  const [date, setDate] = useState(() => searchParams.get('date') || getBusinessDateString());
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
   const [showCelebrationModal, setShowCelebrationModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -67,6 +69,13 @@ export function DailyInventoryPage() {
       setSearchParams(next, { replace: true });
     }
   }, [searchParams, record?.status, isAuthorizedToCorrect, setSearchParams]);
+
+  useEffect(() => {
+    const paramDate = searchParams.get('date');
+    if (paramDate && paramDate !== date) {
+      setDate(paramDate);
+    }
+  }, [searchParams, date]);
 
   // Realtime synchronization across devices and automated 30-day sheet archival
   useEffect(() => {
@@ -273,6 +282,7 @@ export function DailyInventoryPage() {
                 <input 
                   type="date"
                   value={date}
+                  max={getBusinessDateString()}
                   onChange={(e) => setDate(e.target.value)}
                   className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                   aria-label="Select worksheet date"
@@ -455,13 +465,46 @@ export function DailyInventoryPage() {
       )}
       
       {error && (
-        <div className="p-4 bg-rose-500/10 text-rose-500 rounded-xl border border-rose-500/20 shadow-sm flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-rose-500 mt-0.5 shrink-0" />
-          <div>
-            <p className="font-semibold">Error loading inventory worksheet</p>
-            <p className="text-sm opacity-90">{(error as Error).message}</p>
-            <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-2 text-xs bg-card border-border cursor-pointer">
-              Try Again
+        <div className="p-5 bg-card text-foreground rounded-2xl border border-border shadow-md space-y-3 animate-in fade-in duration-200">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
+              <CalendarIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-bold text-base text-foreground">
+                {(error as Error).message.includes('No worksheet exists')
+                  ? 'Historical Worksheet Not Found'
+                  : 'Unable to Load Worksheet'}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {(error as Error).message}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border/60">
+            <Button 
+              size="sm" 
+              onClick={() => setDate(getBusinessDateString())} 
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs"
+            >
+              Open Active Worksheet ({getBusinessDateString()})
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate('/reports')} 
+              className="border-border text-foreground hover:bg-muted text-xs font-semibold"
+            >
+              <FileText className="w-3.5 h-3.5 mr-1 text-primary" />
+              View Reports Library
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleRefresh} 
+              className="text-muted-foreground hover:text-foreground text-xs"
+            >
+              Retry
             </Button>
           </div>
         </div>

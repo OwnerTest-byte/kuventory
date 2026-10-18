@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { InventoryItem, StockBatch, StockTransaction, Category } from '../types';
+import { getBusinessDateString, getBusinessDateStringPlusDays } from '@/lib/businessDate';
 
 /**
  * Fetch all inventory items with aggregated live stock from inventory_stock_view.
@@ -34,8 +35,8 @@ export async function getInventory(): Promise<InventoryItem[]> {
       current_qty: Number(row.total_quantity || 0),
       image_path: row.image_path || null,
       is_archived: !row.is_active || !!row.is_archived,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: row.created_at || new Date().toISOString(),
+      updated_at: row.updated_at || new Date().toISOString(),
     };
   }) as InventoryItem[];
 }
@@ -310,10 +311,24 @@ export async function adjustStock(params: {
   userId?: string;
 }): Promise<void> {
   const safeTarget = Math.max(0, Number(params.targetQuantity) || 0);
+
+  // 1. Attempt atomic database transaction RPC to eliminate race conditions
+  const { error: rpcErr } = await supabase.rpc('adjust_stock_to_target', {
+    p_item_id: params.itemId,
+    p_target_quantity: safeTarget,
+    p_reason: params.reason || 'Physical Count Adjustment',
+    p_user_id: params.userId,
+  });
+
+  if (!rpcErr) {
+    return;
+  }
+
+  // Fallback: client calculation
   const item = await getItemById(params.itemId);
 
   if (params.targetQuantity < 0) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getBusinessDateString();
     try {
       await supabase.from('notifications').upsert({
         type: 'STOCK_DISCREPANCY',
@@ -548,9 +563,8 @@ export interface Top3DashboardStats {
  * Excludes all depleted batches (quantity <= 0).
  */
 export async function getActiveExpiringBatches(daysThreshold = 14) {
-  const now = new Date();
-  const future = new Date();
-  future.setDate(future.getDate() + daysThreshold);
+  const todayStr = getBusinessDateString();
+  const futureStr = getBusinessDateStringPlusDays(daysThreshold);
 
   const { data, error } = await supabase
     .from('stock_batches')
@@ -569,8 +583,8 @@ export async function getActiveExpiringBatches(daysThreshold = 14) {
     `)
     .gt('quantity', 0) // ZERO-STOCK EXPIRY RULE: strictly positive quantity
     .not('expiry_date', 'is', null)
-    .gte('expiry_date', now.toISOString().split('T')[0])
-    .lte('expiry_date', future.toISOString().split('T')[0])
+    .gte('expiry_date', todayStr)
+    .lte('expiry_date', futureStr)
     .order('expiry_date', { ascending: true });
 
   if (error) {
@@ -585,7 +599,7 @@ export async function getActiveExpiringBatches(daysThreshold = 14) {
  * Excludes all depleted batches (quantity <= 0).
  */
 export async function getActiveExpiredBatches() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getBusinessDateString();
 
   const { data, error } = await supabase
     .from('stock_batches')
@@ -605,10 +619,69 @@ export async function getActiveExpiredBatches() {
     .gt('quantity', 0) // ZERO-STOCK EXPIRY RULE: strictly positive quantity
     .not('expiry_date', 'is', null)
     .lt('expiry_date', today)
-    .order('expiry_date', { ascending: true });
+    .order('expiry_date', { ascending: false });
 
   if (error) {
     console.error('getActiveExpiredBatches error:', error);
+    throw error;
+  }
+  return data || [];
+}
+
+/**
+ * Fetch all active batches for the Reports Expiry hub.
+ */
+export async function getAllActiveBatches(): Promise<any[]> {
+  const { data, error } = await supabase
+    .from('stock_batches')
+    .select(`
+      id,
+      quantity,
+      expiry_date,
+      received_date,
+      created_at,
+      inventory_items (
+        id,
+        name,
+        unit,
+        unit_cost,
+        categories ( name )
+      )
+    `)
+    .gt('quantity', 0)
+    .order('expiry_date', { ascending: true });
+
+  if (error) {
+    console.error('getAllActiveBatches error:', error);
+    throw error;
+  }
+  return data || [];
+}
+
+/**
+ * Fetch archived inventory items for the Reports Archived catalog hub.
+ */
+export async function getArchivedItems(): Promise<any[]> {
+  const { data, error } = await supabase
+    .from('inventory_items')
+    .select(`
+      id,
+      name,
+      description,
+      unit,
+      unit_cost,
+      min_quantity,
+      is_archived,
+      is_active,
+      created_at,
+      updated_at,
+      categories ( id, name )
+    `)
+    .or('is_archived.eq.true,is_active.eq.false')
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    console.error('getArchivedItems error:', error);
     throw error;
   }
   return data || [];

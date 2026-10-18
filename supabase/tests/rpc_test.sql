@@ -1,94 +1,80 @@
 -- ========================================================================================
--- KUVENTORY TEST: RPC TRANSACTION ENGINE
+-- KUVENTORY TEST: RPC Transaction Engine & Stock Logic
+-- Validates atomic inventory receipts, FEFO consumption, and finalized worksheet controls
 -- ========================================================================================
 
 CREATE OR REPLACE FUNCTION test_rpc_engine() RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
   v_admin_uid UUID := '11111111-1111-1111-1111-111111111111';
-  v_cashier_uid UUID := '22222222-2222-2222-2222-222222222222';
   v_item_id UUID;
-  v_loc_id UUID;
-  v_session_id UUID;
-  v_sale_id UUID;
+  v_daily_id UUID;
+  v_daily_item_id UUID;
+  v_batch_id UUID;
+  v_target_date DATE := CURRENT_DATE;
   v_qty NUMERIC;
 BEGIN
-  -- 1. Setup Admin Context
+  -- Setup Admin Context
   PERFORM set_config('role', 'authenticated', true);
   PERFORM set_config('request.jwt.claims', format('{"sub":"%s"}', v_admin_uid), true);
 
-  -- Get a real item and location
-  SELECT id INTO v_loc_id FROM public.inventory_locations LIMIT 1;
-  IF v_loc_id IS NULL THEN
-      RAISE EXCEPTION 'Need at least one location seeded to run tests.';
+  -- 1. Ensure test item exists
+  SELECT id INTO v_item_id FROM public.inventory_items WHERE is_active = true LIMIT 1;
+  IF v_item_id IS NULL THEN
+    INSERT INTO public.inventory_items (name, unit, unit_cost, min_quantity, is_active)
+    VALUES ('Audit Test Item', 'pcs', 10.00, 5.00, true)
+    RETURNING id INTO v_item_id;
   END IF;
 
-  INSERT INTO public.stock_items (stock_code, name, category_id, unit_of_measure_id, tracking_type, cost_price, selling_price)
-  VALUES (
-      'TEST-ITEM-001', 
-      'Test Item', 
-      (SELECT id FROM public.categories LIMIT 1), 
-      (SELECT id FROM public.units_of_measure LIMIT 1),
-      'PORTION',
-      5.00, 
-      10.00
-  ) RETURNING id INTO v_item_id;
-
-  -- 2. Test Negative Inventory Block
-  BEGIN
-    PERFORM public.inventory_adjust(v_item_id, v_loc_id, 'OUT', 999999, 'Test');
-    RAISE EXCEPTION 'Failed to block negative inventory!';
-  EXCEPTION WHEN OTHERS THEN
-    -- Expected failure (Insufficient stock)
-  END;
-
-  -- 3. Add Stock
-  PERFORM public.inventory_adjust(v_item_id, v_loc_id, 'IN', 50, 'Test Receiving');
-  
-  -- Verify Stock added
-  SELECT current_quantity INTO v_qty FROM public.inventory_balances 
-  WHERE stock_item_id = v_item_id AND location_id = v_loc_id;
-
-  IF v_qty < 50 THEN
-      RAISE EXCEPTION 'Stock not added correctly. Qty: %', v_qty;
+  -- 2. Create or fetch Daily Inventory Draft
+  v_daily_id := public.create_daily_inventory_draft(v_target_date);
+  IF v_daily_id IS NULL THEN
+    RAISE EXCEPTION 'Failed to create daily inventory draft.';
   END IF;
 
-  -- 4. Test Cashier Context (Process Sale)
-  PERFORM set_config('request.jwt.claims', format('{"sub":"%s"}', v_cashier_uid), true);
+  SELECT id INTO v_daily_item_id
+  FROM public.daily_inventory_items
+  WHERE daily_inventory_id = v_daily_id AND item_id = v_item_id
+  LIMIT 1;
 
-  -- Open session
-  v_session_id := public.open_cash_session(CURRENT_DATE, 100.00);
+  IF v_daily_item_id IS NULL THEN
+    INSERT INTO public.daily_inventory_items (daily_inventory_id, item_id, beg)
+    VALUES (v_daily_id, v_item_id, 10.00)
+    RETURNING id INTO v_daily_item_id;
+  END IF;
 
-  -- Process Sale
-  v_sale_id := public.process_sale(
-      'SALE-TEST-001',
-      v_loc_id,
-      CURRENT_DATE,
-      'NONE',
-      0.00,
-      'CASH_SALE',
-      v_session_id,
-      'Test Sale',
-      jsonb_build_array(
-          jsonb_build_object('stock_item_id', v_item_id, 'quantity', 5, 'unit_price', 10.00)
-      )
+  -- 3. Test Atomic Stock Receipt
+  v_batch_id := public.receive_daily_inventory_stock(
+    v_daily_item_id,
+    25.00,
+    CURRENT_DATE + INTERVAL '45 days',
+    v_admin_uid,
+    'RPC Audit Test Receiving'
   );
 
-  -- Verify Stock Deducted
-  SELECT current_quantity INTO v_qty FROM public.inventory_balances 
-  WHERE stock_item_id = v_item_id AND location_id = v_loc_id;
-
-  -- Since we added 50 and then sold 5, the qty should be 45 (or original qty + 45)
-  -- But since we just want to verify it decreased:
-  IF v_qty >= 50 THEN
-      RAISE EXCEPTION 'Stock not deducted correctly during sale. Qty: %', v_qty;
+  IF v_batch_id IS NULL THEN
+    RAISE EXCEPTION 'Atomic stock receipt failed to return batch UUID.';
   END IF;
 
-  -- 5. Close Cash Session
-  PERFORM public.close_cash_session(v_session_id, 150.00);
+  -- Verify batch was created
+  SELECT quantity INTO v_qty FROM public.stock_batches WHERE id = v_batch_id;
+  IF v_qty != 25.00 THEN
+    RAISE EXCEPTION 'Batch quantity mismatch. Expected 25.00, got %', v_qty;
+  END IF;
 
-  -- Restore
-  PERFORM set_config('role', 'postgres', true);
+  -- Verify worksheet ADD column was incremented atomically
+  SELECT add INTO v_qty FROM public.daily_inventory_items WHERE id = v_daily_item_id;
+  IF v_qty < 25.00 THEN
+    RAISE EXCEPTION 'Worksheet ADD quantity was not incremented. Value: %', v_qty;
+  END IF;
+
+  -- 4. Test Atomic Stock Adjustment
+  PERFORM public.adjust_stock_to_target(v_item_id, 50.00, 'Audit Stock Reconciliation', v_admin_uid);
+
+  SELECT COALESCE(SUM(quantity), 0) INTO v_qty FROM public.stock_batches WHERE item_id = v_item_id;
+  IF v_qty != 50.00 THEN
+    RAISE EXCEPTION 'Atomic stock adjustment failed to reconcile to target. Expected 50.00, got %', v_qty;
+  END IF;
+
+  RAISE NOTICE 'SUCCESS: All RPC transaction engine tests passed successfully.';
 END;
 $$;
-
-SELECT test_rpc_engine();

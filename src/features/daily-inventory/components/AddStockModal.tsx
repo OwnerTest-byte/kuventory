@@ -4,6 +4,8 @@ import { useStockMutations } from '../../inventory/hooks/useStockMutations';
 import { useUpsertDailyItem } from '../hooks/useDailyInventory';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/features/auth/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { getBusinessDateString, getBusinessDateStringPlusDays } from '@/lib/businessDate';
 
 type DailyEntry = DailyInventorySessionWithEntries['daily_inventory_entries'][0];
 
@@ -17,11 +19,7 @@ interface AddStockModalProps {
 export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProps) {
   const { profile } = useAuth();
   const [qty, setQty] = useState('');
-  const [expiry, setExpiry] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 30);
-    return d.toISOString().split('T')[0];
-  });
+  const [expiry, setExpiry] = useState(() => getBusinessDateStringPlusDays(30));
   const [errorMsg, setErrorMsg] = useState('');
 
   const stockMutations = useStockMutations();
@@ -42,7 +40,7 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
       return;
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getBusinessDateString();
     if (expiry < todayStr) {
       setErrorMsg('Expiration date cannot be in the past. Stock is already expired.');
       return;
@@ -51,23 +49,34 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
     try {
       setErrorMsg('');
       
-      // 1. Physically add the batch via Inventory API
-      await stockMutations.add.mutateAsync({
-        itemId: item.item_id,
-        quantity: numQty,
-        expiryDate: expiry,
-        reason: 'Daily Inventory Receiving',
-        userId: profile?.id
+      // 1. Attempt atomic database transaction RPC (batch + movement + worksheet ledger entry)
+      const { error: rpcErr } = await supabase.rpc('receive_daily_inventory_stock', {
+        p_daily_inventory_item_id: item.id,
+        p_quantity: numQty,
+        p_expiry_date: expiry,
+        p_user_id: profile?.id,
+        p_reason: 'Daily Inventory Receiving'
       });
 
-      // 2. Increment the local daily sheet ADD column
-      await dailyMutation.mutateAsync({
-        id: item.id,
-        beg: item.beginning_qty,
-        add: item.add_qty + numQty,
-        am: item.sales_am,
-        pm: item.sales_pm,
-      });
+      if (rpcErr) {
+        console.warn('receive_daily_inventory_stock RPC fallback:', rpcErr.message);
+        // Fallback: 2-step client mutation
+        await stockMutations.add.mutateAsync({
+          itemId: item.item_id,
+          quantity: numQty,
+          expiryDate: expiry,
+          reason: 'Daily Inventory Receiving',
+          userId: profile?.id
+        });
+
+        await dailyMutation.mutateAsync({
+          id: item.id,
+          beg: item.beginning_qty,
+          add: item.add_qty + numQty,
+          am: item.sales_am,
+          pm: item.sales_pm,
+        });
+      }
 
       onClose();
     } catch (err: any) {
@@ -114,7 +123,7 @@ export function AddStockModal({ isOpen, onClose, item, date }: AddStockModalProp
             <input 
               type="date" 
               required
-              min={new Date().toISOString().split('T')[0]}
+              min={getBusinessDateString()}
               value={expiry}
               onChange={e => setExpiry(e.target.value)}
               className="w-full bg-background border border-input rounded-lg p-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
