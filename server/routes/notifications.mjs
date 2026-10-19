@@ -1,10 +1,18 @@
-/**
- * Real-Time Notifications via Server-Sent Events (SSE)
- * Replaces slow polling with instant real-time event streaming.
- */
 import { Router } from 'express';
+import { authenticateUser, requireRole } from '../middleware/rbac.mjs';
 
 const router = Router();
+
+// Allowed notification types
+const ALLOWED_NOTIFICATION_TYPES = new Set([
+  'info',
+  'warning',
+  'error',
+  'success',
+  'LOW_STOCK',
+  'EXPIRING_SOON',
+  'DAILY_INVENTORY_REVISED'
+]);
 
 // Active SSE client connections
 const sseClients = new Set();
@@ -63,41 +71,74 @@ router.get('/stream', (req, res) => {
 /**
  * POST /api/notifications/publish
  * Allows broadcasting a new notification event to all active clients.
+ * Protected: Requires authenticated Admin / Super Admin caller and validated payload.
  */
-router.post('/publish', (req, res) => {
-  const { title, message, type = 'info', metadata = {} } = req.body || {};
-  if (!title || !message) {
-    return res.status(400).json({ error: 'Title and message are required', code: 'INVALID_PAYLOAD' });
+router.post(
+  '/publish',
+  authenticateUser,
+  requireRole(['ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN']),
+  (req, res) => {
+    const { title, message, type = 'info', metadata = {} } = req.body || {};
+
+    if (!title || typeof title !== 'string' || title.trim().length === 0 || title.length > 200) {
+      return res.status(400).json({
+        error: 'Invalid title: must be a non-empty string up to 200 characters.',
+        code: 'INVALID_TITLE'
+      });
+    }
+
+    if (!message || typeof message !== 'string' || message.trim().length === 0 || message.length > 1000) {
+      return res.status(400).json({
+        error: 'Invalid message: must be a non-empty string up to 1000 characters.',
+        code: 'INVALID_MESSAGE'
+      });
+    }
+
+    const normalizedType = String(type).trim();
+    if (!ALLOWED_NOTIFICATION_TYPES.has(normalizedType)) {
+      return res.status(400).json({
+        error: `Invalid notification type '${type}'. Allowed: [${Array.from(ALLOWED_NOTIFICATION_TYPES).join(', ')}].`,
+        code: 'INVALID_TYPE'
+      });
+    }
+
+    const notification = {
+      id: `notif-${Date.now()}`,
+      title: title.trim(),
+      message: message.trim(),
+      type: normalizedType,
+      metadata: typeof metadata === 'object' && metadata !== null ? metadata : {},
+      published_by: req.user?.id,
+      published_by_role: req.user?.role,
+      created_at: new Date().toISOString(),
+      is_read: false
+    };
+
+    broadcastNotification({
+      type: 'NOTIFICATION_RECEIVED',
+      notification
+    });
+
+    return res.status(200).json({
+      success: true,
+      recipientCount: sseClients.size,
+      notification
+    });
   }
-
-  const notification = {
-    id: `notif-${Date.now()}`,
-    title,
-    message,
-    type,
-    metadata,
-    created_at: new Date().toISOString(),
-    is_read: false
-  };
-
-  broadcastNotification({
-    type: 'NOTIFICATION_RECEIVED',
-    notification
-  });
-
-  return res.status(200).json({
-    success: true,
-    recipientCount: sseClients.size,
-    notification
-  });
-});
+);
 
 /**
  * GET /api/notifications/clients
- * Returns count of active SSE stream listeners
+ * Returns count of active SSE stream listeners.
+ * Protected: Requires authenticated Admin / Super Admin caller.
  */
-router.get('/clients', (_req, res) => {
-  res.json({ activeClients: sseClients.size });
-});
+router.get(
+  '/clients',
+  authenticateUser,
+  requireRole(['ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN']),
+  (_req, res) => {
+    res.json({ activeClients: sseClients.size });
+  }
+);
 
 export default router;

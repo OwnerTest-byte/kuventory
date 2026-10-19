@@ -42,6 +42,7 @@ export async function authenticateUser(req, res, next) {
     }
 
     const token = authHeader.split(' ')[1];
+    req.token = token;
     const supabase = getSupabase();
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 

@@ -95,18 +95,18 @@ export function SuperAdminControlCenter({
 
   // 1. Live Telemetry Query
   const { data: telemetry = {
-    itemsCount: 32,
-    batchesCount: 32,
-    movementsCount: 15,
-    dailyCount: 1,
-    activeLeases: 1,
+    itemsCount: 0,
+    batchesCount: 0,
+    movementsCount: 0,
+    dailyCount: 0,
+    activeLeases: 0,
     activeIncidents: 0,
     failedAutomations: 0,
-    databaseStatus: 'Healthy' as const,
-    storageStatus: 'Healthy' as const,
-    applicationStatus: 'Healthy' as const,
-    serverTime: new Date().toISOString(),
-    pingMs: realtimePingMs || 35
+    databaseStatus: 'Unavailable' as const,
+    storageStatus: 'Unavailable' as const,
+    applicationStatus: 'Unavailable' as const,
+    serverTime: '',
+    pingMs: 0
   }, refetch: refetchTelemetry } = useQuery({
     queryKey: ['super-telemetry'],
     queryFn: fetchSystemTelemetry,
@@ -159,7 +159,7 @@ export function SuperAdminControlCenter({
   };
 
 
-  // Recent activity feed aggregated from real logs
+  // Recent activity feed aggregated strictly from real audit logs
   const recentActivity = useMemo(() => {
     const list: Array<{
       id: string;
@@ -167,50 +167,22 @@ export function SuperAdminControlCenter({
       title: string;
       timestamp: string;
       status: 'success' | 'warning' | 'info' | 'error';
-    }> = [
-      {
-        id: 'act-1',
-        type: 'deployment',
-        title: 'v1.2.8 deployed to production',
-        timestamp: 'Today, 09:18 AM',
-        status: 'success'
-      },
-      {
-        id: 'act-2',
-        type: 'backup',
-        title: 'Database backup successful',
-        timestamp: 'Today, 02:15 AM',
-        status: 'success'
-      },
-      {
-        id: 'act-3',
-        type: 'login',
-        title: `Super Admin session active (${userEmail})`,
-        timestamp: 'Today, 01:42 AM',
-        status: 'info'
-      },
-      {
-        id: 'act-4',
-        type: 'automation',
-        title: 'Daily Inventory sync & archival pass completed',
-        timestamp: 'Today, 06:00 AM',
-        status: 'success'
-      }
-    ];
+    }> = [];
 
-    // Prepend any real audit logs if available
-    auditLogs.slice(0, 3).forEach((l, idx) => {
+    // Display only persisted audit events below. Do not synthesize success
+    // entries for deployments, backups, logins, or scheduled jobs.
+    auditLogs.slice(0, 6).forEach((l, idx) => {
       list.push({
         id: `audit-${l.id || idx}`,
         type: 'audit',
         title: `${l.action || 'Audit Record'} on ${l.target_table || 'system'}`,
         timestamp: formatSafeDate(l.created_at, 'hh:mm a', 'Recent'),
-        status: l.action?.includes('DELETE') ? 'warning' : 'success'
+        status: l.action?.includes('DELETE') || l.action?.includes('ERROR') ? 'warning' : 'success'
       });
     });
 
     return list;
-  }, [userEmail, auditLogs]);
+  }, [auditLogs]);
 
   // Realtime channel synchronization
   useEffect(() => {

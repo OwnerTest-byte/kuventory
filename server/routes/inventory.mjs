@@ -9,14 +9,35 @@ import { authenticateUser, requireForceOverridePermission } from '../middleware/
 const router = Router();
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'http://127.0.0.1:54321';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'service-role-key-placeholder';
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'anon-key-placeholder';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-let supabaseClient = null;
-function getSupabase() {
-  if (!supabaseClient) {
-    supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+/**
+ * Creates a request-scoped Supabase client forwarding the authenticated user's JWT.
+ * Preserves database auth.uid(), RLS policy enforcement, and audit ledger integrity.
+ */
+function getRequestSupabase(req) {
+  const token = req.token || (req.headers?.authorization?.startsWith('Bearer ') ? req.headers.authorization.split(' ')[1] : null);
+  const options = token
+    ? {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      }
+    : {};
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, options);
+}
+
+/**
+ * Service role client reserved exclusively for privileged server-only administrative tasks.
+ */
+function getServiceRoleSupabase() {
+  if (!SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured on the server.');
   }
-  return supabaseClient;
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 }
 
 /**
@@ -27,7 +48,7 @@ function getSupabase() {
 router.get('/batches', authenticateUser, async (req, res) => {
   try {
     const { itemId } = req.query;
-    const supabase = getSupabase();
+    const supabase = getRequestSupabase(req);
 
     let query = supabase
       .from('stock_batches')
@@ -66,7 +87,7 @@ router.post('/consume', authenticateUser, async (req, res) => {
     });
   }
 
-  const supabase = getSupabase();
+  const supabase = getRequestSupabase(req);
 
   try {
     // Call stored procedure execute within strict database transaction with row locks
@@ -131,7 +152,7 @@ router.post(
     }
 
     try {
-      const supabase = getSupabase();
+      const supabase = getRequestSupabase(req);
       const { data, error } = await supabase.rpc('force_override_daily_inventory', {
         p_inventory_id: id,
         p_reason: reason

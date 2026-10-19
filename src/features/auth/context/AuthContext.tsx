@@ -76,13 +76,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const claimResult = await claimSessionLease(initSession.access_token.slice(-16));
         if (!claimResult.success) {
-          console.warn('Initial session lease rejected: occupied on another device.');
+          console.warn('Initial session lease rejected:', claimResult.reason || 'occupied on another device.');
           await supabase.auth.signOut();
           sessionStorage.removeItem(BROWSER_SESSION_KEY);
           if (isMounted) {
             setSession(null);
             setUser(null);
-            setSessionLeaseError('ACCOUNT IN USE');
+            setSessionLeaseError(
+              claimResult.reason === 'verification_unavailable' || claimResult.reason === 'empty_response'
+                ? 'SESSION VERIFICATION FAILED'
+                : 'ACCOUNT IN USE'
+            );
             setIsSessionLoading(false);
           }
           return;
@@ -115,13 +119,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Atomically claim session lease before setting active session
       const claimResult = await claimSessionLease(newSession.access_token.slice(-16));
       if (!claimResult.success) {
-        console.warn('Session lease rejected on auth change: occupied on another device.');
+        console.warn('Session lease rejected on auth change:', claimResult.reason || 'occupied on another device.');
         await supabase.auth.signOut();
         sessionStorage.removeItem(BROWSER_SESSION_KEY);
         if (isMounted) {
           setSession(null);
           setUser(null);
-          setSessionLeaseError('ACCOUNT IN USE');
+          setSessionLeaseError(
+            claimResult.reason === 'verification_unavailable' || claimResult.reason === 'empty_response'
+              ? 'SESSION VERIFICATION FAILED'
+              : 'ACCOUNT IN USE'
+          );
         }
         return;
       }

@@ -94,80 +94,11 @@ export function SuperRecoveryTab() {
 
   const handleExecuteRestore = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPointForRestore) return;
-    if (restoreConfirmationText.trim() !== 'CONFIRM RESTORE') {
-      setLocalRestoreError('Please type "CONFIRM RESTORE" exactly to verify your authorization.');
-      return;
-    }
-    if (!restoreReason.trim()) {
-      setLocalRestoreError('A mandatory justification reason is required for state restoration.');
-      return;
-    }
-
-    setIsExecutingRestore(true);
-    setLocalRestoreError(null);
+    setIsExecutingRestore(false);
     setLocalRestoreSuccess(null);
-
-    try {
-      const { data: authData } = await supabase.auth.getUser();
-
-      // 1. Create mandatory pre-restore safety point
-      await supabase.rpc('create_recovery_checkpoint', {
-        p_name: `Pre-Restore Safety Snapshot (${selectedPointForRestore.point_code})`,
-        p_description: `Automatic safety checkpoint captured prior to restoring ${selectedPointForRestore.point_code}. Reason: ${restoreReason}`,
-        p_retention_class: 'INCIDENT_SAFETY',
-        p_is_protected: true
-      });
-
-      // 2. Perform restoration of captured snapshot payload if items are present
-      const snapshot = selectedPointForRestore.snapshot_payload;
-      let restoredItemCount = 0;
-
-      if (snapshot?.items && Array.isArray(snapshot.items) && snapshot.items.length > 0) {
-        for (const it of snapshot.items) {
-          const { error: upsertErr } = await supabase
-            .from('inventory_items')
-            .upsert({
-              id: it.id,
-              name: it.name,
-              total_quantity: it.total_quantity,
-              min_quantity: it.min_quantity,
-              unit: it.unit,
-              is_active: it.is_active,
-              updated_at: new Date().toISOString()
-            });
-          if (!upsertErr) restoredItemCount++;
-        }
-      }
-
-      // 3. Log to audit trail
-      await supabase.from('audit_logs').insert({
-        user_id: authData?.user?.id,
-        user_name: authData?.user?.email,
-        role: 'SUPER_ADMIN',
-        action: 'RESTORE_RECOVERY_POINT',
-        target: selectedPointForRestore.point_code,
-        details: {
-          point_code: selectedPointForRestore.point_code,
-          reason: restoreReason,
-          restored_items_count: restoredItemCount,
-          restored_at: new Date().toISOString()
-        }
-      });
-
-      await refetch();
-      queryClient.invalidateQueries();
-      setLocalRestoreSuccess(
-        `Restoration completed: State synchronized with checkpoint ${selectedPointForRestore.point_code}. Safety backup verified.`
-      );
-      setSelectedPointForRestore(null);
-      setRestoreConfirmationText('');
-      setRestoreReason('');
-    } catch (err: any) {
-      setLocalRestoreError(err.message || 'Restoration failed. Pre-restore state remained untouched.');
-    } finally {
-      setIsExecutingRestore(false);
-    }
+    setLocalRestoreError(
+      'Full database state restoration is currently disabled until a multi-table atomic snapshot contract (inventory items, batches, movements, worksheets, reports, and settings) and transactional server-side restore RPC are verified. Metadata checkpoints are tracked for audit registry purposes only.'
+    );
   };
 
   return (
@@ -184,8 +115,8 @@ export function SuperRecoveryTab() {
                 <h2 className="text-xl font-bold tracking-tight text-foreground">
                   Disaster Recovery & Recovery Registry
                 </h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
-                  Recovery Ready
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                  Registry Only (Restore Disabled)
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -339,15 +270,11 @@ export function SuperRecoveryTab() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          setSelectedPointForRestore(pt);
-                          setRestoreConfirmationText('');
-                          setRestoreReason('');
-                          setLocalRestoreError(null);
-                        }}
-                        className="text-xs h-7 px-2.5 border-amber-500/30 text-amber-500 hover:bg-amber-500/10 cursor-pointer"
+                        disabled
+                        title="Database restoration disabled until transactional multi-table restore RPC is verified"
+                        className="text-xs h-7 px-2.5 border-border text-muted-foreground opacity-60 cursor-not-allowed"
                       >
-                        <RotateCcw className="w-3 h-3 mr-1" /> Restore
+                        <RotateCcw className="w-3 h-3 mr-1" /> Restore Disabled
                       </Button>
                     </td>
                   </tr>

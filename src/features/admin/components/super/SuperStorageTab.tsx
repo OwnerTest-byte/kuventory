@@ -45,12 +45,9 @@ export function SuperStorageTab({ onRefresh }: SuperStorageTabProps) {
       let objectsSample = 0;
       if (data && data.length > 0) {
         const firstBucket = data[0];
-        try {
-          const { data: objects, error: objErr } = await supabase.storage.from(firstBucket.id).list('', { limit: 5 });
-          if (!objErr && objects) {
-            objectsSample = objects.length;
-          }
-        } catch {}
+        const { data: objects, error: objErr } = await supabase.storage.from(firstBucket.id).list('', { limit: 5 });
+        if (objErr) throw objErr;
+        objectsSample = objects?.length || 0;
       }
 
       setTestResult({

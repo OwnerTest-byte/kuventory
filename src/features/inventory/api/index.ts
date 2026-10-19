@@ -515,15 +515,11 @@ export async function deleteItem(id: string): Promise<void> {
   });
 
   if (rpcError) {
-    await supabase.from('daily_inventory_items').delete().eq('item_id', id);
-    await supabase.from('stock_batches').delete().eq('item_id', id);
-    await supabase.from('stock_movements').delete().eq('item_id', id);
-    await supabase.from('notifications').delete().eq('item_id', id);
-    const { error } = await supabase.from('inventory_items').delete().eq('id', id);
-    if (error) {
-      console.error('deleteItem error:', error);
-      throw error;
-    }
+    // The RPC is the only path that preserves the stock movement audit trail and
+    // performs the related cleanup under one database transaction. Never fall
+    // back to several independent DELETE statements when the RPC fails.
+    console.error('remove_inventory_item RPC failed; item was not deleted:', rpcError);
+    throw new Error(`Item deletion was not completed. No fallback deletion was attempted: ${rpcError.message}`);
   }
 }
 

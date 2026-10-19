@@ -198,6 +198,9 @@ export function LoginForm() {
               {((sessionLeaseError || authError) === 'ACCOUNT IN USE' || (sessionLeaseError || authError)?.includes('OCCUPIED')) && (
                 <span className="text-xs text-rose-300 block font-normal mt-0.5">Active on another device</span>
               )}
+              {(sessionLeaseError || authError) === 'SESSION VERIFICATION FAILED' && (
+                <span className="text-xs text-rose-300 block font-normal mt-0.5">Session security could not be verified. Please retry when the server is available.</span>
+              )}
               {authError === 'INVALID LOGIN' && (
                 <span className="text-xs text-rose-300 block font-normal mt-0.5">Invalid credentials</span>
               )}

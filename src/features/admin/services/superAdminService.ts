@@ -91,87 +91,70 @@ export interface StorageBucketInfo {
 }
 
 // Current production deployment representation from git main HEAD
-const PRODUCTION_LIVE_DEPLOYMENT: DeploymentRecord = {
-  id: 'dep-live-cae5ec1',
-  version: 'v1.2.8',
-  commitHash: 'cae5ec1',
-  branch: 'main',
-  environment: 'production',
-  deployedAt: '2026-10-18T14:30:00.000Z',
-  status: 'Live',
-  verificationStatus: 'Passed',
-  isCurrent: true,
-  verificationResults: {
-    routes: 'Passed',
-    dbConnection: 'Passed',
-    coreFeatures: 'Passed',
-    performance: 'Passed'
-  }
-};
 
-const DEFAULT_DEPLOYMENTS: DeploymentRecord[] = [PRODUCTION_LIVE_DEPLOYMENT];
 
-// Real background automation schedule
+// Default fallback automation definitions. When no external runner or pg_cron
+// job is verified, jobs are declared as Manual trigger only.
 const DEFAULT_AUTOMATIONS: AutomationJob[] = [
   {
     jobKey: 'daily_sync',
     name: 'Daily Inventory Sync & Archival',
-    description: 'Automated worksheet daily sync and configurable retention archival procedure',
-    schedule: 'Every day 6:00 AM',
-    isEnabled: true,
+    description: 'Worksheet daily sync and retention archival procedure',
+    schedule: 'Manual trigger (Persistent scheduler unconfigured)',
+    isEnabled: false,
     lastRunAt: '',
     lastStatus: 'Idle',
     lastDurationMs: 0,
     lastError: null,
-    nextRunAt: 'Scheduled by backend'
+    nextRunAt: 'Manual only'
   },
   {
     jobKey: 'low_stock_alert',
     name: 'Low Stock & Depleted Batch Detection',
-    description: 'Deduplicated threshold analysis and push alert routing',
-    schedule: 'Every 15 min',
-    isEnabled: true,
+    description: 'Stock threshold analysis and notification routing',
+    schedule: 'Manual trigger (Persistent scheduler unconfigured)',
+    isEnabled: false,
     lastRunAt: '',
     lastStatus: 'Idle',
     lastDurationMs: 0,
     lastError: null,
-    nextRunAt: 'Scheduled by backend'
+    nextRunAt: 'Manual only'
   },
   {
     jobKey: 'expiry_check',
     name: 'Expiry Check & FEFO Priority Rebalancer',
-    description: 'Scans upcoming batch expiries and adjusts FEFO queue',
-    schedule: 'Every day 8:00 AM',
-    isEnabled: true,
+    description: 'Scans upcoming batch expiries and flags expiring batches',
+    schedule: 'Manual trigger (Persistent scheduler unconfigured)',
+    isEnabled: false,
     lastRunAt: '',
     lastStatus: 'Idle',
     lastDurationMs: 0,
     lastError: null,
-    nextRunAt: 'Scheduled by backend'
+    nextRunAt: 'Manual only'
   },
   {
     jobKey: 'report_generation',
     name: 'Daily Reconciliation & Report Snapshot',
-    description: 'Compiles daily stock movement and variance report',
-    schedule: 'Every day 12:00 AM',
-    isEnabled: true,
+    description: 'Compiles finalized daily stock movement report snapshot',
+    schedule: 'Manual trigger (Persistent scheduler unconfigured)',
+    isEnabled: false,
     lastRunAt: '',
     lastStatus: 'Idle',
     lastDurationMs: 0,
     lastError: null,
-    nextRunAt: 'Scheduled by backend'
+    nextRunAt: 'Manual only'
   },
   {
     jobKey: 'backup_snapshot',
     name: 'Automated Database & State Snapshot',
-    description: 'Generates verified state checkpoint in recovery registry',
-    schedule: 'Every day 2:00 AM',
-    isEnabled: true,
+    description: 'Generates state checkpoint in recovery registry',
+    schedule: 'Manual trigger (Persistent scheduler unconfigured)',
+    isEnabled: false,
     lastRunAt: '',
     lastStatus: 'Idle',
     lastDurationMs: 0,
     lastError: null,
-    nextRunAt: 'Scheduled by backend'
+    nextRunAt: 'Manual only'
   }
 ];
 
@@ -202,10 +185,11 @@ export async function fetchDeployments(): Promise<DeploymentRecord[]> {
       }));
     }
   } catch (err) {
-    console.warn('System deployments table query failed, falling back:', err);
+    console.warn('System deployments table query failed:', err);
   }
 
-  return DEFAULT_DEPLOYMENTS;
+  // Never substitute fake deployment records when none are found in the database.
+  return [];
 }
 
 /**
@@ -220,48 +204,13 @@ export async function rollbackDeployment(deploymentId: string, reason: string): 
     throw new Error('A mandatory justification reason is required for deployment rollback.');
   }
 
-  // Check if server-side deployment webhook is configured
-  const hasNetlifyWebhook = Boolean(import.meta.env.VITE_NETLIFY_DEPLOY_HOOK_URL);
-
-  if (!hasNetlifyWebhook) {
-    throw new Error(
-      'External deployment provider (Netlify Build Hook / GitHub Actions API) is not configured in environment. ' +
-      'Automated rollback is held in safe read-only mode to prevent simulating a production deployment without verifying the built artifact. ' +
-      'Please trigger rollback directly via Netlify Dashboard or git revert.'
-    );
-  }
-
-  const deployments = await fetchDeployments();
-  const target = deployments.find(d => d.id === deploymentId);
-  if (!target) throw new Error('Target deployment not found.');
-
-  // If webhook is configured, execute real dispatch
-  const response = await fetch(import.meta.env.VITE_NETLIFY_DEPLOY_HOOK_URL, {
-    method: 'POST',
-    body: JSON.stringify({
-      trigger_title: `Super Admin Rollback to ${target.version} (${target.commitHash})`,
-      reason: reason
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error(`Netlify Deploy Hook failed with status ${response.status}: ${response.statusText}`);
-  }
-
-  // Record audit log
-  await supabase.from('audit_logs').insert({
-    action: 'DEPLOYMENT_ROLLBACK_DISPATCHED',
-    target_table: 'system_deployments',
-    target_id: deploymentId,
-    details: {
-      version: target.version,
-      commit: target.commitHash,
-      reason: reason || 'Manual emergency rollback',
-      executed_at: new Date().toISOString()
-    }
-  });
-
-  return true;
+  // Client-side VITE_ variables must never hold privileged deploy credentials.
+  // A generic Netlify webhook triggers build context without verifying the live artifact
+  // or exact commit SHA. Safe rollbacks must be initiated via server orchestration or provider console.
+  throw new Error(
+    'Automated rollback is held in safe read-only mode: client-side build hook triggers cannot verify the exact target commit SHA or artifact health. ' +
+    'Please perform rollback through your Netlify / GitHub Actions release console directly to verify the live commit SHA.'
+  );
 }
 
 export async function fetchAutomations(): Promise<AutomationJob[]> {
@@ -282,7 +231,7 @@ export async function fetchAutomations(): Promise<AutomationJob[]> {
         lastStatus: (r.last_status as any) || 'Idle',
         lastDurationMs: r.last_duration_ms || 0,
         lastError: r.last_error,
-        nextRunAt: r.next_run_at || 'Scheduled by backend'
+        nextRunAt: r.next_run_at || 'Manual only (No persistent scheduler wired)'
       }));
     }
   } catch {}
@@ -550,57 +499,27 @@ export async function reconcileStockDrift(
   itemIds?: string[],
   reason: string = 'Super Admin Stock Drift Rebalance'
 ): Promise<{ success: boolean; reconciledCount: number; message: string }> {
-  // Try RPC first
-  try {
-    const { data: rpcRes, error: rpcErr } = await supabase.rpc('reconcile_stock_drift', {
-      p_item_ids: itemIds && itemIds.length > 0 ? itemIds : null,
-      p_reason: reason
-    });
-    if (!rpcErr && rpcRes) {
-      return {
-        success: true,
-        reconciledCount: rpcRes.reconciled_count ?? 0,
-        message: `Successfully reconciled ${rpcRes.reconciled_count ?? 0} item discrepancies with zero drift.`
-      };
-    }
-  } catch {}
+  // Fail closed: Stock reconciliation MUST be transactional and server-authoritative.
+  // Never fall back to individual client-side mutations or omit stock movement ledgers.
+  const { data: rpcRes, error: rpcErr } = await supabase.rpc('reconcile_stock_drift', {
+    p_item_ids: itemIds && itemIds.length > 0 ? itemIds : null,
+    p_reason: reason
+  });
 
-  // Fallback direct execution
-  const analysis = await analyzeStockDrift();
-  const candidates = analysis.items.filter(i => i.hasDrift && (!itemIds || itemIds.includes(i.itemId)));
-
-  if (candidates.length === 0) {
-    return {
-      success: true,
-      reconciledCount: 0,
-      message: 'All inventory items are already in sync. Zero drift detected.'
-    };
+  if (rpcErr) {
+    console.error('reconcile_stock_drift RPC failed; reconciliation aborted:', rpcErr);
+    throw new Error(`Stock drift reconciliation failed on database server: ${rpcErr.message}`);
   }
 
-  const { data: authData } = await supabase.auth.getUser();
-
-  for (const cand of candidates) {
-    const { error: updErr } = await supabase
-      .from('inventory_items')
-      .update({ total_quantity: cand.batchSum, updated_at: new Date().toISOString() })
-      .eq('id', cand.itemId);
-    if (updErr) throw updErr;
-
-    await supabase.from('stock_movements').insert({
-      item_id: cand.itemId,
-      type: 'RECONCILIATION',
-      quantity_before: cand.currentQuantity,
-      quantity_change: cand.batchSum - cand.currentQuantity,
-      quantity_after: cand.batchSum,
-      user_id: authData?.user?.id,
-      reason: reason
-    });
+  if (!rpcRes || !rpcRes.success) {
+    const errorMsg = rpcRes?.message || 'Database rejected reconciliation repair.';
+    throw new Error(`Stock drift reconciliation rejected: ${errorMsg}`);
   }
 
   return {
     success: true,
-    reconciledCount: candidates.length,
-    message: `Reconciliation verified: ${candidates.length} item balances updated to match batch sums.`
+    reconciledCount: rpcRes.reconciled_count ?? 0,
+    message: `Successfully reconciled ${rpcRes.reconciled_count ?? 0} item discrepancies with zero drift.`
   };
 }
 
@@ -658,34 +577,24 @@ export async function cleanupDepletedBatches(
     return { success: true, processedCount: 0, message: 'No depleted batches selected.' };
   }
 
-  try {
-    const { data: rpcRes, error: rpcErr } = await supabase.rpc('cleanup_depleted_batches', {
-      p_batch_ids: batchIds,
-      p_reason: reason
-    });
-    if (!rpcErr && rpcRes) {
-      return {
-        success: true,
-        processedCount: rpcRes.processed_count ?? batchIds.length,
-        message: rpcRes.message || `Processed ${rpcRes.processed_count} depleted batches.`
-      };
-    }
-  } catch {}
-
-  const { data: authData } = await supabase.auth.getUser();
-
-  // Audit log action
-  await supabase.from('audit_logs').insert({
-    user_id: authData?.user?.id,
-    action: 'CLEANUP_DEPLETED_BATCHES',
-    target_table: 'stock_batches',
-    details: { batchIds, reason, cleaned_at: new Date().toISOString() }
+  const { data: rpcRes, error: rpcErr } = await supabase.rpc('cleanup_depleted_batches', {
+    p_batch_ids: batchIds,
+    p_reason: reason
   });
+
+  if (rpcErr) {
+    console.error('cleanup_depleted_batches RPC failed; pruning aborted:', rpcErr);
+    throw new Error(`Depleted batch cleanup failed on database server: ${rpcErr.message}`);
+  }
+
+  if (!rpcRes || !rpcRes.success) {
+    throw new Error(rpcRes?.message || 'Depleted batch cleanup rejected by server.');
+  }
 
   return {
     success: true,
-    processedCount: batchIds.length,
-    message: `Processed ${batchIds.length} zero-quantity batch candidates with audit retention preserved.`
+    processedCount: rpcRes.processed_count ?? 0,
+    message: rpcRes.message || `Processed ${rpcRes.processed_count} depleted batches.`
   };
 }
 

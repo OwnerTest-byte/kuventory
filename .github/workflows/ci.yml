@@ -90,6 +90,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Each GitHub Actions job runs on a fresh runner; the previous job's dist/
+      # directory is not present unless it is explicitly downloaded as an artifact.
+      - name: Build production assets for the E2E runner
+        run: npm run build
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 

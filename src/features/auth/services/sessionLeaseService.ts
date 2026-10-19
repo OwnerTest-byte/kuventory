@@ -41,14 +41,26 @@ export async function claimSessionLease(sessionId: string): Promise<ClaimSession
 
     if (error) {
       console.warn('claim_user_session RPC warning:', error.message);
-      // Fallback: If RPC is inaccessible or network hiccup, allow login so user is not locked out
-      return { success: true };
+      // Fail closed: a lease policy is not enforced if its authority cannot be checked.
+      return {
+        success: false,
+        reason: 'verification_unavailable',
+        message: 'Session security could not be verified. Please retry when the server is available.',
+      };
     }
 
-    return (data as ClaimSessionResult) || { success: true };
+    return (data as ClaimSessionResult) || {
+      success: false,
+      reason: 'empty_response',
+      message: 'Session security returned no result. Please retry.',
+    };
   } catch (err: any) {
     console.warn('claim_user_session exception:', err);
-    return { success: true };
+    return {
+      success: false,
+      reason: 'verification_unavailable',
+      message: 'Session security could not be verified. Please retry when the server is available.',
+    };
   }
 }
 
@@ -62,12 +74,12 @@ export async function heartbeatSessionLease(): Promise<{ status: string; reason?
     });
 
     if (error) {
-      return { status: 'ACTIVE' };
+      return { status: 'UNKNOWN', reason: 'Heartbeat verification failed.' };
     }
 
-    return (data as { status: string; reason?: string }) || { status: 'ACTIVE' };
+    return (data as { status: string; reason?: string }) || { status: 'UNKNOWN', reason: 'Empty heartbeat response.' };
   } catch {
-    return { status: 'ACTIVE' };
+    return { status: 'UNKNOWN', reason: 'Heartbeat verification failed.' };
   }
 }
 

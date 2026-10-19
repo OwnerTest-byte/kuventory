@@ -46,9 +46,9 @@ describe('Super Admin Operations Console - Unit & Integration Test Suite', () =>
     });
 
     it('refuses to simulate rollback when external Netlify deployment hook is unconfigured', async () => {
-      // In testing environment without VITE_NETLIFY_DEPLOY_HOOK_URL set
+      // In testing environment without server-side verification workflow
       await expect(rollbackDeployment('dep-live-cae5ec1', 'Reverting breaking release')).rejects.toThrow(
-        /External deployment provider/
+        /Automated rollback is held in safe read-only mode/
       );
     });
   });
@@ -272,4 +272,40 @@ describe('Super Admin Operations Console - Unit & Integration Test Suite', () =>
       expect(validateRevocation('lease-123', 'Staff member clocked out without logout').valid).toBe(true);
     });
   });
+
+  describe('10. Fail-Closed Guarantees for Irreversible Operations', () => {
+    it('requires non-empty batch list for depleted batch pruning', async () => {
+      const { cleanupDepletedBatches } = await import('../services/superAdminService');
+      const res = await cleanupDepletedBatches([]);
+      expect(res.success).toBe(true);
+      expect(res.processedCount).toBe(0);
+      expect(res.message).toBe('No depleted batches selected.');
+    });
+
+    it('requires valid reason and payload for finalized daily inventory correction', async () => {
+      const { correctFinalizedDailyInventory } = await import('@/features/daily-inventory/services/correctionService');
+      
+      await expect(correctFinalizedDailyInventory({
+        dailyInventoryId: 'sheet-1',
+        inventoryDate: '2026-10-18',
+        reason: '',
+        correctedItems: [{ id: '1', item_id: 'i-1', beg: 10, add: 0, am: 2, pm: 3, ending: 5 }]
+      })).rejects.toThrow('A reason for correction is required to update a finalized daily report.');
+
+      await expect(correctFinalizedDailyInventory({
+        dailyInventoryId: '',
+        inventoryDate: '2026-10-18',
+        reason: 'Valid audit recount',
+        correctedItems: [{ id: '1', item_id: 'i-1', beg: 10, add: 0, am: 2, pm: 3, ending: 5 }]
+      })).rejects.toThrow('Worksheet identifier is required for finalized correction.');
+
+      await expect(correctFinalizedDailyInventory({
+        dailyInventoryId: 'sheet-1',
+        inventoryDate: '2026-10-18',
+        reason: 'Valid audit recount',
+        correctedItems: []
+      })).rejects.toThrow('At least one item must be provided for correction.');
+    });
+  });
 });
+

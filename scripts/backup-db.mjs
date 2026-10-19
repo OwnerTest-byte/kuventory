@@ -138,23 +138,7 @@ export async function runDatabaseBackup() {
     child.on('error', (err) => {
       isHandled = true;
       if (err.code === 'ENOENT') {
-        console.warn('[Backup] Note: pg_dump CLI is not in system PATH.');
-        console.warn('[Backup] Creating fallback snapshot record for automated backup audit.');
-        // Write snapshot metadata
-        const metadata = {
-          database: config.database,
-          timestamp,
-          status: 'SNAPSHOT_RECORDED',
-          host: config.host,
-          note: 'pg_dump executable pending production container environment.'
-        };
-        fs.writeFileSync(tempDumpPath, JSON.stringify(metadata, null, 2));
-        compressFile(tempDumpPath, finalGzPath)
-          .then(() => {
-            pruneOldBackups();
-            resolve({ success: true, backupPath: finalGzPath, isSimulated: true });
-          })
-          .catch(reject);
+        reject(new Error('pg_dump is not installed. No database backup was created. Install PostgreSQL client tools and retry.'));
         return;
       }
       reject(err);
