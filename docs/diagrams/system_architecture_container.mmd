@@ -1,0 +1,63 @@
+flowchart TD
+    subgraph Browser["User Browser Runtime (Desktop / Mobile PWA)"]
+        subgraph ReactApp["Single Page Application (React 19)"]
+            Router["React Router v7<br/>(/login, /inventory, /daily-inventory, /items, /reports, /settings, /super-admin)"]
+            AuthCtx["Auth Context & Session Manager<br/>(Heartbeat Timer, Maintenance Guard)"]
+            QueryCache["TanStack Query Cache v5<br/>(Stale-While-Revalidate, Invalidation Bus)"]
+            UIComponents["UI Layer<br/>(Tailwind CSS v4 + Base UI + Lucide Icons)"]
+            ChartsEngine["Recharts Engine v3<br/>(Donut, Bar, Latency Area)"]
+            ExportEngines["Client Export Bundles<br/>(jsPDF + ExcelJS + CSV Parser)"]
+            RealtimeClient["Supabase Realtime Client<br/>(WSS Multiplexed Channel)"]
+        end
+        LocalStore["Browser LocalStorage<br/>(Supabase Session Token, Device UUID)"]
+    end
+
+    subgraph CDN["Hosting & Edge Delivery"]
+        NetlifyEdge["Netlify Edge Network<br/>(SPA 200 Rewrite, Security Headers: HSTS, CSP, X-Frame)"]
+    end
+
+    subgraph SupabasePlatform["Supabase Managed Cloud Platform"]
+        Kong["Kong API Gateway<br/>(HTTPS Reverse Proxy, API Key Verification)"]
+        GoTrue["GoTrue Authentication Service<br/>(auth.users, JWT Generation, Email Links)"]
+        PGRST["PostgREST Service<br/>(Auto REST API, Stored Procedure RPCs)"]
+        RTServer["Realtime WebSocket Server<br/>(PostgreSQL CDC Stream)"]
+        S3Storage["Supabase Storage Service<br/>(Item Product Images Bucket)"]
+        
+        subgraph PostgresInstance["PostgreSQL 15 Database Cluster"]
+            SchemaPublic["public Schema<br/>(Tables, Views, Generated Columns)"]
+            RLS["Row Level Security (RLS)<br/>(Tenant Isolation, Role-Based Access)"]
+            Functions["PL/pgSQL RPC Functions<br/>(consume_stock, finalize_sheet, lease)"]
+            Triggers["Event Triggers<br/>(Thresholds, Quotas, Audit Trail)"]
+            WAL["Write-Ahead Log (WAL)<br/>(Logical Replication Publication)"]
+        end
+    end
+
+    %% Flow Connections
+    NetlifyEdge -->|"Serves index.html & JS Chunks"| ReactApp
+    UIComponents --> Router
+    Router --> AuthCtx
+    AuthCtx <--> LocalStore
+    UIComponents --> QueryCache
+    QueryCache --> PGRST
+    ChartsEngine <--> QueryCache
+    ExportEngines <--> QueryCache
+    RealtimeClient -->|"WebSocket Events"| QueryCache
+    
+    AuthCtx -->|"Auth API (signIn, signOut)"| Kong
+    QueryCache -->|"REST / RPC Requests"| Kong
+    RealtimeClient -->|"WSS Connection"| Kong
+    UIComponents -->|"Photo Uploads"| Kong
+
+    Kong --> GoTrue
+    Kong --> PGRST
+    Kong --> RTServer
+    Kong --> S3Storage
+
+    GoTrue -->|"Verifies Passwords, Reads Roles"| PostgresInstance
+    PGRST -->|"Executes via Postgres Connection Pool"| RLS
+    RLS --> SchemaPublic
+    PGRST --> Functions
+    Functions --> SchemaPublic
+    SchemaPublic --> Triggers
+    SchemaPublic --> WAL
+    WAL --> RTServer

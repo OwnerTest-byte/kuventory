@@ -1,0 +1,75 @@
+flowchart TD
+    subgraph TriggerSources["Automation Trigger & Schedule Sources"]
+        PG_Cron["1. pg_cron Extension<br/>(PostgreSQL Internal Scheduler: 0 0 * * *)"]
+        DB_Triggers["2. Database Event Triggers<br/>(AFTER UPDATE on stock_batches, inventory_items)"]
+        GH_Actions["3. GitHub Actions Schedule<br/>(cron: 0 0 */2 * * keepalive workflow)"]
+        BrowserTimers["4. Frontend Keepalive Timers<br/>(setInterval: 30s lease heartbeat, 10s ping)"]
+        HumanAction["5. Human Run Now Action<br/>(Super Admin Control Center Button Click)"]
+    end
+
+    subgraph ProcessingEngines["Actual Execution Engines"]
+        PostgresWorker["PostgreSQL Worker Process<br/>(Executes check_expiry_notifications)"]
+        TriggerEngine["PL/pgSQL Trigger Engine<br/>(Executes notify_thresholds)"]
+        GHA_Runner["GitHub Ubuntu Runner<br/>(Executes curl PostgREST ping)"]
+        BrowserClient["Client React Engine<br/>(useAuth heartbeat & telemetry hook)"]
+        ServerScript["Standalone Node Worker (scripts/backup-db.mjs)<br/>(Executes pg_dump & gzip pruning)"]
+    end
+
+    subgraph ExecutionPaths["Request / Function Call"]
+        Call_1["SELECT public.check_expiry_notifications()"]
+        Call_2["Trigger Execution: trg_inventory_thresholds"]
+        Call_3["HTTP GET /rest/v1/system_settings?limit=1"]
+        Call_4["RPC: renew_session_lease(device_id)"]
+        Call_5["Child Process: spawn('pg_dump')"]
+    end
+
+    subgraph PersistentState["Persistent Database & State"]
+        NotifTable["public.notifications<br/>(Dedup Key: EXPIRED_id, EXPIRING_id)"]
+        StockTable["public.inventory_items / stock_batches"]
+        SessionTable["public.system_sessions<br/>(lease_expires_at, last_heartbeat)"]
+        SettingsTable["public.system_settings<br/>(7-day inactivity touch)"]
+        BackupFiles["Local / Server Storage<br/>(backups/kuventory-*.sql.gz)"]
+    end
+
+    subgraph ResultAndAudit["Audit & Notification Logs"]
+        AuditLog["public.audit_logs<br/>(Action records, automated run timestamps)"]
+        AlertPopup["UI Realtime Notification Popover<br/>(Instant toast to connected staff)"]
+        GHA_Logs["GitHub Actions Workflow Execution Logs"]
+        NodeLog["Console Output / Exit Code 0"]
+    end
+
+    subgraph ErrorHandling["Error & Retry Paths"]
+        TxRollback["Transaction Rollback<br/>(On conflict or lock timeout)"]
+        RetryTimer["Frontend Timer Retry<br/>(Attempts next tick at 30s)"]
+        GHA_Fail["GitHub Actions Failure Alert<br/>(Sends email on non-200/400 status)"]
+    end
+
+    %% Wiring
+    PG_Cron --> PostgresWorker
+    PostgresWorker --> Call_1
+    Call_1 --> NotifTable
+    NotifTable --> AlertPopup
+    Call_1 -.->|"Error"| TxRollback
+
+    DB_Triggers --> TriggerEngine
+    TriggerEngine --> Call_2
+    Call_2 --> NotifTable
+    Call_2 --> StockTable
+    Call_2 -.->|"Error"| TxRollback
+
+    GH_Actions --> GHA_Runner
+    GHA_Runner --> Call_3
+    Call_3 --> SettingsTable
+    SettingsTable --> GHA_Logs
+    Call_3 -.->|"Status != 2xx"| GHA_Fail
+
+    BrowserTimers --> BrowserClient
+    BrowserClient --> Call_4
+    Call_4 --> SessionTable
+    SessionTable --> AuditLog
+    Call_4 -.->|"Lease Expired"| RetryTimer
+
+    HumanAction --> ServerScript
+    ServerScript --> Call_5
+    Call_5 --> BackupFiles
+    BackupFiles --> NodeLog

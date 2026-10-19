@@ -1,0 +1,47 @@
+flowchart TD
+    subgraph ClientA["Client Device A (Desktop Manager)"]
+        ActionA["User Performs Mutation<br/>(e.g., Receives Batch, Adjusts Quantity)"]
+        RPC_A["Invokes RPC / PostgREST Write"]
+    end
+
+    subgraph PostgresEngine["PostgreSQL Database Core"]
+        TxExecution["Atomic Transaction Executes<br/>(Locks rows, updates tables, verifies invariants)"]
+        WALWriter["Write-Ahead Log (WAL) Records Change"]
+        PubConfig["supabase_realtime Publication<br/>(Contains 16 monitored tables)"]
+    end
+
+    subgraph SupabaseRealtimeCluster["Supabase Realtime Service"]
+        CDCListener["Logical Replication Listener<br/>(Extracts INSERT/UPDATE/DELETE events)"]
+        BroadcastEngine["WebSocket Broadcast Hub<br/>(Filters events by tenant / table schema)"]
+    end
+
+    subgraph ClientB["Client Device B (Mobile Barista)"]
+        WS_B["WebSocket Listener<br/>(useRealtimeSync hook)"]
+        QueryInvalidator["TanStack Query Cache Invalidator<br/>(['inventory'], ['daily-inventory'], etc.)"]
+        RefetchQuery["Background Refetch via PostgREST<br/>(Fetches freshest database truth)"]
+        UIRerender["UI Rerenders Automatically<br/>(Zero page reload required)"]
+    end
+
+    subgraph ClientC["Client Device C (Admin Analytics Dashboard)"]
+        WS_C["WebSocket Listener"]
+        ChartRefetch["Invalidates ['global-stock-history']"]
+        ChartUpdate["Recharts Dynamically Recomputes Bars & Totals"]
+    end
+
+    %% Flow connections
+    ActionA --> RPC_A
+    RPC_A --> TxExecution
+    TxExecution --> WALWriter
+    WALWriter --> PubConfig
+    PubConfig --> CDCListener
+    CDCListener --> BroadcastEngine
+
+    BroadcastEngine -->|"WSS Frame: postgres_changes"| WS_B
+    BroadcastEngine -->|"WSS Frame: postgres_changes"| WS_C
+
+    WS_B --> QueryInvalidator
+    QueryInvalidator --> RefetchQuery
+    RefetchQuery --> UIRerender
+
+    WS_C --> ChartRefetch
+    ChartRefetch --> ChartUpdate

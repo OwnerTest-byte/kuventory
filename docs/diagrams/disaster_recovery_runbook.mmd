@@ -1,0 +1,24 @@
+flowchart TD
+    IncidentDetected(["Disaster / Corruption Incident Detected<br/>(Data Drift, Accidental Finalize, System Outage)"]) --> TierDecision{"Evaluate Disaster Tier"}
+
+    TierDecision -- "Tier 1: Minor Operational Desync" --> ActionTier1["1. Force Client Cache Purge<br/>2. Invalidate TanStack Query Keys<br/>3. Refetch freshest PostgREST state"]
+    ActionTier1 --> VerifyTier1{"Resolved?"}
+    VerifyTier1 -- "Yes" --> CloseIncident(["Close Incident & Log Post-Mortem"])
+    VerifyTier1 -- "No" --> EscalateTier2["Escalate to Tier 2"]
+
+    TierDecision -- "Tier 2: Worksheet / Stock Drift" --> ActionTier2["1. Open Super Admin Database Tab<br/>2. Execute Check Drift Diagnostic<br/>3. Review Discrepancy Preview<br/>4. Apply Repair Script (Atomic Batch Sync)"]
+    EscalateTier2 --> ActionTier2
+    ActionTier2 --> VerifyTier2{"Resolved?"}
+    VerifyTier2 -- "Yes" --> CloseIncident
+    VerifyTier2 -- "No" --> EscalateTier3["Escalate to Tier 3"]
+
+    TierDecision -- "Tier 3: Compromised Access / Bad Actor" --> ActionTier3["1. Activate Emergency Maintenance Lockdown<br/>2. Revoke all active sessions via Super Admin<br/>3. Invalidate compromised user credentials<br/>4. Inspect audit_logs for unauthorized mutations"]
+    EscalateTier3 --> ActionTier3
+    ActionTier3 --> VerifyTier3{"Security Contained?"}
+    VerifyTier3 -- "Yes" --> DeactivateLockdown["Deactivate Maintenance & Restore Normal Service"]
+    DeactivateLockdown --> CloseIncident
+    VerifyTier3 -- "No" --> EscalateTier4["Escalate to Tier 4"]
+
+    TierDecision -- "Tier 4: Catastrophic Table Loss / Data Corruption" --> ActionTier4["1. Engage Point-in-Time Recovery via Supabase Dashboard<br/>2. Or Restore from GZipped SQL Dump:<br/>gunzip < backups/kuventory-*.sql.gz | psql $DATABASE_URL<br/>3. Verify Row-Level Integrity & Foreign Keys<br/>4. Run Vitest & E2E Verification Suites"]
+    EscalateTier4 --> ActionTier4
+    ActionTier4 --> CloseIncident

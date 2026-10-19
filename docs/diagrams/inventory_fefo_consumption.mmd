@@ -1,0 +1,32 @@
+flowchart TD
+    Trigger(["Stock Consumption Trigger<br/>(Daily Sheet Finalize, Manual Deduct, or Correction)"]) --> CallRPC["Invoke RPC: public.consume_stock<br/>(p_item_id, p_quantity, p_reason)"]
+    
+    CallRPC --> TxBegin["Begin Atomic Transaction"]
+    TxBegin --> CheckInput{"p_quantity > 0?"}
+    CheckInput -- "No (<= 0)" --> RaiseInvalid["Raise Exception: Invalid quantity"]
+
+    CheckInput -- "Yes" --> LockBatches["Query Available Batches with Row-Level Lock:<br/>SELECT id, quantity, expiry_date<br/>FROM public.stock_batches<br/>WHERE item_id = p_item_id<br/>  AND quantity > 0<br/>  AND expiry_date >= CURRENT_DATE<br/>ORDER BY expiry_date ASC, created_at ASC<br/>FOR UPDATE"]
+
+    LockBatches --> CheckTotal{"Sum(available batch quantities) >= p_quantity?"}
+    CheckTotal -- "No (Insufficient Stock)" --> RollbackOOS["Rollback Transaction<br/>Raise Exception: Insufficient stock"]
+    
+    CheckTotal -- "Yes" --> LoopInit["Initialize Remaining Quantity = p_quantity"]
+    LoopInit --> BatchLoop{"Remaining Quantity > 0?"}
+
+    BatchLoop -- "Yes" --> EvaluateBatch["Examine Current Batch (Earliest Expiry)"]
+    EvaluateBatch --> DeductBatch{"Batch Quantity >= Remaining Quantity?"}
+    
+    DeductBatch -- "Yes (Full Fulfillment)" --> PartialDeduct["UPDATE stock_batches<br/>SET quantity = quantity - Remaining<br/>Record stock_movements (REMOVE)<br/>Set Remaining = 0"]
+    PartialDeduct --> BatchLoop
+
+    DeductBatch -- "No (Depletes Batch)" --> FullDeduct["UPDATE stock_batches<br/>SET quantity = 0<br/>Record stock_movements (REMOVE)<br/>Remaining = Remaining - Batch Quantity"]
+    FullDeduct --> NextBatch["Advance to Next Batch in FEFO Order"]
+    NextBatch --> BatchLoop
+
+    BatchLoop -- "No (Remaining == 0)" --> CheckThreshold{"New Total Quantity <= min_quantity?"}
+    CheckThreshold -- "Yes" --> TriggerNotif["Insert Notification: LOW_STOCK / OUT_OF_STOCK<br/>(Dedup Key: LOW_STOCK_itemId)"]
+    CheckThreshold -- "No" --> CommitTx["Commit Transaction"]
+    TriggerNotif --> CommitTx
+
+    CommitTx --> BroadcastWAL["Database Writes to WAL & Emits Realtime Event"]
+    BroadcastWAL --> EndSuccess(["Return Success / Updated Quantities"])

@@ -524,14 +524,15 @@ async function buildMasterDevLogsDocx() {
     new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       rows: [
-        ['Document Classification', 'Master Engineering Deliverables & Development Logs (CONFIDENTIAL)'],
-        ['Document Code', 'DEV-LOGS-MASTER-2026'],
-        ['Software Release', 'Version 2.4.0 (Production Master Release)'],
-        ['Date of Certification', 'October 04, 2026'],
+        ['Document Classification', 'Canonical Engineering Deliverables & Technical Handover'],
+        ['Document Code', 'KUVENTORY-DOCS-CANONICAL-2026'],
+        ['Software Release', 'KUVENTORY 1.0.0 (Production Master)'],
+        ['Date of Certification', 'October 19, 2026'],
+        ['Authoritative HEAD SHA', '135f10b807fedec368383c9e34895566da3d69fc'],
         ['Production Endpoint', 'https://kuventory.netlify.app'],
         ['Source Repository', 'https://github.com/OwnerTest-byte/kuventory.git'],
-        ['Playwright Real-Browser Verification', '100% Passed (90 / 90 Scenarios across Chromium, Firefox, WebKit, Mobile & Tablet)'],
-        ['Primary Authors / Proponents', 'Michael James G. Riambon, Project Proponents & Antigravity Engineering Group']
+        ['Automated Test Verification', '100% Passed (107 / 107 Tests across 16 Vitest suites; Typecheck 0 errors)'],
+        ['Primary Authors / Proponents', 'Michael James G. Riambon & KUVENTORY Engineering Team']
       ].map(([label, val]) =>
         new TableRow({
           children: [
@@ -581,7 +582,7 @@ async function buildMasterDevLogsDocx() {
       spacing: { before: 200, after: 140 },
       children: [
         new TextRun({
-          text: 'MASTER TABLE OF CONTENTS',
+          text: 'CANONICAL TABLE OF CONTENTS',
           bold: true,
           size: 32,
           color: COLOR_PRIMARY,
@@ -590,21 +591,27 @@ async function buildMasterDevLogsDocx() {
       ]
     }),
     ...[
-      'Chapter 1: Master Engineering Specification & Core Directives (KUVENTORY_SPEC)',
-      'Chapter 2: Release Changelog & Version Evolution History (CHANGELOG)',
-      'Chapter 3: User Operations Manual & Daily Shift Routine (DOC-01-UOM)',
-      'Chapter 4: Tier 0 Master Admin Authority & Security Governance (DOC-02-MASG)',
-      'Chapter 5: System Architecture & Technical Specifications (DOC-03-SATS)',
-      'Chapter 6: Deployment Operations & Disaster Recovery Plan (DOC-04-DODR)',
-      'Chapter 7: QA Testing Audit & Playwright Verification Report (DOC-05-QTAR)',
-      'Chapter 8: Concurrency Control, Transaction Isolation & Row-Level Locking',
-      'Chapter 9: Database Schema, Foreign Key Integrity & Audit Triggers',
-      'Chapter 10: 5-Tier Disaster Recovery & Coordinated Recovery Points',
-      'Chapter 11: Failure Scenarios, Incident Containment & Recovery Protocols',
-      'Chapter 12: Performance Engineering, Sub-50ms Latency & Optimistic Caching',
-      'Chapter 13: Responsive Cross-Device Engineering & Multi-Device Matrix',
-      'Chapter 14: Zero-Trust Security Architecture & Single-Session Lease Engine',
-      'Chapter 15: Capstone Software Design Specification & Comprehensive Historical Dev Logs'
+      'Chapter 0: Project Overview, Scope & Verified History (docs/00_PROJECT_OVERVIEW_AND_HISTORY.md)',
+      'Chapter 1: Requirements, Acceptance Criteria & Traceability Matrix (docs/01_REQUIREMENTS_AND_ACCEPTANCE.md)',
+      'Chapter 2: System Architecture & C4 Component Topology (docs/02_SYSTEM_ARCHITECTURE.md)',
+      'Chapter 3: Verified Technology Stack & Engineering Rationale (docs/03_TECH_STACK_AND_RATIONALE.md)',
+      'Chapter 4: Features, Modules & Exhaustive Route Catalog (docs/04_FEATURES_AND_MODULE_CATALOG.md)',
+      'Chapter 5: Database Schema, Data Dictionary & Migrations (docs/05_DATABASE_AND_DATA_DICTIONARY.md)',
+      'Chapter 6: API, RPC Stored Procedures & Realtime Contracts (docs/06_API_RPC_AND_INTEGRATION_REFERENCE.md)',
+      'Chapter 7: Authentication, Zero-Trust Security & RBAC Governance (docs/07_AUTH_SECURITY_AND_ROLES.md)',
+      'Chapter 8: Inventory Engine, Daily Worksheets & FEFO Rotation (docs/08_INVENTORY_DAILY_WORKSHEETS_AND_FEFO.md)',
+      'Chapter 9: Reports, Charts, Analytics & Export Engines (docs/09_REPORTS_CHARTS_AND_EXPORTS.md)',
+      'Chapter 10: Automation, Schedulers & Event-Driven Architecture (docs/10_AUTOMATION_SCHEDULERS_AND_REALTIME.md)',
+      'Chapter 11: Super Admin Operations Console Runbook (docs/11_SUPER_ADMIN_OPERATIONS_MANUAL.md)',
+      'Chapter 12: Staff & Manager Operations Manual (docs/12_USER_AND_ADMIN_OPERATIONS_MANUAL.md)',
+      'Chapter 13: Testing Architecture, QA Audits & Bug-Fix Chronology (docs/13_TESTING_QA_AND_BUG_FIX_HISTORY.md)',
+      'Chapter 14: Deployment, Environment Configuration & Runbooks (docs/14_DEPLOYMENT_ENVIRONMENT_AND_RUNBOOKS.md)',
+      'Chapter 15: Known Issues, Technical Debt & Engineering Roadmap (docs/15_KNOWN_ISSUES_RISKS_AND_ROADMAP.md)',
+      'Chapter 16: Project Defense & Viva Master Q&A (100+ Questions) (docs/16_PROJECT_DEFENSE_MASTER_QA.md)',
+      'Chapter 17: Quick Project Defense Cheat Sheet (docs/17_QUICK_DEFENSE_CHEAT_SHEET.md)',
+      'Chapter 18: Glossary & Industry Abbreviations (docs/18_GLOSSARY_AND_ABBREVIATIONS.md)',
+      'Chapter 19: Evidence & Claim Register (docs/19_EVIDENCE_AND_CLAIM_REGISTER.md)',
+      'Chapter 20: Architecture Decision Records (ADRs) (docs/20_ARCHITECTURE_DECISIONS.md)'
     ].map(item =>
       new Paragraph({
         bullet: { level: 0 },
@@ -623,68 +630,92 @@ async function buildMasterDevLogsDocx() {
   );
 
   // ==========================================
-  // CHAPTER DEFINITIONS & ORDER
+  // CHAPTER DEFINITIONS & ORDER (CANONICAL SUITE)
   // ==========================================
   const chapters = [
     {
-      title: 'Chapter 1: Master Engineering Specification & Core Directives',
-      file: 'KUVENTORY_SPEC.md'
+      title: 'Chapter 0: Project Overview, Scope & Verified History',
+      file: 'docs/00_PROJECT_OVERVIEW_AND_HISTORY.md'
     },
     {
-      title: 'Chapter 2: Release Changelog & Version Evolution History',
-      file: 'CHANGELOG.md'
+      title: 'Chapter 1: Requirements, Acceptance Criteria & Traceability Matrix',
+      file: 'docs/01_REQUIREMENTS_AND_ACCEPTANCE.md'
     },
     {
-      title: 'Chapter 3: User Operations Manual & Daily Shift Routine',
-      file: 'docs/01_USER_OPERATIONS_MANUAL.md'
+      title: 'Chapter 2: System Architecture & C4 Component Topology',
+      file: 'docs/02_SYSTEM_ARCHITECTURE.md'
     },
     {
-      title: 'Chapter 4: Tier 0 Master Admin Authority & Security Governance',
-      file: 'docs/02_MASTER_ADMIN_AND_SECURITY_GOVERNANCE.md'
+      title: 'Chapter 3: Verified Technology Stack & Engineering Rationale',
+      file: 'docs/03_TECH_STACK_AND_RATIONALE.md'
     },
     {
-      title: 'Chapter 5: System Architecture & Technical Specifications',
-      file: 'docs/03_SYSTEM_ARCHITECTURE_AND_TECHNICAL_SPEC.md'
+      title: 'Chapter 4: Features, Modules & Exhaustive Route Catalog',
+      file: 'docs/04_FEATURES_AND_MODULE_CATALOG.md'
     },
     {
-      title: 'Chapter 6: Deployment Operations & Disaster Recovery Plan',
-      file: 'docs/04_DEPLOYMENT_OPERATIONS_AND_DISASTER_RECOVERY.md'
+      title: 'Chapter 5: Database Schema, Data Dictionary & Migrations',
+      file: 'docs/05_DATABASE_AND_DATA_DICTIONARY.md'
     },
     {
-      title: 'Chapter 7: QA Testing Audit & Playwright Verification Report',
-      file: 'docs/05_QA_TESTING_AUDIT_AND_RELEASE_REPORT.md'
+      title: 'Chapter 6: API, RPC Stored Procedures & Realtime Contracts',
+      file: 'docs/06_API_RPC_AND_INTEGRATION_REFERENCE.md'
     },
     {
-      title: 'Chapter 8: Concurrency Control, Transaction Isolation & Row-Level Locking',
-      file: 'docs/concurrency.md'
+      title: 'Chapter 7: Authentication, Zero-Trust Security & RBAC Governance',
+      file: 'docs/07_AUTH_SECURITY_AND_ROLES.md'
     },
     {
-      title: 'Chapter 9: Database Schema, Foreign Key Integrity & Audit Triggers',
-      file: 'docs/database-audit.md'
+      title: 'Chapter 8: Inventory Engine, Daily Worksheets & FEFO Rotation',
+      file: 'docs/08_INVENTORY_DAILY_WORKSHEETS_AND_FEFO.md'
     },
     {
-      title: 'Chapter 10: 5-Tier Disaster Recovery & Coordinated Recovery Points',
-      file: 'docs/disaster-recovery.md'
+      title: 'Chapter 9: Reports, Charts, Analytics & Export Engines',
+      file: 'docs/09_REPORTS_CHARTS_AND_EXPORTS.md'
     },
     {
-      title: 'Chapter 11: Failure Scenarios, Incident Containment & Recovery Protocols',
-      file: 'docs/failure-scenarios.md'
+      title: 'Chapter 10: Automation, Schedulers & Event-Driven Architecture',
+      file: 'docs/10_AUTOMATION_SCHEDULERS_AND_REALTIME.md'
     },
     {
-      title: 'Chapter 12: Performance Engineering, Sub-50ms Latency & Optimistic Caching',
-      file: 'docs/performance.md'
+      title: 'Chapter 11: Super Admin Operations Console Runbook',
+      file: 'docs/11_SUPER_ADMIN_OPERATIONS_MANUAL.md'
     },
     {
-      title: 'Chapter 13: Responsive Cross-Device Engineering & Multi-Device Matrix',
-      file: 'docs/responsive-qa.md'
+      title: 'Chapter 12: Staff & Manager Operations Manual',
+      file: 'docs/12_USER_AND_ADMIN_OPERATIONS_MANUAL.md'
     },
     {
-      title: 'Chapter 14: Zero-Trust Security Architecture & Single-Session Lease Engine',
-      file: 'docs/security-architecture.md'
+      title: 'Chapter 13: Testing Architecture, QA Audits & Bug-Fix Chronology',
+      file: 'docs/13_TESTING_QA_AND_BUG_FIX_HISTORY.md'
     },
     {
-      title: 'Chapter 15: Capstone Software Design Specification & Comprehensive Historical Dev Logs',
-      file: 'SOFTWARE_DESIGN_PROJECT_DOCUMENTATION.md'
+      title: 'Chapter 14: Deployment, Environment Configuration & Runbooks',
+      file: 'docs/14_DEPLOYMENT_ENVIRONMENT_AND_RUNBOOKS.md'
+    },
+    {
+      title: 'Chapter 15: Known Issues, Technical Debt & Engineering Roadmap',
+      file: 'docs/15_KNOWN_ISSUES_RISKS_AND_ROADMAP.md'
+    },
+    {
+      title: 'Chapter 16: Project Defense & Viva Master Q&A (100+ Questions)',
+      file: 'docs/16_PROJECT_DEFENSE_MASTER_QA.md'
+    },
+    {
+      title: 'Chapter 17: Quick Project Defense Cheat Sheet',
+      file: 'docs/17_QUICK_DEFENSE_CHEAT_SHEET.md'
+    },
+    {
+      title: 'Chapter 18: Glossary & Industry Abbreviations',
+      file: 'docs/18_GLOSSARY_AND_ABBREVIATIONS.md'
+    },
+    {
+      title: 'Chapter 19: Evidence & Claim Register',
+      file: 'docs/19_EVIDENCE_AND_CLAIM_REGISTER.md'
+    },
+    {
+      title: 'Chapter 20: Architecture Decision Records (ADRs)',
+      file: 'docs/20_ARCHITECTURE_DECISIONS.md'
     }
   ];
 

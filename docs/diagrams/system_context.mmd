@@ -1,0 +1,50 @@
+flowchart TD
+    subgraph ExternalUsers["Human Actors"]
+        Staff["Staff / Barista / Kitchen Staff<br/>(Role: USER)"]
+        Admin["Branch Manager / Supervisor<br/>(Role: ADMIN)"]
+        SuperAdmin["System Administrator / Owner<br/>(Role: SUPER_ADMIN)"]
+    end
+
+    subgraph ClientBoundary["Client Tier (Web Browser / PWA)"]
+        SPA["KUVENTORY Web App<br/>(React 19 + TypeScript + Vite + Tailwind CSS)"]
+    end
+
+    subgraph HostingBoundary["Edge Hosting Provider"]
+        Netlify["Netlify Edge CDN<br/>(Static Assets, SPA Redirects, Security Headers)"]
+    end
+
+    subgraph CloudServices["Backend-as-a-Service (Supabase Cloud / Managed PostgreSQL)"]
+        AuthService["GoTrue Auth Service<br/>(JWT, Sessions, Password Recovery)"]
+        PostgREST["PostgREST HTTP Gateway<br/>(REST API, Auto-generated CRUD, Views)"]
+        RealtimeServer["Supabase Realtime Engine<br/>(WebSocket, WAL Change Streams)"]
+        PostgresDB["PostgreSQL 15+ Database Engine<br/>(Schema, RLS, RPCs, Triggers, Indexes)"]
+        StorageEngine["Supabase Object Storage<br/>(Item Photos, S3-Compatible Buckets)"]
+    end
+
+    subgraph ExternalAutomation["CI/CD & Keepalive Schedulers"]
+        GitHubActions["GitHub Actions Runner<br/>(CI Lint/Test/Build + Keepalive Cron)"]
+    end
+
+    subgraph AuxiliaryNode["Optional Local Security Gateway"]
+        ExpressServer["Express Security Gateway<br/>(Node 22, Helmet, CORS, Rate Limit)"]
+    end
+
+    %% Interactions
+    Staff -->|"1. Authenticates, Records Usage, Views Inventory"| SPA
+    Admin -->|"2. Manages Catalog, Daily Finalization, Reports"| SPA
+    SuperAdmin -->|"3. Controls Maintenance, Audit, Recovery, Diagnostics"| SPA
+
+    Netlify -->|"Serves Bundled SPA Assets (HTTPS)"| SPA
+    GitHubActions -->|"Triggers Bi-daily Keepalive Ping"| PostgREST
+    GitHubActions -->|"Runs CI & Triggers Branch Deployment"| Netlify
+
+    SPA -->|"HTTPS / Auth API (JWT Tokens)"| AuthService
+    SPA -->|"HTTPS / REST & RPC Calls"| PostgREST
+    SPA -->|"WSS / postgres_changes Subscriptions"| RealtimeServer
+    SPA -->|"HTTPS / Photo Uploads & CDN Fetch"| StorageEngine
+    SPA -.->|"Optional Local API Proxy"| ExpressServer
+
+    AuthService -->|"Issues Claims & Validates Tokens"| PostgresDB
+    PostgREST -->|"Executes Parameterized SQL & RPCs"| PostgresDB
+    RealtimeServer -->|"Reads Logical Replication WAL"| PostgresDB
+    ExpressServer -.->|"Proxies Privileged API Actions"| PostgresDB

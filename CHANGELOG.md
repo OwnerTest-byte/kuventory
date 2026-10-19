@@ -1,114 +1,117 @@
-# Changelog
+# KUVENTORY — System Changelog & Version Evolution
 
-All notable changes to KUVENTORY will be documented in this file.
+```text
+Document:               CHANGELOG.md
+Purpose:                Authoritative release and engineering phase chronology derived strictly from Git commit history.
+Verification Status:    Verified against repository git log --reverse (105 commits)
+Authoritative HEAD SHA: 135f10b807fedec368383c9e34895566da3d69fc
+Last Audit Date:        2026-10-19
+```
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All entries below correspond to verified commits and milestones in the repository's Git history on branch `main`.
 
-## [2.6.0] - 2026-10-18
+---
 
-### Added
+## [Phase 8] — Operations Console Conversion & Fail-Closed Security Hardening
 
-- **Finalized Daily Inventory Revision Workflow**: Authorized users (`ADMIN`, `SUPER_ADMIN`) can unlock and correct finalized inventory sheets. All modified values are calculated differentials-reconciled against physical on-hand stock and FEFO batches, guaranteeing strictly zero duplicate stock deductions or additions. Automatically maintains immutable revision snapshots in `daily_inventory_revisions` with reason, editor, timestamp, and stock adjustments.
-- **Dedicated Standalone Super Admin Route (`/super-admin`)**: Completely decoupled Super Admin from Settings navigation. Super Admin now operates on an isolated standalone control plane protected by `RequireSuperAdmin`, with breadcrumbs, direct URL guards, and responsive sidebar navigation.
-- **Authoritative Emergency Maintenance Lockdown**: Enforces real database-level maintenance lockdown via `system_settings.maintenance_lock` (`NORMAL`, `MAINTENANCE`, `RECOVERY`). Non-super users are blocked at login pre-flight, intercepted on protected routes, and blocked from database mutations with a dedicated emergency maintenance screen. Super Admin retains access via `/super-admin`.
-- **Centralized Logout Confirmation Modal**: Added an accessible confirmation dialog ("Log out? Are you sure you want to log out?") across sidebar, header, and mobile navigation, complete with unsaved work warnings. Forced session terminations (lockdown, session lease revocation) remain immediate.
-- **Staff Password Reset Request Logging**: Added `password_reset_requests` table and administrative review log under Settings -> Users tab. Captures recovery requests with status tracking (`NEW`, `NOTIFIED`, `IN REVIEW`, `RESOLVED`, `EXPIRED`, `FAILED`) and dispatches realtime admin alerts, while returning secure, non-disclosing messages without leaking credentials or account existence.
-- **Context-Aware Dashboard Actions & Metric Accuracy**: Distinguishes Low Stock (`0 < qty <= min_qty`) from Out-of-Stock (`qty === 0`). Contextualizes Today's Daily Inventory card with dynamic actions (Start Inventory, Continue Counting, View Completed Sheet, and Correct Finalized Day).
-- **Playwright E2E Suite (`critical_workflow_repairs.spec.ts`)**: Comprehensive end-to-end test suite testing finalized corrections, logout confirmation, emergency lockdown, password recovery logging, and responsive multi-device layouts.
+**Date Range:** 2026-10-18 to 2026-10-19
+**Primary Commits:** `4d71bb0` through `135f10b` (Authoritative HEAD)
 
-## [2.5.0] - 2026-10-10
+* **fix(security):** Applied comprehensive main-branch audit safety guards and fail-closed integrity rules (`135f10b`):
+  * Purged simulated fallback telemetry in `superAdminService.ts`, ensuring disconnected systems report `0 / 'Unavailable'` rather than misleading healthy metrics.
+  * Placed browser-side multi-table restore in a safe disabled mode pending an atomic backend RPC.
+  * Deprecated client-side Netlify build hook trigger in favor of safe read-only guidance commands.
+  * Enforced strict non-negative quantity assertions during post-finalization sheet correction submissions.
+  * Hardened single-session lease verification to fail closed if verification RPC fails.
+* **feat(admin):** Converted Super Admin Control Center into an interactive, 10-tab operations console (`4d71bb0`): Overview, Audit Logs, Security & Access, Incident Center, System Settings, Storage & Assets, Database Health, Telemetry & Logs, Recovery & Backup, and Deployments.
+* **feat(reliability):** Implemented atomic database repairs, live keepalive ping telemetry, and 19 automated unit tests for Super Admin services (`cae5ec1`).
 
-### Added
+---
 
-- **Strict Non-Negative Physical Stock Invariant & Deficit Auto-Zeroing**: In physical inventory systems (F&B/retail), physical goods cannot exist in negative quantities. Any transaction where sales or consumption exceed available stock ($(\text{beg} + \text{add}) - (\text{am} + \text{pm}) < 0$) automatically auto-zeroes ending physical stock to `0` ($\max(0, \text{rawEnding})$).
-- **Automated Stock Discrepancy Real-Time Alerts (`STOCK_DISCREPANCY`)**: When deficit auto-zeroing occurs, the system immediately records and broadcasts a `STOCK_DISCREPANCY` notification to notify supervisors with exact variance details (e.g., *"Sales for Pork BBQ (25 pcs) exceeded total stock (15 pcs) by 10 pcs. Negative stock is disallowed; ending stock has been automatically zeroed to 0."*).
-- **Inline Deficit Warning Badges**: The Daily Inventory Worksheet displays an inline warning label (`DEFICIT ZEROED (X pcs)`) beneath the item name and renders a warning indicator in the ending cell whenever recorded sales exceed on-hand balance.
-- **Zero-Friction Negative Input Interception**: Integrated high-speed keypress filters intercepting `-` / `Minus` key and sanitizing clipboard pastes across all inventory inputs (`InventoryRow`, `StockUpdateModal`, `AddStockModal`, `ItemFormModal`), guaranteeing no negative numbers can ever be entered.
-- **Database Mutation Clamping**: Hardened API mutation handlers (`updateDailyInventoryItem`, `getDailyInventorySession`, `addStock`, `removeStock`, `adjustStock`) to enforce non-negative values ($\max(0, \text{val})$) prior to database persistence.
-- **Cross-Browser & Multi-Device Playwright Test Suite (`negative_stock_prevention.spec.ts`)**: Added 25 automated end-to-end tests across 5 browser/device engines (Chrome/Edge, Firefox, Safari/WebKit, Mobile Phone 393×852, Tablet iPad 820×1180), achieving a 100% pass rate (25 / 25 passed).
-- **Instant Zero-Stock Real-Time Notifications**: Entering 0 or depleting stock in the Daily Inventory Worksheet (`/daily-inventory`) or through inventory adjustments automatically inserts deduplicated `OUT_OF_STOCK` and `LOW_STOCK` alerts into `public.notifications` and triggers real-time toast popups with 1-click redirection.
-- **Out-of-Stock Warning Badge**: Daily inventory ending stock cell renders a high-contrast rose alert badge and `⚠️ 0` indicator when ending balance is depleted (replacing misleading green status).
-- **Mathematical Oval Logo Silhouette**: Re-encoded `logo-transparent.png` with a precise anti-aliased elliptical alpha mask (`cx=237, cy=174, rx=205.5, ry=70`) eliminating off-white card artifacts, and upgraded login & header emblem containers into matching golden-bordered capsule silhouettes (`rounded-full border-[#C5A059]/40`).
-- **Master Admin Sub-Tabs Fluid Scroll & Chevrons**: Added smooth horizontal touch-scrolling and responsive navigation chevrons to the Master Admin sub-tabs container (`subTabsRef`), preventing clipped tabs like "Disaster Recovery" on narrow or medium viewports.
-- **Resilient Image Link Normalization & Hotlink Proxy**: Added automatic conversion of Google Drive sharing links (`drive.google.com/file/d/...`), Imgur links (`imgur.com/...`), and Dropbox links (`dl=0` $\rightarrow$ `raw=1`), with `referrerPolicy="no-referrer"` and automated CDN proxy fallback (`images.weserv.nl`) across item cards, detail pages, and upload inputs.
-- **Playwright Audit Verification Suite**: Added comprehensive end-to-end test suite (`e2e/user_audit_fixes_verification.spec.ts`) testing 0-stock notifications, oval logo silhouettes, sub-tab scrollability, strict `"DELETE"` purge confirmation, and image URL normalization.
+## [Phase 7] — Super Admin Role Migration & Finalized Sheet Revisions
 
-### Changed
+**Date Range:** 2026-10-17 to 2026-10-18
+**Primary Commits:** `920bb59` through `36d1c8e`
 
-- **Clean-Slate Purge Confirmation String**: Simplified dangerous catalog wipe confirmation keyword strictly to `"DELETE"` (replacing `"PURGE ALL ITEMS"`).
+* **fix(daily-inventory):** Resolved correction mode row edit save failures and fixed revision number incrementation across frontend, backend, and database (`36d1c8e`).
+* **feat(daily-inventory):** Empowered staff and user roles to correct finalized daily shift worksheets with audited revision history and delta stock calculations (`e782039`).
+* **feat(security):** Implemented emergency maintenance mode lockdown, password reset logging, and standalone super admin route (`88ab9ad`).
+* **feat(admin):** Standardized administrative naming from "Master Admin" to "Super Admin" across all database tables, functions, and UI screens (`920bb59`, `ba5946e`, `573948d`).
+* **feat(storage):** Implemented 30-day archival policy and resilient image link error handling.
 
-## [2.4.0] - 2026-10-04
+---
 
-### Added
+## [Phase 6] — Realtime Synchronization, Non-Negative Stock & Concurrency Controls
 
-- **Master Engineering Directive Compliance**: Complete architectural audit enforcing Anti-Vibe-Coding, Anti-AI-Slop, and Worker-First UX principles across all customer and staff surfaces.
-- **Worker-First Microcopy System**: Simplified UI messages to clean 1–4 word worker-oriented signals (`ACCOUNT IN USE`, `SAVED`, `SAVING...`, `SAVE FAILED`, `FINALIZED`, `INSUFFICIENT STOCK`, `ADDED: X pcs`, `PASSWORD CHANGED`, `RESTORED`).
-- **Single-Session Lease Lockout**: Atomic `user_session_leases` table with 45-second heartbeat window and instant lockout denial (`ACCOUNT IN USE`) when a concurrent session attempts login on another terminal.
-- **Playwright Real-Browser Verification**: 100% test pass rate across 90 / 90 scenarios executed on real browser engines (Chromium, Firefox, WebKit, Mobile Safari, Mobile Chrome) across 10 viewports (360×800 to 1920×1080).
-- **Disaster Recovery Center (Tier 0)**: 5-tier coordinated recovery architecture with read-only state preview drawer, 1-click JSON snapshot exports, and automatic stock drift healing.
-- **FEFO Batch Preservation**: Authoritative batch isolation ensuring multiple restocks with different expiration dates never overwrite or corrupt existing batches.
+**Date Range:** 2026-10-10 to 2026-10-11
+**Primary Commits:** `29ad5c4` through `579932e`
 
-### Fixed
+* **fix(notifications):** Purged synthetic mock alerts from database and enabled direct 1-click navigation from alerts to referring items and batches (`579932e`).
+* **feat(inventory):** Enforced strict non-negative stock invariant; auto-zeroed deficit sales and flagged discrepancies (`4d38c45`).
+* **feat(sync):** Implemented comprehensive 8-domain real-time synchronization via Supabase Realtime WebSockets (`44a6c44`).
+* **feat(sync):** Established 2-way live synchronization between Daily Inventory worksheets and Catalog with FEFO deduction (`a16daaa`).
+* **fix(styles):** Polished component class utilities and ref lifecycles for React 19 compliance (`268069a`).
 
-- **Stock Deduction Error Microcopy**: Replaced lengthy error paragraphs with crisp status format `INSUFFICIENT STOCK\nAvailable: X pcs`.
-- **Cross-Device Virtual Keyboard Clearance**: Ensured all login and modal inputs provide automatic scroll-into-view and vertical scroll preservation to prevent software keyboard obstruction.
+---
 
-## [1.0.0-RC3] - 2026-09-27
+## [Phase 5] — Master Admin Architecture & Single-Session Lease Engine
 
-### Added
+**Date Range:** 2026-10-03 to 2026-10-05
+**Primary Commits:** `756f828` through `eae5ec2`
 
-- **Dynamic Station & Category Unification**: Stations in the Daily Inventory Worksheet (`/daily-inventory`) and Reports are now fully dynamic and driven by `categories`. Any category created via the Categories management page or directly via the worksheet generates its own station pill, dedicated table, and quick item actions.
-- **Direct "+ Add Station / Table" Action**: Added a modal action directly within the Daily Inventory Worksheet enabling operators to define new station tables instantly without leaving the worksheet.
-- **Station-Specific Item Addition**: Added "+ Add Item" per station table header and empty-state "+ Add First Item" prompts with automatic category pre-selection.
-- **Unit Test Suite**: Added comprehensive Vitest tests (`src/features/daily-inventory/__tests__/stationGrouping.test.ts`) testing dynamic station groupings, multi-category calculations, and grand total aggregations.
+* **feat(directive):** Implemented single-session lease engine with 30-second heartbeat in `public.system_sessions` to prevent concurrent account sharing (`05900e0`).
+* **feat(security):** Enforced database quota of maximum 1 Master Admin and 3 Admins in database triggers and RPCs (`0545690`).
+* **feat(master-admin):** Modularized 10 control center sub-tabs and implemented disaster recovery save-state checkpoints (`eb51512`, `754468d`).
+* **fix(connectivity):** Harmonized all frontend API queries, table schemas, and RPC endpoints with Supabase PostgreSQL (`3f48aa7`).
+* **docs:** Consolidated system specifications and architecture into unified `DEV_LOGS.docx` compilation script (`b928b54`).
 
-### Fixed
+---
 
-- **Global Focus Rings & Highlight Outlines**: Replaced aggressive global `:focus-visible` dual box-shadow rings with clean, standard outline rules and explicit `.outline-none:focus-visible` resets to eliminate double blue borders.
-- **Password Input Border Glitch**: Refactored `LoginForm` password input into a unified single `<Input>` element with overlaid toggle button, removing inner border clips and split focus outlines.
-- **Command Palette Overlap**: Removed redundant close 'X' button conflicting with the 'ESC' badge on desktop screens, improved mobile drawer layout, and polished focus states.
-- **Cross-Device Responsiveness**: Optimized table sticky column offsets (`left-10 sm:left-12`), horizontal scrolling containers, flexible buttons, and touch accessibility across mobile phones, tablets, laptops, and ultra-wide desktops.
-- **Reports & PDF Export Parity**: Updated report data grouping and PDF exporter to dynamically iterate through all available categories instead of restricting to 3 legacy sections.
+## [Phase 4] — UX Laws, CI Test Automation & Supabase Keepalive
 
-## [1.0.0-RC2] - 2026-09-03
+**Date Range:** 2026-09-12 to 2026-09-27
+**Primary Commits:** `33a9456` through `2b036f5`
 
-### Changed
+* **fix(qa):** Resolved WCAG accessibility findings, 44x44px touch targets, LCP image optimization, and COEP headers (`e08744e`, `3ab1a31`).
+* **feat(qa-production):** Added automated Vitest and Playwright test suites, resolved sticky table hover bugs, and enforced security headers (`5f086ee`).
+* **fix(security):** Converted public database views to `security_invoker = true` to remediate Supabase linter warning (`f8f9638`).
+* **feat(automation):** Implemented Supabase inactivity keepalive workflow on GitHub Actions (`0 0 */2 * *`) to prevent 7-day project pausing (`33a9456`).
+* **feat(ui):** Implemented fluid responsive header layout for mobile, tablet, and desktop viewports (`73d6dc2`).
 
-- Refactored frontend styling architecture to `shadcn/ui` with modern `lucide-react` iconography for professional visual standards.
-- Removed legacy unstyled/placeholder HTML structures in favor of robust, responsive container layouts.
+---
 
-### Removed
+## [Phase 3] — Inventory Engine Hardening, Autosave & FEFO Priority
 
-- Removed temporary AI-agent instructions and prompts from public repository structure (moved to internal docs).
-- Uninstalled deprecated PostCSS/Autoprefixer dependencies after Tailwind v4 migration.
-- Cleaned debug tracing logs and leftover workspace assets.
+**Date Range:** 2026-09-06 to 2026-09-09
+**Primary Commits:** `7f1cd7e` through `a027dd6`
 
-## [1.0.0-RC1] - 2026-09-02
+* **feat(database):** Full database hardening, immutable stock ledger, and frontend role boundaries (`18255c0`).
+* **feat(inventory):** Consolidated FEFO priority sorting engine and supplier management modal (`ffaec3b`).
+* **feat(daily-inventory):** Implemented real-time daily inventory debounced autosave (`7f1cd7e`).
+* **feat(assets):** Added product image upload support to Supabase Storage with local fallbacks (`606b6cb`).
 
-### Added
+---
 
-- Completed KUVENTORY Engine Phase 1 through 10.
-- Implemented robust RBAC, Supabase Row-Level Security, and Secure Authentication.
-- Built Inventory Engine, Daily Reports, FEFO Stock Batches, and Global Notifications.
-- Export to PDF, CSV, XLSX for historical report snapshots.
-- UI/UX polish with responsive Mobile, Tablet, and Desktop optimization.
-- (Phase 11) High-performance optimistic UI updates to reduce server load and eliminate UI freezing on low-end devices.
-- (Phase 11) Row-level rendering memoization to avoid full-page refaints on large inventory spreadsheets.
+## [Phase 2] — Database Reconstruction & Full-Stack Supabase Integration
 
-## [0.1.0] - 2026-09-02
+**Date Range:** 2026-09-04 to 2026-09-05
+**Primary Commits:** `a898737` through `1b89c7d`
 
-### Added (Initial Setup)
+* **feat(backend):** Added `public.system_settings`, suppliers directory, and multi-layer audit tracking (`1b89c7d`).
+* **fix(database):** Eliminated null fields, backfilled descriptions, and hardened views against missing columns (`e6349eb`).
+* **fix(backend):** Fixed finalize inventory consumption RPC and prevented notification trigger errors on item deletion (`e7bde19`).
+* **feat(ipo):** Completed stock details, item costs, suppliers directory, and multi-tab reports hub (`cc588a7`, `d0359cc`).
+* **fix(auth):** Fixed "database error querying schema" caused by GoTrue null token parsing bug (`3574f29`).
 
-- Initial project scaffolding using Vite, React 19, and TypeScript.
-- Tailwind CSS v4 and shadcn/ui configuration.
-- Local Supabase initialization.
-- Core dependencies added (React Query, React Hook Form, Zod, React Router).
-- Testing foundation established (Vitest, React Testing Library, Playwright).
-- Architectural folder structure in `src/`.
-- Developer documentation (`setup.md`, `environment.md`, `dependencies.md`, `baseline.md`).
-- Project version set to `0.1.0`.
+---
 
-### Security
+## [Phase 1] — Bootstrap, Initial Scaffolding & 1.0.0 Release
 
-- **Phase 12**: Hardened RLS policies for daily inventory, secured all highly-privileged RPCs against identity spoofing and search-path injection, and revoked arbitrary update rights on global notifications.
+**Date Range:** 2026-09-02 to 2026-09-03
+**Primary Commits:** `427070c` through `03937d3`
+
+* **chore:** KUVENTORY 1.0.0 Version Release with baseline Netlify configuration (`2199e66`).
+* **fix(build):** Resolved Netlify Linux case-sensitivity build failures (`fd3e553`).
+* **feat:** Finalized real data integration, purged initial mock data, and connected Supabase PostgreSQL (`532b872`).
+* **feat(auth):** Completed Phase 03 authentication, role routing, and inventory engine scaffolding (`8545468`, `738b15b`).
+* **chore:** Initial repository bootstrap (`427070c`).

@@ -15,8 +15,9 @@
     "preview": "vite preview",
     "server": "node server/server.mjs",
     "backup": "node scripts/backup-db.mjs --now",
-    "backup:schedule": "node scripts/backup-db.mjs",
-    "docs:dev-logs": "node scripts/build-dev-logs-docx.mjs"
+    "docs:dev-logs": "node scripts/build-dev-logs-docx.mjs",
+    "docs:user-guide": "node scripts/build-user-guide.mjs",
+    "docs:all": "npm run docs:dev-logs && npm run docs:user-guide"
   },
   "engines": {
     "node": ">=22.0.0"

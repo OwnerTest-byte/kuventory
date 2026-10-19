@@ -1,0 +1,27 @@
+flowchart TD
+    Start(["User Enters Application"]) --> CheckSession{"Has Active Supabase Session?"}
+    
+    CheckSession -- "No" --> PublicRouter{"Target Route Public?"}
+    PublicRouter -- "Yes (/login or /reset-password)" --> RenderPublic["Render Login / Reset Screen"]
+    PublicRouter -- "No (Protected Path)" --> RedirectLogin["Redirect to /login with state.from"]
+
+    CheckSession -- "Yes" --> FetchProfile["Fetch public.profiles<br/>(id, role, first_name, last_name)"]
+    FetchProfile --> MaintenanceCheck{"Emergency Maintenance Mode Active?"}
+
+    MaintenanceCheck -- "Yes & Role != SUPER_ADMIN" --> MaintenanceScreen["Render EmergencyMaintenanceScreen<br/>(Lockdown Active)"]
+    MaintenanceCheck -- "No or Role == SUPER_ADMIN" --> LeaseVerification{"Verify Single-Session Lease<br/>(RPC: renew_session_lease)"}
+
+    LeaseVerification -- "Session Revoked / Stolen" --> ForceLogout["Clear Session & Force Redirect /login<br/>(Notice: Logged in from another device)"]
+    LeaseVerification -- "Valid Lease" --> StartHeartbeat["Start 30s Heartbeat Timer<br/>& Realtime Session Watcher"]
+
+    StartHeartbeat --> RoleGuard{"Route Guard Check"}
+
+    RoleGuard -- "Path: /super-admin" --> SuperAdminGuard{"Role in [SUPER_ADMIN, MASTER_ADMIN]?"}
+    SuperAdminGuard -- "Yes" --> RenderSuperAdmin["Render SuperAdminPage<br/>(10 Operations Tabs)"]
+    SuperAdminGuard -- "No" --> AccessDeniedSuper["Render Access Denied Banner"]
+
+    RoleGuard -- "Path: /admin or /settings" --> AdminGuard{"Role in [ADMIN, SUPER_ADMIN, MASTER_ADMIN]?"}
+    AdminGuard -- "Yes" --> RenderAdmin["Render AdminPage<br/>(Full User, Categories, System Admin)"]
+    AdminGuard -- "No" --> RenderStaffSettings["Render Staff Settings View<br/>(Password & Profile only)"]
+
+    RoleGuard -- "Path: /inventory, /daily-inventory, /items, /reports, /notifications" --> RenderStaffApp["Render AppLayout & Requested Screen<br/>(Accessible to USER, ADMIN, SUPER_ADMIN)"]

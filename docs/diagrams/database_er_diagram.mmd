@@ -1,0 +1,189 @@
+erDiagram
+    profiles ||--o{ audit_logs : "triggers"
+    profiles ||--o{ system_sessions : "holds"
+    profiles ||--o{ daily_inventory_sheets : "creates"
+    profiles ||--o{ daily_inventory_revisions : "authorizes"
+    
+    categories ||--o{ inventory_items : "classifies"
+    suppliers ||--o{ inventory_items : "supplies"
+    suppliers ||--o{ stock_batches : "delivers"
+
+    inventory_items ||--o{ stock_batches : "tracks"
+    inventory_items ||--o{ stock_movements : "records"
+    inventory_items ||--o{ daily_inventory_items : "monitors"
+    inventory_items ||--o{ notifications : "alerts"
+
+    stock_batches ||--o{ stock_movements : "logs"
+
+    daily_inventory_sheets ||--|{ daily_inventory_items : "contains"
+    daily_inventory_sheets ||--o{ daily_inventory_revisions : "revises"
+    daily_inventory_sheets ||--o{ report_snapshots : "snapshots"
+
+    profiles {
+        uuid id PK
+        string role
+        string first_name
+        string last_name
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    categories {
+        uuid id PK
+        string name
+        string description
+        string station_name
+        timestamp created_at
+    }
+
+    suppliers {
+        uuid id PK
+        string name
+        string contact_person
+        string phone
+        string email
+        string lead_time_days
+        timestamp created_at
+    }
+
+    inventory_items {
+        uuid id PK
+        string name
+        string unit
+        numeric unit_cost
+        numeric current_qty
+        numeric min_quantity
+        uuid category_id FK
+        uuid supplier_id FK
+        boolean is_archived
+        string image_path
+        timestamp created_at
+    }
+
+    stock_batches {
+        uuid id PK
+        uuid item_id FK
+        numeric quantity
+        date expiry_date
+        date received_date
+        uuid supplier_id FK
+        timestamp created_at
+    }
+
+    stock_movements {
+        uuid id PK
+        uuid item_id FK
+        uuid batch_id FK
+        numeric quantity
+        string action_type
+        string reason
+        uuid created_by FK
+        timestamp created_at
+    }
+
+    daily_inventory_sheets {
+        uuid id PK
+        date sheet_date UK
+        string status
+        integer revision_number
+        uuid finalized_by FK
+        timestamp finalized_at
+        timestamp created_at
+    }
+
+    daily_inventory_items {
+        uuid id PK
+        uuid sheet_id FK
+        uuid item_id FK
+        numeric beginning_stock
+        numeric added_stock
+        numeric am_usage
+        numeric pm_usage
+        numeric total_stock
+        numeric ending_stock
+        numeric physical_count
+        numeric discrepancy
+        timestamp updated_at
+    }
+
+    daily_inventory_revisions {
+        uuid id PK
+        uuid sheet_id FK
+        integer revision_number
+        uuid revised_by FK
+        string reason
+        jsonb previous_state
+        jsonb corrected_state
+        timestamp created_at
+    }
+
+    notifications {
+        uuid id PK
+        string type
+        string title
+        string message
+        uuid item_id FK
+        uuid batch_id FK
+        string dedup_key UK
+        boolean is_read
+        timestamp created_at
+    }
+
+    report_snapshots {
+        uuid id PK
+        date report_date UK
+        string report_type
+        jsonb data_payload
+        uuid generated_by FK
+        timestamp created_at
+    }
+
+    system_sessions {
+        uuid id PK
+        uuid user_id FK
+        string device_id
+        string user_agent
+        string ip_address
+        timestamp lease_expires_at
+        timestamp last_heartbeat
+        timestamp created_at
+    }
+
+    system_settings {
+        string key PK
+        string value
+        string description
+        timestamp updated_at
+    }
+
+    system_incidents {
+        uuid id PK
+        string incident_code UK
+        string title
+        string severity
+        string status
+        string affected_subsystem
+        uuid reported_by FK
+        timestamp created_at
+    }
+
+    recovery_points {
+        uuid id PK
+        string point_code UK
+        string name
+        string snapshot_type
+        string integrity_status
+        jsonb scope_manifest
+        uuid created_by FK
+        timestamp created_at
+    }
+
+    audit_logs {
+        uuid id PK
+        uuid user_id FK
+        string action
+        string entity_name
+        uuid entity_id
+        jsonb metadata
+        timestamp created_at
+    }

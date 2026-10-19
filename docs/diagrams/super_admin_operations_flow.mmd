@@ -1,0 +1,25 @@
+flowchart TD
+    SuperAdmin(["Super Admin Enters Console<br/>(/super-admin)"]) --> TabSelect{"Select Operations Tab"}
+
+    TabSelect -- "1. Console Overview" --> ViewTelemetry["View System Health, Ping Latency Area Chart, Quick Actions"]
+    TabSelect -- "2. Audit Logs" --> ViewLogs["Search/Filter Immutable Security & Stock Mutation Logs"]
+    TabSelect -- "3. Security & Access" --> SessionControl["Inspect Active Sessions, Terminate Leases, Emergency Lockdown Toggle"]
+    TabSelect -- "4. Incident Center" --> IncidentMgmt["Log Outages/Degradations, Assign Severity, Track Resolution"]
+    TabSelect -- "5. System Settings" --> ConfigTuning["Adjust Data Retention, Low Stock Defaults, Business Timezone"]
+    TabSelect -- "6. Storage & Assets" --> AssetHealth["Verify S3-Compatible Buckets, Test Image Delivery, Storage Usage"]
+    TabSelect -- "7. Database Health" --> Diagnostics["Execute Drift Analysis, Preview Item Sync, Inspect RPC Signatures"]
+    TabSelect -- "8. Telemetry & Logs" --> LiveTelemetry["Review HTTP Request Metrics, Error Rates, Query Performance"]
+    TabSelect -- "9. Recovery & Backup" --> RecoveryMgmt["Create Recovery Checkpoints, Export App JSON, Review Restore Guard"]
+    TabSelect -- "10. Deployments" --> ReleaseReview["Inspect Verified Production Commits & Release Verification State"]
+
+    subgraph OperationLifecycle["Safe Operations Execution Lifecycle"]
+        SelectAction["Select Operational Action<br/>(e.g., Lockdown Mode, Drift Repair, Session Revocation)"] --> AuthCheck{"Super Admin Session Verified?"}
+        AuthCheck -- "No" --> DenyOp["Abort Action (403 Forbidden)"]
+        AuthCheck -- "Yes" --> RequireInput["Provide Required Operational Parameters"]
+        RequireInput --> PreviewModal["Display Preview & Warning Confirmation Dialog"]
+        PreviewModal -- "Cancel" --> AbortOp["Safely Abort (No Database Mutation)"]
+        PreviewModal -- "Confirm" --> ExecuteBackend["Dispatch Backend RPC / Service Call"]
+        ExecuteBackend --> WriteAudit["Record Event in public.audit_logs<br/>(actor_id, action, timestamp, payload)"]
+        WriteAudit --> EmitRealtime["Supabase Realtime Broadcasts State Change"]
+        EmitRealtime --> ToastFeedback["Display Success Toast & Refresh Tab Data"]
+    end

@@ -1,0 +1,37 @@
+flowchart TD
+    OpenSheet(["Staff Opens /daily-inventory"]) --> DetermineDate["Determine Business Date<br/>(getBusinessDateString strictly in Asia/Manila, UTC+8)"]
+    
+    DetermineDate --> CheckExisting{"Sheet Exists for Date?"}
+    
+    CheckExisting -- "No" --> CreateSheet["Insert daily_inventory_sheets (status = 'DRAFT')<br/>Seed rows with beginning_stock = previous ending_stock"]
+    CheckExisting -- "Yes" --> LoadSheet["Load Existing Sheet & Items for Date"]
+    
+    CreateSheet --> EditLoop["Active Draft Worksheet"]
+    LoadSheet --> StatusCheck{"Sheet Status?"}
+
+    StatusCheck -- "DRAFT" --> EditLoop
+    StatusCheck -- "FINALIZED" --> ReadOnlyView["Display Finalized Read-Only View<br/>(Badge: FINALIZED)"]
+
+    subgraph DraftOperations["Draft Worksheet Operations"]
+        EditLoop --> StaffInputs["Staff Inputs AM Usage / PM Usage / Physical Count"]
+        StaffInputs --> ComputeFormulas["Realtime Calculation (Client & SQL Generated Columns):<br/>TOTAL = BEG + ADD<br/>ENDING = max(0, TOTAL - (AM + PM))<br/>DISCREPANCY = PHYSICAL - ENDING"]
+        ComputeFormulas --> AutoSave["Debounced Autosave (UPSERT daily_inventory_items)"]
+        AutoSave --> StockAddModal["Optional: Click '+ Stock' to Add Restock Receipt<br/>(Creates stock_batch with expiry date & ADD movement)"]
+        StockAddModal --> RefreshSheet["Updates added_stock on Worksheet"]
+    end
+
+    DraftOperations --> FinalizeAction{"Authorized User Clicks 'Finalize Inventory'"}
+    
+    FinalizeAction -- "Validation Check" --> ValidateFinalize{"Any Negative Deficit or Incomplete Rows?"}
+    ValidateFinalize -- "Invalid / Blocking" --> ShowError["Display Validation Error Toast"]
+    ValidateFinalize -- "Valid" --> ExecuteFinalize["Invoke RPC: finalize_daily_inventory_sheet<br/>1. Sets status = 'FINALIZED'<br/>2. Loops items: executes consume_stock(item_id, AM+PM, FEFO)<br/>3. Freezes report_snapshots (immutable historical record)"]
+
+    ExecuteFinalize --> BroadcastFinalize["Supabase Realtime Notifies Connected Clients"]
+    BroadcastFinalize --> ReadOnlyView
+
+    subgraph CorrectionFlow["Post-Finalization Correction & Revision Flow"]
+        ReadOnlyView --> RequestCorrection{"User Initiates Correction<br/>(Staff / Admin / Super Admin)"}
+        RequestCorrection --> PromptReason["Open DailyCorrectionModal<br/>Input: Mandatory Correction Reason & Item Adjustments"]
+        PromptReason --> SubmitCorrection["Invoke RPC: apply_daily_sheet_correction<br/>1. Calculates Delta = (New AM+PM) - (Old AM+PM)<br/>2. If Delta > 0: consume_stock(FEFO) Delta<br/>3. If Delta < 0: restock batches Delta<br/>4. Inserts daily_inventory_revisions (audit log)<br/>5. Increments sheet revision_number<br/>6. Refreshes report snapshot"]
+        SubmitCorrection --> CorrectionComplete["Worksheet Updated with Revision History Tag"]
+    end
