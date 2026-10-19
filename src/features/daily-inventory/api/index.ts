@@ -372,9 +372,19 @@ export async function updateDailyInventoryItem(params: {
  * Automatically freezes report snapshot and executes FEFO stock consumption.
  */
 export async function finalizeDailyInventory(sessionId: string, _userId?: string): Promise<void> {
-  const { error } = await supabase.rpc('finalize_daily_inventory', {
+  let { error } = await supabase.rpc('finalize_daily_inventory', {
     p_daily_inventory_id: sessionId
   });
+
+  // If a duplicate report row already exists from a prior draft reset, clean it up and retry
+  if (error && (error.code === '23505' || error.message?.includes('unique_report_daily_inventory_version'))) {
+    console.warn('Duplicate report record detected during finalization; reconciling and retrying...');
+    await supabase.from('reports').delete().eq('daily_inventory_id', sessionId);
+    const retry = await supabase.rpc('finalize_daily_inventory', {
+      p_daily_inventory_id: sessionId
+    });
+    error = retry.error;
+  }
 
   if (error) {
     console.error('finalizeDailyInventory RPC error:', error);

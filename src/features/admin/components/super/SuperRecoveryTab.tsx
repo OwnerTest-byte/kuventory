@@ -50,12 +50,14 @@ export function SuperRecoveryTab() {
 
   // Export state
   const [isExporting, setIsExporting] = useState(false);
+  const [operationError, setOperationError] = useState<string | null>(null);
 
   const handleCreateCheckpoint = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!checkpointName.trim() || !checkpointReason.trim()) return;
     setIsCreating(true);
     setCreateSuccess(null);
+    setOperationError(null);
     try {
       const { data: authData } = await supabase.auth.getUser();
 
@@ -74,7 +76,7 @@ export function SuperRecoveryTab() {
       setCheckpointName('');
       setCheckpointReason('');
     } catch (err: any) {
-      alert('Error creating recovery checkpoint: ' + (err.message || 'Unknown error'));
+      setOperationError('Error creating recovery checkpoint: ' + (err.message || 'Unknown error'));
     } finally {
       setIsCreating(false);
     }
@@ -82,11 +84,12 @@ export function SuperRecoveryTab() {
 
   const handleDownloadFullExport = async () => {
     setIsExporting(true);
+    setOperationError(null);
     try {
       const { data: authData } = await supabase.auth.getUser();
       await exportFullSystemBackup(authData?.user?.email || 'superadmin@kuventory.com');
     } catch (err: any) {
-      alert('Data export failed: ' + (err.message || 'Unknown error'));
+      setOperationError('Data export failed: ' + (err.message || 'Unknown error'));
     } finally {
       setIsExporting(false);
     }
@@ -158,6 +161,17 @@ export function SuperRecoveryTab() {
             <span>{localRestoreSuccess}</span>
           </div>
         )}
+        {operationError && (
+          <div className="p-3 rounded-xl bg-destructive/15 border border-destructive/30 text-xs font-semibold text-destructive flex items-center justify-between gap-2" role="alert">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{operationError}</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setOperationError(null)} className="h-6 px-2 text-[11px] text-destructive hover:bg-destructive/20 font-bold">
+              Dismiss
+            </Button>
+          </div>
+        )}
 
         {/* 4 Architectural Recovery Tiers */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2 text-xs">
@@ -199,7 +213,7 @@ export function SuperRecoveryTab() {
       <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-foreground">Verified Recovery Points Registry</h3>
+            <h3 className="text-sm font-bold text-foreground">Verified Recovery Checkpoints ("Save States")</h3>
             <p className="text-xs text-muted-foreground">Historical application checkpoints captured in the database</p>
           </div>
           <span className="text-xs font-mono text-muted-foreground">
@@ -265,7 +279,7 @@ export function SuperRecoveryTab() {
                         onClick={() => setPreviewPoint(pt)}
                         className="text-xs h-7 px-2.5 border-border cursor-pointer"
                       >
-                        <Eye className="w-3 h-3 mr-1" /> Preview
+                        <Eye className="w-3 h-3 mr-1" /> Preview State
                       </Button>
                       <Button
                         variant="outline"
@@ -340,7 +354,7 @@ export function SuperRecoveryTab() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="w-5 h-5 text-primary" />
-              Checkpoint Preview: {previewPoint?.point_code}
+              Recovery Point Read-Only State Preview: {previewPoint?.point_code}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
               Read-only inspection of checkpoint metadata and registered state payload.
@@ -349,7 +363,20 @@ export function SuperRecoveryTab() {
 
           {previewPoint && (
             <div className="space-y-4 py-2 text-xs">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                  READ-ONLY ENVIRONMENT
+                </span>
+                <span className="text-[10px] text-muted-foreground font-semibold">
+                  Zero-Production-Write Guarantee
+                </span>
+              </div>
+
               <div className="p-3.5 rounded-xl bg-muted/40 border border-border space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Checkpoint Code:</span>
+                  <span className="font-mono font-bold text-primary">{previewPoint.point_code}</span>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Label:</span>
                   <span className="font-bold text-foreground">{previewPoint.name}</span>
@@ -389,7 +416,7 @@ export function SuperRecoveryTab() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setPreviewPoint(null)}>
-              Close
+              Close Preview
             </Button>
           </DialogFooter>
         </DialogContent>

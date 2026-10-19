@@ -4,6 +4,8 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { pingSupabaseKeepalive } from '@/lib/keepalive';
 import { SuperAdminControlCenter } from '../components/super/SuperAdminControlCenter';
+import { AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { getMaintenanceStatus, setMaintenanceLockdown } from '../services/maintenanceService';
 import { exportFullSystemBackup } from '../services/superAdminService';
 
@@ -19,8 +21,11 @@ export function SuperAdminPage() {
     queryFn: getMaintenanceStatus,
   });
 
+  const [pageError, setPageError] = useState<string | null>(null);
+
   const handleToggleMaintenanceMode = async (customReason?: string) => {
     setIsMaintenanceToggling(true);
+    setPageError(null);
     const nextLocked = !maintenanceSetting?.locked;
     try {
       await setMaintenanceLockdown(
@@ -31,7 +36,7 @@ export function SuperAdminPage() {
       await refetchMaintenance();
       queryClient.invalidateQueries({ queryKey: ['system-maintenance-lock'] });
     } catch (err: any) {
-      alert('Failed to update maintenance mode: ' + (err.message || 'Unknown error'));
+      setPageError('Failed to update maintenance mode: ' + (err.message || 'Unknown error'));
     } finally {
       setIsMaintenanceToggling(false);
     }
@@ -140,10 +145,11 @@ export function SuperAdminPage() {
   const [isExportingBackup, setIsExportingBackup] = useState(false);
   const handleExportFullBackup = async () => {
     setIsExportingBackup(true);
+    setPageError(null);
     try {
       await exportFullSystemBackup(userEmail);
     } catch (err: any) {
-      alert('Backup export failed: ' + (err.message || 'Unknown error'));
+      setPageError('Backup export failed: ' + (err.message || 'Unknown error'));
     } finally {
       setIsExportingBackup(false);
     }
@@ -166,6 +172,17 @@ export function SuperAdminPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 text-foreground">
+      {pageError && (
+        <div className="p-4 rounded-xl bg-destructive/15 border border-destructive/30 text-destructive text-xs font-semibold flex items-center justify-between animate-in fade-in" role="alert">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{pageError}</span>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setPageError(null)} className="h-7 text-xs text-destructive hover:bg-destructive/20 font-bold">
+            Dismiss
+          </Button>
+        </div>
+      )}
       <SuperAdminControlCenter
         userEmail={userEmail}
         maintenanceLocked={maintenanceSetting?.locked || false}

@@ -28,6 +28,12 @@ test.describe('Single Active Session Lease & First Session Wins (Rules 11-17, 14
     await pageA.fill('#password', 'Staff123!');
     await pageA.click('button[type="submit"]');
 
+    // Handle session takeover if previous run left a lease
+    const takeoverBtnA = pageA.getByRole('button', { name: /continue here & end other session/i });
+    if (await takeoverBtnA.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await takeoverBtnA.click();
+    }
+
     // Wait for Device A to be logged in
     await pageA.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 });
     expect(pageA.url()).not.toContain('/login');
@@ -85,7 +91,15 @@ test.describe('Master Admin Control Center: Active Session Leases & Recovery Pre
     await page.fill('#email', 'master@kuventory.com');
     await page.fill('#password', 'MasterAdmin2026!');
     await page.click('button[type="submit"]');
-    await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
+
+    const takeoverBtn = page.getByRole('button', { name: /continue here & end other session/i });
+    await Promise.race([
+      takeoverBtn.waitFor({ state: 'visible', timeout: 4000 }).then(async () => {
+        await takeoverBtn.click();
+      }).catch(() => {}),
+      page.waitForURL((url: URL) => !url.pathname.includes('/login'), { timeout: 15000 }).catch(() => {})
+    ]);
+    await page.waitForURL((url: URL) => !url.pathname.includes('/login'), { timeout: 15000 });
 
     // Navigate to Master Admin Control Center
     await page.goto('/settings?tab=master');
@@ -96,8 +110,8 @@ test.describe('Master Admin Control Center: Active Session Leases & Recovery Pre
     await expect(page.locator('text=Active Session Leases (First Session Wins Enforcement)')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text=Single-Session Strict')).toBeVisible();
 
-    // 2. Inspect Disaster Recovery Sub-tab & Checkpoints
-    await page.click('button:has-text("Disaster Recovery")');
+    // 2. Inspect Disaster Recovery / Backups & Recovery Sub-tab & Checkpoints
+    await page.locator('button').filter({ hasText: /(Backups & Recovery|Disaster Recovery)/ }).first().click();
     await expect(page.locator('text=Verified Recovery Checkpoints ("Save States")')).toBeVisible({ timeout: 10000 });
 
     // Click "Preview State" button on baseline checkpoint
@@ -109,7 +123,7 @@ test.describe('Master Admin Control Center: Active Session Leases & Recovery Pre
     await expect(page.locator('text=Recovery Point Read-Only State Preview')).toBeVisible();
     await expect(page.locator('text=READ-ONLY ENVIRONMENT')).toBeVisible();
     await expect(page.locator('text=Zero-Production-Write Guarantee')).toBeVisible();
-    await expect(page.locator('text=Checkpoint Code')).toBeVisible();
+    await expect(page.locator('text=Checkpoint Code').first()).toBeVisible();
 
     // Close preview
     await page.click('button:has-text("Close Preview")');
@@ -122,42 +136,41 @@ test.describe('Batch Preservation & Database-Authoritative FEFO (Rules 19-27, 14
   test('Restock with different expiry creates separate batch without overwrite, and consumption follows FEFO', async ({ page }) => {
     // 1. Log in as Admin
     await page.goto('/login');
+    await page.waitForLoadState('networkidle');
+
     await page.fill('#email', 'admin@kuventory.com');
     await page.fill('#password', 'Admin123!');
     await page.click('button[type="submit"]');
+
+    const adminTakeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');
+    try {
+      if (await adminTakeoverBtn.isVisible({ timeout: 3000 })) {
+        await adminTakeoverBtn.click();
+      }
+    } catch {}
+
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
+    await page.waitForLoadState('networkidle');
 
     // 2. Perform test via authoritative database engine using browser session
     const testResult = await page.evaluate(async () => {
       const { supabase } = (window as any);
       if (!supabase) return { error: 'Supabase client unavailable' };
 
-      // A. Create or get test item
-      let { data: item } = await supabase
+      // A. Create unique test item for isolated deterministic FEFO verification
+      const testItemName = 'TEST_FEFO_MILK_' + Date.now();
+      const { data: cat } = await supabase.from('categories').select('id').limit(1).single();
+      const { data: item, error: createErr } = await supabase
         .from('inventory_items')
+        .insert({
+          name: testItemName,
+          category_id: cat?.id,
+          unit: 'pcs',
+          min_quantity: 10,
+        })
         .select('id, name')
-        .eq('name', 'TEST_FEFO_MILK')
-        .maybeSingle();
-
-      if (!item) {
-        // Fetch a category id
-        const { data: cat } = await supabase.from('categories').select('id').limit(1).single();
-        const { data: newItem, error: createErr } = await supabase
-          .from('inventory_items')
-          .insert({
-            name: 'TEST_FEFO_MILK',
-            category_id: cat?.id,
-            unit: 'pcs',
-            min_quantity: 10,
-          })
-          .select('id, name')
-          .single();
-        if (createErr) return { error: 'Failed to create item: ' + createErr.message };
-        item = newItem;
-      }
-
-      // Clear any prior batches for this test item to ensure clean deterministic test
-      await supabase.from('stock_batches').delete().eq('item_id', item.id);
+        .single();
+      if (createErr) return { error: 'Failed to create item: ' + createErr.message };
 
       // B. Step 1: Restock Batch A: 50 pcs, Expiry in 30 days (Rule 145)
       const expiryA = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
@@ -210,9 +223,7 @@ test.describe('Batch Preservation & Database-Authoritative FEFO (Rules 19-27, 14
         .eq('item_id', item.id)
         .order('expiry_date', { ascending: true });
 
-      // Clean up test item
-      await supabase.from('stock_batches').delete().eq('item_id', item.id);
-      await supabase.from('inventory_items').delete().eq('id', item.id);
+
 
       return {
         success: true,

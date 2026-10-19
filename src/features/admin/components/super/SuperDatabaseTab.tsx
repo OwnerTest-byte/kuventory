@@ -50,6 +50,7 @@ export function SuperDatabaseTab({
   const [isPruneModalOpen, setIsPruneModalOpen] = useState(false);
   const [isPruningBatches, setIsPruningBatches] = useState(false);
   const [pruneSuccessMessage, setPruneSuccessMessage] = useState<string | null>(null);
+  const [batchError, setBatchError] = useState<string | null>(null);
 
   // Handler: Analyze Stock Drift (READ-ONLY)
   const handleRunDriftAnalysis = async () => {
@@ -90,11 +91,12 @@ export function SuperDatabaseTab({
   const handleScanBatches = async () => {
     setIsScanningBatches(true);
     setPruneSuccessMessage(null);
+    setBatchError(null);
     try {
       const res = await scanDepletedBatches();
       setDepletedBatchResult(res);
     } catch (err: any) {
-      alert('Error scanning depleted batches: ' + (err.message || 'Unknown error'));
+      setBatchError('Error scanning depleted batches: ' + (err.message || 'Unknown error'));
     } finally {
       setIsScanningBatches(false);
     }
@@ -104,6 +106,7 @@ export function SuperDatabaseTab({
   const handleExecutePrune = async () => {
     if (!depletedBatchResult || depletedBatchResult.batches.length === 0) return;
     setIsPruningBatches(true);
+    setBatchError(null);
     try {
       const batchIds = depletedBatchResult.batches.map(b => b.batchId);
       const res = await cleanupDepletedBatches(batchIds, 'Super Admin Controlled Batch Cleanup');
@@ -114,7 +117,7 @@ export function SuperDatabaseTab({
       setDepletedBatchResult(refreshed);
       onRefresh();
     } catch (err: any) {
-      alert('Error cleaning batches: ' + (err.message || 'Unknown error'));
+      setBatchError('Error cleaning batches: ' + (err.message || 'Unknown error'));
     } finally {
       setIsPruningBatches(false);
     }
@@ -400,6 +403,18 @@ export function SuperDatabaseTab({
             )}
           </div>
         </div>
+
+        {batchError && (
+          <div className="p-3 text-xs text-destructive bg-destructive/15 rounded-xl border border-destructive/30 font-semibold flex items-center justify-between gap-2" role="alert">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{batchError}</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setBatchError(null)} className="h-6 px-2 text-[11px] text-destructive hover:bg-destructive/20 font-bold">
+              Dismiss
+            </Button>
+          </div>
+        )}
 
         {pruneSuccessMessage && (
           <div className="p-3 text-xs text-emerald-500 bg-emerald-500/15 rounded-xl border border-emerald-500/30 font-bold flex items-center gap-2">

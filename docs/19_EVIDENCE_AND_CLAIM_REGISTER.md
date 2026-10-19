@@ -1,6 +1,6 @@
 # KUVENTORY — Evidence & Claim Register
 
-```
+```text
 Document:               docs/19_EVIDENCE_AND_CLAIM_REGISTER.md
 Audience:               Technical Examiners, Software Architects, External Auditors
 Purpose:                Authoritative claim-to-evidence matrix mapping every architectural assertion,
@@ -15,6 +15,7 @@ Authoritative HEAD SHA: 135f10b807fedec368383c9e34895566da3d69fc
 ## 1. Classification Taxonomy
 
 Every claim in the KUVENTORY documentation suite is classified under one of the following authoritative labels:
+
 * **`[VERIFIED-SOURCE]`**: Inspected directly in the current repository code, migrations, or configurations.
 * **`[VERIFIED-TEST]`**: Validated by an automated Vitest unit/integration test or Playwright E2E spec.
 * **`[OBSERVED-CI]`**: Verified executing in active GitHub Actions workflows.
@@ -32,10 +33,10 @@ Every claim in the KUVENTORY documentation suite is classified under one of the 
 | Claim ID | System Claim / Assertion | Status Label | Concrete Verification Evidence & Source Reference |
 | :---: | :--- | :---: | :--- |
 | **CLM-01** | Application runs on React 19.2.8 and TypeScript 6.0.3 | `[VERIFIED-SOURCE]` | `package.json` line 46, `package-lock.json`, confirmed via Node inspection script. |
-| **CLM-02** | Automated test suite contains 107 passing tests across 16 files | `[VERIFIED-TEST]` | Executed `npm test` on 2026-10-19 08:44:55 UTC+8: 16 passed, 107 passed, 0 failed, 8.15s. |
+| **CLM-02** | Automated test suite contains 123 passing tests across 17 files | `[VERIFIED-TEST]` | Executed `npm test` on 2026-10-19: 17 passed, 123 passed, 0 failed. |
 | **CLM-03** | TypeScript strict typecheck passes with 0 errors | `[VERIFIED-TEST]` | Executed `npm run typecheck` (`tsc --noEmit`): 0 errors on 140 source files. |
 | **CLM-04** | Oxlint linter passes with 0 errors | `[VERIFIED-TEST]` | Executed `npm run lint` (`oxlint`): 0 errors, 24 React Compiler advisories. |
-| **CLM-05** | Production build compiles clean in under 3.5 seconds | `[VERIFIED-TEST]` | Executed `npm run build` (`tsc -b && vite build`): built in 3.30s. |
+| **CLM-05** | Production build compiles clean in under 3.5 seconds | `[VERIFIED-TEST]` | Executed `npm run build` (`tsc -b && vite build`): built in ~2.0s. |
 | **CLM-06** | Stock rotation adheres strictly to FEFO priority | `[VERIFIED-SOURCE]` | Migration `20261003180000`, `ORDER BY expiry_date ASC, created_at ASC FOR UPDATE`. |
 | **CLM-07** | FEFO priority sorting verified by automated tests | `[VERIFIED-TEST]` | `src/features/inventory/__tests__/fefoPriority.test.ts` (5 tests passing). |
 | **CLM-08** | Concurrency race conditions prevented via row-level locks | `[VERIFIED-SOURCE]` | Stored procedure `consume_stock` includes `FOR UPDATE` clause. |
@@ -58,8 +59,11 @@ Every claim in the KUVENTORY documentation suite is classified under one of the 
 | **CLM-25** | Cloud keepalive runs bi-daily on GitHub Actions | `[OBSERVED-CI]` | `.github/workflows/supabase-keepalive.yml: cron '0 0 */2 * *'`. |
 | **CLM-26** | `node-cron` database backup runs in standalone script | `[CONFIGURED-ONLY]` | `scripts/backup-db.mjs`. Disclosed as not running on Netlify static CDN. |
 | **CLM-27** | Super Admin browser restore button held in safe disabled mode | `[KNOWN-ISSUE]` | `SuperRecoveryTab.tsx: lines 182-200`. Disclosed as awaiting transactional RPC. |
-| **CLM-28** | Client-side Netlify build hook trigger deprecated | `[KNOWN-ISSUE]` | `SuperDeploymentsTab.tsx: lines 145-162`. Read-only guidance mode enforced. |
+| **CLM-28** | Client-side Netlify build hook trigger completely excised | `[RETIRED-LEGACY]` | Sub-tab removed from Super Admin navigation rail; neutral GitHub Actions link in place; zero `VITE_NETLIFY_DEPLOY_HOOK_URL` references. |
 | **CLM-29** | Fallback telemetry displays 0 / 'Unavailable', not fake 32 items | `[VERIFIED-SOURCE]` | `superAdminService.ts: lines 36-56`, commit `135f10b`. |
 | **CLM-30** | Historical release evolution spans 105 commits from 2026-09-02 | `[HISTORIC-COMMIT]` | Git commit log from `427070c` through `135f10b`. |
 | **CLM-31** | Live Supabase production database RLS and triggers active | `[NOT-LIVE-VERIFIED]` | Requires owner credentials to inspect live Supabase dashboard. |
 | **CLM-32** | Netlify live domain deployment matching commit 135f10b | `[NOT-LIVE-VERIFIED]` | Requires Netlify dashboard administrative access to verify deployed SHA. |
+| **CLM-33** | Single active session lease enforced with First Session Wins and takeover confirmation | `[VERIFIED-TEST]` | `sessionLeaseService.ts`, `AuthContext.tsx`, `LoginForm.tsx`, verified by `e2e/single_session_and_fefo_directive.spec.ts`. |
+| **CLM-34** | Save State Read-Only Inspection Modal guarantees zero production writes | `[VERIFIED-TEST]` | `SuperRecoveryTab.tsx`, verified by `e2e/single_session_and_fefo_directive.spec.ts` and `e2e/super_admin_operations_console.spec.ts`. |
+| **CLM-35** | Scheduled Services tab strictly monitors read-only background jobs | `[VERIFIED-SOURCE]` | `SuperAutomationsTab.tsx`, `SuperAdminControlCenter.tsx`, verified by `e2e/super_admin_operations_console.spec.ts`. |

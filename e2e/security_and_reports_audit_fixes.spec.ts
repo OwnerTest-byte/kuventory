@@ -34,6 +34,14 @@ async function loginUser(page: any, email = 'staff@kuventory.com', pass = 'Staff
   await page.fill('#email', email);
   await page.fill('#password', pass);
   await page.click('button[type="submit"]');
+
+  const takeoverBtn = page.getByRole('button', { name: /continue here & end other session/i });
+  await Promise.race([
+    takeoverBtn.waitFor({ state: 'visible', timeout: 3000 }).then(async () => {
+      await takeoverBtn.click();
+    }).catch(() => {}),
+    page.waitForURL((url: URL) => !url.pathname.includes('/login'), { timeout: 30000 }).catch(() => {})
+  ]);
   await page.waitForURL((url: URL) => !url.pathname.includes('/login'), { timeout: 30000 });
 }
 
@@ -61,6 +69,14 @@ test.describe('Security & QA Audit Fixes Verification', () => {
 
     // Submit login
     await page.click('button[type="submit"]');
+
+    const takeoverBtn = page.getByRole('button', { name: /continue here & end other session/i });
+    await Promise.race([
+      takeoverBtn.waitFor({ state: 'visible', timeout: 3000 }).then(async () => {
+        await takeoverBtn.click();
+      }).catch(() => {}),
+      page.waitForURL((url: URL) => !url.pathname.includes('/login'), { timeout: 30000 }).catch(() => {})
+    ]);
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30000 });
 
     // Check localStorage stored the email

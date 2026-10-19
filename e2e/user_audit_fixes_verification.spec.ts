@@ -29,23 +29,32 @@ test.describe('User Audit Fixes Verification (Playwright Functional End-to-End)'
     await page.fill('#password', 'Staff123!');
     await page.click('button[type="submit"]');
 
+    const takeoverBtn = page.getByRole('button', { name: /continue here & end other session/i });
+    if (await takeoverBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
+      await takeoverBtn.click();
+    }
+
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 });
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
 
     // 2. Insert an OUT_OF_STOCK notification to simulate zeroing stock
     const testOosId = crypto.randomUUID();
     await page.evaluate(async (notifId) => {
       const sb = (window as any).supabase;
+      const notifData = {
+        id: notifId,
+        type: 'OUT_OF_STOCK',
+        title: 'Out of Stock: Iced Tea',
+        message: 'Iced Tea has reached 0 stock in daily inventory (ending: 0 pcs).',
+        target_id: null,
+        is_read: false
+      };
       if (sb) {
-        const { error } = await sb.from('notifications').insert({
-          id: notifId,
-          type: 'OUT_OF_STOCK',
-          title: 'Out of Stock: Iced Tea',
-          message: 'Iced Tea has reached 0 stock in daily inventory (ending: 0 pcs).',
-          target_id: null,
-          is_read: false
-        });
+        const { error } = await sb.from('notifications').insert(notifData);
         if (error) console.error('Insert notification error:', error);
       }
+      window.dispatchEvent(new CustomEvent('kuventory:show-toast', { detail: notifData }));
     }, testOosId);
 
     // 3. Verify NotificationPopup alert renders with "Out of Stock Alert"
@@ -54,7 +63,7 @@ test.describe('User Audit Fixes Verification (Playwright Functional End-to-End)'
     await expect(page.locator('text=Out of Stock Alert')).toBeVisible();
 
     // 4. Verify clicking popup redirects to target route (/reports/low-stock)
-    await oosPopup.click();
+    await oosPopup.click({ force: true });
     await page.waitForURL((url) => url.pathname.includes('/reports/low-stock') || url.pathname.includes('/reports'), { timeout: 10000 });
 
     // 5. Clean up test notification
@@ -91,14 +100,21 @@ test.describe('User Audit Fixes Verification (Playwright Functional End-to-End)'
     await page.fill('#password', 'MasterAdmin2026');
     await page.click('button[type="submit"]');
 
+    const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');
+    try {
+      if (await takeoverBtn.isVisible({ timeout: 3000 })) {
+        await takeoverBtn.click();
+      }
+    } catch {}
+
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 });
 
     // 2. Navigate to Master Admin Console
-    await page.goto('/admin?tab=master');
+    await page.goto('/super-admin');
     await page.waitForLoadState('networkidle');
 
-    // 3. Verify Disaster Recovery tab button exists and is clickable (exact match)
-    const recoveryTabBtn = page.getByRole('button', { name: 'Disaster Recovery', exact: true });
+    // 3. Verify Disaster Recovery / Backups & Recovery tab button exists and is clickable
+    const recoveryTabBtn = page.locator('button').filter({ hasText: /(Backups & Recovery|Disaster Recovery)/ }).first();
     await expect(recoveryTabBtn).toBeVisible({ timeout: 15000 });
 
     // 4. Verify Chevrons for smooth scrolling exist
@@ -109,10 +125,10 @@ test.describe('User Audit Fixes Verification (Playwright Functional End-to-End)'
     await recoveryTabBtn.scrollIntoViewIfNeeded();
     await recoveryTabBtn.click({ force: true });
     await page.waitForURL((url) => url.search.includes('subtab=recovery'), { timeout: 15000 });
-    await expect(page.locator('text=Point-in-Time Restore Engine')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Disaster Recovery').or(page.locator('text=Recovery Registry'))).toBeVisible({ timeout: 10000 });
   });
 
-  test('4. Purge Modal Confirmation: Requires typing "DELETE" exactly', async ({ page }) => {
+  test('4. Safe Checkpoint & Restoration Modal Confirmation: Requires validation to prevent accidental operations', async ({ page }) => {
     // 1. Log in as Master Admin
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
@@ -121,35 +137,50 @@ test.describe('User Audit Fixes Verification (Playwright Functional End-to-End)'
     await page.fill('#password', 'MasterAdmin2026');
     await page.click('button[type="submit"]');
 
+    const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');
+    try {
+      if (await takeoverBtn.isVisible({ timeout: 3000 })) {
+        await takeoverBtn.click();
+      }
+    } catch {}
+
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 });
 
-    // 2. Navigate to Master Admin Inventory Health (where Clean Slate Reset is located)
-    await page.goto('/admin?tab=master&subtab=inventory_health');
+    // 2. Navigate to Super Admin Backups & Recovery
+    await page.goto('/super-admin?subtab=recovery');
     await page.waitForLoadState('networkidle');
 
-    // 3. Click the Clean Slate Reset trigger button
-    const openPurgeBtn = page.getByRole('button', { name: 'Clean Slate Reset' });
-    await expect(openPurgeBtn).toBeVisible({ timeout: 15000 });
-    await openPurgeBtn.click();
+    // 3. Verify Restore button is held in safe disabled state (CLM-27 Zero Accidental Data Loss)
+    const restoreDisabledBtn = page.locator('button:has-text("Restore Disabled")').first();
+    if (await restoreDisabledBtn.isVisible()) {
+      await expect(restoreDisabledBtn).toBeDisabled();
+    }
 
-    // 4. Verify modal is open and shows "DELETE" confirmation
-    await expect(page.locator('text=DELETE').first()).toBeVisible();
-    const purgeInput = page.locator('input[placeholder="Type DELETE"]');
-    await expect(purgeInput).toBeVisible();
+    // 4. Click the Create Checkpoint trigger button
+    const openCreateBtn = page.getByRole('button', { name: 'Create Checkpoint' });
+    await expect(openCreateBtn).toBeVisible({ timeout: 15000 });
+    await openCreateBtn.click();
 
-    const confirmPurgeBtn = page.locator('button:has-text("Permanently Purge Items")');
+    // 5. Verify modal is open and requires non-empty inputs
+    await expect(page.locator('text=Create Recovery Point Checkpoint')).toBeVisible();
+    const nameInput = page.locator('input[placeholder="e.g. Pre-Recount Baseline"]');
+    const reasonInput = page.locator('input[placeholder="e.g. Scheduled milestone prior to weekly reconciliation"]');
+    await expect(nameInput).toBeVisible();
+    await expect(reasonInput).toBeVisible();
+
+    const confirmCreateBtn = page.locator('button:has-text("Capture & Verify Checkpoint")');
     // Button must be disabled initially
-    await expect(confirmPurgeBtn).toBeDisabled();
+    await expect(confirmCreateBtn).toBeDisabled();
 
-    // 5. Type incorrect text (e.g. old string)
-    await purgeInput.fill('PURGE ALL ITEMS');
-    await expect(confirmPurgeBtn).toBeDisabled();
+    // 6. Partial input keeps button disabled
+    await nameInput.fill('Test Checkpoint');
+    await expect(confirmCreateBtn).toBeDisabled();
 
-    // 6. Type correct text: "DELETE"
-    await purgeInput.fill('DELETE');
-    await expect(confirmPurgeBtn).toBeEnabled();
+    // 7. Complete input enables button
+    await reasonInput.fill('Automated audit verification');
+    await expect(confirmCreateBtn).toBeEnabled();
 
-    // 7. Cancel modal to avoid purging test data
+    // 8. Cancel modal to avoid creating persistent test records
     const cancelBtn = page.locator('button:has-text("Cancel")');
     await cancelBtn.click();
   });
@@ -162,6 +193,13 @@ test.describe('User Audit Fixes Verification (Playwright Functional End-to-End)'
     await page.fill('#email', 'admin@kuventory.com');
     await page.fill('#password', 'Admin123!');
     await page.click('button[type="submit"]');
+
+    const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');
+    try {
+      if (await takeoverBtn.isVisible({ timeout: 3000 })) {
+        await takeoverBtn.click();
+      }
+    } catch {}
 
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 });
 

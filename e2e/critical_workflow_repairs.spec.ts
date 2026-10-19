@@ -65,6 +65,14 @@ async function loginUser(page: any, email: string, pass: string) {
   await page.fill('#email', email);
   await page.fill('#password', pass);
   await page.click('button[type="submit"]');
+
+  const takeoverBtn = page.getByRole('button', { name: /continue here & end other session/i });
+  await Promise.race([
+    takeoverBtn.waitFor({ state: 'visible', timeout: 3000 }).then(async () => {
+      await takeoverBtn.click();
+    }).catch(() => {}),
+    page.waitForURL((url: URL) => !url.pathname.includes('/login'), { timeout: 35000 }).catch(() => {})
+  ]);
   await page.waitForURL((url: URL) => !url.pathname.includes('/login'), { timeout: 35000 });
 }
 
@@ -151,7 +159,7 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
     await superAdminNavLink.click();
     await page.waitForURL((url) => url.pathname.includes('/super-admin'), { timeout: 10000 });
 
-    const superAdminHeader = page.locator('h1:has-text("Super Admin Control Panel")').first();
+    const superAdminHeader = page.locator('h1').filter({ hasText: /Super Admin (Control Panel|Operations Console)/ }).first();
     await expect(superAdminHeader).toBeVisible({ timeout: 10000 });
   });
 
@@ -198,15 +206,23 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
     await page.fill('#email', 'superadmin@kuventory.com');
     await page.fill('#password', 'SuperAdmin2026!');
     await page.click('button[type="submit"]');
+
+    const takeoverBtn = page.getByRole('button', { name: /continue here & end other session/i });
+    await Promise.race([
+      takeoverBtn.waitFor({ state: 'visible', timeout: 3000 }).then(async () => {
+        await takeoverBtn.click();
+      }).catch(() => {}),
+      page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 }).catch(() => {})
+    ]);
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
 
     await page.goto('/super-admin');
     await page.waitForLoadState('networkidle');
-    const superAdminControl = page.locator('h1:has-text("Super Admin Control Panel")').first();
+    const superAdminControl = page.locator('h1').filter({ hasText: /Super Admin (Control Panel|Operations Console)/ }).first();
     await expect(superAdminControl).toBeVisible({ timeout: 10000 });
 
     // Release maintenance back to normal
-    await resetMaintenanceToNormal(page);
+    await resetMaintenanceToNormal();
   });
 
   test('4. Password-Reset Request Log: Non-disclosing confirmation and recorded in Admin log', async ({ page }) => {
@@ -253,6 +269,14 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
   });
 
   test('5. Finalized Daily Inventory Correction: Authorized edit, reason dialog, revision history', async ({ page }) => {
+    page.on('dialog', async d => {
+      console.log('PLAYWRIGHT DIALOG DETECTED:', d.type(), d.message());
+      await d.accept();
+    });
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.log('PLAYWRIGHT BROWSER ERROR:', msg.text());
+    });
+
     await loginUser(page, 'superadmin@kuventory.com', 'SuperAdmin2026!');
 
     await page.goto('/daily-inventory');
@@ -267,9 +291,11 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
 
     if (await finalizeBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await finalizeBtn.click();
-      const confirmFinalize = page.locator('[role="dialog"] button:has-text("Finalize Inventory")').first();
+      const confirmFinalize = page.locator('[role="dialog"] button:has-text("Confirm & Lock Record"), [role="dialog"] button:has-text("Finalize Inventory")').first();
       await confirmFinalize.click();
       await page.waitForTimeout(1000);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(500);
     }
 
     // Now verify Correct Finalized Day button is present
@@ -332,9 +358,11 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
 
     if (await finalizeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await finalizeBtn.click();
-      const confirmFinalize = page.locator('[role="dialog"] button:has-text("Finalize Inventory")').first();
+      const confirmFinalize = page.locator('[role="dialog"] button:has-text("Confirm & Lock Record"), [role="dialog"] button:has-text("Finalize Inventory")').first();
       await confirmFinalize.click();
       await page.waitForTimeout(1000);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(500);
     }
 
     await expect(correctBtn).toBeVisible({ timeout: 15000 });

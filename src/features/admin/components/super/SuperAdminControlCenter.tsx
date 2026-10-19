@@ -1,25 +1,20 @@
-import { useState, useRef, useMemo, useEffect } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
-  Shield, Server, Database, HardDrive, RotateCcw, 
-  Cog, Radio, AlertTriangle, FileText, Settings,
+  Shield, Clock, Database, HardDrive, RotateCcw, 
+  Radio, AlertTriangle, FileText, Settings,
   ChevronLeft, ChevronRight, Crown
 } from 'lucide-react';
 import { cn, formatSafeDate } from '@/lib/utils';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { 
   fetchSystemTelemetry, 
-  fetchDeployments, 
-  rollbackDeployment, 
   fetchAutomations, 
-  toggleAutomation, 
-  triggerAutomationJob, 
   fetchIncidents 
 } from '../../services/superAdminService';
 
 import { SuperOverviewTab } from './SuperOverviewTab';
-import { SuperDeploymentsTab } from './SuperDeploymentsTab';
 import { SuperDatabaseTab } from './SuperDatabaseTab';
 import { SuperStorageTab } from './SuperStorageTab';
 import { SuperRecoveryTab } from './SuperRecoveryTab';
@@ -67,12 +62,11 @@ export function SuperAdminControlCenter({
   isLoadingAuditLogs,
   refetchAudits
 }: SuperAdminControlCenterProps) {
-  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Navigation sub-tab state
+  // Navigation sub-tab state (Deployments tab removed per security audit)
   const validSubTabs = [
-    'overview', 'deployments', 'database', 'storage', 
+    'overview', 'database', 'storage', 
     'recovery', 'automations', 'monitoring', 'security', 
     'incidents', 'logs', 'settings'
   ];
@@ -113,51 +107,17 @@ export function SuperAdminControlCenter({
     refetchInterval: 30000 // fresh background ping every 30s
   });
 
-  // 2. Deployments Query
-  const { data: deployments = [], refetch: refetchDeployments } = useQuery({
-    queryKey: ['super-deployments'],
-    queryFn: fetchDeployments
-  });
-
-  // 3. Automations Query
+  // 2. Automations / Scheduled Services Query
   const { data: automations = [], refetch: refetchAutomations } = useQuery({
     queryKey: ['super-automations'],
     queryFn: fetchAutomations
   });
 
-  // 4. Incidents Query
+  // 3. Incidents Query
   const { data: incidents = [], refetch: refetchIncidents } = useQuery({
     queryKey: ['super-incidents'],
     queryFn: fetchIncidents
   });
-
-  // Mutations
-  const [isRollingBack, setIsRollingBack] = useState(false);
-  const handleRollback = async (deploymentId: string, reason: string) => {
-    setIsRollingBack(true);
-    try {
-      await rollbackDeployment(deploymentId, reason);
-      await refetchDeployments();
-      queryClient.invalidateQueries({ queryKey: ['super-deployments'] });
-    } finally {
-      setIsRollingBack(false);
-    }
-  };
-
-  const handleToggleAutomation = async (jobKey: string, isEnabled: boolean) => {
-    await toggleAutomation(jobKey, isEnabled);
-    await refetchAutomations();
-    queryClient.invalidateQueries({ queryKey: ['super-automations'] });
-  };
-
-  const handleTriggerAutomation = async (jobKey: string) => {
-    const res = await triggerAutomationJob(jobKey);
-    await refetchAutomations();
-    await refetchTelemetry();
-    queryClient.invalidateQueries({ queryKey: ['super-automations'] });
-    return res;
-  };
-
 
   // Recent activity feed aggregated strictly from real audit logs
   const recentActivity = useMemo(() => {
@@ -188,9 +148,6 @@ export function SuperAdminControlCenter({
   useEffect(() => {
     const channel = supabase
       .channel('super-admin-telemetry')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_deployments' }, () => {
-        refetchDeployments();
-      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'system_automations' }, () => {
         refetchAutomations();
       })
@@ -202,7 +159,7 @@ export function SuperAdminControlCenter({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [refetchDeployments, refetchAutomations, refetchIncidents]);
+  }, [refetchAutomations, refetchIncidents]);
 
   return (
     <div className="space-y-6">
@@ -223,11 +180,10 @@ export function SuperAdminControlCenter({
         >
           {[
             { id: 'overview', label: 'Overview', icon: Crown },
-            { id: 'deployments', label: 'Deployments', icon: Server },
             { id: 'database', label: 'Database', icon: Database },
             { id: 'storage', label: 'Storage', icon: HardDrive },
             { id: 'recovery', label: 'Backups & Recovery', icon: RotateCcw },
-            { id: 'automations', label: 'Automations', icon: Cog },
+            { id: 'automations', label: 'Scheduled Services', icon: Clock },
             { id: 'monitoring', label: 'Monitoring', icon: Radio },
             { id: 'security', label: 'Security & Access', icon: Shield },
             { id: 'incidents', label: 'Incidents', icon: AlertTriangle },
@@ -269,29 +225,18 @@ export function SuperAdminControlCenter({
       {activeSubTab === 'overview' && (
         <SuperOverviewTab
           telemetry={telemetry}
-          deployments={deployments}
+          deployments={[]}
           automations={automations}
           incidents={incidents}
           recentActivity={recentActivity}
           onSelectTab={handleSubTabChange}
           onRefresh={() => {
             refetchTelemetry();
-            refetchDeployments();
             refetchAutomations();
             refetchIncidents();
           }}
           onTriggerBackup={onExportFullBackup}
           isTriggeringBackup={isExportingBackup}
-        />
-      )}
-
-      {/* Sub-Tab 2: Deployments */}
-      {activeSubTab === 'deployments' && (
-        <SuperDeploymentsTab
-          deployments={deployments}
-          onRollback={handleRollback}
-          isRollingBack={isRollingBack}
-          onRefresh={refetchDeployments}
         />
       )}
 
@@ -318,12 +263,10 @@ export function SuperAdminControlCenter({
         <SuperRecoveryTab />
       )}
 
-      {/* Sub-Tab 6: Automations */}
+      {/* Sub-Tab 6: Scheduled Services */}
       {activeSubTab === 'automations' && (
         <SuperAutomationsTab
           automations={automations}
-          onToggle={handleToggleAutomation}
-          onTrigger={handleTriggerAutomation}
           onRefresh={refetchAutomations}
         />
       )}

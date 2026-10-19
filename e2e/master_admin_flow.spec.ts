@@ -58,6 +58,13 @@ test.describe('Master Admin Authentication & Control Center Flow', () => {
     await page.fill('#password', 'MasterAdmin2026'); // omitting trailing '!' to test smart auto-tolerance
     await page.click('button[type="submit"]');
 
+    const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');
+    try {
+      if (await takeoverBtn.isVisible({ timeout: 3000 })) {
+        await takeoverBtn.click();
+      }
+    } catch {}
+
     // Wait for redirect or navigation away from /login
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
     // Release session lease
@@ -69,24 +76,33 @@ test.describe('Master Admin Authentication & Control Center Flow', () => {
     test.setTimeout(60000);
     // 1. Log in
     await page.goto('/login');
+    await page.waitForLoadState('networkidle');
     await page.fill('#email', 'master@kuventory.com');
     await page.fill('#password', 'MasterAdmin2026');
     await page.click('button[type="submit"]');
+
+    const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');
+    try {
+      if (await takeoverBtn.isVisible({ timeout: 3000 })) {
+        await takeoverBtn.click();
+      }
+    } catch {}
+
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
 
-    // 2. Navigate to Master Admin Control Center
+    // 2. Navigate to Master Admin Control Center via settings tab=master (redirects to /super-admin)
     await page.goto('/settings?tab=master');
     await page.waitForLoadState('networkidle');
+    await page.waitForURL((url) => url.pathname.includes('/super-admin'), { timeout: 15000 });
 
-    // Verify Master Admin Console is rendered (not 403 Forbidden!)
-    await expect(page.locator('text=Master Administrator Control Center')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Tier 0 Root')).toBeVisible();
+    // Verify Master / Super Admin Console is rendered
+    await expect(page.locator('h1, h2').filter({ hasText: /Super Admin/ }).first()).toBeVisible({ timeout: 10000 });
 
-    // Verify Sub-navigation pills
+    // Verify Sub-navigation rail tabs
     const tabs = [
-      'Overview', 'System Health', 'Inventory & FEFO', 'Security & Access',
-      'Realtime Telemetry', 'Storage & Backups', 'Disaster Recovery',
-      'Data Integrity', 'Incidents & Override', 'Audit Trail'
+      'Overview', 'Database', 'Storage', 'Backups & Recovery',
+      'Scheduled Services', 'Monitoring', 'Security & Access',
+      'Incidents', 'Logs', 'Settings'
     ];
 
     for (const tabTitle of tabs) {
@@ -94,34 +110,25 @@ test.describe('Master Admin Authentication & Control Center Flow', () => {
       await expect(tabButton).toBeVisible();
     }
 
-    // 3. Test System Health sub-tab
-    await page.locator('button', { hasText: 'System Health' }).first().click();
-    await expect(page.locator('text=Technical System Health & Observability')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=PostgreSQL Relational Engine')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Supabase GoTrue Identity Service')).toBeVisible({ timeout: 10000 });
-
-    // 4. Test Data Integrity sub-tab
-    await page.locator('button', { hasText: 'Data Integrity' }).first().click();
-    await expect(page.locator('text=Data Integrity & Relational Verification Center')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Relational Verification Matrix')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Negative Stock Quantities')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Zero-Stock Expiry Rule Compliance')).toBeVisible({ timeout: 10000 });
-
-    // 5. Test Inventory & FEFO sub-tab
-    await page.locator('button', { hasText: 'Inventory & FEFO' }).first().click();
-    await expect(page.locator('text=Inventory Health, FEFO & Concurrency Engine')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Core Inventory Metrics')).toBeVisible({ timeout: 10000 });
-
-    // 6. Test Security & Access sub-tab
-    await page.locator('button', { hasText: 'Security & Access' }).first().click();
-    await expect(page.locator('text=Security, Access Control & Privileged Sessions')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Emergency System Maintenance Lockout')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('h3:has-text("Privileged Administrator Accounts")')).toBeVisible({ timeout: 10000 });
-
-    // 7. Test Realtime Telemetry sub-tab
-    await page.locator('button', { hasText: 'Realtime Telemetry' }).first().click();
+    // 3. Test Monitoring sub-tab
+    await page.locator('button', { hasText: 'Monitoring' }).first().click();
     await expect(page.locator('text=Realtime Telemetry & WebSocket Engine')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Live Telemetry Feed')).toBeVisible({ timeout: 10000 });
+
+    // 4. Test Database sub-tab
+    await page.locator('button', { hasText: 'Database' }).first().click();
+    await expect(page.locator('text=PostgreSQL Engine & Real-Time Monitoring')).toBeVisible({ timeout: 10000 });
+
+    // 5. Test Security & Access sub-tab
+    await page.locator('button', { hasText: 'Security & Access' }).first().click();
+    await expect(page.locator('text=Security Clearance & Session Lease Management')).toBeVisible({ timeout: 10000 });
+
+    // 6. Test Scheduled Services sub-tab
+    await page.locator('button', { hasText: 'Scheduled Services' }).first().click();
+    await expect(page.locator('text=Background Automation & Maintenance Engine')).toBeVisible({ timeout: 10000 });
+
+    // 7. Test Backups & Recovery sub-tab
+    await page.locator('button', { hasText: 'Backups & Recovery' }).first().click();
+    await expect(page.locator('text=Disaster Recovery & Recovery Registry')).toBeVisible({ timeout: 10000 });
 
     console.log('Master Admin E2E flow verified with 100% success!');
 

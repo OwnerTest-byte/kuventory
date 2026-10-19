@@ -19,16 +19,24 @@ async function ensureDailyInventoryItemSeeded(page: any) {
   await page.evaluate(async () => {
     const sb = (window as any).supabase;
     if (!sb) return;
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
     
-    // Ensure today's session exists
-    let { data: session } = await sb.from('daily_inventory').select('id').eq('inventory_date', today).maybeSingle();
+    // Ensure today's session exists and is in editable DRAFT mode
+    let { data: session } = await sb.from('daily_inventory').select('id, state').eq('inventory_date', today).maybeSingle();
     if (!session) {
       const { data: newSession } = await sb.from('daily_inventory').insert({
         inventory_date: today,
         state: 'DRAFT'
       }).select().single();
       session = newSession;
+    } else if (session.state !== 'DRAFT') {
+      await sb.from('reports').delete().eq('daily_inventory_id', session.id);
+      await sb.from('daily_inventory').update({ state: 'DRAFT', finalized_at: null, finalized_by: null }).eq('id', session.id);
     }
     if (!session) return;
 
@@ -82,6 +90,13 @@ test.describe('Strict Non-Negative Stock & Deficit Auto-Zeroing Invariant (E2E)'
     await page.fill('#password', 'Staff123!');
     await page.click('button[type="submit"]');
 
+    const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');
+    try {
+      if (await takeoverBtn.isVisible({ timeout: 3000 })) {
+        await takeoverBtn.click();
+      }
+    } catch {}
+
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 });
 
     // Seed test item into today's daily session if needed
@@ -92,7 +107,7 @@ test.describe('Strict Non-Negative Stock & Deficit Auto-Zeroing Invariant (E2E)'
     await page.waitForLoadState('networkidle');
 
     // Wait for the inventory sheet/table to load
-    const numberInputs = page.locator('table input[type="number"]');
+    const numberInputs = page.locator('table input[type="number"]:not([readonly]):not([disabled])');
     await expect(numberInputs.first()).toBeVisible({ timeout: 15000 });
 
     const firstInput = numberInputs.first();
@@ -116,6 +131,13 @@ test.describe('Strict Non-Negative Stock & Deficit Auto-Zeroing Invariant (E2E)'
     await page.fill('#password', 'Staff123!');
     await page.click('button[type="submit"]');
 
+    const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');
+    try {
+      if (await takeoverBtn.isVisible({ timeout: 3000 })) {
+        await takeoverBtn.click();
+      }
+    } catch {}
+
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 });
 
     // Seed test item
@@ -135,14 +157,15 @@ test.describe('Strict Non-Negative Stock & Deficit Auto-Zeroing Invariant (E2E)'
     const amInput = inputs.nth(2);
     const pmInput = inputs.nth(3);
 
-    // Set Beg = 10, Add = 0, AM = 15, PM = 5 (Total 10, Sales 20 -> Deficit -10)
-    await begInput.fill('10');
-    await addInput.fill('0');
+    // Set Beg = 20, AM = 15 (Valid sales entry when Total = 20)
+    await begInput.fill('20');
     await amInput.fill('15');
-    await pmInput.fill('5');
+
+    // Now reduce Beg to 5, causing Total stock (5) to be less than Sales (15) -> Deficit -10
+    await begInput.fill('5');
 
     // Trigger blur/change to calculate ending stock
-    await pmInput.press('Tab');
+    await begInput.press('Tab');
     await page.waitForTimeout(500);
 
     // Assert that Ending Stock text is strictly "0" (never "-10" or any negative number)
@@ -153,7 +176,7 @@ test.describe('Strict Non-Negative Stock & Deficit Auto-Zeroing Invariant (E2E)'
 
     // Verify Deficit / Invalid warning badge is displayed as "INVALID"
     const invalidWarning = row.locator('text=INVALID');
-    await expect(invalidWarning).toBeVisible();
+    await expect(invalidWarning).toBeVisible({ timeout: 5000 });
   });
 
   test('3. Stock Discrepancy Notification: Real-time alert fires on deficit auto-zeroing', async ({ page }) => {
@@ -163,6 +186,13 @@ test.describe('Strict Non-Negative Stock & Deficit Auto-Zeroing Invariant (E2E)'
     await page.fill('#email', 'staff@kuventory.com');
     await page.fill('#password', 'Staff123!');
     await page.click('button[type="submit"]');
+
+    const takeoverBtn3 = page.locator('button:has-text("Continue Here & End Other Session")');
+    try {
+      if (await takeoverBtn3.isVisible({ timeout: 3000 })) {
+        await takeoverBtn3.click();
+      }
+    } catch {}
 
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 });
 
@@ -221,6 +251,13 @@ test.describe('Strict Non-Negative Stock & Deficit Auto-Zeroing Invariant (E2E)'
     await page.fill('#password', 'Staff123!');
     await page.click('button[type="submit"]');
 
+    const takeoverBtn4 = page.locator('button:has-text("Continue Here & End Other Session")');
+    try {
+      if (await takeoverBtn4.isVisible({ timeout: 3000 })) {
+        await takeoverBtn4.click();
+      }
+    } catch {}
+
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 });
 
     await page.goto('/items');
@@ -260,6 +297,13 @@ test.describe('Strict Non-Negative Stock & Deficit Auto-Zeroing Invariant (E2E)'
     await page.fill('#password', 'Staff123!');
     await page.click('button[type="submit"]');
 
+    const takeoverBtn5 = page.locator('button:has-text("Continue Here & End Other Session")');
+    try {
+      if (await takeoverBtn5.isVisible({ timeout: 3000 })) {
+        await takeoverBtn5.click();
+      }
+    } catch {}
+
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 });
 
     await page.goto('/daily-inventory');
@@ -282,6 +326,13 @@ test.describe('Strict Non-Negative Stock & Deficit Auto-Zeroing Invariant (E2E)'
     await page.fill('#email', 'staff@kuventory.com');
     await page.fill('#password', 'Staff123!');
     await page.click('button[type="submit"]');
+
+    const takeoverBtn6 = page.locator('button:has-text("Continue Here & End Other Session")');
+    try {
+      if (await takeoverBtn6.isVisible({ timeout: 3000 })) {
+        await takeoverBtn6.click();
+      }
+    } catch {}
 
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 });
     await ensureDailyInventoryItemSeeded(page);

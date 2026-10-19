@@ -44,6 +44,7 @@ export function SuperIncidentsTab({
 
   // Transition to Investigating
   const [investigatingId, setInvestigatingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const filteredIncidents = useMemo(() => {
     return incidents.filter(i => {
@@ -63,6 +64,7 @@ export function SuperIncidentsTab({
 
     setIsCreating(true);
     setCreateError(null);
+    setActionError(null);
     try {
       await createManualIncident({
         title: newTitle.trim(),
@@ -83,11 +85,12 @@ export function SuperIncidentsTab({
 
   const handleSetInvestigating = async (incident: IncidentRecord) => {
     setInvestigatingId(incident.id);
+    setActionError(null);
     try {
       await updateIncidentStatus(incident.id, 'INVESTIGATING', undefined, userEmail);
       onRefresh();
     } catch (err: any) {
-      alert(`Error updating incident: ${err.message || 'Unknown error'}`);
+      setActionError(`Error updating incident: ${err.message || 'Unknown error'}`);
     } finally {
       setInvestigatingId(null);
     }
@@ -198,6 +201,17 @@ export function SuperIncidentsTab({
         </div>
 
         <div className="space-y-3">
+          {actionError && (
+            <div className="p-3.5 rounded-xl bg-destructive/15 border border-destructive/30 text-destructive text-xs font-semibold flex items-center justify-between" role="alert">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{actionError}</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setActionError(null)} className="h-6 px-2 text-[11px] text-destructive hover:bg-destructive/20 font-bold">
+                Dismiss
+              </Button>
+            </div>
+          )}
           {filteredIncidents.length === 0 ? (
             <div className="p-8 rounded-xl bg-muted/40 border border-border text-center text-muted-foreground text-xs space-y-1">
               <CheckCircle2 className="w-5 h-5 mx-auto text-emerald-500 mb-1" />

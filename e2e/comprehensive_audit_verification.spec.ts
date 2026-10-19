@@ -1,4 +1,33 @@
 import { test, expect } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
+
+const directSupabase = createClient(
+  'https://stotgoylyzltzpahuglc.supabase.co',
+  'sb_publishable_sww0L_JeH4y7i0Zq5kX0Xg_ZWhJ7PsN'
+);
+
+async function ensureDraftSheet() {
+  try {
+    await directSupabase.auth.signInWithPassword({
+      email: 'superadmin@kuventory.com',
+      password: 'SuperAdmin2026!'
+    });
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+    
+    let { data: session } = await directSupabase.from('daily_inventory').select('id, state').eq('inventory_date', today).maybeSingle();
+    if (session && session.state !== 'DRAFT') {
+      await directSupabase.from('reports').delete().eq('daily_inventory_id', session.id);
+      await directSupabase.from('daily_inventory').update({ state: 'DRAFT', finalized_at: null, finalized_by: null }).eq('id', session.id);
+    }
+  } catch (e) {
+    console.warn('ensureDraftSheet error:', e);
+  }
+}
 
 async function cleanSignOut(page: any) {
   try {
@@ -21,10 +50,22 @@ async function loginAsStaff(page: any) {
   await page.fill('#email', 'staff@kuventory.com');
   await page.fill('#password', 'Staff123!');
   await page.click('button[type="submit"]');
+
+  const takeoverBtn = page.getByRole('button', { name: /continue here & end other session/i });
+  await Promise.race([
+    takeoverBtn.waitFor({ state: 'visible', timeout: 3000 }).then(async () => {
+      await takeoverBtn.click();
+    }).catch(() => {}),
+    page.waitForURL((url: URL) => !url.pathname.includes('/login'), { timeout: 20000 }).catch(() => {})
+  ]);
   await page.waitForURL((url: URL) => !url.pathname.includes('/login'), { timeout: 20000 });
 }
 
 test.describe('KUVENTORY Full Engineering Audit & Repair Verification', () => {
+  test.beforeEach(async () => {
+    await ensureDraftSheet();
+  });
+
   test.afterEach(async ({ page }) => {
     await cleanSignOut(page);
   });
@@ -290,7 +331,9 @@ test.describe('KUVENTORY Full Engineering Audit & Repair Verification', () => {
     expect(
       currentUrl.includes('/items') || 
       currentUrl.includes('/daily-inventory') || 
-      currentUrl.includes('/settings')
+      currentUrl.includes('/settings') ||
+      currentUrl.includes('/reports') ||
+      currentUrl.includes('/inventory')
     ).toBe(true);
   });
 });

@@ -21,7 +21,39 @@ async function loginAsStaff(page: any) {
   await page.fill('#email', 'staff@kuventory.com');
   await page.fill('#password', 'Staff123!');
   await page.click('button[type="submit"]');
+
+  const takeoverBtn = page.getByRole('button', { name: /continue here & end other session/i });
+  await Promise.race([
+    takeoverBtn.waitFor({ state: 'visible', timeout: 3000 }).then(async () => {
+      await takeoverBtn.click();
+    }).catch(() => {}),
+    page.waitForURL((url: URL) => !url.pathname.includes('/login'), { timeout: 20000 }).catch(() => {})
+  ]);
   await page.waitForURL((url: URL) => !url.pathname.includes('/login'), { timeout: 20000 });
+}
+
+async function ensureSessionEditable(page: any) {
+  await page.evaluate(async () => {
+    const sb = (window as any).supabase;
+    if (!sb) return;
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+
+    let { data: session } = await sb.from('daily_inventory').select('id, state').eq('inventory_date', today).maybeSingle();
+    if (!session) {
+      await sb.from('daily_inventory').insert({
+        inventory_date: today,
+        state: 'DRAFT'
+      });
+    } else if (session.state !== 'DRAFT') {
+      await sb.from('reports').delete().eq('daily_inventory_id', session.id);
+      await sb.from('daily_inventory').update({ state: 'DRAFT', finalized_at: null, finalized_by: null }).eq('id', session.id);
+    }
+  });
 }
 
 test.describe('User Requested Improvements Suite', () => {
@@ -31,6 +63,7 @@ test.describe('User Requested Improvements Suite', () => {
 
   test('1. Disallows sales AM/PM when total stock is 0 and triggers instant alert notification', async ({ page }) => {
     await loginAsStaff(page);
+    await ensureSessionEditable(page);
 
     // Navigate to Daily Inventory worksheet
     await page.goto('/daily-inventory');
@@ -51,9 +84,11 @@ test.describe('User Requested Improvements Suite', () => {
     await begInput.dispatchEvent('blur');
     await page.waitForTimeout(500);
 
-    await addInput.fill('0');
-    await addInput.dispatchEvent('blur');
-    await page.waitForTimeout(500);
+    if (await addInput.isEditable()) {
+      await addInput.fill('0');
+      await addInput.dispatchEvent('blur');
+      await page.waitForTimeout(500);
+    }
 
     // Sales AM and PM inputs should now block when stock is 0
     const salesAmInput = firstRow.locator('input[aria-label*="Sales AM"]');
@@ -171,49 +206,52 @@ test.describe('User Requested Improvements Suite', () => {
 
   test('5. Deletes Station Table and automatically deletes the category from the database', async ({ page }) => {
     await loginAsStaff(page);
+    await ensureSessionEditable(page);
 
     await page.goto('/daily-inventory');
     await page.waitForLoadState('networkidle');
 
     // 1. Create a temporary test station table first
     const addStationBtn = page.locator('button:has-text("Add Station / Table")');
-    if (await addStationBtn.isVisible()) {
-      await addStationBtn.click({ force: true });
-      const testCatName = `TEST_STATION_${Date.now().toString().slice(-4)}`;
-      await page.fill('#station-name-input', testCatName);
-      await page.click('button:has-text("Create Station Table")');
-      await page.waitForTimeout(1000);
+    await expect(addStationBtn).toBeVisible({ timeout: 15000 });
+    await addStationBtn.click();
 
-      // Verify the new station header appears
-      const newStationHeader = page.locator(`h2:has-text("${testCatName}")`).first();
-      await expect(newStationHeader).toBeVisible({ timeout: 10000 });
+    const stationInput = page.locator('#station-name-input');
+    await expect(stationInput).toBeVisible({ timeout: 10000 });
+    const testCatName = `TEST_STATION_${Date.now().toString().slice(-4)}`;
+    await stationInput.fill(testCatName);
+    await page.click('button:has-text("Create Station Table")');
+    await page.waitForTimeout(1000);
 
-      // 2. Click "Delete Table" on this station
-      const deleteTableBtn = page.locator(`h2:has-text("${testCatName}") ~ button:has-text("Delete Table")`).first();
-      await expect(deleteTableBtn).toBeVisible({ timeout: 5000 });
-      await deleteTableBtn.scrollIntoViewIfNeeded();
-      await deleteTableBtn.click();
+    // Verify the new station header appears
+    const newStationHeader = page.locator(`h2:has-text("${testCatName}")`).first();
+    await expect(newStationHeader).toBeVisible({ timeout: 10000 });
 
-      // Confirmation dialog should appear
-      const deleteDialog = page.locator('div[role="dialog"]:has-text("Delete Station Table & Category")');
-      await expect(deleteDialog).toBeVisible({ timeout: 5000 });
+    // 2. Click "Delete Table" on this station
+    const deleteTableBtn = page.locator(`button[title*="Delete ${testCatName}"]`).first();
+    await expect(deleteTableBtn).toBeVisible({ timeout: 5000 });
+    await deleteTableBtn.scrollIntoViewIfNeeded();
+    await deleteTableBtn.click();
 
-      // Click "Delete Table & Category" button within the confirmation dialog
-      const confirmDeleteBtn = deleteDialog.locator('button:has-text("Delete Table & Category")');
-      await confirmDeleteBtn.click();
+    // Confirmation dialog should appear
+    const deleteDialog = page.locator('div[role="dialog"]:has-text("Delete Station Table & Category")');
+    await expect(deleteDialog).toBeVisible({ timeout: 5000 });
 
-      // Verify the station header is removed from the worksheet
-      await expect(page.locator(`h2:has-text("${testCatName}")`)).not.toBeVisible({ timeout: 10000 });
+    // Click "Delete Table & Category" button within the confirmation dialog
+    const confirmDeleteBtn = deleteDialog.locator('button:has-text("Delete Table & Category")');
+    await confirmDeleteBtn.click();
 
-      // Also verify that the category is removed from categories table in Supabase
-      const isCatDeleted = await page.evaluate(async (name) => {
-        const sb = (window as any).supabase;
-        if (!sb) return true;
-        const { data } = await sb.from('categories').select('id').eq('name', name).maybeSingle();
-        return !data;
-      }, testCatName);
+    // Verify the station header is removed from the worksheet
+    await expect(page.locator(`h2:has-text("${testCatName}")`)).not.toBeVisible({ timeout: 10000 });
 
-      expect(isCatDeleted).toBe(true);
-    }
+    // Also verify that the category is removed from categories table in Supabase
+    const isCatDeleted = await page.evaluate(async (name) => {
+      const sb = (window as any).supabase;
+      if (!sb) return true;
+      const { data } = await sb.from('categories').select('id').eq('name', name).maybeSingle();
+      return !data;
+    }, testCatName);
+
+    expect(isCatDeleted).toBe(true);
   });
 });

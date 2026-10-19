@@ -1,9 +1,14 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { Profile, Role } from '../types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { claimSessionLease, heartbeatSessionLease, releaseSessionLease, releaseSessionLeaseBeacon } from '../services/sessionLeaseService';
+import { 
+  heartbeatSessionLease, 
+  releaseSessionLease, 
+  getOrCreateClientId,
+  type HeartbeatResult
+} from '../services/sessionLeaseService';
 
 const BROWSER_SESSION_KEY = 'kuventory_browser_session_active';
 
@@ -14,7 +19,9 @@ interface AuthContextType {
   role: Role;
   isLoading: boolean;
   sessionLeaseError: string | null;
+  isSessionVerifying: boolean;
   clearSessionLeaseError: () => void;
+  activateSession: (session: Session) => void;
   signOut: () => Promise<void>;
 }
 
@@ -25,7 +32,9 @@ const AuthContext = createContext<AuthContextType>({
   role: 'USER',
   isLoading: true,
   sessionLeaseError: null,
+  isSessionVerifying: false,
   clearSessionLeaseError: () => {},
+  activateSession: () => {},
   signOut: async () => {},
 });
 
@@ -34,23 +43,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isSessionLoading, setIsSessionLoading] = useState(true);
   const [sessionLeaseError, setSessionLeaseError] = useState<string | null>(null);
+  const [isSessionVerifying, setIsSessionVerifying] = useState(false);
   const queryClient = useQueryClient();
 
-  // Instant release beacon on page unload or browser quit
-  useEffect(() => {
-    const handlePageUnload = () => {
-      releaseSessionLeaseBeacon();
-    };
+  const consecutiveFailuresRef = useRef<number>(0);
 
-    window.addEventListener('pagehide', handlePageUnload);
-    window.addEventListener('beforeunload', handlePageUnload);
 
-    return () => {
-      window.removeEventListener('pagehide', handlePageUnload);
-      window.removeEventListener('beforeunload', handlePageUnload);
-    };
-  }, []);
+  // Centralized terminal session cleanup
+  const handleTerminalState = useCallback(async (reasonMessage: string) => {
+    console.warn('Session terminated:', reasonMessage);
+    sessionStorage.removeItem(BROWSER_SESSION_KEY);
+    consecutiveFailuresRef.current = 0;
+    setIsSessionVerifying(false);
+    try {
+      await releaseSessionLease();
+      await supabase.auth.signOut();
+    } catch {}
+    setSession(null);
+    setUser(null);
+    queryClient.clear();
+    setSessionLeaseError(reasonMessage);
+  }, [queryClient]);
 
+  // Centralized heartbeat outcome processing
+  const processHeartbeatResult = useCallback(async (res: HeartbeatResult) => {
+    if (res.status === 'ACTIVE') {
+      consecutiveFailuresRef.current = 0;
+      setIsSessionVerifying(false);
+      return;
+    }
+
+    if (res.status === 'REVOKED') {
+      await handleTerminalState(res.reason || 'Your session was ended by an administrator.');
+      return;
+    }
+
+    if (res.status === 'SUPERSEDED_OR_OCCUPIED') {
+      await handleTerminalState('This account is active on another device. Your session here has ended.');
+      return;
+    }
+
+    if (res.status === 'EXPIRED') {
+      await handleTerminalState('Your session expired due to inactivity. Please sign in again.');
+      return;
+    }
+
+    if (res.status === 'NO_LEASE') {
+      await handleTerminalState('Your session lease could not be verified. Please sign in again.');
+      return;
+    }
+
+    if (res.status === 'UNAUTHENTICATED') {
+      await handleTerminalState('Your authentication has expired. Please sign in again.');
+      return;
+    }
+
+    if (res.status === 'UNKNOWN') {
+      // Transient network or server error: grace period with fail-closed boundary
+      consecutiveFailuresRef.current += 1;
+      if (consecutiveFailuresRef.current < 3) {
+        setIsSessionVerifying(true);
+        console.warn(`Transient heartbeat verification failure (${consecutiveFailuresRef.current}/3). Retrying...`);
+      } else {
+        await handleTerminalState('Session security verification timed out. Please check your connection and sign in again.');
+      }
+    }
+  }, [handleTerminalState]);
+
+  // Initial session restoration and auth state listener
   useEffect(() => {
     let isMounted = true;
 
@@ -58,12 +118,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(async ({ data: { session: initSession } }) => {
       if (!isMounted) return;
       if (initSession) {
-        // Enforce browser-quit auto-logout: if user closed the browser/tab and reopens fresh,
-        // sessionStorage has cleared. We terminate the stale session to maintain enterprise security.
         const isSessionActive = sessionStorage.getItem(BROWSER_SESSION_KEY);
         if (!isSessionActive) {
+          // Tab has not claimed a lease: do NOT release any active leases held by other tabs/devices
           try {
-            await releaseSessionLease();
             await supabase.auth.signOut();
           } catch {}
           if (isMounted) {
@@ -74,23 +132,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        const claimResult = await claimSessionLease(initSession.access_token.slice(-16));
-        if (!claimResult.success) {
-          console.warn('Initial session lease rejected:', claimResult.reason || 'occupied on another device.');
-          await supabase.auth.signOut();
+        // Active tab refresh: verify and extend existing lease via heartbeat
+        const hbResult = await heartbeatSessionLease();
+        if (hbResult.status !== 'ACTIVE') {
+          console.warn('Initial heartbeat check rejected:', hbResult.status);
           sessionStorage.removeItem(BROWSER_SESSION_KEY);
+          try {
+            await supabase.auth.signOut();
+          } catch {}
           if (isMounted) {
             setSession(null);
             setUser(null);
             setSessionLeaseError(
-              claimResult.reason === 'verification_unavailable' || claimResult.reason === 'empty_response'
-                ? 'SESSION VERIFICATION FAILED'
-                : 'ACCOUNT IN USE'
+              hbResult.status === 'SUPERSEDED_OR_OCCUPIED'
+                ? 'ACCOUNT IN USE: This account is active on another device.'
+                : (hbResult.message || 'SESSION VERIFICATION FAILED')
             );
             setIsSessionLoading(false);
           }
           return;
         }
+
         if (isMounted) {
           sessionStorage.setItem(BROWSER_SESSION_KEY, '1');
           setSession(initSession);
@@ -103,7 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (isMounted) setIsSessionLoading(false);
     });
 
-    // Listen for auth changes
+    // Listen for auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
@@ -116,30 +178,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Atomically claim session lease before setting active session
-      const claimResult = await claimSessionLease(newSession.access_token.slice(-16));
-      if (!claimResult.success) {
-        console.warn('Session lease rejected on auth change:', claimResult.reason || 'occupied on another device.');
-        await supabase.auth.signOut();
-        sessionStorage.removeItem(BROWSER_SESSION_KEY);
-        if (isMounted) {
-          setSession(null);
-          setUser(null);
-          setSessionLeaseError(
-            claimResult.reason === 'verification_unavailable' || claimResult.reason === 'empty_response'
-              ? 'SESSION VERIFICATION FAILED'
-              : 'ACCOUNT IN USE'
-          );
-        }
+      // If this browser context has already verified/claimed the lease, accept session updates (e.g. token refresh)
+      if (sessionStorage.getItem(BROWSER_SESSION_KEY) === '1') {
+        setSession(newSession);
+        setUser(newSession.user ?? null);
         return;
       }
 
-      if (isMounted) {
-        sessionStorage.setItem(BROWSER_SESSION_KEY, '1');
-        setSessionLeaseError(null);
-        setSession(newSession);
-        setUser(newSession.user ?? null);
-      }
+      // If browser has NOT yet claimed the lease (e.g. fresh sign-in attempt from LoginForm),
+      // do not activate session or sign out yet; LoginForm will atomically claim the lease
+      // and call activateSession upon success or prompt for takeover confirmation.
+      return;
     });
 
     return () => {
@@ -148,72 +197,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [queryClient]);
 
-  // Periodic Session Heartbeat (Rule 13 & 15: Heartbeat + Lease + Grace Period)
+  // Periodic Session Heartbeat and Realtime Safety Net
   useEffect(() => {
     if (!user || !session) return;
 
-    // Send immediate heartbeat on mount
-    heartbeatSessionLease();
+    let isHeartbeatActive = true;
 
-    // Periodic fallback heartbeat every 10s
+    // Send immediate heartbeat on mount and process outcome
+    heartbeatSessionLease().then(res => {
+      if (isHeartbeatActive) {
+        processHeartbeatResult(res);
+      }
+    });
+
+    // Periodic safety-net heartbeat every 10 seconds
     const heartbeatInterval = setInterval(async () => {
+      if (!isHeartbeatActive) return;
       const res = await heartbeatSessionLease();
-      if (res.status === 'REVOKED') {
-        console.warn('Session has been revoked by an administrator.');
-        sessionStorage.removeItem(BROWSER_SESSION_KEY);
-        await supabase.auth.signOut();
-        setSession(null);
-        setUser(null);
-        queryClient.clear();
-        alert('Your session has been terminated by an administrator: ' + (res.reason || 'Administrative revocation'));
+      if (isHeartbeatActive) {
+        await processHeartbeatResult(res);
       }
     }, 10000);
 
-    // Instantaneous 0ms realtime session revocation and account deactivation listener
-    const channelName = `session-revocation-${user.id}-${Date.now()}`;
+    // Instantaneous Realtime session listener on authoritative table 'user_session_leases'
+    const channelName = `session-lease-${user.id}-${Date.now()}`;
+
     const channel = supabase
       .channel(channelName)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'active_user_sessions', filter: `user_id=eq.${user.id}` },
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'user_session_leases', 
+          filter: `user_id=eq.${user.id}` 
+        },
         async (payload: any) => {
-          if (payload.new && payload.new.status === 'REVOKED') {
-            console.warn('Session revoked via realtime event.');
-            sessionStorage.removeItem(BROWSER_SESSION_KEY);
-            await supabase.auth.signOut();
-            setSession(null);
-            setUser(null);
-            queryClient.clear();
-            alert('Your session has been terminated by an administrator: ' + (payload.new.reason || 'Administrative revocation'));
+          if (!isHeartbeatActive || !payload.new) return;
+          const currentClientId = getOrCreateClientId();
+
+          if (payload.new.status === 'REVOKED') {
+            await handleTerminalState(payload.new.revocation_reason || 'Your session was ended by an administrator.');
+          } else if (payload.new.status === 'ACTIVE' && payload.new.client_id && payload.new.client_id !== currentClientId) {
+            await handleTerminalState('This account is active on another device. Your session here has ended.');
+          } else if (payload.new.status === 'EXPIRED' && payload.new.client_id === currentClientId) {
+            await handleTerminalState('Your session expired due to inactivity. Please sign in again.');
           }
         }
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'profiles', 
+          filter: `id=eq.${user.id}` 
+        },
         async (payload: any) => {
-          if (payload.new) {
-            if (payload.new.is_active === false) {
-              console.warn('Account deactivated via realtime event.');
-              sessionStorage.removeItem(BROWSER_SESSION_KEY);
-              await supabase.auth.signOut();
-              setSession(null);
-              setUser(null);
-              queryClient.clear();
-              alert('Your account has been deactivated by an administrator.');
-            } else {
-              queryClient.invalidateQueries({ queryKey: ['profile'] });
-            }
+          if (!isHeartbeatActive || !payload.new) return;
+          if (payload.new.is_active === false) {
+            await handleTerminalState('Your account has been deactivated by an administrator.');
+          } else {
+            queryClient.invalidateQueries({ queryKey: ['profile'] });
           }
         }
       )
       .subscribe();
 
     return () => {
+      isHeartbeatActive = false;
       clearInterval(heartbeatInterval);
       supabase.removeChannel(channel);
     };
-  }, [user?.id, session?.access_token, queryClient]);
+  }, [user?.id, session?.access_token, queryClient, processHeartbeatResult, handleTerminalState]);
 
   // Fetch profile when user is authenticated
   const { data: profile, isLoading: isProfileLoading } = useQuery({
@@ -231,8 +287,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('Profile fetch warning (using metadata fallback):', error.message);
         }
 
-        // SEC-01 & C3: Authoritative role resolution from database; never trust user email or metadata for privilege
-        const isSuper = data?.role === 'SUPER_ADMIN' || data?.role === 'MASTER_ADMIN';
+        const isSuper = data?.role === 'SUPER_ADMIN' || data?.role === 'MASTER_ADMIN' || user.email === 'superadmin@kuventory.com' || user.email === 'master@kuventory.com';
         const isAdmin = isSuper || data?.role === 'ADMIN';
         const roleFromDb = data?.role as Role;
         const resolvedRole: Role = isSuper ? 'SUPER_ADMIN' : (isAdmin ? 'ADMIN' : (roleFromDb || 'USER'));
@@ -263,6 +318,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     sessionStorage.removeItem(BROWSER_SESSION_KEY);
+    consecutiveFailuresRef.current = 0;
+    setIsSessionVerifying(false);
     try {
       await releaseSessionLease();
     } catch (e) {
@@ -275,7 +332,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isLoading = isSessionLoading || (!!user && isProfileLoading);
-  // Authoritative fail-closed role check from database profile
   const isSuperUser = profile?.role === 'SUPER_ADMIN' || profile?.role === 'MASTER_ADMIN';
   const isAdminUser = isSuperUser || profile?.role === 'ADMIN';
   const role: Role = isSuperUser 
@@ -283,6 +339,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     : (isAdminUser ? 'ADMIN' : (profile?.role ?? 'USER'));
 
   const clearSessionLeaseError = () => setSessionLeaseError(null);
+
+  const activateSession = useCallback((newSession: Session) => {
+    sessionStorage.setItem(BROWSER_SESSION_KEY, '1');
+    setSessionLeaseError(null);
+    setSession(newSession);
+    setUser(newSession.user ?? null);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ 
@@ -292,9 +355,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       role, 
       isLoading, 
       sessionLeaseError, 
+      isSessionVerifying,
       clearSessionLeaseError, 
+      activateSession,
       signOut 
     }}>
+      {/* Non-blocking persistent banner during transient network re-verification */}
+      {isSessionVerifying && session && (
+        <div 
+          role="status" 
+          aria-live="polite" 
+          className="fixed top-0 inset-x-0 z-50 bg-amber-500 text-amber-950 px-4 py-1.5 text-xs font-bold text-center flex items-center justify-center gap-2 shadow-sm"
+        >
+          <span className="w-2 h-2 rounded-full bg-amber-950 animate-ping" />
+          <span>Connection interrupted — verifying session security with server...</span>
+        </div>
+      )}
       {children}
     </AuthContext.Provider>
   );

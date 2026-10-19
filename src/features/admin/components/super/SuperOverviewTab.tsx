@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { 
   Shield, Activity, Database, HardDrive, Cog, CheckCircle2, 
   AlertTriangle, ArrowRight, RefreshCw, KeyRound, Server, FileText,
-  ShieldCheck
+  ShieldCheck, ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn, formatSafeDate } from '@/lib/utils';
@@ -33,7 +33,7 @@ interface SuperOverviewTabProps {
 
 export function SuperOverviewTab({
   telemetry,
-  deployments,
+  deployments: _deployments,
   automations,
   incidents,
   recentActivity,
@@ -265,65 +265,35 @@ export function SuperOverviewTab({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column (2 spans) */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Recent Deployments Panel */}
-          <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
+          {/* Release & Deployment Management Notice */}
+          <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-3.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Server className="w-4 h-4 text-primary" />
-                <h2 className="text-sm font-bold text-foreground">Verified Deployments</h2>
+                <h2 className="text-sm font-bold text-foreground">Production Release & Deployment Management</h2>
               </div>
-              <button
-                type="button"
-                onClick={() => onSelectTab('deployments')}
-                className="text-xs font-bold text-primary hover:underline cursor-pointer flex items-center gap-1"
+              <a
+                href="https://github.com/OwnerTest-byte/kuventory/actions"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
               >
-                View all <ArrowRight className="w-3 h-3" />
-              </button>
+                GitHub Actions Releases <ExternalLink className="w-3 h-3" />
+              </a>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-border/60 text-muted-foreground">
-                    <th className="pb-2.5 font-semibold">Status</th>
-                    <th className="pb-2.5 font-semibold">Version</th>
-                    <th className="pb-2.5 font-semibold">Commit</th>
-                    <th className="pb-2.5 font-semibold">Deployed</th>
-                    <th className="pb-2.5 font-semibold text-right">State</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40 font-medium">
-                  {deployments.slice(0, 3).map((dep) => (
-                    <tr key={dep.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="py-3">
-                        <div className="w-6 h-6 rounded-full bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                        </div>
-                      </td>
-                      <td className="py-3">
-                        <span className="font-bold text-foreground">{dep.version}</span>
-                        <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] bg-muted text-muted-foreground border border-border">
-                          {dep.environment}
-                        </span>
-                      </td>
-                      <td className="py-3 font-mono text-muted-foreground">{dep.commitHash}</td>
-                      <td className="py-3 text-muted-foreground">
-                        {formatSafeDate(dep.deployedAt, 'MMM dd, yyyy hh:mm a')}
-                      </td>
-                      <td className="py-3 text-right">
-                        <span className={cn(
-                          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
-                          dep.isCurrent 
-                            ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30" 
-                            : "bg-muted text-muted-foreground border border-border"
-                        )}>
-                          {dep.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="p-4 rounded-xl bg-muted/40 border border-border/70 space-y-2 text-xs">
+              <p className="text-foreground font-medium">
+                Production deployment and rollbacks are managed through the authorized release console until secure server-side provider integration is implemented.
+              </p>
+              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                Release artifacts, automated smoke verification, and rollback pipelines execute via GitHub Actions continuous integration. Client-side triggers are disabled to prevent bundling privileged credentials into browser builds.
+              </p>
+              <div className="pt-1 flex items-center gap-3 text-[11px] font-mono text-muted-foreground flex-wrap">
+                <span>Repository: <strong className="text-foreground">OwnerTest-byte/kuventory</strong></span>
+                <span>Branch: <strong className="text-foreground">main</strong></span>
+                <span>Console: <a href="https://github.com/OwnerTest-byte/kuventory/actions" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">github.com/OwnerTest-byte/kuventory/actions</a></span>
+              </div>
             </div>
           </div>
 

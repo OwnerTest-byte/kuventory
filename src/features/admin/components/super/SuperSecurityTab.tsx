@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { 
-  Shield, Lock, CheckCircle2, Smartphone, RefreshCw, Loader2, ShieldAlert, AlertTriangle
+  Shield, Lock, CheckCircle2, RefreshCw, Loader2, ShieldAlert, AlertTriangle, 
+  Copy, Check, ChevronDown, ChevronRight, User, Laptop
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -9,7 +10,12 @@ import { Label } from '@/components/ui/label';
 import { cn, formatSafeDate } from '@/lib/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { revokeSessionLease } from '../../services/superAdminService';
+import { 
+  getActiveUserSessions, 
+  parseHumanDeviceInfo, 
+  revokeSessionLease 
+} from '@/features/auth/services/sessionLeaseService';
+import type { ActiveSessionRecord } from '@/features/auth/services/sessionLeaseService';
 
 interface SuperSecurityTabProps {
   maintenanceLocked: boolean;
@@ -25,23 +31,36 @@ export function SuperSecurityTab({
   userEmail,
 }: SuperSecurityTabProps) {
   const queryClient = useQueryClient();
+  const [filterMode, setFilterMode] = useState<'ACTIVE' | 'ALL'>('ACTIVE');
+  const [expandedDiagnostics, setExpandedDiagnostics] = useState<Record<string, boolean>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Active Session Leases Query
-  const { data: activeSessions = [], isLoading: isLoadingSessions, refetch: refetchSessions } = useQuery({
-    queryKey: ['active-session-leases'],
+  // Authoritative Active Session Leases Query via RPC
+  const { 
+    data: allSessions = [], 
+    isLoading: isLoadingSessions, 
+    isError: isSessionsError,
+    error: sessionsError,
+    refetch: refetchSessions 
+  } = useQuery<ActiveSessionRecord[]>({
+    queryKey: ['active-session-leases-rpc'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('user_session_leases')
-        .select('*')
-        .gt('lease_expires_at', new Date().toISOString())
-        .order('last_heartbeat_at', { ascending: false });
-      if (error) {
-        console.warn('user_session_leases query error:', error.message);
-        return [];
-      }
-      return data || [];
-    }
+      return await getActiveUserSessions();
+    },
+    staleTime: 5000,
   });
+
+  // Filter based on selected view mode
+  const displayedSessions = allSessions.filter((s) => {
+    if (filterMode === 'ACTIVE') {
+      return s.status === 'ACTIVE' && new Date(s.lease_expires_at).getTime() > Date.now();
+    }
+    return true;
+  });
+
+  const activeCount = allSessions.filter(
+    (s) => s.status === 'ACTIVE' && new Date(s.lease_expires_at).getTime() > Date.now()
+  ).length;
 
   // Privileged Accounts Query
   const { data: privilegedUsers = [], refetch: refetchUsers } = useQuery({
@@ -58,7 +77,7 @@ export function SuperSecurityTab({
   });
 
   // Session Revocation Modal State
-  const [selectedSessionForRevoke, setSelectedSessionForRevoke] = useState<any | null>(null);
+  const [selectedSessionForRevoke, setSelectedSessionForRevoke] = useState<ActiveSessionRecord | null>(null);
   const [revocationReason, setRevocationReason] = useState('');
   const [isRevoking, setIsRevoking] = useState(false);
   const [revokeError, setRevokeError] = useState<string | null>(null);
@@ -68,11 +87,30 @@ export function SuperSecurityTab({
   const [isLockdownModalOpen, setIsLockdownModalOpen] = useState(false);
   const [lockdownReason, setLockdownReason] = useState('');
 
+  const toggleDiagnostic = (id: string) => {
+    setExpandedDiagnostics((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleCopyDiagnostics = (s: ActiveSessionRecord) => {
+    const text = JSON.stringify({
+      lease_id: s.lease_id,
+      user_id: s.user_id,
+      client_id: s.client_id,
+      email: s.email,
+      device_info: s.device_info,
+      status: s.status,
+      expires_at: s.lease_expires_at,
+    }, null, 2);
+    navigator.clipboard.writeText(text);
+    setCopiedId(s.client_id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   const handleRevokeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSessionForRevoke) return;
     if (!revocationReason.trim()) {
-      setRevokeError('A mandatory reason is required to revoke a remote session lease.');
+      setRevokeError('A mandatory reason is required to end a remote session lease.');
       return;
     }
 
@@ -81,13 +119,16 @@ export function SuperSecurityTab({
     setRevokeSuccess(null);
     try {
       await revokeSessionLease(selectedSessionForRevoke.client_id, revocationReason.trim());
-      setRevokeSuccess(`Session lease ${selectedSessionForRevoke.client_id} successfully revoked.`);
+      const personLabel = selectedSessionForRevoke.display_name || selectedSessionForRevoke.email || 'the user';
+      const deviceLabel = parseHumanDeviceInfo(selectedSessionForRevoke.device_info);
+      setRevokeSuccess(`Session ended for ${personLabel} on ${deviceLabel}. They will be signed out when the next verification reaches their browser.`);
       setSelectedSessionForRevoke(null);
       setRevocationReason('');
       await refetchSessions();
+      queryClient.invalidateQueries({ queryKey: ['active-session-leases-rpc'] });
       queryClient.invalidateQueries({ queryKey: ['active-session-leases'] });
     } catch (err: any) {
-      setRevokeError(err.message || 'Session revocation failed');
+      setRevokeError(err.message || 'Session termination failed');
     } finally {
       setIsRevoking(false);
     }
@@ -111,16 +152,19 @@ export function SuperSecurityTab({
               <Shield className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-xl font-bold tracking-tight text-foreground">
-                  Security, Zero-Trust & Access Governance
+                  Security Clearance & Session Lease Management
                 </h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
                   Tier 0 Protected
                 </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                  Single-Session Strict
+                </span>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Single active session leases, heartbeat expiration, verified revocation, and emergency maintenance controls
+                KUVENTORY permits one active session per account. Ending a session immediately revokes access and signs that device out after the next server verification.
               </p>
             </div>
           </div>
@@ -139,7 +183,7 @@ export function SuperSecurityTab({
         </div>
 
         {revokeSuccess && (
-          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-bold text-emerald-500 flex items-center gap-2">
+          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-bold text-emerald-500 flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{revokeSuccess}</span>
           </div>
@@ -150,7 +194,7 @@ export function SuperSecurityTab({
           <div className="p-3.5 rounded-xl bg-muted/40 border border-border flex items-center justify-between">
             <span className="text-muted-foreground font-semibold">Active Sessions</span>
             <span className="font-bold text-foreground font-mono">
-              {activeSessions.length} Live
+              {activeCount} Live
             </span>
           </div>
 
@@ -222,76 +266,207 @@ export function SuperSecurityTab({
 
       {/* 3. Live Session Leases Table */}
       <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-bold text-foreground">Active Browser & Device Session Leases</h3>
-            <p className="text-xs text-muted-foreground">Enforces single-active-session governance. Expired sessions auto-terminate.</p>
+            <h3 className="text-sm font-bold text-foreground">
+              Active Browser & Device Session Leases
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Active Session Leases (First Session Wins Enforcement) · Active Single-Session Device Leases
+            </p>
           </div>
-          <span className="text-xs font-mono text-muted-foreground">
-            {activeSessions.length} active sessions
-          </span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border text-xs">
+              <button
+                type="button"
+                onClick={() => setFilterMode('ACTIVE')}
+                className={cn(
+                  "px-2.5 py-1 rounded-md font-semibold transition-colors",
+                  filterMode === 'ACTIVE' 
+                    ? "bg-background text-foreground shadow-xs" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Active Only ({activeCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterMode('ALL')}
+                className={cn(
+                  "px-2.5 py-1 rounded-md font-semibold transition-colors",
+                  filterMode === 'ALL' 
+                    ? "bg-background text-foreground shadow-xs" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                All Recent ({allSessions.length})
+              </button>
+            </div>
+          </div>
         </div>
+
+        {isSessionsError && (
+          <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>Could not load session leases: {(sessionsError as any)?.message || 'Server error'}</span>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-border/60 text-muted-foreground">
-                <th className="pb-3 font-semibold">Client Device</th>
-                <th className="pb-3 font-semibold">Client ID</th>
-                <th className="pb-3 font-semibold">Lease Expires</th>
+                <th className="pb-3 font-semibold">Person / Account</th>
+                <th className="pb-3 font-semibold">Device</th>
+                <th className="pb-3 font-semibold">Last Active</th>
                 <th className="pb-3 font-semibold">Status</th>
+                <th className="pb-3 font-semibold">Expires</th>
                 <th className="pb-3 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 font-medium">
               {isLoadingSessions ? (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-muted-foreground">
+                  <td colSpan={6} className="py-6 text-center text-muted-foreground">
                     <Loader2 className="w-4 h-4 animate-spin mx-auto mb-1 text-primary" />
                     Loading active sessions...
                   </td>
                 </tr>
-              ) : activeSessions.length === 0 ? (
+              ) : displayedSessions.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-muted-foreground">
-                    No active remote leases. Only current tab session active.
+                  <td colSpan={6} className="py-6 text-center text-muted-foreground">
+                    {filterMode === 'ACTIVE' 
+                      ? 'No active remote leases. Only current tab session active.' 
+                      : 'No recorded session leases found in history.'}
                   </td>
                 </tr>
               ) : (
-                activeSessions.map((s: any) => (
-                  <tr key={s.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="py-3 font-bold text-foreground flex items-center gap-2">
-                      <Smartphone className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="truncate max-w-50">{s.device_info || 'Browser Client'}</span>
-                    </td>
-                    <td className="py-3 font-mono text-primary text-[11px]">
-                      {s.client_id}
-                    </td>
-                    <td className="py-3 text-muted-foreground font-mono">
-                      {formatSafeDate(s.lease_expires_at, 'hh:mm:ss a')}
-                    </td>
-                    <td className="py-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
-                        {s.status || 'Active'}
-                      </span>
-                    </td>
-                    <td className="py-3 text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedSessionForRevoke(s);
-                          setRevocationReason('');
-                          setRevokeError(null);
-                        }}
-                        className="text-xs h-7 px-2 border-destructive/30 text-destructive hover:bg-destructive/10 cursor-pointer"
-                      >
-                        <Lock className="w-3 h-3 mr-1" />
-                        Revoke
-                      </Button>
-                    </td>
-                  </tr>
-                ))
+                displayedSessions.map((s) => {
+                  const isExpanded = !!expandedDiagnostics[s.client_id];
+                  const isExpired = s.status === 'EXPIRED' || new Date(s.lease_expires_at).getTime() <= Date.now();
+                  const isRevoked = s.status === 'REVOKED';
+                  const isActive = !isExpired && !isRevoked && s.status === 'ACTIVE';
+
+                  return (
+                    <tr key={s.lease_id || s.client_id} className="hover:bg-muted/30 transition-colors group">
+                      <td className="py-3 font-bold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                            <User className="w-3.5 h-3.5" />
+                          </div>
+                          <div>
+                            <span className="block text-foreground font-semibold">
+                              {s.display_name || s.email?.split('@')[0] || 'Unknown User'}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground block font-normal font-mono">
+                              {s.email}
+                            </span>
+                          </div>
+                          <span className={cn(
+                            "ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase",
+                            s.role === 'SUPER_ADMIN' || s.role === 'MASTER_ADMIN'
+                              ? "bg-amber-500/15 text-amber-500 border border-amber-500/30"
+                              : s.role === 'ADMIN'
+                              ? "bg-blue-500/15 text-blue-400 border border-blue-500/30"
+                              : "bg-muted text-muted-foreground border border-border"
+                          )}>
+                            {s.role}
+                          </span>
+                        </div>
+
+                        {/* Expandable diagnostics drawer */}
+                        {isExpanded && (
+                          <div className="mt-2 p-2.5 rounded-lg bg-muted/60 border border-border text-[11px] font-mono space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground font-semibold">Diagnostics Details:</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleCopyDiagnostics(s)}
+                                className="h-6 px-2 text-[10px] text-primary hover:text-primary"
+                              >
+                                {copiedId === s.client_id ? (
+                                  <>
+                                    <Check className="w-3 h-3 mr-1 text-emerald-500" />
+                                    Copied
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3 h-3 mr-1" />
+                                    Copy JSON
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                            <div className="text-muted-foreground truncate">Client ID: <span className="text-foreground">{s.client_id}</span></div>
+                            <div className="text-muted-foreground truncate">User UUID: <span className="text-foreground">{s.user_id}</span></div>
+                            <div className="text-muted-foreground truncate">Raw UA: <span className="text-foreground">{s.device_info}</span></div>
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="py-3 text-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <Laptop className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          <span className="font-medium text-foreground">
+                            {parseHumanDeviceInfo(s.device_info)}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="py-3 text-muted-foreground font-mono">
+                        {formatSafeDate(s.last_heartbeat_at, 'hh:mm:ss a')}
+                      </td>
+
+                      <td className="py-3">
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                          isActive && "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
+                          isExpired && "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
+                          isRevoked && "bg-rose-500/15 text-rose-500 border-rose-500/30"
+                        )}>
+                          {isActive ? 'Active' : isRevoked ? 'Revoked' : 'Expired'}
+                        </span>
+                      </td>
+
+                      <td className="py-3 text-muted-foreground font-mono">
+                        {formatSafeDate(s.lease_expires_at, 'hh:mm:ss a')}
+                      </td>
+
+                      <td className="py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleDiagnostic(s.client_id)}
+                            className="text-[11px] h-7 px-2 text-muted-foreground hover:text-foreground"
+                            title="Toggle technical diagnostics"
+                          >
+                            {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                            <span className="sr-only sm:not-sr-only">Details</span>
+                          </Button>
+
+                          {isActive && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedSessionForRevoke(s);
+                                setRevocationReason('');
+                                setRevokeError(null);
+                              }}
+                              className="text-xs h-7 px-2.5 border-destructive/30 text-destructive hover:bg-destructive/10 cursor-pointer font-semibold"
+                            >
+                              <Lock className="w-3 h-3 mr-1" />
+                              End session
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -325,16 +500,16 @@ export function SuperSecurityTab({
         </div>
       </div>
 
-      {/* Revoke Session Dialog */}
+      {/* End Session Dialog */}
       <Dialog open={!!selectedSessionForRevoke} onOpenChange={(open) => !open && setSelectedSessionForRevoke(null)}>
         <DialogContent className="max-w-md bg-card border-border text-foreground">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <Lock className="w-5 h-5" />
-              Revoke Remote Session Lease
+              End Remote Session
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Revoke session lease <strong className="font-mono text-foreground">{selectedSessionForRevoke?.client_id}</strong> ({selectedSessionForRevoke?.device_info || 'Browser'}).
+              End session for <strong className="text-foreground">{selectedSessionForRevoke?.display_name || selectedSessionForRevoke?.email}</strong> on <strong className="text-foreground">{parseHumanDeviceInfo(selectedSessionForRevoke?.device_info)}</strong>.
             </DialogDescription>
           </DialogHeader>
 
@@ -347,7 +522,7 @@ export function SuperSecurityTab({
             )}
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-foreground">Mandatory Revocation Reason</Label>
+              <Label className="text-xs font-bold text-foreground">Mandatory Reason</Label>
               <Input
                 value={revocationReason}
                 onChange={e => setRevocationReason(e.target.value)}
@@ -358,7 +533,7 @@ export function SuperSecurityTab({
             </div>
 
             <p className="text-[11px] text-muted-foreground">
-              The targeted client lease will immediately terminate. The client will be locked from mutating inventory sheets. This action is recorded in the audit logs under <code>{userEmail}</code>.
+              The targeted client lease will immediately transition to <code>REVOKED</code>. The client will be signed out on its next heartbeat and locked from mutating inventory sheets. This action is audited under <code>{userEmail}</code>.
             </p>
 
             <DialogFooter className="pt-2">
@@ -371,7 +546,7 @@ export function SuperSecurityTab({
                 className="bg-destructive hover:bg-destructive/90 text-white font-bold"
               >
                 {isRevoking ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Lock className="w-4 h-4 mr-2" />}
-                Authorize Revocation
+                Authorize End Session
               </Button>
             </DialogFooter>
           </form>

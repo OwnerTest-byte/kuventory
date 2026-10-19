@@ -31,7 +31,8 @@ export function SuperDeploymentsTab({
   const [rollbackSuccess, setRollbackSuccess] = useState<string | null>(null);
   const [selectedForDetails, setSelectedForDetails] = useState<DeploymentRecord | null>(null);
 
-  const hasRollbackIntegration = Boolean(import.meta.env.VITE_NETLIFY_DEPLOY_HOOK_URL);
+  // Privileged build hooks must never be client-bundled in browser builds.
+  const hasRollbackIntegration = false;
 
   const handleRollbackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

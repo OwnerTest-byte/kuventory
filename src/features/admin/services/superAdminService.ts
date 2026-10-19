@@ -785,35 +785,15 @@ export async function resolveIncident(incidentId: string, resolutionNote?: strin
 // ---------------------------------------------------------------------------
 
 export async function revokeSessionLease(clientId: string, reason: string): Promise<boolean> {
-  const { data: authData } = await supabase.auth.getUser();
-
-  try {
-    const { error: rpcErr } = await supabase.rpc('revoke_user_session_lease', {
-      p_client_id: clientId,
-      p_reason: reason
-    });
-    if (!rpcErr) return true;
-  } catch {}
-
-  const { error } = await supabase
-    .from('user_session_leases')
-    .update({
-      status: 'REVOKED',
-      revoked_by: authData?.user?.id,
-      revoked_at: new Date().toISOString(),
-      revocation_reason: reason
-    })
-    .eq('client_id', clientId);
-
-  if (error) throw error;
-
-  await supabase.from('audit_logs').insert({
-    user_id: authData?.user?.id,
-    action: 'SESSION_LEASE_REVOKED',
-    target_table: 'user_session_leases',
-    target_id: clientId,
-    details: { clientId, reason, revoked_at: new Date().toISOString() }
+  const { error: rpcErr } = await supabase.rpc('revoke_user_session_lease', {
+    p_client_id: clientId,
+    p_reason: reason
   });
+
+  if (rpcErr) {
+    console.error('revoke_user_session_lease error:', rpcErr);
+    throw new Error(rpcErr.message || 'Failed to revoke session lease.');
+  }
 
   return true;
 }

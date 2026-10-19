@@ -74,7 +74,7 @@ export function NotificationPopup() {
 
     const timerId = setTimeout(() => {
       dismissToast(notif.id);
-    }, 7000);
+    }, 15000);
 
     const newToast: ActiveToast = {
       notification: notif,
@@ -200,12 +200,21 @@ export function NotificationPopup() {
   const showAggregated = isHighVolume && !isAggregatedDismissed;
   const toastsToShow = activeToasts.slice(0, 1);
 
+  useEffect(() => {
+    if (showAggregated) {
+      const timer = setTimeout(() => {
+        setIsAggregatedDismissed(true);
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [showAggregated]);
+
   if (!showAggregated && toastsToShow.length === 0) return null;
 
   return (
     <div 
       aria-live="polite"
-      className="fixed top-18 right-4 z-50 flex flex-col gap-2.5 max-w-sm sm:max-w-md w-[calc(100vw-2rem)] sm:w-auto pointer-events-none"
+      className="fixed bottom-4 right-4 z-50 flex flex-col gap-2.5 max-w-sm sm:max-w-md w-[calc(100vw-2rem)] sm:w-auto pointer-events-none"
     >
       {/* 1. Immediate Operational Action Toast (e.g. Sales Blocked on Zero Stock) */}
       {toastsToShow.map(({ notification }) => (

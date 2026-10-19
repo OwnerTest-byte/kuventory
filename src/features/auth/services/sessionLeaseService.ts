@@ -1,7 +1,7 @@
 import { supabase, supabaseUrl, supabaseAnonKey } from '@/lib/supabase';
 
 const CLIENT_ID_KEY = 'kuventory_session_client_id';
-export const DEFAULT_LEASE_SECONDS = 30;
+export const DEFAULT_LEASE_SECONDS = 90;
 
 export function getOrCreateClientId(): string {
   try {
@@ -16,32 +16,83 @@ export function getOrCreateClientId(): string {
   }
 }
 
+export function parseHumanDeviceInfo(userAgentString?: string | null): string {
+  if (!userAgentString) return 'Web Browser';
+  const ua = userAgentString;
+  let browser = 'Browser';
+  if (ua.includes('Edg/')) browser = 'Edge';
+  else if (ua.includes('Chrome/')) browser = 'Chrome';
+  else if (ua.includes('Safari/') && !ua.includes('Chrome')) browser = 'Safari';
+  else if (ua.includes('Firefox/')) browser = 'Firefox';
+
+  let os = 'Device';
+  if (ua.includes('Windows NT 10.0') || ua.includes('Windows NT 11.0')) os = 'Windows PC';
+  else if (ua.includes('Windows')) os = 'Windows';
+  else if (ua.includes('iPhone')) os = 'iPhone';
+  else if (ua.includes('iPad')) os = 'iPad';
+  else if (ua.includes('Macintosh') || ua.includes('Mac OS')) os = 'Mac';
+  else if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('Linux')) os = 'Linux';
+
+  return `${browser} on ${os}`;
+}
+
 export interface ClaimSessionResult {
   success: boolean;
   reason?: string;
   message?: string;
   occupied_since?: string;
   last_seen?: string;
+  occupied_device_info?: string;
+  lease_expires_at?: string;
+  takeover?: boolean;
+}
+
+export interface HeartbeatResult {
+  status: 'ACTIVE' | 'REVOKED' | 'EXPIRED' | 'SUPERSEDED_OR_OCCUPIED' | 'NO_LEASE' | 'UNAUTHENTICATED' | 'UNKNOWN';
+  reason?: string;
+  message?: string;
   lease_expires_at?: string;
 }
 
-export async function claimSessionLease(sessionId: string): Promise<ClaimSessionResult> {
+export async function claimSessionLease(
+  sessionId: string, 
+  forceTakeover: boolean = false
+): Promise<ClaimSessionResult> {
   const clientId = getOrCreateClientId();
   const deviceInfo = typeof navigator !== 'undefined' 
     ? `${navigator.userAgent.slice(0, 120)}`
     : 'Unknown Browser';
 
+  const rpcParams: Record<string, any> = {
+    p_session_id: sessionId,
+    p_client_id: clientId,
+    p_device_info: deviceInfo,
+    p_lease_seconds: DEFAULT_LEASE_SECONDS,
+  };
+
+  if (forceTakeover) {
+    rpcParams.p_force_takeover = true;
+  }
+
   try {
-    const { data, error } = await supabase.rpc('claim_user_session', {
-      p_session_id: sessionId,
-      p_client_id: clientId,
-      p_device_info: deviceInfo,
-      p_lease_seconds: DEFAULT_LEASE_SECONDS,
-    });
+    let { data, error } = await supabase.rpc('claim_user_session', rpcParams);
+
+    // If server schema only has the 4-parameter signature, retry without p_force_takeover
+    if (error && error.code === 'PGRST202' && 'p_force_takeover' in rpcParams) {
+      delete rpcParams.p_force_takeover;
+      if (forceTakeover) {
+        try {
+          await supabase.rpc('release_user_session', { p_client_id: null });
+        } catch {}
+      }
+      const retry = await supabase.rpc('claim_user_session', rpcParams);
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.warn('claim_user_session RPC warning:', error.message);
-      // Fail closed: a lease policy is not enforced if its authority cannot be checked.
       return {
         success: false,
         reason: 'verification_unavailable',
@@ -64,7 +115,7 @@ export async function claimSessionLease(sessionId: string): Promise<ClaimSession
   }
 }
 
-export async function heartbeatSessionLease(): Promise<{ status: string; reason?: string }> {
+export async function heartbeatSessionLease(): Promise<HeartbeatResult> {
   const clientId = getOrCreateClientId();
 
   try {
@@ -74,12 +125,21 @@ export async function heartbeatSessionLease(): Promise<{ status: string; reason?
     });
 
     if (error) {
-      return { status: 'UNKNOWN', reason: 'Heartbeat verification failed.' };
+      return { 
+        status: 'UNKNOWN', 
+        reason: error.message || 'Heartbeat verification failed.' 
+      };
     }
 
-    return (data as { status: string; reason?: string }) || { status: 'UNKNOWN', reason: 'Empty heartbeat response.' };
-  } catch {
-    return { status: 'UNKNOWN', reason: 'Heartbeat verification failed.' };
+    return (data as HeartbeatResult) || { 
+      status: 'UNKNOWN', 
+      reason: 'Empty heartbeat response.' 
+    };
+  } catch (err: any) {
+    return { 
+      status: 'UNKNOWN', 
+      reason: err?.message || 'Heartbeat network failure.' 
+    };
   }
 }
 
@@ -104,7 +164,6 @@ export function releaseSessionLeaseBeacon(): void {
     const clientId = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(CLIENT_ID_KEY) : null;
     if (!clientId) return;
 
-    // Retrieve active access token from Supabase storage or client
     let token = supabaseAnonKey;
     if (typeof localStorage !== 'undefined') {
       for (let i = 0; i < localStorage.length; i++) {
@@ -131,7 +190,6 @@ export function releaseSessionLeaseBeacon(): void {
     const endpoint = `${supabaseUrl}/rest/v1/rpc/release_user_session`;
     const payload = JSON.stringify({ p_client_id: clientId });
 
-    // Use keepalive fetch which is guaranteed to complete after page unloads
     if (typeof fetch === 'function') {
       fetch(endpoint, {
         method: 'POST',
@@ -165,6 +223,21 @@ export async function revokeUserSessionByAdmin(targetUserId: string, reason: str
   }
 }
 
+export async function revokeSessionLease(clientId: string, reason: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('revoke_user_session_lease', {
+      p_client_id: clientId,
+      p_reason: reason,
+    });
+
+    if (error) throw error;
+    return Boolean((data as any)?.success ?? true);
+  } catch (err) {
+    console.error('revoke_user_session_lease failed:', err);
+    throw err;
+  }
+}
+
 export interface ActiveSessionRecord {
   lease_id: string;
   user_id: string;
@@ -187,6 +260,6 @@ export async function getActiveUserSessions(): Promise<ActiveSessionRecord[]> {
     return (data as ActiveSessionRecord[]) || [];
   } catch (err) {
     console.error('getActiveUserSessions failed:', err);
-    return [];
+    throw err;
   }
 }
