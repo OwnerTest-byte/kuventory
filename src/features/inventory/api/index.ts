@@ -21,7 +21,7 @@ export async function getInventory(): Promise<InventoryItem[]> {
 
     return {
       id: row.id,
-      item_code: row.id.substring(0, 8).toUpperCase(),
+      item_code: row.item_code || row.id.substring(0, 8).toUpperCase(),
       item_name: row.name,
       description: row.description || '',
       category_id: row.category_id,
@@ -64,7 +64,7 @@ export async function getItemById(id: string): Promise<InventoryItem> {
 
   return {
     id: data.id,
-    item_code: data.id.substring(0, 8).toUpperCase(),
+    item_code: data.item_code || data.id.substring(0, 8).toUpperCase(),
     item_name: data.name,
     description: data.description || '',
     category_id: data.category_id,
@@ -106,7 +106,7 @@ export async function getBatches(itemId: string): Promise<StockBatch[]> {
     batch_code: `BATCH-${b.id.substring(0, 6).toUpperCase()}`,
     quantity: Number(b.quantity || 0),
     initial_quantity: Number(b.initial_quantity ?? b.quantity ?? 0),
-    expiry_date: b.expiry_date || '2099-12-31',
+    expiry_date: b.expiry_date || '',
     created_at: b.created_at,
   })) as StockBatch[];
 }
@@ -122,14 +122,25 @@ export async function addStock(params: {
   reason: string;
   userId?: string;
 }): Promise<void> {
-  const safeQty = Math.max(0, Number(params.quantity) || 0);
-  if (safeQty <= 0) return;
+  const safeQty = Number(params.quantity);
+  if (!Number.isFinite(safeQty) || safeQty <= 0) {
+    throw new Error('Quantity added must be a finite number greater than zero.');
+  }
+
+  if (!params.expiryDate) {
+    throw new Error('An expiration date is mandatory when adding stock batches.');
+  }
+
+  const businessDate = getBusinessDateString();
+  if (params.expiryDate < businessDate) {
+    throw new Error('Expiration date cannot be in the past.');
+  }
 
   const { error } = await supabase.rpc('add_stock', {
     p_item_id: params.itemId,
     p_quantity: safeQty,
-    p_expiry_date: params.expiryDate || '2099-12-31',
-    p_received_date: params.receivedDate || getBusinessDateString(),
+    p_expiry_date: params.expiryDate,
+    p_received_date: params.receivedDate || businessDate,
     p_reason: params.reason || 'Stock Received',
   });
 
@@ -430,6 +441,102 @@ export async function getStockMovementHistory(itemId?: string): Promise<StockTra
 }
 
 /**
+ * Create a new master inventory item with mandatory initial opening stock
+ * atomically in a single PostgreSQL database transaction.
+ */
+export async function createItemWithInitialStock(params: {
+  item_name: string;
+  category_id: string;
+  unit: string;
+  initial_quantity: number;
+  expiry_date: string;
+  item_code?: string;
+  description?: string;
+  unit_cost?: number;
+  min_quantity?: number;
+  supplier_a?: string;
+  supplier_b?: string;
+  image_path?: string | null;
+}): Promise<InventoryItem> {
+  const safeQty = Number(params.initial_quantity);
+  if (!Number.isFinite(safeQty) || safeQty <= 0) {
+    throw new Error('Initial stock quantity must be a finite number greater than zero.');
+  }
+
+  if (!params.expiry_date) {
+    throw new Error('Expiration date is mandatory for new stocked items.');
+  }
+
+  const businessDate = getBusinessDateString();
+  if (params.expiry_date < businessDate) {
+    throw new Error('Expiration date cannot be before the business date.');
+  }
+
+  // 1. Primary path: Call the atomic server-side RPC
+  const { data: rpcRes, error: rpcErr } = await supabase.rpc('create_inventory_item_with_initial_stock', {
+    p_name: params.item_name.trim(),
+    p_category_id: params.category_id,
+    p_unit: params.unit.trim() || 'pcs',
+    p_initial_quantity: safeQty,
+    p_expiry_date: params.expiry_date,
+    p_item_code: params.item_code ? params.item_code.trim().toUpperCase() : null,
+    p_description: params.description || '',
+    p_unit_cost: Math.max(0, Number(params.unit_cost) || 0),
+    p_min_quantity: Math.max(0, Number(params.min_quantity) || 0),
+    p_supplier_a: params.supplier_a || '',
+    p_supplier_b: params.supplier_b || '',
+    p_image_path: params.image_path || null,
+  });
+
+  if (!rpcErr && rpcRes?.id) {
+    // 2-Way Sync with today's daily inventory
+    await syncItemToTodayDailyInventory(rpcRes.id, { addDelta: safeQty });
+    return getItemById(rpcRes.id);
+  }
+
+  if (rpcErr && !rpcErr.message?.includes('function') && !rpcErr.message?.includes('not found')) {
+    console.error('create_inventory_item_with_initial_stock RPC error:', rpcErr);
+    throw new Error(rpcErr.message);
+  }
+
+  // Fallback if RPC migration not yet applied in active environment:
+  const { data: newItem, error: itemErr } = await supabase
+    .from('inventory_items')
+    .insert({
+      category_id: params.category_id,
+      name: params.item_name.trim(),
+      description: params.description || '',
+      unit: params.unit.trim() || 'pcs',
+      unit_cost: Math.max(0, Number(params.unit_cost) || 0),
+      supplier_a: params.supplier_a || '',
+      supplier_b: params.supplier_b || '',
+      min_quantity: Math.max(0, Number(params.min_quantity) || 0),
+      image_path: params.image_path || null,
+      item_code: params.item_code ? params.item_code.trim().toUpperCase() : undefined,
+      is_active: true,
+      is_archived: false,
+    })
+    .select()
+    .single();
+
+  if (itemErr) throw itemErr;
+
+  try {
+    await addStock({
+      itemId: newItem.id,
+      quantity: safeQty,
+      expiryDate: params.expiry_date,
+      reason: 'Initial Opening Stock Balance'
+    });
+  } catch (stockErr) {
+    console.error('Initial stock addition failed:', stockErr);
+    throw new Error(`Item created but initial stock failed: ${(stockErr as any)?.message}`);
+  }
+
+  return getItemById(newItem.id);
+}
+
+/**
  * Create a new master inventory item in inventory_items.
  */
 export async function createItem(data: Omit<InventoryItem, 'id' | 'is_archived' | 'created_at' | 'updated_at' | 'current_qty'>): Promise<InventoryItem> {
@@ -445,6 +552,7 @@ export async function createItem(data: Omit<InventoryItem, 'id' | 'is_archived' 
       supplier_b: data.supplier_b || '',
       min_quantity: data.min_qty,
       image_path: data.image_path || null,
+      item_code: data.item_code ? data.item_code.trim().toUpperCase() : undefined,
       is_active: true,
       is_archived: false,
     })
