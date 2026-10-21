@@ -109,11 +109,9 @@
   }
   
   html, body, #root {
-    height: 100dvh;
     min-height: 100dvh;
-    max-height: 100dvh;
-    overflow: hidden;
-    overscroll-behavior: none;
+    height: 100%;
+    overscroll-behavior-y: none;
   }
 
   /* Safe Fallback for CSS Smooth Scrolling (Safari < 15.4 compatibility) */
@@ -154,13 +152,13 @@
     letter-spacing: -0.025em;
   }
 
-  /* Accessibility & Focus States */
+  /* Accessibility & Keyboard Focus States */
   :focus-visible {
-    outline: 2px solid #2563eb;
-    outline-offset: 1px;
+    outline: 2px solid hsl(var(--primary)) !important;
+    outline-offset: 2px !important;
   }
 
-  /* Universal zero white offset & vibrant blue caret for type bars */
+  /* Universal zero white offset & caret styling */
   * {
     --tw-ring-offset-color: transparent !important;
     --tw-ring-offset-width: 0px !important;
@@ -169,19 +167,23 @@
   input,
   textarea,
   select {
-    caret-color: #2563eb !important;
+    caret-color: hsl(var(--primary)) !important;
   }
 
-  /* Prevent outline/box-shadow leaks and white box on input fields */
-  input:focus,
+  /* Keyboard focus-visible ring remains crisp and accessible */
   input:focus-visible,
-  textarea:focus,
   textarea:focus-visible,
-  .outline-none,
-  .outline-none:focus,
-  .outline-none:focus-visible {
-    outline: none !important;
-    box-shadow: none !important;
+  select:focus-visible {
+    outline: 2px solid hsl(var(--primary)) !important;
+    outline-offset: 1px !important;
+  }
+
+  /* Suppress default browser ring on pointer/mouse focus only */
+  input:focus:not(:focus-visible),
+  textarea:focus:not(:focus-visible),
+  select:focus:not(:focus-visible) {
+    outline: none;
+    box-shadow: none;
   }
 
   /* Standard & Webkit Scrollbar Styling (Cross-browser Firefox + Safari + Chrome) */

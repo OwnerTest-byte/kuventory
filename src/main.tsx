@@ -12,7 +12,19 @@ if (typeof window !== 'undefined') {
   (window as any).supabase = supabase;
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000, // 30s freshness window for general reference/catalog data
+      gcTime: 10 * 60 * 1000, // 10 minutes cache retention
+      refetchOnWindowFocus: false, // Prevent aggressive refetch bursts when switching tabs
+      retry: 1, // Single retry on transient network failures
+    },
+    mutations: {
+      retry: 0, // Never auto-retry stock mutations
+    },
+  },
+});
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

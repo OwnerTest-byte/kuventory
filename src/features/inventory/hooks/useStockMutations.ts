@@ -4,41 +4,38 @@ import { addStock, removeStock, adjustStock } from '../api';
 export function useStockMutations() {
   const queryClient = useQueryClient();
 
-  const invalidateAll = () => {
+  const invalidateForMutation = (itemId?: string) => {
+    // 1. Core catalog and item totals
     queryClient.invalidateQueries({ queryKey: ['inventory'] });
     queryClient.invalidateQueries({ queryKey: ['items'] });
-    queryClient.invalidateQueries({ queryKey: ['item'] });
+    if (itemId) {
+      queryClient.invalidateQueries({ queryKey: ['item', itemId] });
+    }
+
+    // 2. Batches and FEFO queues
     queryClient.invalidateQueries({ queryKey: ['batches'] });
-    queryClient.invalidateQueries({ queryKey: ['inventory', 'batches'] });
     queryClient.invalidateQueries({ queryKey: ['global-stock-batches'] });
-    queryClient.invalidateQueries({ queryKey: ['global-stock-batches-analytics'] });
-    queryClient.invalidateQueries({ queryKey: ['quickview-batches'] });
-    queryClient.invalidateQueries({ queryKey: ['global-stock-history'] });
-    queryClient.invalidateQueries({ queryKey: ['operational-top3-stats'] });
-    queryClient.invalidateQueries({ queryKey: ['expiring-batches'] });
-    queryClient.invalidateQueries({ queryKey: ['active-expiring-batches'] });
-    queryClient.invalidateQueries({ queryKey: ['active-expired-batches'] });
-    queryClient.invalidateQueries({ queryKey: ['today-inventory-session'] });
-    queryClient.invalidateQueries({ queryKey: ['dailyInventory'] });
+
+    // 3. Daily inventory sheets
     queryClient.invalidateQueries({ queryKey: ['daily-inventory'] });
-    queryClient.invalidateQueries({ queryKey: ['reports'] });
-    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+
+    // 4. Alerts
     queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
   };
 
   const add = useMutation({
     mutationFn: addStock,
-    onSuccess: invalidateAll,
+    onSuccess: (_, variables) => invalidateForMutation(variables.itemId),
   });
 
   const remove = useMutation({
     mutationFn: removeStock,
-    onSuccess: invalidateAll,
+    onSuccess: (_, variables) => invalidateForMutation(variables.itemId),
   });
 
   const adjust = useMutation({
     mutationFn: adjustStock,
-    onSuccess: invalidateAll,
+    onSuccess: (_, variables) => invalidateForMutation(variables.itemId),
   });
 
   return {
