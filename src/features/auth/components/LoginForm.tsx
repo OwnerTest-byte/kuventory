@@ -82,36 +82,20 @@ export function LoginForm() {
         return;
       }
 
-      const candidatePasswords = [data.password];
-      
-      // Auto-tolerance: if user omits or includes trailing exclamation mark, try both
-      if (data.password.endsWith('!')) {
-        candidatePasswords.push(data.password.slice(0, -1));
-      } else {
-        candidatePasswords.push(data.password + '!');
+      // Authenticate with exact credentials provided
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: data.password,
+      });
+
+      if (signInError || !signInData?.session) {
+        setAuthError(signInError?.message || 'Invalid email or password.');
+        setIsLoading(false);
+        return;
       }
 
-      if (email === 'master@kuventory.com') {
-        candidatePasswords.push('SuperAdmin2026!', 'MasterAdmin2026!');
-      }
-
-      let authSuccess = false;
-      let lastError: any = null;
-      let activeSession: any = null;
-
-      for (const pwd of candidatePasswords) {
-        const { data: signInData, error } = await supabase.auth.signInWithPassword({
-          email,
-          password: pwd,
-        });
-
-        if (!error && signInData?.session) {
-          authSuccess = true;
-          activeSession = signInData.session;
-          break;
-        }
-        lastError = error;
-      }
+      const activeSession = signInData.session;
+      const authSuccess = true;
 
       if (authSuccess && activeSession) {
         // Wire Remember Me preference
@@ -149,14 +133,9 @@ export function LoginForm() {
           }
           return;
         }
+
         setPendingTakeoverSession(null);
         activateSession(activeSession);
-      } else if (!authSuccess && lastError) {
-        const isInvalidCreds = 
-          lastError.message.toLowerCase().includes('invalid') || 
-          lastError.message.toLowerCase().includes('credential') || 
-          lastError.message.toLowerCase().includes('user not found');
-        setAuthError(isInvalidCreds ? 'INVALID LOGIN' : 'TRY AGAIN');
       }
     } catch (err: any) {
       console.error('Unhandled login error:', err);

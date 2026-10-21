@@ -39,9 +39,9 @@ export function AdminPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { user, profile, role } = useAuth();
-  const isSuperAdmin = role === 'SUPER_ADMIN' || user?.email === 'superadmin@kuventory.com' || role === 'MASTER_ADMIN' || user?.email === 'master@kuventory.com';
+  const isSuperAdmin = role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN';
   const isMasterAdmin = isSuperAdmin;
-  const isAdmin = role === 'ADMIN' || user?.email === 'admin@kuventory.com' || isSuperAdmin;
+  const isAdmin = role === 'ADMIN' || isSuperAdmin;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get('tab');

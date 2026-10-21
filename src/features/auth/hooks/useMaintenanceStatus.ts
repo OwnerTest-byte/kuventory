@@ -3,12 +3,8 @@ import { getMaintenanceStatus, type MaintenanceStatus } from '@/features/admin/s
 import { useAuth } from '@/features/auth/context/AuthContext';
 
 export function useMaintenanceStatus() {
-  const { role, user } = useAuth();
-  const isSuperUser = 
-    role === 'SUPER_ADMIN' || 
-    user?.email === 'superadmin@kuventory.com' || 
-    role === 'MASTER_ADMIN' || 
-    user?.email === 'master@kuventory.com';
+  const { role } = useAuth();
+  const isSuperUser = role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN';
 
   const { data: maintenance = {
     status: 'NORMAL' as const,

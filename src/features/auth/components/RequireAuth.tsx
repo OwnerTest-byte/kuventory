@@ -59,7 +59,7 @@ export function RequireAdmin() {
 }
 
 export function RequireSuperAdmin() {
-  const { session, role, isLoading, user } = useAuth();
+  const { session, role, isLoading } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -74,7 +74,7 @@ export function RequireSuperAdmin() {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  const isSuperUser = role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN' || user?.email === 'superadmin@kuventory.com' || user?.email === 'master@kuventory.com';
+  const isSuperUser = role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN';
   if (!isSuperUser) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-background px-4">
