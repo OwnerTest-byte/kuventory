@@ -33,6 +33,7 @@ export function useLogoutPrompt() {
     } catch (e) {
       console.warn('Error signing out:', e);
     } finally {
+      localStorage.removeItem('kuventory_browser_session_active');
       sessionStorage.removeItem('kuventory_browser_session_active');
       queryClient.clear();
       setIsLoggingOut(false);

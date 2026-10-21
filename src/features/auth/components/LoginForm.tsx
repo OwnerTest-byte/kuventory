@@ -96,6 +96,7 @@ export function LoginForm() {
 
       if (isLocked) {
         await supabase.auth.signOut();
+        localStorage.removeItem('kuventory_browser_session_active');
         sessionStorage.removeItem('kuventory_browser_session_active');
         setAuthError('EMERGENCY MAINTENANCE LOCKDOWN ACTIVE: System access is currently restricted to authorized Super Administrators during database maintenance.');
         return;
@@ -124,6 +125,7 @@ export function LoginForm() {
           } else {
             // Other failures (e.g. maintenance lockdown or network failure)
             await supabase.auth.signOut();
+            localStorage.removeItem('kuventory_browser_session_active');
             sessionStorage.removeItem('kuventory_browser_session_active');
             setAuthError(claimResult.message || 'ACCOUNT IN USE');
           }
@@ -153,6 +155,7 @@ export function LoginForm() {
         activateSession(pendingTakeoverSession.session);
       } else {
         await supabase.auth.signOut();
+        localStorage.removeItem('kuventory_browser_session_active');
         sessionStorage.removeItem('kuventory_browser_session_active');
         setPendingTakeoverSession(null);
         setAuthError(res.message || 'Unable to take over session.');
@@ -168,6 +171,7 @@ export function LoginForm() {
     setIsTakingOver(true);
     try {
       await supabase.auth.signOut();
+      localStorage.removeItem('kuventory_browser_session_active');
       sessionStorage.removeItem('kuventory_browser_session_active');
       setPendingTakeoverSession(null);
       setAuthError('ACCOUNT IN USE');

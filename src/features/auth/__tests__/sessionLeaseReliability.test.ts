@@ -23,19 +23,31 @@ vi.mock('@/lib/supabase', () => {
   };
 });
 
-const storageMap = new Map<string, string>();
+const sessionStorageMap = new Map<string, string>();
+const localStorageMap = new Map<string, string>();
+
 const mockSessionStorage = {
-  getItem: (k: string) => storageMap.get(k) ?? null,
-  setItem: (k: string, v: string) => storageMap.set(k, v),
-  removeItem: (k: string) => storageMap.delete(k),
-  clear: () => storageMap.clear(),
+  getItem: (k: string) => sessionStorageMap.get(k) ?? null,
+  setItem: (k: string, v: string) => sessionStorageMap.set(k, v),
+  removeItem: (k: string) => sessionStorageMap.delete(k),
+  clear: () => sessionStorageMap.clear(),
 };
+
+const mockLocalStorage = {
+  getItem: (k: string) => localStorageMap.get(k) ?? null,
+  setItem: (k: string, v: string) => localStorageMap.set(k, v),
+  removeItem: (k: string) => localStorageMap.delete(k),
+  clear: () => localStorageMap.clear(),
+};
+
 (globalThis as any).sessionStorage = mockSessionStorage;
+(globalThis as any).localStorage = mockLocalStorage;
 
 describe('Session Lease Reliability & Lifecycle (Audit Rules 11-17, 149)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSessionStorage.clear();
+    sessionStorageMap.clear();
+    localStorageMap.clear();
   });
 
   describe('parseHumanDeviceInfo', () => {
@@ -66,11 +78,38 @@ describe('Session Lease Reliability & Lifecycle (Audit Rules 11-17, 149)', () =>
   });
 
   describe('Client ID Generation', () => {
-    it('creates and persists a stable client_id in sessionStorage', () => {
+    it('creates and persists a stable client_id in localStorage and mirrors it to sessionStorage', () => {
       const id1 = getOrCreateClientId();
       const id2 = getOrCreateClientId();
       expect(id1).toBe(id2);
       expect(id1).toMatch(/^client_/);
+      expect(localStorage.getItem('kuventory_session_client_id')).toBe(id1);
+      expect(sessionStorage.getItem('kuventory_session_client_id')).toBe(id1);
+    });
+
+    it('shares client_id across tabs in the same browser via localStorage', () => {
+      // Tab 1 generates client ID
+      const tab1ClientId = getOrCreateClientId();
+      
+      // Simulate Tab 2 in the same browser: separate sessionStorage, shared localStorage
+      sessionStorage.clear();
+      expect(sessionStorage.getItem('kuventory_session_client_id')).toBeNull();
+      expect(localStorage.getItem('kuventory_session_client_id')).toBe(tab1ClientId);
+
+      // Tab 2 should get the exact same client ID from localStorage
+      const tab2ClientId = getOrCreateClientId();
+      expect(tab2ClientId).toBe(tab1ClientId);
+      expect(sessionStorage.getItem('kuventory_session_client_id')).toBe(tab1ClientId);
+    });
+
+    it('migrates legacy sessionStorage client_id to localStorage on upgrade', () => {
+      const legacyId = 'client_legacy_tab_123';
+      sessionStorage.setItem('kuventory_session_client_id', legacyId);
+      expect(localStorage.getItem('kuventory_session_client_id')).toBeNull();
+
+      const clientId = getOrCreateClientId();
+      expect(clientId).toBe(legacyId);
+      expect(localStorage.getItem('kuventory_session_client_id')).toBe(legacyId);
     });
   });
 

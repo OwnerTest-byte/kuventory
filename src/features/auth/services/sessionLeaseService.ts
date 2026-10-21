@@ -5,14 +5,52 @@ export const DEFAULT_LEASE_SECONDS = 90;
 
 export function getOrCreateClientId(): string {
   try {
-    let clientId = sessionStorage.getItem(CLIENT_ID_KEY);
+    // sessionStorage is per-tab; localStorage shares a stable client ID
+    // across tabs in this browser so one account is not falsely marked busy.
+    let clientId: string | null = null;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        clientId = localStorage.getItem(CLIENT_ID_KEY);
+      }
+    } catch {}
+
+    if (!clientId) {
+      try {
+        if (typeof sessionStorage !== 'undefined') {
+          clientId = sessionStorage.getItem(CLIENT_ID_KEY);
+        }
+      } catch {}
+    }
+
     if (!clientId) {
       clientId = 'client_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now().toString(36);
-      sessionStorage.setItem(CLIENT_ID_KEY, clientId);
     }
+
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(CLIENT_ID_KEY, clientId);
+      }
+    } catch {}
+
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(CLIENT_ID_KEY, clientId);
+      }
+    } catch {}
+
     return clientId;
   } catch {
-    return 'client_' + Math.random().toString(36).substring(2, 11);
+    try {
+      const existingId = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(CLIENT_ID_KEY) : null;
+      if (existingId) return existingId;
+      const fallbackId = 'client_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now().toString(36);
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(CLIENT_ID_KEY, fallbackId);
+      }
+      return fallbackId;
+    } catch {
+      return 'client_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now().toString(36);
+    }
   }
 }
 
@@ -161,7 +199,9 @@ export async function releaseSessionLease(): Promise<void> {
  */
 export function releaseSessionLeaseBeacon(): void {
   try {
-    const clientId = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(CLIENT_ID_KEY) : null;
+    const stableClientId = typeof localStorage !== 'undefined' ? localStorage.getItem(CLIENT_ID_KEY) : null;
+    const legacyClientId = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(CLIENT_ID_KEY) : null;
+    const clientId = stableClientId || legacyClientId;
     if (!clientId) return;
 
     let token = supabaseAnonKey;

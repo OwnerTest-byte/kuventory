@@ -479,7 +479,7 @@ export function AppLayout() {
   };
 
   const { theme, toggleTheme } = useTheme();
-  const { createItemWithStock, createItem } = useCreateItem();
+  const { createItemWithStock } = useCreateItem();
   const { profile, user, role } = useAuth();
   const unreadNotifications = useUnreadNotificationsCount();
   const location = useLocation();
@@ -528,24 +528,28 @@ export function AppLayout() {
   ) => {
     setIsSubmittingItem(true);
     try {
-      if (initialQty && initialQty > 0 && initialExpiryDate) {
-        await createItemWithStock({
-          item_name: data.item_name,
-          category_id: data.category_id,
-          unit: data.unit,
-          initial_quantity: initialQty,
-          expiry_date: initialExpiryDate,
-          item_code: data.item_code,
-          description: data.description || '',
-          unit_cost: data.unit_cost,
-          min_quantity: data.min_qty,
-          supplier_a: data.supplier_a || '',
-          supplier_b: data.supplier_b || '',
-          image_path: data.image_path,
-        });
-      } else {
-        await createItem(data);
+      const quantity = Number(initialQty);
+      const expiryDate = initialExpiryDate?.slice(0, 10);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        throw new Error('Opening stock must be greater than zero. No item was created.');
       }
+      if (!expiryDate) {
+        throw new Error('An expiration date is required. No item was created.');
+      }
+      await createItemWithStock({
+        item_name: data.item_name,
+        category_id: data.category_id,
+        unit: data.unit,
+        initial_quantity: quantity,
+        expiry_date: expiryDate,
+        item_code: data.item_code,
+        description: data.description || '',
+        unit_cost: data.unit_cost,
+        min_quantity: data.min_qty,
+        supplier_a: data.supplier_a || '',
+        supplier_b: data.supplier_b || '',
+        image_path: data.image_path,
+      });
       setIsNewItemModalOpen(false);
     } finally {
       setIsSubmittingItem(false);

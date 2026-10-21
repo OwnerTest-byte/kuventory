@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import type { InventoryStock, StockBatch } from '../types';
 import { PlusCircle, MinusCircle, RefreshCw, Layers, Calendar, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
+import { getBusinessDateString } from '@/lib/businessDate';
 
 interface StockUpdateModalProps {
   item: InventoryStock;
@@ -70,8 +71,13 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
         setErrorMsg('Expiration date is required for new stock batches (FEFO tracking)');
         return;
       }
-      const todayStr = new Date().toISOString().split('T')[0];
-      if (expiryDate < todayStr) {
+      const businessDate = getBusinessDateString();
+      const cleanExpiry = expiryDate.trim().slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanExpiry)) {
+        setErrorMsg('Invalid expiration date format. Please select a valid date.');
+        return;
+      }
+      if (cleanExpiry < businessDate) {
         setErrorMsg('Expiration date cannot be in the past. Stock is already expired.');
         return;
       }
@@ -90,7 +96,8 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
         quantity: Number(quantity), 
         reason: reason || (action === 'add' ? 'New delivery received' : action === 'remove' ? 'Stock deduction' : 'Physical count adjustment'), 
         batchId, 
-        expiryDate: expiryDate ? new Date(expiryDate).toISOString() : undefined 
+        // A date input already returns YYYY-MM-DD; keep it as a PostgreSQL DATE.
+        expiryDate: expiryDate ? expiryDate.trim().slice(0, 10) : undefined 
       });
     } finally {
       setIsSubmittingLocal(false);

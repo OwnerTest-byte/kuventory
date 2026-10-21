@@ -44,7 +44,7 @@ export function ItemsCatalogPage() {
   });
   
   const { updateItem, archiveItem, deleteItem } = useItems();
-  const { createItemWithStock, createItem } = useCreateItem();
+  const { createItemWithStock } = useCreateItem();
   const { add, remove, adjust } = useStockMutations();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -133,28 +133,33 @@ export function ItemsCatalogPage() {
       if (editingItem) {
         await updateItem({ id: editingItem.id, ...data });
       } else {
-        if (initialQty && initialQty > 0 && initialExpiryDate) {
-          await createItemWithStock({
-            item_name: data.item_name,
-            category_id: data.category_id,
-            unit: data.unit,
-            initial_quantity: initialQty,
-            expiry_date: initialExpiryDate,
-            item_code: data.item_code,
-            description: data.description || '',
-            unit_cost: data.unit_cost,
-            min_quantity: data.min_qty,
-            supplier_a: data.supplier_a || '',
-            supplier_b: data.supplier_b || '',
-            image_path: data.image_path,
-          });
-        } else {
-          await createItem(data);
+        const quantity = Number(initialQty);
+        const expiryDate = initialExpiryDate?.slice(0, 10);
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+          throw new Error('Opening stock must be greater than zero. No item was created.');
         }
+        if (!expiryDate) {
+          throw new Error('An expiration date is required. No item was created.');
+        }
+        await createItemWithStock({
+          item_name: data.item_name,
+          category_id: data.category_id,
+          unit: data.unit,
+          initial_quantity: quantity,
+          expiry_date: expiryDate,
+          item_code: data.item_code,
+          description: data.description || '',
+          unit_cost: data.unit_cost,
+          min_quantity: data.min_qty,
+          supplier_a: data.supplier_a || '',
+          supplier_b: data.supplier_b || '',
+          image_path: data.image_path,
+        });
       }
+      setIsModalOpen(false);
+      setEditingItem(undefined);
     } finally {
       setIsSubmitting(false);
-      setIsModalOpen(false);
     }
   };
 

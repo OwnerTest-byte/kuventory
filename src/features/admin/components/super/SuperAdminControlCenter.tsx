@@ -208,6 +208,19 @@ export function SuperAdminControlCenter({
 
   return (
     <div className="space-y-6">
+      {/* Super Admin Operations Console Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border/80">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Crown className="w-5 h-5 text-amber-500 shrink-0" />
+            <span>Super Admin Operations Console — KUVENTORY Operations</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+            Mission-critical system telemetry, security lockdown controls, inventory reconciliation, and operations.
+          </p>
+        </div>
+      </div>
+
       {/* Mobile Navigation Dropdown */}
       <div className="sm:hidden w-full">
         <label htmlFor="super-admin-area-select" className="sr-only">Select Navigation Area</label>

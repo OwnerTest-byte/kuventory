@@ -171,10 +171,9 @@ export function useRealtimeSync() {
           queryClient.invalidateQueries({ queryKey: ['recovery-points'] });
           queryClient.invalidateQueries({ queryKey: ['super-recovery-points'] });
         }
-      )
-      .subscribe();
+      );
 
-    // Missed-event reconciliation on network recovery and tab visibility regain
+    // Missed-event reconciliation on network recovery, channel reconnect, and tab visibility regain
     const handleReconcile = () => {
       queryClient.invalidateQueries({ queryKey: ['inventory-items'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
@@ -185,6 +184,15 @@ export function useRealtimeSync() {
       queryClient.invalidateQueries({ queryKey: ['daily-inventory'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     };
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        // Reconcile once connected or reconnected to ensure zero missed updates
+        handleReconcile();
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn(`Realtime channel status warning: ${status}`);
+      }
+    });
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {

@@ -203,6 +203,9 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
     await expect(maintenanceAlert).toBeVisible({ timeout: 10000 });
 
     // 3c. Super Admin can still log in and access /super-admin control plane
+    await cleanSignOut(page);
+    await page.goto('/login');
+    await page.waitForLoadState('networkidle');
     await page.fill('#email', 'superadmin@kuventory.com');
     await page.fill('#password', 'SuperAdmin2026!');
     await page.click('button[type="submit"]');

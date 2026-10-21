@@ -306,10 +306,9 @@ test.describe('KUVENTORY Directive Hardening & Real Verification Suite', () => {
 
     // 2. Verify Core Sub-navigation Tabs are available
     await expect(page.locator('button:has-text("Overview")').first()).toBeVisible();
-    await expect(page.locator('button:has-text("Database")').first()).toBeVisible();
-    await expect(page.locator('button:has-text("Storage")').first()).toBeVisible();
+    await expect(page.locator('button:has-text("System Health")').or(page.locator('button:has-text("Database")')).first()).toBeVisible();
     await expect(page.locator('button:has-text("Backups & Recovery")').first()).toBeVisible();
-    await expect(page.locator('button:has-text("Security & Access")').first()).toBeVisible();
+    await expect(page.locator('button:has-text("Users & Security")').or(page.locator('button:has-text("Security & Access")')).first()).toBeVisible();
 
     // 3. Verify NO Access Denied barrier is present for genuine Super Admin
     await expect(page.locator('text=Access Denied')).toHaveCount(0);

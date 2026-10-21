@@ -38,7 +38,7 @@ export const EmergencyMaintenanceScreen: React.FC<EmergencyMaintenanceScreenProp
         </div>
 
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+          <div role="alert" className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
             <AlertTriangle className="w-3.5 h-3.5" />
             <span>EMERGENCY MAINTENANCE LOCKDOWN</span>
           </div>

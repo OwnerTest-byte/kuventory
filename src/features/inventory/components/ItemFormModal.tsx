@@ -454,7 +454,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
             disabled={isSubmitting}
             className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold cursor-pointer"
           >
-            {isSubmitting ? 'Saving...' : item ? 'Save Changes' : 'Create Item & Add Stock'}
+            {isSubmitting ? 'Saving...' : item ? 'Save Changes' : 'Save Item & Opening Stock'}
           </Button>
         </div>
       </div>

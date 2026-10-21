@@ -123,23 +123,29 @@ export async function addStock(params: {
   userId?: string;
 }): Promise<void> {
   const safeQty = Number(params.quantity);
+  // Normalize legacy ISO date-times to the DATE expected by the database RPC.
+  const expiryDate = params.expiryDate?.slice(0, 10);
   if (!Number.isFinite(safeQty) || safeQty <= 0) {
     throw new Error('Quantity added must be a finite number greater than zero.');
   }
 
-  if (!params.expiryDate) {
+  if (!expiryDate || !/^\d{4}-\d{2}-\d{2}$/.test(expiryDate)) {
     throw new Error('An expiration date is mandatory when adding stock batches.');
+  }
+  const parsedExpiry = new Date(`${expiryDate}T00:00:00Z`);
+  if (Number.isNaN(parsedExpiry.getTime()) || parsedExpiry.toISOString().slice(0, 10) !== expiryDate) {
+    throw new Error('Expiration date is invalid. Please select a valid date.');
   }
 
   const businessDate = getBusinessDateString();
-  if (params.expiryDate < businessDate) {
+  if (expiryDate < businessDate) {
     throw new Error('Expiration date cannot be in the past.');
   }
 
   const { error } = await supabase.rpc('add_stock', {
     p_item_id: params.itemId,
     p_quantity: safeQty,
-    p_expiry_date: params.expiryDate,
+    p_expiry_date: expiryDate,
     p_received_date: params.receivedDate || businessDate,
     p_reason: params.reason || 'Stock Received',
   });
@@ -447,7 +453,14 @@ export async function createItemWithInitialStock(params: {
 
   if (rpcErr) {
     console.error('create_inventory_item_with_initial_stock RPC error:', rpcErr);
-    throw new Error(rpcErr.message || 'Failed to create inventory item atomically.');
+    const message = rpcErr.message || 'Failed to create inventory item atomically.';
+    const lowerMessage = message.toLowerCase();
+    if (rpcErr.code === 'PGRST202' ||
+        (lowerMessage.includes('create_inventory_item_with_initial_stock') &&
+          (lowerMessage.includes('schema cache') || lowerMessage.includes('not found')))) {
+      throw new Error('The database does not expose the atomic Add Item function yet. No item was saved. Apply the Supabase migration 20261021210000_atomic_create_item_and_initial_stock.sql, then retry.');
+    }
+    throw new Error(message);
   }
 
   if (!rpcRes?.id) {

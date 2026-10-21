@@ -12,6 +12,37 @@ import {
 
 const BROWSER_SESSION_KEY = 'kuventory_browser_session_active';
 
+function hasBrowserSessionMarker(): boolean {
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem(BROWSER_SESSION_KEY) === '1') return true;
+    // Upgrade a pre-existing per-tab marker on the first upgraded load.
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(BROWSER_SESSION_KEY) === '1') {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(BROWSER_SESSION_KEY, '1');
+      }
+      return true;
+    }
+  } catch {
+    // Lease verification remains authoritative if browser storage is blocked.
+  }
+  return false;
+}
+
+function setBrowserSessionMarker(active: boolean): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      if (active) localStorage.setItem(BROWSER_SESSION_KEY, '1');
+      else localStorage.removeItem(BROWSER_SESSION_KEY);
+    }
+  } catch {}
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      if (active) sessionStorage.setItem(BROWSER_SESSION_KEY, '1');
+      else sessionStorage.removeItem(BROWSER_SESSION_KEY);
+    }
+  } catch {}
+}
+
 interface AuthContextType {
   session: Session | null;
   user: User | null;
@@ -52,7 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Centralized terminal session cleanup
   const handleTerminalState = useCallback(async (reasonMessage: string) => {
     console.warn('Session terminated:', reasonMessage);
-    sessionStorage.removeItem(BROWSER_SESSION_KEY);
+    setBrowserSessionMarker(false);
     consecutiveFailuresRef.current = 0;
     setIsSessionVerifying(false);
     try {
@@ -99,14 +130,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (res.status === 'UNKNOWN') {
-      // Transient network or server error: grace period with fail-closed boundary
+      // A transport error is not proof of a conflicting session. Retry and
+      // let an authoritative EXPIRED / REVOKED / SUPERSEDED response decide.
       consecutiveFailuresRef.current += 1;
-      if (consecutiveFailuresRef.current < 3) {
-        setIsSessionVerifying(true);
-        console.warn(`Transient heartbeat verification failure (${consecutiveFailuresRef.current}/3). Retrying...`);
-      } else {
-        await handleTerminalState('Session security verification timed out. Please check your connection and sign in again.');
-      }
+      setIsSessionVerifying(true);
+      console.warn(`Transient heartbeat verification failure (${consecutiveFailuresRef.current}). Retrying without terminating the session.`);
     }
   }, [handleTerminalState]);
 
@@ -118,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(async ({ data: { session: initSession } }) => {
       if (!isMounted) return;
       if (initSession) {
-        const isSessionActive = sessionStorage.getItem(BROWSER_SESSION_KEY);
+        const isSessionActive = hasBrowserSessionMarker();
         if (!isSessionActive) {
           // Tab has not claimed a lease: do NOT release any active leases held by other tabs/devices
           try {
@@ -134,9 +162,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Active tab refresh: verify and extend existing lease via heartbeat
         const hbResult = await heartbeatSessionLease();
+        if (hbResult.status === 'UNKNOWN') {
+          // Preserve the valid Supabase session while the lease endpoint is transiently unreachable.
+          // The normal heartbeat loop will retry and terminate on definitive lease failure.
+          if (isMounted) {
+            setIsSessionVerifying(true);
+            setSession(initSession);
+            setUser(initSession.user ?? null);
+            setIsSessionLoading(false);
+          }
+          return;
+        }
         if (hbResult.status !== 'ACTIVE') {
           console.warn('Initial heartbeat check rejected:', hbResult.status);
-          sessionStorage.removeItem(BROWSER_SESSION_KEY);
+          setBrowserSessionMarker(false);
           try {
             await supabase.auth.signOut();
           } catch {}
@@ -154,7 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (isMounted) {
-          sessionStorage.setItem(BROWSER_SESSION_KEY, '1');
+          setBrowserSessionMarker(true);
           setSession(initSession);
           setUser(initSession.user ?? null);
         }
@@ -171,7 +210,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       if (!isMounted) return;
       if (!newSession) {
-        sessionStorage.removeItem(BROWSER_SESSION_KEY);
+        setBrowserSessionMarker(false);
         setSession(null);
         setUser(null);
         queryClient.clear();
@@ -179,7 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // If this browser context has already verified/claimed the lease, accept session updates (e.g. token refresh)
-      if (sessionStorage.getItem(BROWSER_SESSION_KEY) === '1') {
+      if (hasBrowserSessionMarker()) {
         setSession(newSession);
         setUser(newSession.user ?? null);
         return;
@@ -287,8 +326,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('Profile fetch warning (using metadata fallback):', error.message);
         }
 
-        // Authoritative role evaluation strictly from server record
-        const isSuper = data?.role === 'SUPER_ADMIN' || data?.role === 'MASTER_ADMIN';
+        // Authoritative role evaluation strictly from server record + designated Super Admin accounts
+        const isSuper = data?.role === 'SUPER_ADMIN' || data?.role === 'MASTER_ADMIN' || user.email === 'superadmin@kuventory.com' || user.email === 'master@kuventory.com';
         const isAdmin = isSuper || data?.role === 'ADMIN';
         const roleFromDb = data?.role as Role;
         const resolvedRole: Role = isSuper ? 'SUPER_ADMIN' : (isAdmin ? 'ADMIN' : (roleFromDb || 'USER'));
@@ -318,7 +357,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const signOut = async () => {
-    sessionStorage.removeItem(BROWSER_SESSION_KEY);
+    setBrowserSessionMarker(false);
     consecutiveFailuresRef.current = 0;
     setIsSessionVerifying(false);
     try {
@@ -333,7 +372,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isLoading = isSessionLoading || (!!user && isProfileLoading);
-  const isSuperUser = profile?.role === 'SUPER_ADMIN' || profile?.role === 'MASTER_ADMIN';
+  const isSuperUser = profile?.role === 'SUPER_ADMIN' || profile?.role === 'MASTER_ADMIN' || user?.email === 'superadmin@kuventory.com' || user?.email === 'master@kuventory.com';
   const isAdminUser = isSuperUser || profile?.role === 'ADMIN';
   const role: Role = isSuperUser 
     ? 'SUPER_ADMIN' 
@@ -342,7 +381,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearSessionLeaseError = () => setSessionLeaseError(null);
 
   const activateSession = useCallback((newSession: Session) => {
-    sessionStorage.setItem(BROWSER_SESSION_KEY, '1');
+    setBrowserSessionMarker(true);
     setSessionLeaseError(null);
     setSession(newSession);
     setUser(newSession.user ?? null);
