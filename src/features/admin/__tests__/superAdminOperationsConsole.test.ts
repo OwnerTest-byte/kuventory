@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatSafeDate } from '@/lib/utils';
 import { 
-  rollbackDeployment, 
   saveRetentionPolicies,
   type StockDriftItem,
   type DepletedBatchItem
@@ -29,27 +28,6 @@ describe('Super Admin Operations Console - Unit & Integration Test Suite', () =>
 
       const dateObj = new Date('2026-10-18T15:45:00.000Z');
       expect(formatSafeDate(dateObj, 'HH:mm')).toMatch(/^\d{2}:\d{2}$/);
-    });
-  });
-
-  describe('2. Deployments & Safe Rollback Guardrails', () => {
-    it('rejects rollback when mandatory reason or deployment ID is missing', async () => {
-      await expect(rollbackDeployment('', 'Rollback due to regression')).rejects.toThrow(
-        'Deployment ID is required for rollback.'
-      );
-      await expect(rollbackDeployment('dep-live-cae5ec1', '')).rejects.toThrow(
-        'A mandatory justification reason is required for deployment rollback.'
-      );
-      await expect(rollbackDeployment('dep-live-cae5ec1', '   ')).rejects.toThrow(
-        'A mandatory justification reason is required for deployment rollback.'
-      );
-    });
-
-    it('refuses to simulate rollback when external Netlify deployment hook is unconfigured', async () => {
-      // In testing environment without server-side verification workflow
-      await expect(rollbackDeployment('dep-live-cae5ec1', 'Reverting breaking release')).rejects.toThrow(
-        /Automated rollback is held in safe read-only mode/
-      );
     });
   });
 
@@ -178,37 +156,7 @@ describe('Super Admin Operations Console - Unit & Integration Test Suite', () =>
     });
   });
 
-  describe('6. Automation Job Configurations & Scheduling State', () => {
-    const validJobKeys = [
-      'daily_sync',
-      'low_stock_alert',
-      'expiry_check',
-      'report_generation',
-      'backup_snapshot'
-    ];
 
-    it('verifies all 5 standard job keys have defined purposes and targets', () => {
-      expect(validJobKeys).toHaveLength(5);
-      expect(validJobKeys).toContain('daily_sync');
-      expect(validJobKeys).toContain('low_stock_alert');
-      expect(validJobKeys).toContain('expiry_check');
-      expect(validJobKeys).toContain('report_generation');
-      expect(validJobKeys).toContain('backup_snapshot');
-    });
-
-    it('truthfully labels jobs with missing executions as "Never run"', () => {
-      const job = {
-        jobKey: 'report_generation',
-        name: 'Report Generation Engine',
-        lastRunAt: '',
-        lastStatus: 'Never run' as const
-      };
-
-      const displayDate = formatSafeDate(job.lastRunAt, 'yyyy-MM-dd HH:mm', 'Never run');
-      expect(displayDate).toBe('Never run');
-      expect(job.lastStatus).toBe('Never run');
-    });
-  });
 
   describe('7. Authoritative Retention Policies Validation', () => {
     it('validates sheet archival retention between 7 and 90 days', async () => {

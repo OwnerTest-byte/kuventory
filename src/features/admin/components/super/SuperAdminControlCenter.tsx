@@ -136,7 +136,6 @@ export function SuperAdminControlCenter({
     dailyCount: 0,
     activeLeases: 0,
     activeIncidents: 0,
-    failedAutomations: 0,
     databaseStatus: 'Unavailable' as const,
     storageStatus: 'Unavailable' as const,
     applicationStatus: 'Unavailable' as const,
@@ -274,7 +273,6 @@ export function SuperAdminControlCenter({
       {activeSubTab === 'overview' && (
         <SuperOverviewTab
           telemetry={telemetry}
-          deployments={[]}
           incidents={incidents}
           recentActivity={recentActivity}
           onSelectTab={handleSubTabChange}

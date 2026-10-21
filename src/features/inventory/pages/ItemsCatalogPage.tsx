@@ -44,7 +44,7 @@ export function ItemsCatalogPage() {
   });
   
   const { updateItem, archiveItem, deleteItem } = useItems();
-  const { createItemWithStock } = useCreateItem();
+  const { createItemWithStock, createItem } = useCreateItem();
   const { add, remove, adjust } = useStockMutations();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -133,28 +133,38 @@ export function ItemsCatalogPage() {
       if (editingItem) {
         await updateItem({ id: editingItem.id, ...data });
       } else {
-        const quantity = Number(initialQty);
+        const quantity = Number(initialQty || 0);
         const expiryDate = initialExpiryDate?.slice(0, 10);
-        if (!Number.isFinite(quantity) || quantity <= 0) {
-          throw new Error('Opening stock must be greater than zero. No item was created.');
+        if (quantity > 0 && expiryDate) {
+          await createItemWithStock({
+            item_name: data.item_name,
+            category_id: data.category_id,
+            unit: data.unit,
+            initial_quantity: quantity,
+            expiry_date: expiryDate,
+            item_code: data.item_code,
+            description: data.description || '',
+            unit_cost: data.unit_cost,
+            min_quantity: data.min_qty,
+            supplier_a: data.supplier_a || '',
+            supplier_b: data.supplier_b || '',
+            image_path: data.image_path,
+          });
+        } else {
+          await createItem({
+            item_name: data.item_name,
+            category_id: data.category_id,
+            unit: data.unit,
+            item_code: data.item_code,
+            description: data.description || '',
+            inventory_type: data.inventory_type || 'PORTION STOCK',
+            unit_cost: data.unit_cost,
+            min_qty: data.min_qty,
+            supplier_a: data.supplier_a || '',
+            supplier_b: data.supplier_b || '',
+            image_path: data.image_path,
+          });
         }
-        if (!expiryDate) {
-          throw new Error('An expiration date is required. No item was created.');
-        }
-        await createItemWithStock({
-          item_name: data.item_name,
-          category_id: data.category_id,
-          unit: data.unit,
-          initial_quantity: quantity,
-          expiry_date: expiryDate,
-          item_code: data.item_code,
-          description: data.description || '',
-          unit_cost: data.unit_cost,
-          min_quantity: data.min_qty,
-          supplier_a: data.supplier_a || '',
-          supplier_b: data.supplier_b || '',
-          image_path: data.image_path,
-        });
       }
       setIsModalOpen(false);
       setEditingItem(undefined);

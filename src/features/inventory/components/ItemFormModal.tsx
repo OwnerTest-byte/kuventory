@@ -120,30 +120,31 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
     setError(null);
 
     const categoryIdToUse = formData.category_id || effectiveCategoryId;
-    if (!formData.item_name || !categoryIdToUse || !formData.item_code) {
-      setError("Item code, Name and category are required");
+    if (!formData.item_name.trim() || !categoryIdToUse) {
+      setError("Item Name and Category are required");
       return;
     }
 
     const businessDate = getBusinessDateString();
+    const effectiveItemCode = formData.item_code?.trim() || ('ITM-' + Date.now().toString(36).toUpperCase());
 
     let initialQtyNum: number | undefined = undefined;
     if (!item) {
       const parsedQty = parseFloat(formData.initial_qty);
-      if (!formData.initial_qty || isNaN(parsedQty) || parsedQty <= 0) {
-        setError("Initial stock quantity must be greater than zero.");
-        return;
-      }
-      initialQtyNum = parsedQty;
+      if (!isNaN(parsedQty) && parsedQty > 0) {
+        initialQtyNum = parsedQty;
 
-      if (!formData.initial_expiry_date) {
-        setError("Expiration date is mandatory for new stocked items.");
-        return;
-      }
+        if (!formData.initial_expiry_date) {
+          setError("Expiration date is required when entering opening stock quantity.");
+          return;
+        }
 
-      if (formData.initial_expiry_date < businessDate) {
-        setError("Expiration date cannot be in the past (before current business date).");
-        return;
+        if (formData.initial_expiry_date < businessDate) {
+          setError("Expiration date cannot be in the past (before current business date).");
+          return;
+        }
+      } else {
+        initialQtyNum = 0;
       }
     }
 
@@ -151,8 +152,8 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
 
     try {
       await onSubmit({
-        item_code: formData.item_code,
-        item_name: formData.item_name,
+        item_code: effectiveItemCode,
+        item_name: formData.item_name.trim(),
         category_id: categoryIdToUse,
         description: formData.description,
         inventory_type: selectedCategoryName as any,

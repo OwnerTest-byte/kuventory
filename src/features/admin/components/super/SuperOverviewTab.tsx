@@ -13,14 +13,12 @@ import { getBusinessDateString } from '@/lib/businessDate';
 import { 
   fetchInventoryHealthAudit,
   fetchInventoryExceptionsQueue,
-  type DeploymentRecord, 
   type IncidentRecord, 
   type SystemTelemetry 
 } from '../../services/superAdminService';
 
 interface SuperOverviewTabProps {
   telemetry: SystemTelemetry;
-  deployments: DeploymentRecord[];
   incidents: IncidentRecord[];
   recentActivity: Array<{
     id: string;
@@ -37,7 +35,6 @@ interface SuperOverviewTabProps {
 
 export function SuperOverviewTab({
   telemetry,
-  deployments: _deployments,
   incidents: _incidents,
   recentActivity,
   onSelectTab,

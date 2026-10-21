@@ -104,68 +104,26 @@ export const InventoryRow = memo(function InventoryRow({
     }
   };
 
-  const notifySalesBlocked = (reason: 'zero_stock' | 'exceeds_stock', maxAllowed?: number) => {
-    const itemName = item.items?.item_name || 'This item';
-    const unit = item.items?.unit || 'pcs';
-    const message = reason === 'zero_stock'
-      ? `Cannot enter sales for "${itemName}": Stock is currently 0. Please add stock first.`
-      : `Cannot enter sales for "${itemName}" exceeding total stock (${maxAllowed} ${unit}). Value adjusted.`;
-
-    window.dispatchEvent(new CustomEvent('kuventory:show-toast', {
-      detail: {
-        id: `sales-blocked-${item.id}-${Date.now()}`,
-        type: 'OUT_OF_STOCK',
-        title: reason === 'zero_stock' ? 'No Stock Available' : 'Insufficient Stock',
-        message,
-        is_read: false,
-        created_at: new Date().toISOString()
-      }
-    }));
-  };
-
   const numBeg = Math.max(0, parseFloat(beg) || 0);
   const numAdd = Math.max(0, parseFloat(add) || 0);
   const numAm = Math.max(0, parseFloat(am) || 0);
   const numPm = Math.max(0, parseFloat(pm) || 0);
   const optTotal = Math.max(0, numBeg + numAdd);
   const rawEnding = optTotal - numAm - numPm;
-  // Strict non-negative rule: stock cannot be negative in physical inventory, auto-zeroed if sales exceed total
   const optEnding = Math.max(0, rawEnding);
   const hasDeficit = rawEnding < 0;
   const deficitAmount = Math.abs(rawEnding);
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleInputChange = (field: 'beg' | 'add' | 'am' | 'pm', value: string, inputElement?: HTMLInputElement) => {
+  const handleInputChange = (field: 'beg' | 'add' | 'am' | 'pm', value: string) => {
     if (isReadOnly) return;
 
-    // Strict non-negative inventory rule: strip negative signs and disallow numbers < 0
+    // Strict non-negative inventory rule: strip negative signs
     let sanitized = value.replace(/-/g, '');
     let parsed = parseFloat(sanitized);
     if (!isNaN(parsed) && parsed < 0) {
       sanitized = '0';
-      parsed = 0;
-    }
-
-    // Check if entering sales when total stock is 0
-    if ((field === 'am' || field === 'pm') && !isNaN(parsed) && parsed > 0) {
-      if (optTotal === 0) {
-        notifySalesBlocked('zero_stock');
-        if (field === 'am') setAm('0');
-        if (field === 'pm') setPm('0');
-        if (inputElement) inputElement.value = '0';
-        return;
-      }
-
-      // Check if sales exceed total stock
-      const otherSales = field === 'am' ? (parseFloat(pm) || 0) : (parseFloat(am) || 0);
-      if (parsed + otherSales > optTotal) {
-        const maxForThis = Math.max(0, optTotal - otherSales);
-        notifySalesBlocked('exceeds_stock', optTotal);
-        sanitized = maxForThis.toString();
-        parsed = maxForThis;
-        if (inputElement) inputElement.value = sanitized;
-      }
     }
 
     dirtyFieldsRef.current.add(field);
@@ -180,72 +138,26 @@ export const InventoryRow = memo(function InventoryRow({
     if (field === 'am') { setAm(sanitized); nextAm = sanitized; }
     if (field === 'pm') { setPm(sanitized); nextPm = sanitized; }
 
-    // If total stock becomes 0, automatically zero out sales AM and PM
-    const nextTotal = (parseFloat(nextBeg) || 0) + (parseFloat(nextAdd) || 0);
-    if (nextTotal === 0) {
-      if (parseFloat(nextAm) > 0) {
-        nextAm = '0';
-        setAm('0');
-      }
-      if (parseFloat(nextPm) > 0) {
-        nextPm = '0';
-        setPm('0');
-      }
-    }
-
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
       saveRow(nextBeg, nextAdd, nextAm, nextPm, field);
     }, 350);
   };
 
-  // If remote or computed total stock is 0, ensure sales cannot remain positive
-  useEffect(() => {
-    if (optTotal === 0 && (parseFloat(am) > 0 || parseFloat(pm) > 0)) {
-      setAm('0');
-      setPm('0');
-      saveRow(beg, add, '0', '0');
-    }
-  }, [optTotal, am, pm]);
-
-  const handleSalesFocusOrClick = (field: 'am' | 'pm') => {
-    if (isReadOnly) return;
-    if (optTotal === 0) {
-      notifySalesBlocked('zero_stock');
-    } else {
-      setFocusedField(field);
-    }
-  };
-
-  const handleBlur = (field: 'beg' | 'add' | 'am' | 'pm', inputElement?: HTMLInputElement) => {
+  const handleBlur = (field: 'beg' | 'add' | 'am' | 'pm') => {
     setFocusedField(null);
-    if ((field === 'am' || field === 'pm') && optTotal === 0) {
-      if (field === 'am') setAm('0');
-      if (field === 'pm') setPm('0');
-      if (inputElement) inputElement.value = '0';
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-      saveRow(beg, add, '0', '0', field);
-      return;
-    }
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     saveRow(beg, add, am, pm, field);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, field: 'beg' | 'add' | 'am' | 'pm') => {
-    // Strictly block negative number keys
     if (e.key === '-' || e.key === 'Minus') {
       e.preventDefault();
-      return;
-    }
-    if ((field === 'am' || field === 'pm') && optTotal === 0 && e.key !== 'Tab' && e.key !== 'Escape') {
-      e.preventDefault();
-      notifySalesBlocked('zero_stock');
       return;
     }
     if (e.key === 'Enter') {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
       saveRow(beg, add, am, pm, field);
-      // Move focus or blur
       (e.target as HTMLInputElement).blur();
     }
   };
@@ -319,7 +231,7 @@ export const InventoryRow = memo(function InventoryRow({
           />
         </TableCell>
 
-        {/* ADD - Direct Input + Batch Modal trigger requiring Expiry Date */}
+        {/* ADD - Direct Input + Optional Batch Modal trigger */}
         <TableCell className="p-2 bg-blue-500/3">
           <div className="relative flex items-center">
             <input 
@@ -327,18 +239,19 @@ export const InventoryRow = memo(function InventoryRow({
               min="0"
               step="any"
               value={add} 
-              readOnly={true}
-              onClick={() => { if (!isReadOnly) setIsModalOpen(true); }}
+              onFocus={() => setFocusedField('add')}
+              onChange={e => handleInputChange('add', e.target.value)}
+              onBlur={() => handleBlur('add')}
+              onKeyDown={e => handleKeyDown(e, 'add')}
               disabled={isReadOnly}
-              title={isReadOnly ? undefined : "Click to receive delivery batch (Expiration Date required)"}
-              className={`${inputClass} pr-9 font-bold text-primary cursor-pointer selection:bg-transparent`}
+              className={`${inputClass} pr-9 font-bold text-primary`}
               aria-label={`${item.items?.item_name} Add Quantity`}
             />
             {!isReadOnly && (
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
-                title="Receive Batch Delivery with Expiry Date (Required)"
+                title="Receive Batch Delivery with Expiry Date"
                 className="absolute right-1 w-8 h-8 rounded-md flex items-center justify-center text-primary/70 hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer"
                 aria-label={`Receive delivery batch for ${item.items?.item_name}`}
               >
@@ -361,15 +274,13 @@ export const InventoryRow = memo(function InventoryRow({
             type="number" 
             min="0"
             step="any"
-            value={optTotal === 0 ? '0' : am} 
-            onFocus={() => handleSalesFocusOrClick('am')}
-            onClick={() => handleSalesFocusOrClick('am')}
-            onChange={e => handleInputChange('am', e.target.value, e.target)}
-            onBlur={e => handleBlur('am', e.target)}
+            value={am} 
+            onFocus={() => setFocusedField('am')}
+            onChange={e => handleInputChange('am', e.target.value)}
+            onBlur={() => handleBlur('am')}
             onKeyDown={e => handleKeyDown(e, 'am')}
             disabled={isReadOnly}
-            title={optTotal === 0 ? "Cannot enter sales: Current stock is 0. Please add stock first." : undefined}
-            className={`${inputClass} ${optTotal === 0 ? 'opacity-70 cursor-not-allowed bg-muted/40' : ''}`}
+            className={inputClass}
             aria-label={`${item.items?.item_name} Sales AM`}
           />
         </TableCell>
@@ -380,15 +291,13 @@ export const InventoryRow = memo(function InventoryRow({
             type="number" 
             min="0" 
             step="any"
-            value={optTotal === 0 ? '0' : pm} 
-            onFocus={() => handleSalesFocusOrClick('pm')}
-            onClick={() => handleSalesFocusOrClick('pm')}
-            onChange={e => handleInputChange('pm', e.target.value, e.target)}
-            onBlur={e => handleBlur('pm', e.target)}
+            value={pm} 
+            onFocus={() => setFocusedField('pm')}
+            onChange={e => handleInputChange('pm', e.target.value)}
+            onBlur={() => handleBlur('pm')}
             onKeyDown={e => handleKeyDown(e, 'pm')}
             disabled={isReadOnly}
-            title={optTotal === 0 ? "Cannot enter sales: Current stock is 0. Please add stock first." : undefined}
-            className={`${inputClass} ${optTotal === 0 ? 'opacity-70 cursor-not-allowed bg-muted/40' : ''}`}
+            className={inputClass}
             aria-label={`${item.items?.item_name} Sales PM`}
           />
         </TableCell>

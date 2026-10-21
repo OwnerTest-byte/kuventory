@@ -361,7 +361,7 @@ export function SuperIncidentsTab({
                   <option value="Database">Database</option>
                   <option value="Storage">Storage</option>
                   <option value="Auth">Auth & Sessions</option>
-                  <option value="Automations">Automations</option>
+                  <option value="Inventory Sync">Inventory Sync</option>
                   <option value="Realtime">Realtime WebSockets</option>
                   <option value="General System">General System</option>
                 </select>
