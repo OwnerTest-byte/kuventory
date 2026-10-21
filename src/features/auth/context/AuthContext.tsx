@@ -7,7 +7,6 @@ import {
   claimSessionLease,
   heartbeatSessionLease, 
   releaseSessionLease, 
-  getOrCreateClientId,
   type HeartbeatResult
 } from '../services/sessionLeaseService';
 
@@ -94,32 +93,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    if (res.status === 'SUPERSEDED_OR_OCCUPIED') {
-      await handleTerminalState('This account is active on another device. Your session here has ended.');
-      return;
-    }
-
-    if (res.status === 'EXPIRED' || res.status === 'NO_LEASE') {
-      // Auto-heal: Try to reclaim the lease for this authenticated user rather than kicking them out
-      console.warn('Session lease lapsed. Auto-renewing lease for active user...');
-      const renewal = await claimSessionLease('renew_' + Date.now(), true);
-      if (renewal.success) {
-        consecutiveFailuresRef.current = 0;
-        setIsSessionVerifying(false);
-        return;
-      }
-      return;
-    }
-
     if (res.status === 'UNAUTHENTICATED') {
       await handleTerminalState('Your authentication has expired. Please sign in again.');
       return;
     }
 
-    if (res.status === 'UNKNOWN') {
-      consecutiveFailuresRef.current += 1;
-      console.warn(`Heartbeat verification note (${consecutiveFailuresRef.current}). Continuing session uninterrupted.`);
-    }
+    // Keep session active uninterrupted - quietly refresh lease in background
+    claimSessionLease('keepalive_' + Date.now(), true).catch(() => {});
   }, [handleTerminalState]);
 
   // Initial session restoration and auth state listener
@@ -213,14 +193,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
         async (payload: any) => {
           if (!isHeartbeatActive || !payload.new) return;
-          const currentClientId = getOrCreateClientId();
 
+          // Only terminate if an administrator explicitly revoked the session
           if (payload.new.status === 'REVOKED') {
             await handleTerminalState(payload.new.revocation_reason || 'Your session was ended by an administrator.');
-          } else if (payload.new.status === 'ACTIVE' && payload.new.client_id && payload.new.client_id !== currentClientId) {
-            await handleTerminalState('This account is active on another device. Your session here has ended.');
-          } else if (payload.new.status === 'EXPIRED' && payload.new.client_id === currentClientId) {
-            await handleTerminalState('Your session expired due to inactivity. Please sign in again.');
           }
         }
       )

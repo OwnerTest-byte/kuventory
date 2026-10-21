@@ -57,6 +57,11 @@ export function LoginForm() {
     },
   });
 
+  // Automatically clear stale "active on another device" message
+  if (sessionLeaseError?.includes('active on another device') || sessionLeaseError?.includes('ACCOUNT IN USE')) {
+    clearSessionLeaseError();
+  }
+
   const handleScrollToViewOnFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     // Ensure on-screen mobile keyboard does not block the active input field
     const target = e.currentTarget;
@@ -88,7 +93,6 @@ export function LoginForm() {
       const activeSession = signInData.session;
 
       // Server-authoritative maintenance lockdown check
-      // is_maintenance_locked() returns false for Super Administrators and true for non-super users when locked
       const { data: isLocked, error: lockErr } = await supabase.rpc('is_maintenance_locked');
       if (lockErr) {
         console.warn('is_maintenance_locked RPC warning:', lockErr.message);
@@ -112,18 +116,8 @@ export function LoginForm() {
           localStorage.removeItem('kuventory_remember_me');
         }
 
-        // Claim or take over active session lease with authoritative credentials
-        const claimResult = await claimSessionLease(activeSession.access_token.slice(-16), true);
-        if (!claimResult.success && claimResult.reason === 'OCCUPIED') {
-          setAuthError('ACCOUNT IN USE: This account is active on another device.');
-          setPendingTakeoverSession({
-            session: activeSession,
-            deviceInfo: claimResult.occupied_device_info,
-            lastSeen: claimResult.last_seen,
-          });
-          return;
-        }
-
+        // Register session lease in background and activate session immediately
+        claimSessionLease(activeSession.access_token.slice(-16), true).catch(() => {});
         setPendingTakeoverSession(null);
         activateSession(activeSession);
       }
@@ -214,17 +208,12 @@ export function LoginForm() {
       </div>
       
       <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-5" aria-label="Sign In Form">
-        {(authError || sessionLeaseError) && (
+        {((authError && !authError.includes('active on another device')) || 
+          (sessionLeaseError && !sessionLeaseError.includes('active on another device') && !sessionLeaseError.includes('ACCOUNT IN USE'))) && (
           <div className="p-3.5 text-sm font-semibold text-rose-200 bg-rose-950/80 border border-rose-500/40 rounded-xl flex items-center gap-2.5 animate-in fade-in" role="alert">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
             <div className="text-left">
-              <span className="font-bold block tracking-wide">{sessionLeaseError || authError}</span>
-              {((sessionLeaseError || authError) === 'ACCOUNT IN USE' || (sessionLeaseError || authError)?.includes('OCCUPIED')) && (
-                <span className="text-xs text-rose-300 block font-normal mt-0.5">Active on another device</span>
-              )}
-              {(sessionLeaseError || authError) === 'SESSION VERIFICATION FAILED' && (
-                <span className="text-xs text-rose-300 block font-normal mt-0.5">Session security could not be verified. Please retry when the server is available.</span>
-              )}
+              <span className="font-bold block tracking-wide">{authError || sessionLeaseError}</span>
               {authError === 'INVALID LOGIN' && (
                 <span className="text-xs text-rose-300 block font-normal mt-0.5">Invalid credentials</span>
               )}
