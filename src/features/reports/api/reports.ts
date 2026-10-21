@@ -91,6 +91,7 @@ export function useReport(reportId: string | undefined) {
           report_date,
           generated_by,
           created_at,
+          generated_at,
           profiles:generated_by (
             display_name,
             first_name,
@@ -147,7 +148,7 @@ export function useReport(reportId: string | undefined) {
           daily_inventory_id: snapshotReport.daily_inventory_id,
           inventory_date: snapshotReport.report_date,
           status: 'FINALIZED',
-          finalized_at: snapshotReport.created_at,
+          finalized_at: snapshotReport.created_at || (snapshotReport as any).generated_at,
           finalized_by_name: finalizerName,
           daily_inventory_entries: mappedEntries
         };

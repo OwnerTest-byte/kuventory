@@ -83,9 +83,19 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
       }
     }
 
-    if (action === 'adjust' && typeof quantity === 'number' && quantity < 0) {
-      setErrorMsg('Stock quantity cannot be negative.');
-      return;
+    if (action === 'adjust') {
+      if (typeof quantity === 'number' && quantity < 0) {
+        setErrorMsg('Stock quantity cannot be negative.');
+        return;
+      }
+      if (calculatedNewBalance > item.current_qty && expiryDate) {
+        const businessDate = getBusinessDateString();
+        const cleanExpiry = expiryDate.trim().slice(0, 10);
+        if (cleanExpiry < businessDate) {
+          setErrorMsg('Expiration date cannot be in the past.');
+          return;
+        }
+      }
     }
 
     setErrorMsg('');
@@ -243,20 +253,22 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
               </div>
             </div>
 
-            {action === 'add' && (
+            {(action === 'add' || (action === 'adjust' && calculatedNewBalance > item.current_qty)) && (
               <div className="space-y-3 p-3.5 bg-muted/40 rounded-xl border border-border">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-primary" />
-                    Batch Expiry Date <span className="text-rose-500 font-bold">*</span> (FEFO Expiration Tracking)
+                    {action === 'add' ? 'Batch Expiry Date' : 'Stock Expiry Date (Optional)'}{' '}
+                    {action === 'add' && <span className="text-rose-500 font-bold">*</span>}
+                    <span className="text-[11px] font-normal text-muted-foreground">(FEFO Expiration Tracking)</span>
                   </Label>
                   <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                    Required • Earliest Deducted 1st
+                    {action === 'add' ? 'Required • Earliest Deducted 1st' : 'Defaults to +90 Days if Blank'}
                   </span>
                 </div>
                 <Input
                   type="date"
-                  required
+                  required={action === 'add'}
                   min={new Date().toISOString().split('T')[0]}
                   value={expiryDate}
                   onChange={(e) => {
