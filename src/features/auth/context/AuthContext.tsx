@@ -94,7 +94,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (res.status === 'UNAUTHENTICATED') {
-      await handleTerminalState('Your authentication has expired. Please sign in again.');
+      // Check if user session actually still exists in Supabase Auth before logging out
+      const { data: currentAuth } = await supabase.auth.getSession();
+      if (!currentAuth?.session) {
+        consecutiveFailuresRef.current += 1;
+        if (consecutiveFailuresRef.current >= 3) {
+          await handleTerminalState('Your authentication has expired. Please sign in again.');
+        }
+        return;
+      }
+      // Auth session is valid; clear failure counter and re-claim lease
+      consecutiveFailuresRef.current = 0;
+      claimSessionLease('keepalive_' + Date.now(), true).catch(() => {});
       return;
     }
 
