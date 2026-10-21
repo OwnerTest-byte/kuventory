@@ -1,9 +1,9 @@
-import { useRef, useMemo, useEffect } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
-  Shield, Clock, Database, HardDrive, RotateCcw, 
-  Radio, AlertTriangle, FileText, Settings,
-  ChevronLeft, ChevronRight, Crown
+  Crown, ShieldCheck, ClipboardList, Users, Activity, 
+  RotateCcw, Clock, FileText, ChevronLeft, ChevronRight,
+  Database, HardDrive, Radio, AlertTriangle, Settings
 } from 'lucide-react';
 import { cn, formatSafeDate } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
@@ -15,15 +15,17 @@ import {
 } from '../../services/superAdminService';
 
 import { SuperOverviewTab } from './SuperOverviewTab';
+import { SuperIntegrityTab } from './SuperIntegrityTab';
+import { SuperDailyOperationsTab } from './SuperDailyOperationsTab';
+import { SuperSecurityTab } from './SuperSecurityTab';
 import { SuperDatabaseTab } from './SuperDatabaseTab';
 import { SuperStorageTab } from './SuperStorageTab';
+import { SuperRealtimeTab } from './SuperRealtimeTab';
 import { SuperRecoveryTab } from './SuperRecoveryTab';
 import { SuperAutomationsTab } from './SuperAutomationsTab';
-import { SuperSecurityTab } from './SuperSecurityTab';
-import { SuperIncidentsTab } from './SuperIncidentsTab';
 import { SuperLogsTab } from './SuperLogsTab';
+import { SuperIncidentsTab } from './SuperIncidentsTab';
 import { SuperSettingsTab } from './SuperSettingsTab';
-import { SuperRealtimeTab } from './SuperRealtimeTab';
 
 interface SuperAdminControlCenterProps {
   userEmail: string;
@@ -43,6 +45,28 @@ interface SuperAdminControlCenterProps {
   isLoadingAuditLogs: boolean;
   refetchAudits: () => void;
 }
+
+const NAVIGATION_AREAS = [
+  { id: 'overview', label: 'Overview', icon: Crown },
+  { id: 'integrity', label: 'Inventory Integrity', icon: ShieldCheck },
+  { id: 'operations', label: 'Daily Operations', icon: ClipboardList },
+  { id: 'access', label: 'People & Access', icon: Users },
+  { id: 'system', label: 'System Health', icon: Activity },
+  { id: 'recovery', label: 'Data & Recovery', icon: RotateCcw },
+  { id: 'jobs', label: 'Jobs & Integrations', icon: Clock },
+  { id: 'audit', label: 'Audit & Settings', icon: FileText },
+];
+
+const SUBTAB_ALIASES: Record<string, string> = {
+  database: 'integrity',
+  storage: 'system',
+  monitoring: 'system',
+  security: 'access',
+  automations: 'jobs',
+  incidents: 'audit',
+  logs: 'audit',
+  settings: 'audit',
+};
 
 export function SuperAdminControlCenter({
   userEmail,
@@ -64,14 +88,14 @@ export function SuperAdminControlCenter({
 }: SuperAdminControlCenterProps) {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Navigation sub-tab state (Deployments tab removed per security audit)
-  const validSubTabs = [
-    'overview', 'database', 'storage', 
-    'recovery', 'automations', 'monitoring', 'security', 
-    'incidents', 'logs', 'settings'
-  ];
-  const urlSubTab = searchParams.get('subtab');
-  const activeSubTab = (urlSubTab && validSubTabs.includes(urlSubTab)) ? urlSubTab : 'overview';
+  // Sub-tab resolution with alias support
+  const rawSubTab = searchParams.get('subtab') || 'overview';
+  const resolvedSubTab = SUBTAB_ALIASES[rawSubTab] || rawSubTab;
+  const activeSubTab = NAVIGATION_AREAS.some(a => a.id === resolvedSubTab) ? resolvedSubTab : 'overview';
+
+  // Sub-sections for composite tabs
+  const [systemSection, setSystemSection] = useState<'realtime' | 'database' | 'storage'>('realtime');
+  const [auditSection, setAuditSection] = useState<'logs' | 'incidents' | 'settings'>('logs');
 
   const handleSubTabChange = (newSubTab: string) => {
     setSearchParams({ subtab: newSubTab });
@@ -104,10 +128,10 @@ export function SuperAdminControlCenter({
   }, refetch: refetchTelemetry } = useQuery({
     queryKey: ['super-telemetry'],
     queryFn: fetchSystemTelemetry,
-    refetchInterval: 30000 // fresh background ping every 30s
+    refetchInterval: 30000
   });
 
-  // 2. Automations / Scheduled Services Query
+  // 2. Automations Query
   const { data: automations = [], refetch: refetchAutomations } = useQuery({
     queryKey: ['super-automations'],
     queryFn: fetchAutomations
@@ -129,8 +153,6 @@ export function SuperAdminControlCenter({
       status: 'success' | 'warning' | 'info' | 'error';
     }> = [];
 
-    // Display only persisted audit events below. Do not synthesize success
-    // entries for deployments, backups, logins, or scheduled jobs.
     auditLogs.slice(0, 6).forEach((l, idx) => {
       list.push({
         id: `audit-${l.id || idx}`,
@@ -163,7 +185,7 @@ export function SuperAdminControlCenter({
 
   return (
     <div className="space-y-6">
-      {/* Horizontal Sub-Navigation Tab Rail matching Image 2 */}
+      {/* 8-Area Navigation Bar */}
       <div className="relative w-full min-w-0 max-w-full flex items-center group">
         <button
           type="button"
@@ -178,18 +200,7 @@ export function SuperAdminControlCenter({
           ref={subTabsRef}
           className="w-full min-w-0 max-w-full flex items-center gap-1.5 p-1.5 rounded-2xl bg-muted/80 border border-border overflow-x-auto scroll-smooth touch-pan-x shadow-2xs py-2 scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted-foreground/30"
         >
-          {[
-            { id: 'overview', label: 'Overview', icon: Crown },
-            { id: 'database', label: 'Database', icon: Database },
-            { id: 'storage', label: 'Storage', icon: HardDrive },
-            { id: 'recovery', label: 'Backups & Recovery', icon: RotateCcw },
-            { id: 'automations', label: 'Scheduled Services', icon: Clock },
-            { id: 'monitoring', label: 'Monitoring', icon: Radio },
-            { id: 'security', label: 'Security & Access', icon: Shield },
-            { id: 'incidents', label: 'Incidents', icon: AlertTriangle },
-            { id: 'logs', label: 'Logs', icon: FileText },
-            { id: 'settings', label: 'Settings', icon: Settings },
-          ].map((nav) => {
+          {NAVIGATION_AREAS.map((nav) => {
             const Icon = nav.icon;
             const isActive = activeSubTab === nav.id;
             return (
@@ -221,7 +232,7 @@ export function SuperAdminControlCenter({
         </button>
       </div>
 
-      {/* Sub-Tab 1: Overview */}
+      {/* 1. Overview */}
       {activeSubTab === 'overview' && (
         <SuperOverviewTab
           telemetry={telemetry}
@@ -240,52 +251,23 @@ export function SuperAdminControlCenter({
         />
       )}
 
-      {/* Sub-Tab 3: Database */}
-      {activeSubTab === 'database' && (
-        <SuperDatabaseTab
+      {/* 2. Inventory Integrity */}
+      {activeSubTab === 'integrity' && (
+        <SuperIntegrityTab
           telemetry={telemetry}
-          onPingDatabase={() => {
-            refetchTelemetry();
-          }}
           onRefresh={refetchTelemetry}
         />
       )}
 
-      {/* Sub-Tab 4: Storage */}
-      {activeSubTab === 'storage' && (
-        <SuperStorageTab
+      {/* 3. Daily Operations */}
+      {activeSubTab === 'operations' && (
+        <SuperDailyOperationsTab
           onRefresh={refetchTelemetry}
         />
       )}
 
-      {/* Sub-Tab 5: Backups & Recovery */}
-      {activeSubTab === 'recovery' && (
-        <SuperRecoveryTab />
-      )}
-
-      {/* Sub-Tab 6: Scheduled Services */}
-      {activeSubTab === 'automations' && (
-        <SuperAutomationsTab
-          automations={automations}
-          onRefresh={refetchAutomations}
-        />
-      )}
-
-      {/* Sub-Tab 7: Monitoring */}
-      {activeSubTab === 'monitoring' && (
-        <SuperRealtimeTab
-          realtimeEvents={realtimeEvents}
-          setRealtimeEvents={setRealtimeEvents}
-          realtimeChannelStatus={realtimeChannelStatus}
-          realtimePingMs={realtimePingMs}
-          setRealtimePingMs={setRealtimePingMs}
-          isRealtimePaused={isRealtimePaused}
-          setIsRealtimePaused={setIsRealtimePaused}
-        />
-      )}
-
-      {/* Sub-Tab 8: Security & Access */}
-      {activeSubTab === 'security' && (
+      {/* 4. People & Access */}
+      {activeSubTab === 'access' && (
         <SuperSecurityTab
           maintenanceLocked={maintenanceLocked}
           onToggleMaintenance={onToggleMaintenance}
@@ -294,29 +276,147 @@ export function SuperAdminControlCenter({
         />
       )}
 
-      {/* Sub-Tab 9: Incidents */}
-      {activeSubTab === 'incidents' && (
-        <SuperIncidentsTab
-          incidents={incidents}
-          onRefresh={refetchIncidents}
-          userEmail={userEmail}
+      {/* 5. System Health */}
+      {activeSubTab === 'system' && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 border-b border-border pb-3 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setSystemSection('realtime')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer flex items-center gap-1.5",
+                systemSection === 'realtime' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Radio className="w-3.5 h-3.5" />
+              Live Realtime Stream
+            </button>
+            <button
+              type="button"
+              onClick={() => setSystemSection('database')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer flex items-center gap-1.5",
+                systemSection === 'database' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Database className="w-3.5 h-3.5" />
+              Database Ping
+            </button>
+            <button
+              type="button"
+              onClick={() => setSystemSection('storage')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer flex items-center gap-1.5",
+                systemSection === 'storage' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <HardDrive className="w-3.5 h-3.5" />
+              Storage API
+            </button>
+          </div>
+
+          {systemSection === 'realtime' && (
+            <SuperRealtimeTab
+              realtimeEvents={realtimeEvents}
+              setRealtimeEvents={setRealtimeEvents}
+              realtimeChannelStatus={realtimeChannelStatus}
+              realtimePingMs={realtimePingMs}
+              setRealtimePingMs={setRealtimePingMs}
+              isRealtimePaused={isRealtimePaused}
+              setIsRealtimePaused={setIsRealtimePaused}
+            />
+          )}
+
+          {systemSection === 'database' && (
+            <SuperDatabaseTab
+              telemetry={telemetry}
+              onPingDatabase={refetchTelemetry}
+              onRefresh={refetchTelemetry}
+            />
+          )}
+
+          {systemSection === 'storage' && (
+            <SuperStorageTab
+              onRefresh={refetchTelemetry}
+            />
+          )}
+        </div>
+      )}
+
+      {/* 6. Data & Recovery */}
+      {activeSubTab === 'recovery' && (
+        <SuperRecoveryTab />
+      )}
+
+      {/* 7. Jobs & Integrations */}
+      {activeSubTab === 'jobs' && (
+        <SuperAutomationsTab
+          automations={automations}
+          onRefresh={refetchAutomations}
         />
       )}
 
-      {/* Sub-Tab 10: Logs */}
-      {activeSubTab === 'logs' && (
-        <SuperLogsTab
-          auditLogs={auditLogs}
-          isLoadingAuditLogs={isLoadingAuditLogs}
-          onRefreshAudits={refetchAudits}
-        />
-      )}
+      {/* 8. Audit & Settings */}
+      {activeSubTab === 'audit' && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 border-b border-border pb-3 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setAuditSection('logs')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer flex items-center gap-1.5",
+                auditSection === 'logs' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Audit Logs
+            </button>
+            <button
+              type="button"
+              onClick={() => setAuditSection('incidents')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer flex items-center gap-1.5",
+                auditSection === 'incidents' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Incident Records ({incidents.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setAuditSection('settings')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer flex items-center gap-1.5",
+                auditSection === 'settings' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Settings & Governance
+            </button>
+          </div>
 
-      {/* Sub-Tab 11: Settings */}
-      {activeSubTab === 'settings' && (
-        <SuperSettingsTab
-          userEmail={userEmail}
-        />
+          {auditSection === 'logs' && (
+            <SuperLogsTab
+              auditLogs={auditLogs}
+              isLoadingAuditLogs={isLoadingAuditLogs}
+              onRefreshAudits={refetchAudits}
+            />
+          )}
+
+          {auditSection === 'incidents' && (
+            <SuperIncidentsTab
+              incidents={incidents}
+              onRefresh={refetchIncidents}
+              userEmail={userEmail}
+            />
+          )}
+
+          {auditSection === 'settings' && (
+            <SuperSettingsTab
+              userEmail={userEmail}
+            />
+          )}
+        </div>
       )}
     </div>
   );

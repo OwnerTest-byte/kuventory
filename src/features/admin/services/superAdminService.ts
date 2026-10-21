@@ -986,3 +986,228 @@ export async function exportFullSystemBackup(userEmail: string = 'superadmin@kuv
 
   return { filename, totalRecords };
 }
+
+// ---------------------------------------------------------------------------
+// INVENTORY INTEGRITY & OPERATIONAL EXCEPTIONS (WORKSTREAM B)
+// ---------------------------------------------------------------------------
+
+export interface InventoryHealthAudit {
+  nullOrFakeExpiryBatches: number;
+  expiredPositiveBatches: number;
+  depletedBatches: number;
+  zeroStockItems: number;
+  belowMinItems: number;
+  duplicateItemCodes: number;
+  expiring7dBatches: number;
+  expiring30dBatches: number;
+  auditedAt: string;
+}
+
+export interface InventoryExceptionItem {
+  id: string;
+  severity: 'CRITICAL' | 'WARNING' | 'INFO';
+  issue: string;
+  entityName: string;
+  entityType: 'ITEM' | 'BATCH' | 'SESSION';
+  details: string;
+  detectedAt: string;
+  targetRoute: string;
+  actionLabel: string;
+}
+
+export async function fetchInventoryHealthAudit(): Promise<InventoryHealthAudit> {
+  const today = getBusinessDateString();
+  const d7 = new Date();
+  d7.setDate(d7.getDate() + 7);
+  const d7Str = d7.toISOString().slice(0, 10);
+  
+  const d30 = new Date();
+  d30.setDate(d30.getDate() + 30);
+  const d30Str = d30.toISOString().slice(0, 10);
+
+  // 1. Try server RPC
+  let auditRpc: any = null;
+  try {
+    const { data, error } = await supabase.rpc('audit_inventory_data_quality');
+    if (!error && data) {
+      auditRpc = data;
+    }
+  } catch (err) {
+    console.warn('audit_inventory_data_quality RPC fallback:', err);
+  }
+
+  // 2. Fetch expiring batches counts
+  let expiring7d = 0;
+  let expiring30d = 0;
+  try {
+    const [res7, res30] = await Promise.all([
+      supabase.from('stock_batches')
+        .select('*', { count: 'exact', head: true })
+        .gt('quantity', 0)
+        .gte('expiry_date', today)
+        .lte('expiry_date', d7Str),
+      supabase.from('stock_batches')
+        .select('*', { count: 'exact', head: true })
+        .gt('quantity', 0)
+        .gte('expiry_date', today)
+        .lte('expiry_date', d30Str)
+    ]);
+    expiring7d = res7.count ?? 0;
+    expiring30d = res30.count ?? 0;
+  } catch {}
+
+  if (auditRpc) {
+    return {
+      nullOrFakeExpiryBatches: auditRpc.null_or_fake_expiry_batches ?? 0,
+      expiredPositiveBatches: auditRpc.expired_positive_batches ?? 0,
+      depletedBatches: auditRpc.depleted_batches ?? 0,
+      zeroStockItems: auditRpc.zero_stock_items ?? 0,
+      belowMinItems: auditRpc.below_min_items ?? 0,
+      duplicateItemCodes: auditRpc.duplicate_item_codes ?? 0,
+      expiring7dBatches: expiring7d,
+      expiring30dBatches: expiring30d,
+      auditedAt: auditRpc.audited_at || new Date().toISOString()
+    };
+  }
+
+  // Fallback client queries if RPC not present in environment
+  const [nullBatches, expiredBatches, zeroItems, lowItems, dupCodes] = await Promise.all([
+    supabase.from('stock_batches').select('*', { count: 'exact', head: true }).gt('quantity', 0).or('expiry_date.is.null,expiry_date.gte.2099-01-01'),
+    supabase.from('stock_batches').select('*', { count: 'exact', head: true }).gt('quantity', 0).lt('expiry_date', today),
+    supabase.from('inventory_stock_view').select('*', { count: 'exact', head: true }).lte('total_quantity', 0),
+    supabase.from('inventory_stock_view').select('*', { count: 'exact', head: true }).gt('total_quantity', 0).filter('total_quantity', 'lte', 'min_quantity'),
+    supabase.from('inventory_items').select('item_code').eq('is_archived', false).not('item_code', 'is', null)
+  ]);
+
+  const codeCounts: Record<string, number> = {};
+  dupCodes.data?.forEach(r => {
+    if (r.item_code) {
+      const c = r.item_code.trim().toUpperCase();
+      codeCounts[c] = (codeCounts[c] || 0) + 1;
+    }
+  });
+  const dups = Object.values(codeCounts).filter(cnt => cnt > 1).length;
+
+  return {
+    nullOrFakeExpiryBatches: nullBatches.count ?? 0,
+    expiredPositiveBatches: expiredBatches.count ?? 0,
+    depletedBatches: 0,
+    zeroStockItems: zeroItems.count ?? 0,
+    belowMinItems: lowItems.count ?? 0,
+    duplicateItemCodes: dups,
+    expiring7dBatches: expiring7d,
+    expiring30dBatches: expiring30d,
+    auditedAt: new Date().toISOString()
+  };
+}
+
+export async function fetchInventoryExceptionsQueue(): Promise<InventoryExceptionItem[]> {
+  const today = getBusinessDateString();
+  const d7 = new Date();
+  d7.setDate(d7.getDate() + 7);
+  const d7Str = d7.toISOString().slice(0, 10);
+
+  const exceptions: InventoryExceptionItem[] = [];
+
+  try {
+    // 1. Expired positive batches (CRITICAL)
+    const { data: expiredBatches } = await supabase
+      .from('stock_batches')
+      .select('id, item_id, quantity, expiry_date, inventory_items(name, unit)')
+      .gt('quantity', 0)
+      .lt('expiry_date', today)
+      .order('expiry_date', { ascending: true })
+      .limit(10);
+
+    expiredBatches?.forEach(b => {
+      const itemName = (b.inventory_items as any)?.name || 'Unknown item';
+      const unit = (b.inventory_items as any)?.unit || '';
+      exceptions.push({
+        id: `exc-expired-${b.id}`,
+        severity: 'CRITICAL',
+        issue: 'Expired batch with active on-hand quantity',
+        entityName: itemName,
+        entityType: 'BATCH',
+        details: `${b.quantity} ${unit} expired on ${b.expiry_date}. Must be written off or quarantined.`,
+        detectedAt: today,
+        targetRoute: '/batches',
+        actionLabel: 'Quarantine Batch'
+      });
+    });
+
+    // 2. Missing or fake 2099 expiry batches (WARNING)
+    const { data: fakeExpiryBatches } = await supabase
+      .from('stock_batches')
+      .select('id, item_id, quantity, expiry_date, inventory_items(name, unit)')
+      .gt('quantity', 0)
+      .or('expiry_date.is.null,expiry_date.gte.2099-01-01')
+      .limit(10);
+
+    fakeExpiryBatches?.forEach(b => {
+      const itemName = (b.inventory_items as any)?.name || 'Unknown item';
+      exceptions.push({
+        id: `exc-fake-expiry-${b.id}`,
+        severity: 'WARNING',
+        issue: 'Batch has unverified or placeholder expiry date',
+        entityName: itemName,
+        entityType: 'BATCH',
+        details: `Recorded expiry is ${b.expiry_date || 'NULL'}. Requires physical inspection.`,
+        detectedAt: today,
+        targetRoute: '/batches',
+        actionLabel: 'Verify Batch Expiry'
+      });
+    });
+
+    // 3. Out-of-stock items (WARNING)
+    const { data: zeroItems } = await supabase
+      .from('inventory_stock_view')
+      .select('id, name, unit, total_quantity, min_quantity')
+      .lte('total_quantity', 0)
+      .limit(10);
+
+    zeroItems?.forEach(it => {
+      exceptions.push({
+        id: `exc-zero-stock-${it.id}`,
+        severity: 'WARNING',
+        issue: 'Item is completely depleted (0 stock)',
+        entityName: it.name,
+        entityType: 'ITEM',
+        details: `Current stock: 0 ${it.unit}. Minimum required threshold: ${it.min_quantity} ${it.unit}.`,
+        detectedAt: today,
+        targetRoute: '/inventory',
+        actionLabel: 'Restock Item'
+      });
+    });
+
+    // 4. Batches expiring within 7 days (INFO)
+    const { data: soonExpiring } = await supabase
+      .from('stock_batches')
+      .select('id, item_id, quantity, expiry_date, inventory_items(name, unit)')
+      .gt('quantity', 0)
+      .gte('expiry_date', today)
+      .lte('expiry_date', d7Str)
+      .order('expiry_date', { ascending: true })
+      .limit(10);
+
+    soonExpiring?.forEach(b => {
+      const itemName = (b.inventory_items as any)?.name || 'Unknown item';
+      const unit = (b.inventory_items as any)?.unit || '';
+      exceptions.push({
+        id: `exc-expiring-7d-${b.id}`,
+        severity: 'INFO',
+        issue: 'Batch expiring soon (within 7 days)',
+        entityName: itemName,
+        entityType: 'BATCH',
+        details: `${b.quantity} ${unit} expiring on ${b.expiry_date}. Ensure FEFO rotation.`,
+        detectedAt: today,
+        targetRoute: '/batches',
+        actionLabel: 'Prioritize in FEFO'
+      });
+    });
+
+  } catch (err) {
+    console.warn('Failed to load exceptions queue:', err);
+  }
+
+  return exceptions;
+}

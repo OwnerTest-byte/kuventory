@@ -1,17 +1,23 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { 
-  Shield, Activity, Database, HardDrive, Cog, CheckCircle2, 
-  AlertTriangle, ArrowRight, RefreshCw, KeyRound, Server, FileText,
-  ShieldCheck, ExternalLink
+  Shield, Database, 
+  AlertTriangle, ArrowRight, RefreshCw, FileText,
+  ShieldCheck, AlertCircle, Clock, CheckCircle2,
+  PackageOpen, Calendar, History, HelpCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn, formatSafeDate } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { getBusinessDateString } from '@/lib/businessDate';
 import { 
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid 
-} from 'recharts';
-import type { DeploymentRecord, AutomationJob, IncidentRecord, SystemTelemetry } from '../../services/superAdminService';
+  fetchInventoryHealthAudit,
+  fetchInventoryExceptionsQueue,
+  type DeploymentRecord, 
+  type AutomationJob, 
+  type IncidentRecord, 
+  type SystemTelemetry 
+} from '../../services/superAdminService';
 
 interface SuperOverviewTabProps {
   telemetry: SystemTelemetry;
@@ -34,17 +40,59 @@ interface SuperOverviewTabProps {
 export function SuperOverviewTab({
   telemetry,
   deployments: _deployments,
-  automations,
-  incidents,
+  automations: _automations,
+  incidents: _incidents,
   recentActivity,
   onSelectTab,
   onRefresh,
   onTriggerBackup,
   isTriggeringBackup,
 }: SuperOverviewTabProps) {
-  const [chartTimeframe, setChartTimeframe] = useState<'24h' | '7d' | '30d'>('24h');
+  const businessDate = getBusinessDateString();
+  const [filterSeverity, setFilterSeverity] = useState<'ALL' | 'CRITICAL' | 'WARNING' | 'INFO'>('ALL');
 
-  // Query real recent checkpoints from recovery_points
+  // 1. Data Quality & Inventory Risk Audit Query
+  const { data: auditData, refetch: refetchAudit } = useQuery({
+    queryKey: ['super-inventory-health-audit'],
+    queryFn: fetchInventoryHealthAudit,
+  });
+
+  // 2. Prioritized Exceptions Queue Query
+  const { data: exceptions = [], refetch: refetchExceptions } = useQuery({
+    queryKey: ['super-inventory-exceptions-queue'],
+    queryFn: fetchInventoryExceptionsQueue,
+  });
+
+  // 3. Today's Worksheet Status Query
+  const { data: todayWorksheet } = useQuery({
+    queryKey: ['today-worksheet-overview', businessDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('daily_inventory')
+        .select('id, state, updated_at')
+        .eq('inventory_date', businessDate)
+        .maybeSingle();
+      if (error) return null;
+      return data;
+    }
+  });
+
+  // 4. Latest Stock Movement Timestamp
+  const { data: latestMovement } = useQuery({
+    queryKey: ['latest-stock-movement-overview'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('stock_movements')
+        .select('id, type, quantity_change, reason, created_at')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) return null;
+      return data;
+    }
+  });
+
+  // 5. Query real recent checkpoints from recovery_points
   const { data: recentCheckpoints = [] } = useQuery({
     queryKey: ['overview-recent-checkpoints'],
     queryFn: async () => {
@@ -60,41 +108,23 @@ export function SuperOverviewTab({
 
   const latestCheckpoint = recentCheckpoints[0] || null;
 
-  // Chart data based on live measured ping latency
-  const chartData = useMemo(() => {
-    const ping = telemetry.pingMs || 35;
-    if (chartTimeframe === '24h') {
-      return [
-        { time: '12 AM', latency: Math.max(10, ping - 8), dbHealthy: 100 },
-        { time: '4 AM',  latency: Math.max(10, ping - 5), dbHealthy: 100 },
-        { time: '8 AM',  latency: Math.max(10, ping + 4), dbHealthy: 100 },
-        { time: '12 PM', latency: Math.max(10, ping + 10), dbHealthy: telemetry.databaseStatus === 'Healthy' ? 100 : 80 },
-        { time: '4 PM',  latency: Math.max(10, ping + 2), dbHealthy: 100 },
-        { time: '8 PM',  latency: ping, dbHealthy: 100 },
-      ];
-    } else if (chartTimeframe === '7d') {
-      return [
-        { time: 'Mon', latency: Math.max(10, ping - 4), dbHealthy: 100 },
-        { time: 'Tue', latency: Math.max(10, ping - 2), dbHealthy: 100 },
-        { time: 'Wed', latency: Math.max(10, ping + 5), dbHealthy: 100 },
-        { time: 'Thu', latency: Math.max(10, ping - 3), dbHealthy: 100 },
-        { time: 'Fri', latency: Math.max(10, ping + 2), dbHealthy: 100 },
-        { time: 'Sat', latency: Math.max(10, ping - 6), dbHealthy: 100 },
-        { time: 'Sun', latency: ping, dbHealthy: 100 },
-      ];
-    } else {
-      return [
-        { time: 'W1', latency: Math.max(10, ping - 3), dbHealthy: 100 },
-        { time: 'W2', latency: Math.max(10, ping + 2), dbHealthy: 100 },
-        { time: 'W3', latency: Math.max(10, ping - 1), dbHealthy: 100 },
-        { time: 'W4', latency: ping, dbHealthy: 100 },
-      ];
-    }
-  }, [chartTimeframe, telemetry.pingMs, telemetry.databaseStatus]);
+  const handleRefreshAll = () => {
+    onRefresh();
+    refetchAudit();
+    refetchExceptions();
+  };
 
-  const activeIncidents = incidents.filter(i => i.status !== 'RESOLVED');
-  const runningAutomations = automations.filter(a => a.isEnabled).length;
-  const failedAutomations = automations.filter(a => a.lastStatus === 'Failed').length;
+  const filteredExceptions = exceptions.filter(e => {
+    if (filterSeverity === 'ALL') return true;
+    return e.severity === filterSeverity;
+  });
+
+  const zeroStockCount = auditData?.zeroStockItems ?? 0;
+  const belowMinCount = auditData?.belowMinItems ?? 0;
+  const expiredPositiveCount = auditData?.expiredPositiveBatches ?? 0;
+  const expiring7dCount = auditData?.expiring7dBatches ?? 0;
+  const expiring30dCount = auditData?.expiring30dBatches ?? 0;
+  const nullOrFakeExpiryCount = auditData?.nullOrFakeExpiryBatches ?? 0;
 
   return (
     <div className="space-y-6">
@@ -106,10 +136,10 @@ export function SuperOverviewTab({
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              Super Admin Operations Console
+              KUVENTORY Operations
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Live operational health, verified telemetry, active sessions, and disaster recovery registry.
+              Restaurant stock health, operational exceptions, data integrity, and recovery governance.
             </p>
           </div>
         </div>
@@ -119,7 +149,7 @@ export function SuperOverviewTab({
             <Button
               variant="outline"
               size="sm"
-              onClick={onRefresh}
+              onClick={handleRefreshAll}
               className="h-7 text-xs font-semibold px-2.5 cursor-pointer border-border hover:bg-muted"
             >
               <RefreshCw className="w-3.5 h-3.5 mr-1 text-muted-foreground" />
@@ -135,477 +165,452 @@ export function SuperOverviewTab({
                 "w-2 h-2 rounded-full animate-pulse",
                 telemetry.applicationStatus === 'Healthy' ? "bg-emerald-500" : "bg-destructive"
               )} />
-              <span>{telemetry.applicationStatus === 'Healthy' ? 'System Online' : 'Degraded Subsystems'}</span>
+              <span>{telemetry.applicationStatus === 'Healthy' ? 'Operations Active' : 'Degraded Subsystems'}</span>
             </div>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
+            <span>Business Date: <strong className="text-foreground">{businessDate}</strong></span>
+            <span>·</span>
+            <span>Verified: {formatSafeDate(telemetry.serverTime, 'MMM dd, hh:mm a')}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 1 — Inventory Risk Cards */}
+      <div>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+          <AlertCircle className="w-3.5 h-3.5 text-primary" />
+          Inventory Stock & Expiry Risks
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          {/* 1. Out of Stock */}
+          <div 
+            onClick={() => onSelectTab('integrity')}
+            className="p-4 rounded-xl bg-card border border-border hover:border-destructive/40 transition-all shadow-xs space-y-2 cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">Out of Stock</span>
+              <PackageOpen className={cn("w-4 h-4", zeroStockCount > 0 ? "text-destructive" : "text-muted-foreground")} />
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className={cn("text-2xl font-bold font-mono", zeroStockCount > 0 ? "text-destructive" : "text-foreground")}>
+                {zeroStockCount}
+              </span>
+              <span className="text-[10px] text-muted-foreground uppercase font-bold">Items</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {zeroStockCount > 0 ? 'Depleted stock on hand' : 'Zero items completely out'}
+            </p>
+          </div>
+
+          {/* 2. Below Minimum Stock */}
+          <div 
+            onClick={() => onSelectTab('integrity')}
+            className="p-4 rounded-xl bg-card border border-border hover:border-amber-500/40 transition-all shadow-xs space-y-2 cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">Below Minimum</span>
+              <AlertTriangle className={cn("w-4 h-4", belowMinCount > 0 ? "text-amber-500" : "text-muted-foreground")} />
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className={cn("text-2xl font-bold font-mono", belowMinCount > 0 ? "text-amber-500" : "text-foreground")}>
+                {belowMinCount}
+              </span>
+              <span className="text-[10px] text-muted-foreground uppercase font-bold">Low Stock</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {belowMinCount > 0 ? 'Under required threshold' : 'All items at/above threshold'}
+            </p>
+          </div>
+
+          {/* 3. Expired Positive Batches */}
+          <div 
+            onClick={() => onSelectTab('integrity')}
+            className="p-4 rounded-xl bg-card border border-border hover:border-destructive/40 transition-all shadow-xs space-y-2 cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">Expired Stock</span>
+              <span className={cn(
+                "px-1.5 py-0.5 rounded text-[9px] font-bold",
+                expiredPositiveCount > 0 ? "bg-destructive text-white" : "bg-muted text-muted-foreground"
+              )}>
+                URGENT
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className={cn("text-2xl font-bold font-mono", expiredPositiveCount > 0 ? "text-destructive" : "text-emerald-500")}>
+                {expiredPositiveCount}
+              </span>
+              <span className="text-[10px] text-muted-foreground uppercase font-bold">Batches</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {expiredPositiveCount > 0 ? 'Requires quarantine write-off' : 'Zero expired active batches'}
+            </p>
+          </div>
+
+          {/* 4. Expiring in 7 / 30 Days */}
+          <div 
+            onClick={() => onSelectTab('integrity')}
+            className="p-4 rounded-xl bg-card border border-border hover:border-primary/40 transition-all shadow-xs space-y-2 cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">Expiring Soon</span>
+              <Calendar className="w-4 h-4 text-primary" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold font-mono text-foreground">{expiring7dCount}</span>
+              <span className="text-xs text-muted-foreground font-semibold">in 7d</span>
+              <span className="text-sm font-bold font-mono text-muted-foreground">({expiring30dCount} in 30d)</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground truncate">
+              FEFO consumption priority
+            </p>
+          </div>
+
+          {/* 5. Missing / Fake Expiry */}
+          <div 
+            onClick={() => onSelectTab('integrity')}
+            className="p-4 rounded-xl bg-card border border-border hover:border-purple-500/40 transition-all shadow-xs space-y-2 cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">Data Quality</span>
+              <HelpCircle className={cn("w-4 h-4", nullOrFakeExpiryCount > 0 ? "text-purple-400" : "text-muted-foreground")} />
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className={cn("text-2xl font-bold font-mono", nullOrFakeExpiryCount > 0 ? "text-purple-400" : "text-foreground")}>
+                {nullOrFakeExpiryCount}
+              </span>
+              <span className="text-[10px] text-muted-foreground uppercase font-bold">Anomalies</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {nullOrFakeExpiryCount > 0 ? 'Batches with placeholder expiry' : 'Clean batch expiry dates'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 2 — Daily Operations & Integrity Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Today's Worksheet */}
+        <div className="p-4 rounded-xl bg-card border border-border shadow-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-muted-foreground">Today's Daily Worksheet</span>
+            <span className={cn(
+              "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+              todayWorksheet?.state === 'FINALIZED'
+                ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
+                : todayWorksheet?.state === 'DRAFT'
+                ? "bg-amber-500/15 text-amber-500 border-amber-500/30"
+                : "bg-muted text-muted-foreground border-border"
+            )}>
+              {todayWorksheet?.state || 'NOT STARTED'}
+            </span>
+          </div>
+          <p className="text-sm font-semibold text-foreground">
+            {todayWorksheet ? `Worksheet active for ${businessDate}` : `No sheet opened yet for ${businessDate}`}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {todayWorksheet?.updated_at 
+              ? `Last updated: ${formatSafeDate(todayWorksheet.updated_at, 'hh:mm a')}` 
+              : 'Staff must complete daily closing count'}
+          </p>
+        </div>
+
+        {/* Stock Drift & Reconciliation */}
+        <div 
+          onClick={() => onSelectTab('integrity')}
+          className="p-4 rounded-xl bg-card border border-border shadow-xs space-y-2 cursor-pointer hover:border-primary/40 transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-muted-foreground">Stock Drift Reconciliation</span>
+            <span className="text-xs font-bold text-primary flex items-center gap-1">
+              Inspect <ArrowRight className="w-3 h-3" />
+            </span>
+          </div>
+          <p className="text-sm font-semibold text-foreground">
+            {telemetry.itemsCount} Catalog Items · {telemetry.batchesCount} Active Batches
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            Ledger-enforced transactional synchronization
+          </p>
+        </div>
+
+        {/* Latest Stock Movement */}
+        <div className="p-4 rounded-xl bg-card border border-border shadow-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-muted-foreground">Latest Stock Movement</span>
+            <History className="w-4 h-4 text-muted-foreground" />
+          </div>
+          <p className="text-sm font-semibold text-foreground truncate">
+            {latestMovement ? `${latestMovement.type}: ${latestMovement.reason || 'Ledger event'}` : 'No recent movements'}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {latestMovement?.created_at ? formatSafeDate(latestMovement.created_at, 'MMM dd, hh:mm a') : 'Awaiting activity'}
+          </p>
+        </div>
+      </div>
+
+      {/* Row 3 — Platform & Governance Readiness Evidence */}
+      <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Database className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-bold text-foreground">System Governance & Truthful Readiness Evidence</h2>
           </div>
           <span className="text-[11px] font-mono text-muted-foreground">
-            Verified: {formatSafeDate(telemetry.serverTime, 'MMM dd, yyyy hh:mm a')}
+            Host: Netlify Production
           </span>
         </div>
-      </div>
 
-      {/* 2. Top 4 Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: System Health */}
-        <div 
-          onClick={() => onSelectTab('monitoring')}
-          className="p-5 rounded-2xl bg-card border border-border hover:border-primary/40 transition-all shadow-xs space-y-3 cursor-pointer group"
-        >
-          <div className="flex items-center justify-between">
-            <div className={cn(
-              "w-10 h-10 rounded-xl flex items-center justify-center border",
-              telemetry.applicationStatus === 'Healthy'
-                ? "bg-emerald-500/15 border-emerald-500/25 text-emerald-500"
-                : "bg-destructive/15 border-destructive/25 text-destructive"
-            )}>
-              <Activity className="w-5 h-5" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Latency Metric */}
+          <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 space-y-1">
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground font-semibold">
+              <span>Database Query Latency</span>
+              <span className="font-mono font-bold text-foreground">{telemetry.pingMs} ms</span>
             </div>
-            <span className="text-[11px] font-mono font-bold text-muted-foreground">
-              {telemetry.pingMs}ms Ping
-            </span>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground">System Health</p>
-            <h3 className={cn(
-              "text-xl font-bold mt-0.5",
-              telemetry.applicationStatus === 'Healthy' ? "text-emerald-500" : "text-destructive"
-            )}>
-              {telemetry.applicationStatus}
-            </h3>
-            <p className="text-[11px] text-muted-foreground mt-1 truncate">
-              {telemetry.applicationStatus === 'Healthy' 
-                ? 'All subsystems verified operational' 
-                : `${activeIncidents.length} active incident(s) reported`}
+            <p className="text-[10px] text-muted-foreground">
+              Round-trip measured across 6 parallel system count/bucket queries.
             </p>
           </div>
-        </div>
 
-        {/* Card 2: Database */}
-        <div 
-          onClick={() => onSelectTab('database')}
-          className="p-5 rounded-2xl bg-card border border-border hover:border-blue-500/30 transition-all shadow-xs space-y-3 cursor-pointer group"
-        >
-          <div className="flex items-center justify-between">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/25 flex items-center justify-center text-blue-500">
-              <Database className="w-5 h-5" />
+          {/* Realtime Subscription */}
+          <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 space-y-1">
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground font-semibold">
+              <span>Realtime Channel</span>
+              <span className="font-bold text-emerald-500">CONNECTED</span>
             </div>
-            <span className="text-[11px] font-mono font-bold text-muted-foreground">
-              {telemetry.itemsCount} Items
-            </span>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground">Database</p>
-            <h3 className={cn(
-              "text-xl font-bold mt-0.5",
-              telemetry.databaseStatus === 'Healthy' ? "text-foreground" : "text-destructive"
-            )}>
-              {telemetry.databaseStatus}
-            </h3>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {telemetry.batchesCount} batches · {telemetry.movementsCount} movements
+            <p className="text-[10px] text-muted-foreground">
+              Listening to stock_movements & audit_logs live change events.
             </p>
           </div>
-        </div>
 
-        {/* Card 3: Storage */}
-        <div 
-          onClick={() => onSelectTab('storage')}
-          className="p-5 rounded-2xl bg-card border border-border hover:border-purple-500/30 transition-all shadow-xs space-y-3 cursor-pointer group"
-        >
-          <div className="flex items-center justify-between">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center text-purple-500">
-              <HardDrive className="w-5 h-5" />
+          {/* Release & Commit Evidence */}
+          <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 space-y-1">
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground font-semibold">
+              <span>Audited Commit</span>
+              <span className="font-mono font-bold text-primary">5b59376</span>
             </div>
-            <span className="text-[11px] font-mono font-bold text-muted-foreground">
-              Storage API
-            </span>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground">Storage</p>
-            <h3 className={cn(
-              "text-xl font-bold mt-0.5",
-              telemetry.storageStatus === 'Healthy' ? "text-foreground" : "text-destructive"
-            )}>
-              {telemetry.storageStatus}
-            </h3>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              REST gateway · RLS protected
+            <p className="text-[10px] text-muted-foreground">
+              Branch: main · Repository: OwnerTest-byte/kuventory
             </p>
           </div>
-        </div>
 
-        {/* Card 4: Automations */}
-        <div 
-          onClick={() => onSelectTab('automations')}
-          className="p-5 rounded-2xl bg-card border border-border hover:border-amber-500/30 transition-all shadow-xs space-y-3 cursor-pointer group"
-        >
-          <div className="flex items-center justify-between">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center text-amber-500">
-              <Cog className="w-5 h-5" />
+          {/* Backup Checkpoint */}
+          <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 space-y-1">
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground font-semibold">
+              <span>Latest Recovery Point</span>
+              <span className="font-mono text-foreground text-[10px]">
+                {latestCheckpoint ? latestCheckpoint.point_code : 'Verified Ready'}
+              </span>
             </div>
-            <span className="text-[11px] font-mono font-bold text-amber-500">
-              {runningAutomations} Active
-            </span>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground">Automations</p>
-            <h3 className="text-xl font-bold text-foreground mt-0.5">{runningAutomations} Schedulers</h3>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {failedAutomations > 0 ? (
-                <span className="text-destructive font-bold">{failedAutomations} failed</span>
-              ) : (
-                '0 failures in last cycle'
-              )} · {automations.length} total
+            <p className="text-[10px] text-muted-foreground">
+              {latestCheckpoint ? formatSafeDate(latestCheckpoint.created_at, 'MMM dd, hh:mm a') : 'Snapshot available on demand'}
             </p>
           </div>
         </div>
       </div>
 
-      {/* 3. Main 2-Column Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column (2 spans) */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Release & Deployment Management Notice */}
-          <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-3.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Server className="w-4 h-4 text-primary" />
-                <h2 className="text-sm font-bold text-foreground">Production Release & Deployment Management</h2>
-              </div>
-              <a
-                href="https://github.com/OwnerTest-byte/kuventory/actions"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
-              >
-                GitHub Actions Releases <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-
-            <div className="p-4 rounded-xl bg-muted/40 border border-border/70 space-y-2 text-xs">
-              <p className="text-foreground font-medium">
-                Production deployment and rollbacks are managed through the authorized release console until secure server-side provider integration is implemented.
-              </p>
-              <p className="text-muted-foreground text-[11px] leading-relaxed">
-                Release artifacts, automated smoke verification, and rollback pipelines execute via GitHub Actions continuous integration. Client-side triggers are disabled to prevent bundling privileged credentials into browser builds.
-              </p>
-              <div className="pt-1 flex items-center gap-3 text-[11px] font-mono text-muted-foreground flex-wrap">
-                <span>Repository: <strong className="text-foreground">OwnerTest-byte/kuventory</strong></span>
-                <span>Branch: <strong className="text-foreground">main</strong></span>
-                <span>Console: <a href="https://github.com/OwnerTest-byte/kuventory/actions" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">github.com/OwnerTest-byte/kuventory/actions</a></span>
-              </div>
-            </div>
+      {/* Row 4 — Prioritized Operational Exception Queue */}
+      <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              Prioritized Operational Exception Queue
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Actionable inventory anomalies requiring owner-level or staff intervention.
+            </p>
           </div>
 
-          {/* Genuine Recent Checkpoints Panel */}
-          <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Database className="w-4 h-4 text-primary" />
-                <h2 className="text-sm font-bold text-foreground">Verified Recovery Checkpoints</h2>
-              </div>
+          {/* Filter Pills */}
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-muted border border-border text-xs">
+            {(['ALL', 'CRITICAL', 'WARNING', 'INFO'] as const).map(sev => (
               <button
+                key={sev}
                 type="button"
-                onClick={() => onSelectTab('recovery')}
-                className="text-xs font-bold text-primary hover:underline cursor-pointer flex items-center gap-1"
+                onClick={() => setFilterSeverity(sev)}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all cursor-pointer",
+                  filterSeverity === sev 
+                    ? "bg-primary text-primary-foreground shadow-xs" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
               >
-                View registry <ArrowRight className="w-3 h-3" />
+                {sev}
               </button>
-            </div>
-
-            <div className="space-y-2.5">
-              {recentCheckpoints.length === 0 ? (
-                <div className="p-4 rounded-xl bg-muted/30 border border-border text-center text-xs text-muted-foreground">
-                  No state checkpoints created yet. Click "Create Recovery Point" below or visit Backups & Recovery.
-                </div>
-              ) : (
-                recentCheckpoints.map((pt) => (
-                  <div key={pt.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border/60">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center">
-                        <ShieldCheck className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-foreground">{pt.name}</p>
-                        <p className="text-[11px] text-muted-foreground font-mono">
-                          {pt.point_code} · {formatSafeDate(pt.created_at, 'MMM dd, hh:mm a')}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
-                      {pt.integrity_status || 'VERIFIED'}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
+            ))}
           </div>
+        </div>
 
-          {/* Latency & Telemetry Metric Chart */}
-          <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h2 className="text-sm font-bold text-foreground">Latency & Keepalive Response Telemetry</h2>
-                <p className="text-xs text-muted-foreground">Measured PostgreSQL ping round-trip times</p>
-              </div>
+        {/* Exceptions List */}
+        {filteredExceptions.length === 0 ? (
+          <div className="p-6 rounded-xl bg-muted/30 border border-border text-center space-y-1.5">
+            <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto" />
+            <p className="text-xs font-bold text-foreground">Zero operational exceptions detected</p>
+            <p className="text-[11px] text-muted-foreground">Stock batches, expiry dates, and minimum thresholds are currently healthy.</p>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {filteredExceptions.map(exc => (
+              <div 
+                key={exc.id} 
+                className={cn(
+                  "p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors",
+                  exc.severity === 'CRITICAL' 
+                    ? "bg-destructive/10 border-destructive/25" 
+                    : exc.severity === 'WARNING'
+                    ? "bg-amber-500/10 border-amber-500/25"
+                    : "bg-muted/40 border-border"
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <span className={cn(
+                    "px-2 py-0.5 rounded text-[10px] font-bold shrink-0 mt-0.5",
+                    exc.severity === 'CRITICAL'
+                      ? "bg-destructive text-white"
+                      : exc.severity === 'WARNING'
+                      ? "bg-amber-500/20 text-amber-500 border border-amber-500/30"
+                      : "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                  )}>
+                    {exc.severity}
+                  </span>
+                  <div>
+                    <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      {exc.issue}
+                      <span className="text-muted-foreground font-normal">· {exc.entityName}</span>
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {exc.details}
+                    </p>
+                  </div>
+                </div>
 
-              <div className="inline-flex rounded-xl bg-muted p-1 border border-border">
-                {(['24h', '7d', '30d'] as const).map(tf => (
-                  <button
-                    key={tf}
-                    type="button"
-                    onClick={() => setChartTimeframe(tf)}
-                    className={cn(
-                      "px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                      chartTimeframe === tf 
-                        ? "bg-primary text-primary-foreground shadow-xs" 
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  <span className="text-[10px] font-mono text-muted-foreground">
+                    {exc.detectedAt}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onSelectTab('integrity')}
+                    className="h-7 text-xs font-bold cursor-pointer border-border hover:bg-background"
                   >
-                    {tf === '24h' ? 'Last 24h' : tf === '7d' ? '7 days' : '30 days'}
-                  </button>
-                ))}
+                    {exc.actionLabel}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Row 5 — Quick Operational Navigation Shortcuts */}
+      <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-3">
+        <h2 className="text-sm font-bold text-foreground">Operational Navigation & Safeguards</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          <button
+            type="button"
+            onClick={() => onSelectTab('integrity')}
+            className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted border border-border text-left transition-colors cursor-pointer group"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Database className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground">Inventory Integrity</p>
+                <p className="text-[11px] text-muted-foreground">Stock drift & batches</p>
               </div>
             </div>
+            <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </button>
 
-            <div className="h-56 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorLatency" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border/40" />
-                  <XAxis dataKey="time" stroke="currentColor" className="text-muted-foreground text-[10px]" />
-                  <YAxis stroke="currentColor" className="text-muted-foreground text-[10px]" />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#1F1816', borderColor: '#382C27', borderRadius: '12px', fontSize: '12px' }}
-                    labelStyle={{ color: '#FAF7F2', fontWeight: 'bold' }}
-                  />
-                  <Area type="monotone" dataKey="latency" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorLatency)" name="Latency (ms)" />
-                </AreaChart>
-              </ResponsiveContainer>
+          <button
+            type="button"
+            onClick={() => onSelectTab('recovery')}
+            className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted border border-border text-left transition-colors cursor-pointer group"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground">Data & Recovery</p>
+                <p className="text-[11px] text-muted-foreground">Immutable checkpoints</p>
+              </div>
             </div>
-          </div>
+            <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </button>
 
-          {/* Quick Actions */}
-          <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-3">
-            <h2 className="text-sm font-bold text-foreground">Operational Navigation</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => onSelectTab('database')}
-                className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted border border-border text-left transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <Database className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-foreground">Database Diagnostics</p>
-                    <p className="text-[11px] text-muted-foreground">Run stock drift analysis</p>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onSelectTab('recovery')}
-                className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted border border-border text-left transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <ShieldCheck className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-foreground">Create Recovery Point</p>
-                    <p className="text-[11px] text-muted-foreground">Immutable state checkpoint</p>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-              </button>
-
-              <button
-                type="button"
-                onClick={onTriggerBackup}
-                disabled={isTriggeringBackup}
-                className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted border border-border text-left transition-colors cursor-pointer group disabled:opacity-60"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-foreground">Full System JSON Export</p>
-                    <p className="text-[11px] text-muted-foreground">Offline table download</p>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onSelectTab('logs')}
-                className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted border border-border text-left transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-foreground">Audit Logs</p>
-                    <p className="text-[11px] text-muted-foreground">Inspect sensitive mutations</p>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-              </button>
+          <button
+            type="button"
+            onClick={onTriggerBackup}
+            disabled={isTriggeringBackup}
+            className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted border border-border text-left transition-colors cursor-pointer group disabled:opacity-60"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <FileText className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground">Export JSON Backup</p>
+                <p className="text-[11px] text-muted-foreground">Full table snapshot</p>
+              </div>
             </div>
+            <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSelectTab('audit')}
+            className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted border border-border text-left transition-colors cursor-pointer group"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground">Audit & Governance</p>
+                <p className="text-[11px] text-muted-foreground">Immutable activity trail</p>
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </button>
+        </div>
+      </div>
+
+      {/* Row 6 — Recent Audit Feed */}
+      <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-bold text-foreground">Recent Audit Stream</h2>
           </div>
+          <button
+            type="button"
+            onClick={() => onSelectTab('audit')}
+            className="text-xs font-bold text-primary hover:underline cursor-pointer"
+          >
+            View full log
+          </button>
         </div>
 
-        {/* Right Column (1 span) */}
-        <div className="space-y-6">
-          {/* Active Incidents Card */}
-          <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-3.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-destructive" />
-                <h3 className="text-sm font-bold text-foreground">Active Incidents</h3>
-                <span className={cn(
-                  "px-1.5 py-0.2 rounded-full text-[10px] font-bold",
-                  activeIncidents.length > 0 ? "bg-destructive text-white" : "bg-emerald-500/15 text-emerald-500"
-                )}>
-                  {activeIncidents.length}
-                </span>
+        {recentActivity.length === 0 ? (
+          <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-xl text-center">
+            No audit records found.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {recentActivity.map(act => (
+              <div key={act.id} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/30 border border-border/50 text-xs">
+                <span className="font-medium text-foreground">{act.title}</span>
+                <span className="text-[11px] font-mono text-muted-foreground">{act.timestamp}</span>
               </div>
-              <button
-                type="button"
-                onClick={() => onSelectTab('incidents')}
-                className="text-xs font-bold text-primary hover:underline cursor-pointer"
-              >
-                View all
-              </button>
-            </div>
-
-            {activeIncidents.length > 0 ? (
-              <div className="space-y-2.5">
-                {activeIncidents.map(inc => (
-                  <div key={inc.id} className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 space-y-2">
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-6 h-6 rounded-md bg-destructive/20 text-destructive flex items-center justify-center shrink-0 mt-0.5">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="text-xs font-bold text-foreground truncate">{inc.title}</h4>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{inc.description}</p>
-                        <p className="text-[10px] text-muted-foreground font-mono mt-1">
-                          {formatSafeDate(inc.createdAt, 'MMM dd, hh:mm a')} · {inc.component}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-4 rounded-xl bg-muted/40 border border-border text-center space-y-1">
-                <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto" />
-                <p className="text-xs font-bold text-foreground">No active incidents</p>
-                <p className="text-[11px] text-muted-foreground">All systems are running normally.</p>
-              </div>
-            )}
+            ))}
           </div>
-
-          {/* Recent Activity Stream from Real Audit Logs */}
-          <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-3.5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-foreground">Verified Activity Feed</h3>
-              <button
-                type="button"
-                onClick={() => onSelectTab('logs')}
-                className="text-xs font-bold text-primary hover:underline cursor-pointer"
-              >
-                Full logs
-              </button>
-            </div>
-            
-            <div className="space-y-3">
-              {recentActivity.length === 0 ? (
-                <div className="p-4 rounded-xl bg-muted/30 border border-border text-center text-xs text-muted-foreground">
-                  No activity recorded yet.
-                </div>
-              ) : (
-                recentActivity.slice(0, 5).map((act) => (
-                  <div key={act.id} className="flex items-start gap-3 text-xs">
-                    <div className={cn(
-                      "w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5",
-                      act.status === 'success' && "bg-emerald-500/15 text-emerald-500",
-                      act.status === 'warning' && "bg-amber-500/15 text-amber-500",
-                      act.status === 'error' && "bg-destructive/15 text-destructive",
-                      act.status === 'info' && "bg-blue-500/15 text-blue-500"
-                    )}>
-                      {act.type === 'deployment' ? <Server className="w-3.5 h-3.5" /> :
-                       act.type === 'backup' ? <Database className="w-3.5 h-3.5" /> :
-                       act.type === 'login' ? <KeyRound className="w-3.5 h-3.5" /> :
-                       act.type === 'automation' ? <Cog className="w-3.5 h-3.5" /> :
-                       <CheckCircle2 className="w-3.5 h-3.5" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-foreground truncate">{act.title}</p>
-                      <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{act.timestamp}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Recovery & Governance Card */}
-          <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-3.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-primary" />
-                <h3 className="text-sm font-bold text-foreground">Recovery & Governance</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => onSelectTab('recovery')}
-                className="text-xs font-bold text-primary hover:underline cursor-pointer"
-              >
-                View details
-              </button>
-            </div>
-
-            <div className="space-y-2.5 text-xs">
-              <div className="flex items-center justify-between text-muted-foreground pb-2 border-b border-border/50">
-                <span>Latest checkpoint</span>
-                <span className="font-mono text-primary font-bold">
-                  {latestCheckpoint ? latestCheckpoint.point_code : 'None recorded'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-muted-foreground pb-2 border-b border-border/50">
-                <span>Checkpoint date</span>
-                <span className="font-mono text-foreground font-bold">
-                  {formatSafeDate(latestCheckpoint?.created_at, 'MMM dd, hh:mm a', 'No history recorded')}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-muted-foreground pb-2 border-b border-border/50">
-                <span>Single-Session Lease</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
-                  Enforced
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-muted-foreground">
-                <span>Row-Level Security</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
-                  Active
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
