@@ -320,87 +320,44 @@ export async function adjustStock(params: {
   targetQuantity: number;
   reason: string;
   userId?: string;
+  expiryDate?: string;
 }): Promise<void> {
   const safeTarget = Math.max(0, Number(params.targetQuantity) || 0);
 
-  // 1. Attempt atomic database transaction RPC to eliminate race conditions
+  // 1. Atomic database transaction RPC to eliminate race conditions
   const { error: rpcErr } = await supabase.rpc('adjust_stock_to_target', {
     p_item_id: params.itemId,
     p_target_quantity: safeTarget,
     p_reason: params.reason || 'Physical Count Adjustment',
-    p_user_id: params.userId,
+    p_user_id: params.userId || null,
+    p_expiry_date: params.expiryDate || null,
   });
 
   if (!rpcErr) {
+    if (safeTarget === 0) {
+      const today = getBusinessDateString();
+      try {
+        const item = await getItemById(params.itemId);
+        await supabase.from('notifications').upsert({
+          type: 'OUT_OF_STOCK',
+          title: `Out of Stock: ${item.item_name}`,
+          message: `${item.item_name} was adjusted to 0 and is now completely out of stock.`,
+          item_id: params.itemId,
+          target_id: `/items/${params.itemId}`,
+          dedup_key: `OOS_${params.itemId}_${today}`,
+          is_read: false,
+          created_at: new Date().toISOString(),
+        }, { onConflict: 'dedup_key' });
+      } catch (err) {
+        console.warn('Failed to dispatch adjustStock out-of-stock notification:', err);
+      }
+    }
     return;
   }
 
-  // Fail-closed on business, permission, constraint, or validation errors
-  // Only fall back to client calculation if the RPC function is genuinely missing in the database
-  const isRpcMissing = rpcErr.code === 'PGRST202' ||
-    rpcErr.message?.includes('could not find the function') ||
-    rpcErr.message?.includes('function public.adjust_stock_to_target does not exist');
-
-  if (!isRpcMissing) {
-    console.error('adjust_stock_to_target database error:', rpcErr);
-    throw new Error(rpcErr.message || 'Stock adjustment failed at database level.');
-  }
-
-  // Fallback: client calculation only if RPC not installed
-  const item = await getItemById(params.itemId);
-
-  if (params.targetQuantity < 0) {
-    const today = getBusinessDateString();
-    try {
-      await supabase.from('notifications').upsert({
-        type: 'STOCK_DISCREPANCY',
-        title: `Negative Count Zeroed: ${item.item_name}`,
-        message: `An invalid negative physical count (${params.targetQuantity} ${item.unit}) was submitted for "${item.item_name}". Physical stock cannot be negative and has been zeroed to 0.`,
-        item_id: params.itemId,
-        target_id: `/items/${params.itemId}`,
-        dedup_key: `NEG_ADJ_${params.itemId}_${today}`,
-        is_read: false,
-        created_at: new Date().toISOString(),
-      }, { onConflict: 'dedup_key' });
-    } catch (e) {
-      console.warn('Failed to upsert discrepancy notification on negative adjustStock:', e);
-    }
-  }
-
-  const diff = safeTarget - item.current_qty;
-  if (diff === 0) return;
-
-  if (diff > 0) {
-    await addStock({
-      itemId: params.itemId,
-      quantity: diff,
-      reason: params.reason || 'Physical Count Adjustment (Up)',
-    });
-  } else {
-    await removeStock({
-      itemId: params.itemId,
-      quantity: Math.abs(diff),
-      reason: params.reason || 'Physical Count Adjustment (Down)',
-    });
-  }
-
-  if (safeTarget === 0) {
-    const today = getBusinessDateString();
-    try {
-      await supabase.from('notifications').upsert({
-        type: 'OUT_OF_STOCK',
-        title: `Out of Stock: ${item.item_name}`,
-        message: `${item.item_name} was adjusted to 0 and is now completely out of stock.`,
-        item_id: params.itemId,
-        target_id: `/items/${params.itemId}`,
-        dedup_key: `OOS_${params.itemId}_${today}`,
-        is_read: false,
-        created_at: new Date().toISOString(),
-      }, { onConflict: 'dedup_key' });
-    } catch (err) {
-      console.warn('Failed to dispatch adjustStock out-of-stock notification:', err);
-    }
-  }
+  // Fail closed on all RPC errors to protect inventory ledger integrity
+  console.error('adjust_stock_to_target database error:', rpcErr);
+  throw new Error(rpcErr.message || 'Stock adjustment failed at database level.');
 }
 
 /**
@@ -488,52 +445,18 @@ export async function createItemWithInitialStock(params: {
     p_image_path: params.image_path || null,
   });
 
-  if (!rpcErr && rpcRes?.id) {
-    // 2-Way Sync with today's daily inventory
-    await syncItemToTodayDailyInventory(rpcRes.id, { addDelta: safeQty });
-    return getItemById(rpcRes.id);
-  }
-
-  if (rpcErr && !rpcErr.message?.includes('function') && !rpcErr.message?.includes('not found')) {
+  if (rpcErr) {
     console.error('create_inventory_item_with_initial_stock RPC error:', rpcErr);
-    throw new Error(rpcErr.message);
+    throw new Error(rpcErr.message || 'Failed to create inventory item atomically.');
   }
 
-  // Fallback if RPC migration not yet applied in active environment:
-  const { data: newItem, error: itemErr } = await supabase
-    .from('inventory_items')
-    .insert({
-      category_id: params.category_id,
-      name: params.item_name.trim(),
-      description: params.description || '',
-      unit: params.unit.trim() || 'pcs',
-      unit_cost: Math.max(0, Number(params.unit_cost) || 0),
-      supplier_a: params.supplier_a || '',
-      supplier_b: params.supplier_b || '',
-      min_quantity: Math.max(0, Number(params.min_quantity) || 0),
-      image_path: params.image_path || null,
-      item_code: params.item_code ? params.item_code.trim().toUpperCase() : undefined,
-      is_active: true,
-      is_archived: false,
-    })
-    .select()
-    .single();
-
-  if (itemErr) throw itemErr;
-
-  try {
-    await addStock({
-      itemId: newItem.id,
-      quantity: safeQty,
-      expiryDate: params.expiry_date,
-      reason: 'Initial Opening Stock Balance'
-    });
-  } catch (stockErr) {
-    console.error('Initial stock addition failed:', stockErr);
-    throw new Error(`Item created but initial stock failed: ${(stockErr as any)?.message}`);
+  if (!rpcRes?.id) {
+    throw new Error('Database did not return created inventory item identifier.');
   }
 
-  return getItemById(newItem.id);
+  // 2-Way Sync with today's daily inventory
+  await syncItemToTodayDailyInventory(rpcRes.id, { addDelta: safeQty });
+  return getItemById(rpcRes.id);
 }
 
 /**

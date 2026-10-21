@@ -16,8 +16,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_items_item_code_unique
 ON public.inventory_items (TRIM(UPPER(item_code)))
 WHERE item_code IS NOT NULL AND is_archived = false;
 
--- 2. UPDATE INVENTORY_STOCK_VIEW TO EXPOSE ITEM_CODE
-CREATE OR REPLACE VIEW public.inventory_stock_view AS
+-- 2. UPDATE INVENTORY_STOCK_VIEW TO EXPOSE ITEM_CODE (WITH SECURITY_INVOKER)
+CREATE OR REPLACE VIEW public.inventory_stock_view 
+WITH (security_invoker = true) AS
  SELECT 
     i.id,
     i.category_id,
@@ -39,7 +40,9 @@ CREATE OR REPLACE VIEW public.inventory_stock_view AS
      LEFT JOIN public.stock_batches b ON i.id = b.item_id
   GROUP BY i.id, c.name;
 
-GRANT SELECT ON public.inventory_stock_view TO authenticated, anon;
+-- Strictly restrict view access to authenticated users only; revoke anon
+REVOKE ALL ON public.inventory_stock_view FROM anon, public;
+GRANT SELECT ON public.inventory_stock_view TO authenticated;
 
 -- 3. ATOMIC CREATE ITEM WITH INITIAL STOCK RPC
 CREATE OR REPLACE FUNCTION public.create_inventory_item_with_initial_stock(
@@ -71,9 +74,21 @@ DECLARE
   v_unit TEXT;
   v_result JSONB;
 BEGIN
-  -- 1. Authentication check
+  -- 1. Authentication and authorization check
   IF v_auth_uid IS NULL THEN
     RAISE EXCEPTION 'Authentication required to create inventory items.';
+  END IF;
+
+  IF NOT (
+    public.is_admin() OR 
+    public.is_super_admin() OR 
+    EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE id = v_auth_uid 
+      AND UPPER(COALESCE(role, '')) IN ('STAFF', 'ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN')
+    )
+  ) THEN
+    RAISE EXCEPTION 'Permission denied: Caller lacks inventory authoring privileges.';
   END IF;
 
   -- 2. Input validation
@@ -157,12 +172,10 @@ BEGIN
   INSERT INTO public.stock_batches (
     item_id,
     quantity,
-    initial_quantity,
     expiry_date,
     received_date
   ) VALUES (
     v_item_id,
-    p_initial_quantity,
     p_initial_quantity,
     p_expiry_date,
     CURRENT_DATE
@@ -262,9 +275,9 @@ BEGIN
   WHERE item_id = p_item_id;
 
   INSERT INTO public.stock_batches (
-    item_id, quantity, initial_quantity, expiry_date, received_date
+    item_id, quantity, expiry_date, received_date
   ) VALUES (
-    p_item_id, p_quantity, p_quantity, p_expiry_date, COALESCE(p_received_date, CURRENT_DATE)
+    p_item_id, p_quantity, p_expiry_date, COALESCE(p_received_date, CURRENT_DATE)
   ) RETURNING id INTO v_batch_id;
 
   INSERT INTO public.stock_movements (
@@ -283,7 +296,10 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.add_stock FROM anon, PUBLIC;
 GRANT EXECUTE ON FUNCTION public.add_stock TO authenticated;
 
--- 5. HARDEN ADJUST_STOCK_TO_TARGET: REQUIRE EXPLICIT OR VERIFIED EXPIRY ON INCREASE
+-- 5. HARDEN ADJUST_STOCK_TO_TARGET: DROP OBSOLETE OVERLOAD AND ENFORCE EXPIRY
+-- Safely drop legacy 4-argument overload to eliminate ambiguity and bypass risk
+DROP FUNCTION IF EXISTS public.adjust_stock_to_target(UUID, NUMERIC, TEXT, UUID);
+
 CREATE OR REPLACE FUNCTION public.adjust_stock_to_target(
   p_item_id UUID,
   p_target_quantity NUMERIC,
@@ -308,7 +324,7 @@ BEGIN
     RAISE EXCEPTION 'Authentication required.';
   END IF;
 
-  IF NOT public.is_admin() THEN
+  IF NOT (public.is_admin() OR public.is_super_admin()) THEN
     RAISE EXCEPTION 'Administrative privileges required to adjust stock counts.';
   END IF;
 
@@ -391,6 +407,7 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 DECLARE
+  v_auth_uid UUID := auth.uid();
   v_null_fake_expiry_count INT;
   v_zero_stock_items_count INT;
   v_depleted_batches_count INT;
@@ -399,6 +416,14 @@ DECLARE
   v_duplicate_codes_count INT;
   v_audit_summary JSONB;
 BEGIN
+  IF v_auth_uid IS NULL THEN
+    RAISE EXCEPTION 'Authentication required.';
+  END IF;
+
+  IF NOT (public.is_admin() OR public.is_super_admin()) THEN
+    RAISE EXCEPTION 'Administrative privileges required to audit data quality.';
+  END IF;
+
   -- Count active batches with null or 2099 fake expiry
   SELECT COUNT(*) INTO v_null_fake_expiry_count
   FROM public.stock_batches

@@ -9,13 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { formatSafeDate } from '@/lib/utils';
+import { formatSafeDate, cn } from '@/lib/utils';
 import { exportFullSystemBackup } from '../../services/superAdminService';
 
 export function SuperRecoveryTab() {
   const queryClient = useQueryClient();
 
-  const { data: recoveryPoints = [], isLoading, refetch } = useQuery({
+  const { data: recoveryPoints = [], isLoading, isError, error: recoveryError, refetch } = useQuery({
     queryKey: ['recovery-checkpoints'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -24,7 +24,7 @@ export function SuperRecoveryTab() {
         .order('created_at', { ascending: false });
       if (error) {
         console.warn('recovery_points query error:', error.message);
-        return [];
+        throw error;
       }
       return data || [];
     }
@@ -221,6 +221,13 @@ export function SuperRecoveryTab() {
           </span>
         </div>
 
+        {isError && (
+          <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>Failed to retrieve recovery registry: {(recoveryError as any)?.message || 'Database connection error'}</span>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
@@ -268,8 +275,13 @@ export function SuperRecoveryTab() {
                       </span>
                     </td>
                     <td className="py-3.5">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
-                        {pt.integrity_status || 'VERIFIED'}
+                      <span className={cn(
+                        "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                        pt.integrity_status === 'VERIFIED'
+                          ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
+                          : "bg-muted text-muted-foreground border-border"
+                      )}>
+                        {pt.integrity_status || 'RECORDED'}
                       </span>
                     </td>
                     <td className="py-3.5 text-right space-x-2">

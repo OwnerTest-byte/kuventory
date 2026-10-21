@@ -77,25 +77,50 @@ router.get('/batches', authenticateUser, async (req, res) => {
  * Employs row-level locking (SELECT ... FOR UPDATE) and OCC (version checking)
  * inside a database transaction to prevent race conditions during simultaneous requests.
  */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 router.post('/consume', authenticateUser, async (req, res) => {
   const { itemId, quantity, reason = 'Direct Consumption', expectedVersion } = req.body || {};
 
-  if (!itemId || !quantity || Number(quantity) <= 0) {
+  // Strict payload validation: UUID, finite positive quantity, and bounds
+  if (!itemId || typeof itemId !== 'string' || !UUID_REGEX.test(itemId)) {
     return res.status(400).json({
-      error: 'Invalid payload: itemId and positive quantity are required.',
-      code: 'INVALID_PAYLOAD'
+      error: 'Invalid payload: itemId must be a valid UUID.',
+      code: 'INVALID_ITEM_ID'
     });
   }
+
+  const numQuantity = Number(quantity);
+  if (!Number.isFinite(numQuantity) || numQuantity <= 0 || numQuantity > 1000000) {
+    return res.status(400).json({
+      error: 'Invalid payload: quantity must be a finite positive number not exceeding 1,000,000.',
+      code: 'INVALID_QUANTITY'
+    });
+  }
+
+  let validatedVersion = null;
+  if (expectedVersion !== undefined && expectedVersion !== null) {
+    const numVersion = Number(expectedVersion);
+    if (!Number.isInteger(numVersion) || numVersion < 0) {
+      return res.status(400).json({
+        error: 'Invalid payload: expectedVersion must be a non-negative integer when specified.',
+        code: 'INVALID_EXPECTED_VERSION'
+      });
+    }
+    validatedVersion = numVersion;
+  }
+
+  const sanitizedReason = typeof reason === 'string' ? reason.trim().slice(0, 500) : 'Direct Consumption';
 
   const supabase = getRequestSupabase(req);
 
   try {
-    // Call stored procedure execute within strict database transaction with row locks
+    // Call stored procedure executed within strict database transaction with row locks
     const { data, error } = await supabase.rpc('consume_stock', {
       p_item_id: itemId,
-      p_quantity: Number(quantity),
-      p_reason: reason,
-      p_expected_version: expectedVersion !== undefined ? Number(expectedVersion) : null
+      p_quantity: numQuantity,
+      p_reason: sanitizedReason,
+      p_expected_version: validatedVersion
     });
 
     if (error) {
@@ -136,8 +161,8 @@ router.post('/consume', authenticateUser, async (req, res) => {
 
 /**
  * POST /api/daily-inventory/:id/force-override
- * Master Admin Bypass Endpoint: Force-overrides and unlocks a locked daily inventory record.
- * Only users with MASTER_ADMIN privileges are allowed to execute this override.
+ * Master / Super Admin Bypass Endpoint: Force-overrides and unlocks a locked daily inventory record.
+ * Only users with Super Admin privileges are allowed to execute this override.
  */
 router.post(
   '/daily-inventory/:id/force-override',
@@ -145,17 +170,19 @@ router.post(
   requireForceOverridePermission,
   async (req, res) => {
     const { id } = req.params;
-    const { reason = 'Master Admin Force Override' } = req.body || {};
+    const { reason = 'Super Admin Force Override' } = req.body || {};
 
-    if (!id) {
-      return res.status(400).json({ error: 'Inventory ID is required', code: 'INVALID_ID' });
+    if (!id || typeof id !== 'string' || !UUID_REGEX.test(id)) {
+      return res.status(400).json({ error: 'Valid inventory UUID is required.', code: 'INVALID_ID' });
     }
+
+    const sanitizedReason = typeof reason === 'string' ? reason.trim().slice(0, 500) : 'Super Admin Force Override';
 
     try {
       const supabase = getRequestSupabase(req);
       const { data, error } = await supabase.rpc('force_override_daily_inventory', {
         p_inventory_id: id,
-        p_reason: reason
+        p_reason: sanitizedReason
       });
 
       if (error) {
@@ -164,7 +191,7 @@ router.post(
 
       return res.status(200).json({
         success: true,
-        message: 'Daily inventory record successfully unlocked via MASTER_ADMIN force override.',
+        message: 'Daily inventory record successfully unlocked via Super Admin force override.',
         result: data
       });
     } catch (err) {

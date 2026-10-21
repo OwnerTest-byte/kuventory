@@ -89,7 +89,7 @@ test.describe('Master Admin Control Center: Active Session Leases & Recovery Pre
   test('Master Admin can inspect active leases and view recovery point preview in read-only mode', async ({ page }) => {
     await page.goto('/login');
     await page.fill('#email', 'master@kuventory.com');
-    await page.fill('#password', 'MasterAdmin2026!');
+    await page.fill('#password', 'SuperAdmin2026!');
     await page.click('button[type="submit"]');
 
     const takeoverBtn = page.getByRole('button', { name: /continue here & end other session/i });
@@ -106,7 +106,7 @@ test.describe('Master Admin Control Center: Active Session Leases & Recovery Pre
     await page.waitForLoadState('networkidle');
 
     // 1. Inspect Active Session Leases in Security Sub-tab
-    await page.click('button:has-text("Security & Access")');
+    await page.locator('button').filter({ hasText: /(Users & Security|Security & Access)/ }).first().click();
     await expect(page.locator('text=Active Session Leases (First Session Wins Enforcement)')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text=Single-Session Strict')).toBeVisible();
 

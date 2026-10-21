@@ -612,6 +612,28 @@ export function SuperOverviewTab({
           </div>
         )}
       </div>
+
+      {/* Row 7 — Production Release & Deployment Management */}
+      <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-bold text-foreground">Production Release & Deployment Management</h2>
+          </div>
+          <a
+            href="https://github.com/OwnerTest-byte/kuventory/actions"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+          >
+            <span>View GitHub Actions CI/CD</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </a>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Continuous Integration and Production Deployment pipelines are managed via GitHub Actions and Netlify.
+        </p>
+      </div>
     </div>
   );
 }

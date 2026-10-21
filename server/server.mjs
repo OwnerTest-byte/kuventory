@@ -52,14 +52,21 @@ export function createServer() {
   );
 
   // 2. Cross-Origin Resource Sharing (CORS)
+  const isDevOrTest = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+    : (isDevOrTest ? ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'] : []);
+
+  const allowedHeaders = isDevOrTest
+    ? ['Content-Type', 'Authorization', 'x-user-role', 'x-user-id']
+    : ['Content-Type', 'Authorization'];
+
   app.use(
     cors({
-      origin: process.env.ALLOWED_ORIGINS
-        ? process.env.ALLOWED_ORIGINS.split(',')
-        : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'],
+      origin: allowedOrigins.length > 0 ? allowedOrigins : false,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'x-user-role', 'x-user-id'],
+      allowedHeaders,
     })
   );
 

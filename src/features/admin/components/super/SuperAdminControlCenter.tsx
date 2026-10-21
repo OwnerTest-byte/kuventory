@@ -48,24 +48,37 @@ interface SuperAdminControlCenterProps {
 
 const NAVIGATION_AREAS = [
   { id: 'overview', label: 'Overview', icon: Crown },
-  { id: 'integrity', label: 'Inventory Integrity', icon: ShieldCheck },
-  { id: 'operations', label: 'Daily Operations', icon: ClipboardList },
-  { id: 'access', label: 'People & Access', icon: Users },
+  { id: 'inventory', label: 'Inventory', icon: ShieldCheck },
+  { id: 'users', label: 'Users & Security', icon: Users },
   { id: 'system', label: 'System Health', icon: Activity },
-  { id: 'recovery', label: 'Data & Recovery', icon: RotateCcw },
-  { id: 'jobs', label: 'Jobs & Integrations', icon: Clock },
+  { id: 'recovery', label: 'Backups & Recovery', icon: RotateCcw },
+  { id: 'automations', label: 'Automations', icon: Clock },
   { id: 'audit', label: 'Audit & Settings', icon: FileText },
 ];
 
-const SUBTAB_ALIASES: Record<string, string> = {
-  database: 'integrity',
-  storage: 'system',
-  monitoring: 'system',
-  security: 'access',
-  automations: 'jobs',
-  incidents: 'audit',
-  logs: 'audit',
-  settings: 'audit',
+const SUBTAB_ALIASES: Record<string, { area: string; section?: string }> = {
+  integrity: { area: 'inventory', section: 'stock' },
+  stock: { area: 'inventory', section: 'stock' },
+  operations: { area: 'inventory', section: 'daily' },
+  daily: { area: 'inventory', section: 'daily' },
+  access: { area: 'users' },
+  security: { area: 'users' },
+  users: { area: 'users' },
+  system: { area: 'system' },
+  realtime: { area: 'system', section: 'realtime' },
+  monitoring: { area: 'system', section: 'realtime' },
+  database: { area: 'system', section: 'database' },
+  storage: { area: 'system', section: 'storage' },
+  backup: { area: 'recovery' },
+  recovery: { area: 'recovery' },
+  backups: { area: 'recovery' },
+  automations: { area: 'automations' },
+  jobs: { area: 'automations' },
+  services: { area: 'automations' },
+  audit: { area: 'audit' },
+  logs: { area: 'audit', section: 'logs' },
+  incidents: { area: 'audit', section: 'incidents' },
+  settings: { area: 'audit', section: 'settings' },
 };
 
 export function SuperAdminControlCenter({
@@ -90,12 +103,22 @@ export function SuperAdminControlCenter({
 
   // Sub-tab resolution with alias support
   const rawSubTab = searchParams.get('subtab') || 'overview';
-  const resolvedSubTab = SUBTAB_ALIASES[rawSubTab] || rawSubTab;
+  const aliasMatch = SUBTAB_ALIASES[rawSubTab];
+  const resolvedSubTab = aliasMatch?.area || rawSubTab;
   const activeSubTab = NAVIGATION_AREAS.some(a => a.id === resolvedSubTab) ? resolvedSubTab : 'overview';
 
   // Sub-sections for composite tabs
+  const [inventorySection, setInventorySection] = useState<'stock' | 'daily'>('stock');
   const [systemSection, setSystemSection] = useState<'realtime' | 'database' | 'storage'>('realtime');
   const [auditSection, setAuditSection] = useState<'logs' | 'incidents' | 'settings'>('logs');
+
+  useEffect(() => {
+    if (aliasMatch?.section) {
+      if (aliasMatch.area === 'inventory') setInventorySection(aliasMatch.section as 'stock' | 'daily');
+      if (aliasMatch.area === 'system') setSystemSection(aliasMatch.section as 'realtime' | 'database' | 'storage');
+      if (aliasMatch.area === 'audit') setAuditSection(aliasMatch.section as 'logs' | 'incidents' | 'settings');
+    }
+  }, [rawSubTab, aliasMatch]);
 
   const handleSubTabChange = (newSubTab: string) => {
     setSearchParams({ subtab: newSubTab });
@@ -185,7 +208,24 @@ export function SuperAdminControlCenter({
 
   return (
     <div className="space-y-6">
-      {/* 8-Area Navigation Bar */}
+      {/* Mobile Navigation Dropdown */}
+      <div className="sm:hidden w-full">
+        <label htmlFor="super-admin-area-select" className="sr-only">Select Navigation Area</label>
+        <select
+          id="super-admin-area-select"
+          value={activeSubTab}
+          onChange={(e) => handleSubTabChange(e.target.value)}
+          className="w-full rounded-xl bg-card border border-border px-3.5 py-2.5 text-xs font-bold text-foreground shadow-2xs focus:ring-2 focus:ring-primary focus:outline-none"
+        >
+          {NAVIGATION_AREAS.map((nav) => (
+            <option key={nav.id} value={nav.id}>
+              {nav.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* 7-Area Task-Oriented Navigation Bar */}
       <div className="relative w-full min-w-0 max-w-full flex items-center group">
         <button
           type="button"
@@ -251,23 +291,51 @@ export function SuperAdminControlCenter({
         />
       )}
 
-      {/* 2. Inventory Integrity */}
-      {activeSubTab === 'integrity' && (
-        <SuperIntegrityTab
-          telemetry={telemetry}
-          onRefresh={refetchTelemetry}
-        />
+      {/* 2. Inventory (Stock Health & Daily Operations) */}
+      {activeSubTab === 'inventory' && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 border-b border-border pb-3 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setInventorySection('stock')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer flex items-center gap-1.5",
+                inventorySection === 'stock' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Stock Health
+            </button>
+            <button
+              type="button"
+              onClick={() => setInventorySection('daily')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer flex items-center gap-1.5",
+                inventorySection === 'daily' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <ClipboardList className="w-3.5 h-3.5" />
+              Daily Operations
+            </button>
+          </div>
+
+          {inventorySection === 'stock' && (
+            <SuperIntegrityTab
+              telemetry={telemetry}
+              onRefresh={refetchTelemetry}
+            />
+          )}
+
+          {inventorySection === 'daily' && (
+            <SuperDailyOperationsTab
+              onRefresh={refetchTelemetry}
+            />
+          )}
+        </div>
       )}
 
-      {/* 3. Daily Operations */}
-      {activeSubTab === 'operations' && (
-        <SuperDailyOperationsTab
-          onRefresh={refetchTelemetry}
-        />
-      )}
-
-      {/* 4. People & Access */}
-      {activeSubTab === 'access' && (
+      {/* 3. Users & Security */}
+      {activeSubTab === 'users' && (
         <SuperSecurityTab
           maintenanceLocked={maintenanceLocked}
           onToggleMaintenance={onToggleMaintenance}
@@ -276,7 +344,7 @@ export function SuperAdminControlCenter({
         />
       )}
 
-      {/* 5. System Health */}
+      {/* 4. System Health */}
       {activeSubTab === 'system' && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 border-b border-border pb-3 text-xs font-semibold">
@@ -343,20 +411,20 @@ export function SuperAdminControlCenter({
         </div>
       )}
 
-      {/* 6. Data & Recovery */}
+      {/* 5. Backups & Recovery */}
       {activeSubTab === 'recovery' && (
         <SuperRecoveryTab />
       )}
 
-      {/* 7. Jobs & Integrations */}
-      {activeSubTab === 'jobs' && (
+      {/* 6. Automations */}
+      {activeSubTab === 'automations' && (
         <SuperAutomationsTab
           automations={automations}
           onRefresh={refetchAutomations}
         />
       )}
 
-      {/* 8. Audit & Settings */}
+      {/* 7. Audit & Settings */}
       {activeSubTab === 'audit' && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 border-b border-border pb-3 text-xs font-semibold">

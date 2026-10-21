@@ -12,7 +12,6 @@ import { cn } from '@/lib/utils';
 
 import { claimSessionLease, parseHumanDeviceInfo } from '../services/sessionLeaseService';
 import { useAuth } from '../context/AuthContext';
-import { getMaintenanceStatus } from '@/features/admin/services/maintenanceService';
 import { submitPasswordResetRequest } from '@/features/auth/services/passwordResetService';
 
 export const loginSchema = z.object({
@@ -73,14 +72,6 @@ export function LoginForm() {
 
     try {
       const email = data.email.trim().toLowerCase();
-      const isSuperUserAttempt = email === 'superadmin@kuventory.com' || email === 'master@kuventory.com';
-
-      // 1. Emergency Maintenance Pre-flight check
-      const maint = await getMaintenanceStatus();
-      if (maint.locked && !isSuperUserAttempt) {
-        setAuthError('EMERGENCY MAINTENANCE LOCKDOWN ACTIVE: System access is currently restricted to authorized Super Administrators during database maintenance.');
-        return;
-      }
 
       // Authenticate with exact credentials provided
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -95,9 +86,22 @@ export function LoginForm() {
       }
 
       const activeSession = signInData.session;
-      const authSuccess = true;
 
-      if (authSuccess && activeSession) {
+      // Server-authoritative maintenance lockdown check
+      // is_maintenance_locked() returns false for Super Administrators and true for non-super users when locked
+      const { data: isLocked, error: lockErr } = await supabase.rpc('is_maintenance_locked');
+      if (lockErr) {
+        console.warn('is_maintenance_locked RPC warning:', lockErr.message);
+      }
+
+      if (isLocked) {
+        await supabase.auth.signOut();
+        sessionStorage.removeItem('kuventory_browser_session_active');
+        setAuthError('EMERGENCY MAINTENANCE LOCKDOWN ACTIVE: System access is currently restricted to authorized Super Administrators during database maintenance.');
+        return;
+      }
+
+      if (activeSession) {
         // Wire Remember Me preference
         if (rememberMe) {
           localStorage.setItem('kuventory_remembered_email', email);
@@ -105,14 +109,6 @@ export function LoginForm() {
         } else {
           localStorage.removeItem('kuventory_remembered_email');
           localStorage.removeItem('kuventory_remember_me');
-        }
-
-        // 2. Emergency Maintenance Post-auth check (prevent bypass)
-        if (maint.locked && !isSuperUserAttempt) {
-          await supabase.auth.signOut();
-          sessionStorage.removeItem('kuventory_browser_session_active');
-          setAuthError('EMERGENCY MAINTENANCE LOCKDOWN ACTIVE: System access is currently restricted to authorized Super Administrators during database maintenance.');
-          return;
         }
 
         // Enforce Rule 11 & 12: Single Active Session Per Account (First Session Wins with explicit Takeover)

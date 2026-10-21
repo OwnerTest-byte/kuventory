@@ -178,6 +178,13 @@
     outline-offset: 1px !important;
   }
 
+  /* Scope form controls with explicit ring indicators to prevent duplicate overlapping outlines */
+  form[aria-label="Sign In Form"] input:focus-visible,
+  input.focus-visible\:outline-none:focus-visible,
+  [data-no-focus-outline]:focus-visible {
+    outline: none !important;
+  }
+
   /* Suppress default browser ring on pointer/mouse focus only */
   input:focus:not(:focus-visible),
   textarea:focus:not(:focus-visible),

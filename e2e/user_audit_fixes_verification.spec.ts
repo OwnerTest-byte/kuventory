@@ -97,15 +97,16 @@ test.describe('User Audit Fixes Verification (Playwright Functional End-to-End)'
     await page.waitForLoadState('networkidle');
 
     await page.fill('#email', 'master@kuventory.com');
-    await page.fill('#password', 'MasterAdmin2026!');
+    await page.fill('#password', 'SuperAdmin2026!');
     await page.click('button[type="submit"]');
 
     const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');
-    try {
-      if (await takeoverBtn.isVisible({ timeout: 3000 })) {
+    await Promise.race([
+      takeoverBtn.waitFor({ state: 'visible', timeout: 5000 }).then(async () => {
         await takeoverBtn.click();
-      }
-    } catch {}
+      }).catch(() => {}),
+      page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 }).catch(() => {})
+    ]);
 
     await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 20000 });
 
@@ -134,7 +135,7 @@ test.describe('User Audit Fixes Verification (Playwright Functional End-to-End)'
     await page.waitForLoadState('networkidle');
 
     await page.fill('#email', 'master@kuventory.com');
-    await page.fill('#password', 'MasterAdmin2026!');
+    await page.fill('#password', 'SuperAdmin2026!');
     await page.click('button[type="submit"]');
 
     const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');

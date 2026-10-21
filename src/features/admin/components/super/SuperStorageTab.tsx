@@ -22,8 +22,9 @@ export function SuperStorageTab({ onRefresh }: SuperStorageTabProps) {
 
   // Live real buckets query from Supabase Storage API
   const { 
-    data: storageDiag = { success: true, error: null, buckets: [] }, 
+    data: storageDiag, 
     isLoading: isLoadingBuckets, 
+    isError: isStorageQueryError,
     refetch: refetchBuckets 
   } = useQuery({
     queryKey: ['super-storage-buckets'],
@@ -72,7 +73,14 @@ export function SuperStorageTab({ onRefresh }: SuperStorageTabProps) {
     onRefresh();
   };
 
-  const isStorageHealthy = storageDiag.success && storageDiag.error === null;
+  const storageStatus = isLoadingBuckets
+    ? 'Checking'
+    : (isStorageQueryError || !storageDiag?.success || storageDiag?.error)
+    ? 'Degraded'
+    : 'Healthy';
+
+  const isStorageHealthy = storageStatus === 'Healthy';
+  const bucketsList = storageDiag?.buckets || [];
 
   return (
     <div className="space-y-6">
@@ -90,11 +98,11 @@ export function SuperStorageTab({ onRefresh }: SuperStorageTabProps) {
                 </h2>
                 <span className={cn(
                   "px-2 py-0.5 rounded-full text-[10px] font-bold border",
-                  isStorageHealthy 
-                    ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
-                    : "bg-destructive/15 text-destructive border-destructive/30"
+                  storageStatus === 'Healthy' && "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
+                  storageStatus === 'Checking' && "bg-amber-500/15 text-amber-500 border-amber-500/30",
+                  storageStatus === 'Degraded' && "bg-destructive/15 text-destructive border-destructive/30"
                 )}>
-                  {isStorageHealthy ? 'Healthy' : 'Degraded'}
+                  {storageStatus}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -162,7 +170,7 @@ export function SuperStorageTab({ onRefresh }: SuperStorageTabProps) {
             <span className="text-[11px] font-semibold text-muted-foreground">Configured Buckets</span>
             <div className="flex items-center justify-between mt-1">
               <span className="text-lg font-bold text-foreground">
-                {storageDiag.buckets.length} Active
+                {bucketsList.length} Active
               </span>
               <span className="text-xs font-mono text-muted-foreground">Verified</span>
             </div>
@@ -188,7 +196,7 @@ export function SuperStorageTab({ onRefresh }: SuperStorageTabProps) {
             <p className="text-xs text-muted-foreground">Authoritative bucket catalog retrieved from Supabase Storage API</p>
           </div>
           <span className="text-xs font-mono text-muted-foreground">
-            {storageDiag.buckets.length} buckets discovered
+            {bucketsList.length} buckets discovered
           </span>
         </div>
 
@@ -197,7 +205,7 @@ export function SuperStorageTab({ onRefresh }: SuperStorageTabProps) {
             <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-primary" />
             Discovering configured storage buckets...
           </div>
-        ) : storageDiag.buckets.length === 0 ? (
+        ) : bucketsList.length === 0 ? (
           <div className="p-6 rounded-xl bg-muted/30 border border-border text-center text-xs text-muted-foreground space-y-2">
             <Folder className="w-8 h-8 mx-auto text-muted-foreground/60" />
             <p className="font-bold text-foreground">No Storage Buckets Configured</p>
@@ -207,7 +215,7 @@ export function SuperStorageTab({ onRefresh }: SuperStorageTabProps) {
           </div>
         ) : (
           <div className="space-y-3">
-            {storageDiag.buckets.map((b) => (
+            {bucketsList.map((b) => (
               <div key={b.id} className="p-4 rounded-xl bg-muted/30 border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0">

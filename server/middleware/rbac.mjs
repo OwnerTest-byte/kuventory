@@ -7,12 +7,30 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'http://127.0.0.1:54321';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'anon-key-placeholder';
 
-let supabaseClient = null;
+let defaultSupabaseClient = null;
 function getSupabase() {
-  if (!supabaseClient) {
-    supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  if (!defaultSupabaseClient) {
+    defaultSupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
-  return supabaseClient;
+  return defaultSupabaseClient;
+}
+
+/**
+ * Creates a request-scoped Supabase client that forwards the verified caller Bearer token.
+ * Ensures PostgREST queries enforce caller RLS and authenticated context.
+ */
+export function getAuthenticatedSupabaseClient(token) {
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false
+    }
+  });
 }
 
 /**
@@ -20,15 +38,18 @@ function getSupabase() {
  */
 export async function authenticateUser(req, res, next) {
   try {
-    // 1. Allow explicit test/dev headers for unit testing and CI
+    // 1. Allow explicit test/dev headers for unit testing and CI (Strictly disallowed in production)
     const devRole = req.headers['x-user-role'];
     const devUserId = req.headers['x-user-id'];
     if (devRole && (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development')) {
+      const normalizedDevRole = devRole.toUpperCase();
+      const isSuper = normalizedDevRole === 'SUPER_ADMIN' || normalizedDevRole === 'MASTER_ADMIN';
       req.user = {
         id: devUserId || 'test-user-id',
-        role: devRole.toUpperCase(),
-        isMasterAdmin: devRole.toUpperCase() === 'MASTER_ADMIN',
-        canForceOverride: devRole.toUpperCase() === 'MASTER_ADMIN'
+        role: isSuper ? 'SUPER_ADMIN' : normalizedDevRole,
+        isSuperAdmin: isSuper,
+        isMasterAdmin: isSuper,
+        canForceOverride: isSuper
       };
       return next();
     }
@@ -43,8 +64,10 @@ export async function authenticateUser(req, res, next) {
 
     const token = authHeader.split(' ')[1];
     req.token = token;
-    const supabase = getSupabase();
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    // Create request-scoped client forwarding the verified caller token
+    const client = getAuthenticatedSupabaseClient(token);
+    const { data: { user }, error: authError } = await client.auth.getUser(token);
 
     if (authError || !user) {
       return res.status(401).json({
@@ -53,22 +76,32 @@ export async function authenticateUser(req, res, next) {
       });
     }
 
-    // Fetch user profile role from database
-    const { data: profile } = await supabase
+    // Fetch user profile role using request-scoped client forwarding the token
+    const { data: profile, error: profileError } = await client
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    const role = (profile?.role || 'STAFF').toUpperCase();
-    const isMasterAdmin = role === 'MASTER_ADMIN';
+    if (profileError || !profile) {
+      return res.status(403).json({
+        error: 'Unable to verify authenticated user profile role. Profile not found or permission denied.',
+        code: 'ROLE_VERIFICATION_FAILED'
+      });
+    }
+
+    const rawRole = (profile?.role || '').toUpperCase();
+    const isSuperAdmin = rawRole === 'SUPER_ADMIN' || rawRole === 'MASTER_ADMIN';
+    const canonicalRole = isSuperAdmin ? 'SUPER_ADMIN' : rawRole;
 
     req.user = {
       id: user.id,
       email: user.email,
-      role,
-      isMasterAdmin,
-      canForceOverride: isMasterAdmin
+      role: canonicalRole,
+      rawRole,
+      isSuperAdmin,
+      isMasterAdmin: isSuperAdmin,
+      canForceOverride: isSuperAdmin
     };
 
     next();
@@ -84,7 +117,7 @@ export async function authenticateUser(req, res, next) {
 /**
  * RBAC Guard Middleware:
  * Allows access if the user's role is in `allowedRoles`,
- * OR if the user is a `MASTER_ADMIN` (universal bypass).
+ * OR if the user is a `SUPER_ADMIN` / `MASTER_ADMIN` (universal bypass).
  */
 export function requireRole(allowedRoles = []) {
   const normalizedAllowed = allowedRoles.map((r) => r.toUpperCase());
@@ -97,14 +130,14 @@ export function requireRole(allowedRoles = []) {
       });
     }
 
-    // MASTER_ADMIN has absolute bypass-level permissions across all endpoints
-    if (req.user.isMasterAdmin || req.user.role === 'MASTER_ADMIN') {
+    // SUPER_ADMIN (and legacy MASTER_ADMIN) has absolute bypass-level permissions across all operational endpoints
+    if (req.user.isSuperAdmin || req.user.isMasterAdmin || req.user.role === 'SUPER_ADMIN' || req.user.role === 'MASTER_ADMIN') {
       req.bypassedByMasterAdmin = true;
       return next();
     }
 
     // Check if user's role matches any allowed role
-    if (normalizedAllowed.includes(req.user.role)) {
+    if (normalizedAllowed.includes(req.user.role) || normalizedAllowed.includes(req.user.rawRole)) {
       return next();
     }
 
@@ -124,12 +157,12 @@ export function requireForceOverridePermission(req, res, next) {
     return res.status(401).json({ error: 'Authentication required.', code: 'AUTH_REQUIRED' });
   }
 
-  if (req.user.isMasterAdmin || req.user.role === 'MASTER_ADMIN') {
+  if (req.user.isSuperAdmin || req.user.isMasterAdmin || req.user.role === 'SUPER_ADMIN' || req.user.role === 'MASTER_ADMIN') {
     return next();
   }
 
   return res.status(403).json({
-    error: 'Permission denied: Only MASTER_ADMIN can force override locked records.',
+    error: 'Permission denied: Super Admin authorization required to force override locked records.',
     code: 'PERMISSION_DENIED_OVERRIDE'
   });
 }

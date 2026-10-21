@@ -12,7 +12,7 @@ import { exportFullSystemBackup } from '../services/superAdminService';
 export function SuperAdminPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const userEmail = user?.email || 'superadmin@kuventory.com';
+  const userEmail = user?.email || '';
 
   // 1. Maintenance Status Query & Mutation
   const [isMaintenanceToggling, setIsMaintenanceToggling] = useState(false);
@@ -44,7 +44,7 @@ export function SuperAdminPage() {
 
   // 2. Real-time Telemetry & Stream
   const [realtimeEvents, setRealtimeEvents] = useState<any[]>([]);
-  const [realtimeChannelStatus, setRealtimeChannelStatus] = useState<string>('CONNECTED');
+  const [realtimeChannelStatus, setRealtimeChannelStatus] = useState<string>('CONNECTING');
   const [realtimePingMs, setRealtimePingMs] = useState<number | null>(null);
   const [isRealtimePaused, setIsRealtimePaused] = useState(false);
 
