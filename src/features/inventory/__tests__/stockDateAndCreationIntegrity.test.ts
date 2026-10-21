@@ -166,5 +166,67 @@ describe('Stock Expiration Date & Creation Integrity (Checklist Regressions)', (
         })
       ).rejects.toThrow(/The database does not expose the atomic Add Item function yet.*Apply the Supabase migration 20261021210000_atomic_create_item_and_initial_stock\.sql/);
     });
+
+    it('correctly passes initial_quantity and min_quantity to create_inventory_item_with_initial_stock RPC', async () => {
+      vi.mocked(supabase.rpc).mockResolvedValueOnce({
+        data: {
+          id: 'item-uuid-99',
+          item_code: 'WAGYU001',
+          item_name: 'A5 Wagyu',
+          category_id: 'cat-uuid-2',
+          unit: 'kg',
+          unit_cost: 2500,
+          min_qty: 15,
+          current_qty: 10,
+          batch_id: 'batch-uuid-99',
+          expiry_date: '2026-12-31',
+        },
+        error: null,
+      } as any);
+
+      vi.mocked(supabase.from).mockReturnValue({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({
+          data: {
+            id: 'item-uuid-99',
+            name: 'A5 Wagyu',
+            item_code: 'WAGYU001',
+            category_id: 'cat-uuid-2',
+            category_name: 'Meats',
+            unit: 'kg',
+            unit_cost: 2500,
+            min_quantity: 15,
+            total_quantity: 10,
+            is_active: true,
+            is_archived: false,
+          },
+          error: null,
+        }),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      } as any);
+
+      const result = await createItemWithInitialStock({
+        item_name: 'A5 Wagyu',
+        category_id: 'cat-uuid-2',
+        unit: 'kg',
+        initial_quantity: 10,
+        expiry_date: '2026-12-31',
+        min_quantity: 15,
+        unit_cost: 2500,
+        item_code: 'WAGYU001',
+      });
+
+      expect(supabase.rpc).toHaveBeenCalledWith('create_inventory_item_with_initial_stock', expect.objectContaining({
+        p_name: 'A5 Wagyu',
+        p_initial_quantity: 10,
+        p_min_quantity: 15,
+        p_expiry_date: '2026-12-31',
+      }));
+
+      expect(result.current_qty).toBe(10);
+      expect(result.min_qty).toBe(15);
+    });
   });
 });

@@ -55,9 +55,9 @@ export async function getItemById(id: string): Promise<InventoryItem> {
     .eq('id', id)
     .single();
 
-  if (error) {
-    console.error('getItemById error:', error);
-    throw error;
+  if (error || !data) {
+    if (error) console.error('getItemById error:', error);
+    throw error || new Error(`Item ${id} not found`);
   }
 
   const section = data.category_name || 'General';

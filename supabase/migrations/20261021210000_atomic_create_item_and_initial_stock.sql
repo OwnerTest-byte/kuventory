@@ -172,14 +172,35 @@ BEGIN
   INSERT INTO public.stock_batches (
     item_id,
     quantity,
+    initial_quantity,
     expiry_date,
     received_date
   ) VALUES (
     v_item_id,
     p_initial_quantity,
+    p_initial_quantity,
     p_expiry_date,
     CURRENT_DATE
   ) RETURNING id INTO v_batch_id;
+
+  -- Real-time threshold notification check for low stock or out of stock
+  IF p_initial_quantity <= GREATEST(0, COALESCE(p_min_quantity, 0)) THEN
+    INSERT INTO public.notifications (type, title, message, item_id, dedup_key, is_read, created_at)
+    VALUES (
+      CASE WHEN p_initial_quantity = 0 THEN 'OUT_OF_STOCK' ELSE 'LOW_STOCK' END,
+      CASE WHEN p_initial_quantity = 0 THEN 'Out of Stock: ' || v_trimmed_name ELSE 'Low Stock: ' || v_trimmed_name END,
+      CASE WHEN p_initial_quantity = 0 
+        THEN v_trimmed_name || ' has completely run out of stock.'
+        ELSE v_trimmed_name || ' is below the minimum threshold of ' || p_min_quantity || ' (Current: ' || p_initial_quantity || ').'
+      END,
+      v_item_id,
+      CASE WHEN p_initial_quantity = 0 THEN 'OOS_' || v_item_id ELSE 'LOW_' || v_item_id END,
+      false,
+      NOW()
+    )
+    ON CONFLICT (dedup_key) DO UPDATE
+    SET is_read = false, created_at = NOW();
+  END IF;
 
   -- 8. Insert stock movement ledger event
   INSERT INTO public.stock_movements (
@@ -275,9 +296,9 @@ BEGIN
   WHERE item_id = p_item_id;
 
   INSERT INTO public.stock_batches (
-    item_id, quantity, expiry_date, received_date
+    item_id, quantity, initial_quantity, expiry_date, received_date
   ) VALUES (
-    p_item_id, p_quantity, p_expiry_date, COALESCE(p_received_date, CURRENT_DATE)
+    p_item_id, p_quantity, p_quantity, p_expiry_date, COALESCE(p_received_date, CURRENT_DATE)
   ) RETURNING id INTO v_batch_id;
 
   INSERT INTO public.stock_movements (

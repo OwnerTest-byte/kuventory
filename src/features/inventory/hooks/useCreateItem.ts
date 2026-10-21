@@ -20,7 +20,7 @@ export function useCreateItem() {
       supplier_b?: string;
       image_path?: string | null;
     }) => createItemWithInitialStock(params),
-    onSuccess: (newItem) => {
+    onSuccess: (newItem, variables) => {
       // Targeted cache invalidation
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['inventory-items'] });
@@ -28,7 +28,37 @@ export function useCreateItem() {
       queryClient.invalidateQueries({ queryKey: ['today-inventory-session'] });
       queryClient.invalidateQueries({ queryKey: ['dailyInventory'] });
       queryClient.invalidateQueries({ queryKey: ['daily-inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-notifications-count'] });
       queryClient.setQueryData(['item', newItem.id], newItem);
+
+      // Real-time zero-latency toast notification if initial stock is at or below minimum threshold
+      if (typeof window !== 'undefined') {
+        const minQty = Math.max(0, Number(variables.min_quantity ?? 0));
+        const initialQty = Math.max(0, Number(variables.initial_quantity ?? 0));
+        if (minQty > 0 && initialQty <= minQty) {
+          const isOos = initialQty === 0;
+          const type = isOos ? 'OUT_OF_STOCK' : 'LOW_STOCK';
+          const title = isOos ? `Out of Stock: ${variables.item_name}` : `Low Stock: ${variables.item_name}`;
+          const message = isOos
+            ? `${variables.item_name} has completely run out of stock.`
+            : `${variables.item_name} is below the minimum threshold of ${minQty} (Current: ${initialQty}).`;
+
+          window.dispatchEvent(
+            new CustomEvent('kuventory:show-toast', {
+              detail: {
+                id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                type,
+                title,
+                message,
+                item_id: newItem.id,
+                is_read: false,
+                created_at: new Date().toISOString(),
+              },
+            })
+          );
+        }
+      }
     },
   });
 

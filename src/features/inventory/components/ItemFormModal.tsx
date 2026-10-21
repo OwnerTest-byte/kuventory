@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { X, Image as ImageIcon, Layers, Calendar, CheckCircle2 } from 'lucide-react';
+import { X, Image as ImageIcon, Layers, Calendar, CheckCircle2, AlertTriangle } from 'lucide-react';
 import type { InventoryItem, Category } from '../types';
 import { useSuppliers } from '../api/suppliers';
 import { addStock } from '../api';
@@ -386,6 +386,18 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
                       onChange={e => setFormData({ ...formData, initial_expiry_date: e.target.value })}
                     />
                   </div>
+
+                  {!item && Math.max(0, parseInt(formData.min_qty, 10) || 0) > 0 && formData.initial_qty.trim() !== '' && (parseFloat(formData.initial_qty) || 0) <= (parseInt(formData.min_qty, 10) || 0) && (
+                    <div className="space-y-1.5 md:col-span-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                        <span>Real-Time Alert Preview: Low Stock Warning</span>
+                      </div>
+                      <p className="text-muted-foreground text-[11px] leading-relaxed">
+                        Opening stock ({parseFloat(formData.initial_qty) || 0}) is at or below the minimum threshold ({parseInt(formData.min_qty, 10) || 0}). Saving will immediately broadcast a real-time alert across all devices and dashboards.
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
 

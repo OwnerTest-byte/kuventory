@@ -102,7 +102,7 @@ export function NotificationPopup() {
       .channel(channelName)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications' },
+        { event: '*', schema: 'public', table: 'notifications' },
         (payload) => {
           const newNotif = payload.new as AppNotification;
           if (newNotif && !newNotif.is_read) {
