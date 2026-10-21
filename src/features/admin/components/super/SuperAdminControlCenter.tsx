@@ -2,7 +2,7 @@ import { useState, useRef, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
   Crown, ShieldCheck, ClipboardList, Users, Activity, 
-  RotateCcw, Clock, FileText, ChevronLeft, ChevronRight,
+  RotateCcw, FileText, ChevronLeft, ChevronRight,
   Database, HardDrive, Radio, AlertTriangle, Settings
 } from 'lucide-react';
 import { cn, formatSafeDate } from '@/lib/utils';
@@ -10,7 +10,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { 
   fetchSystemTelemetry, 
-  fetchAutomations, 
   fetchIncidents 
 } from '../../services/superAdminService';
 
@@ -22,7 +21,6 @@ import { SuperDatabaseTab } from './SuperDatabaseTab';
 import { SuperStorageTab } from './SuperStorageTab';
 import { SuperRealtimeTab } from './SuperRealtimeTab';
 import { SuperRecoveryTab } from './SuperRecoveryTab';
-import { SuperAutomationsTab } from './SuperAutomationsTab';
 import { SuperLogsTab } from './SuperLogsTab';
 import { SuperIncidentsTab } from './SuperIncidentsTab';
 import { SuperSettingsTab } from './SuperSettingsTab';
@@ -52,7 +50,6 @@ const NAVIGATION_AREAS = [
   { id: 'users', label: 'Users & Security', icon: Users },
   { id: 'system', label: 'System Health', icon: Activity },
   { id: 'recovery', label: 'Backups & Recovery', icon: RotateCcw },
-  { id: 'automations', label: 'Automations', icon: Clock },
   { id: 'audit', label: 'Audit & Settings', icon: FileText },
 ];
 
@@ -72,9 +69,6 @@ const SUBTAB_ALIASES: Record<string, { area: string; section?: string }> = {
   backup: { area: 'recovery' },
   recovery: { area: 'recovery' },
   backups: { area: 'recovery' },
-  automations: { area: 'automations' },
-  jobs: { area: 'automations' },
-  services: { area: 'automations' },
   audit: { area: 'audit' },
   logs: { area: 'audit', section: 'logs' },
   incidents: { area: 'audit', section: 'incidents' },
@@ -154,13 +148,7 @@ export function SuperAdminControlCenter({
     refetchInterval: 30000
   });
 
-  // 2. Automations Query
-  const { data: automations = [], refetch: refetchAutomations } = useQuery({
-    queryKey: ['super-automations'],
-    queryFn: fetchAutomations
-  });
-
-  // 3. Incidents Query
+  // 2. Incidents Query
   const { data: incidents = [], refetch: refetchIncidents } = useQuery({
     queryKey: ['super-incidents'],
     queryFn: fetchIncidents
@@ -193,9 +181,6 @@ export function SuperAdminControlCenter({
   useEffect(() => {
     const channel = supabase
       .channel('super-admin-telemetry')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_automations' }, () => {
-        refetchAutomations();
-      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'system_incidents' }, () => {
         refetchIncidents();
       })
@@ -204,7 +189,7 @@ export function SuperAdminControlCenter({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [refetchAutomations, refetchIncidents]);
+  }, [refetchIncidents]);
 
   return (
     <div className="space-y-6">
@@ -290,13 +275,11 @@ export function SuperAdminControlCenter({
         <SuperOverviewTab
           telemetry={telemetry}
           deployments={[]}
-          automations={automations}
           incidents={incidents}
           recentActivity={recentActivity}
           onSelectTab={handleSubTabChange}
           onRefresh={() => {
             refetchTelemetry();
-            refetchAutomations();
             refetchIncidents();
           }}
           onTriggerBackup={onExportFullBackup}
@@ -427,14 +410,6 @@ export function SuperAdminControlCenter({
       {/* 5. Backups & Recovery */}
       {activeSubTab === 'recovery' && (
         <SuperRecoveryTab />
-      )}
-
-      {/* 6. Automations */}
-      {activeSubTab === 'automations' && (
-        <SuperAutomationsTab
-          automations={automations}
-          onRefresh={refetchAutomations}
-        />
       )}
 
       {/* 7. Audit & Settings */}

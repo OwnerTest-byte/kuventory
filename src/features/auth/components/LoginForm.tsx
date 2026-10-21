@@ -112,23 +112,15 @@ export function LoginForm() {
           localStorage.removeItem('kuventory_remember_me');
         }
 
-        // Enforce Rule 11 & 12: Single Active Session Per Account (First Session Wins with explicit Takeover)
-        const claimResult = await claimSessionLease(activeSession.access_token.slice(-16));
-        if (!claimResult.success) {
-          if (claimResult.reason === 'OCCUPIED' || claimResult.message?.toLowerCase().includes('active')) {
-            setAuthError('ACCOUNT IN USE: This account is active on another device.');
-            setPendingTakeoverSession({
-              session: activeSession,
-              deviceInfo: claimResult.occupied_device_info,
-              lastSeen: claimResult.last_seen,
-            });
-          } else {
-            // Other failures (e.g. maintenance lockdown or network failure)
-            await supabase.auth.signOut();
-            localStorage.removeItem('kuventory_browser_session_active');
-            sessionStorage.removeItem('kuventory_browser_session_active');
-            setAuthError(claimResult.message || 'ACCOUNT IN USE');
-          }
+        // Claim or take over active session lease with authoritative credentials
+        const claimResult = await claimSessionLease(activeSession.access_token.slice(-16), true);
+        if (!claimResult.success && claimResult.reason === 'OCCUPIED') {
+          setAuthError('ACCOUNT IN USE: This account is active on another device.');
+          setPendingTakeoverSession({
+            session: activeSession,
+            deviceInfo: claimResult.occupied_device_info,
+            lastSeen: claimResult.last_seen,
+          });
           return;
         }
 

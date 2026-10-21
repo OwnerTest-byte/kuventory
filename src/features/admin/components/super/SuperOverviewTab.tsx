@@ -14,7 +14,6 @@ import {
   fetchInventoryHealthAudit,
   fetchInventoryExceptionsQueue,
   type DeploymentRecord, 
-  type AutomationJob, 
   type IncidentRecord, 
   type SystemTelemetry 
 } from '../../services/superAdminService';
@@ -22,7 +21,6 @@ import {
 interface SuperOverviewTabProps {
   telemetry: SystemTelemetry;
   deployments: DeploymentRecord[];
-  automations: AutomationJob[];
   incidents: IncidentRecord[];
   recentActivity: Array<{
     id: string;
@@ -40,7 +38,6 @@ interface SuperOverviewTabProps {
 export function SuperOverviewTab({
   telemetry,
   deployments: _deployments,
-  automations: _automations,
   incidents: _incidents,
   recentActivity,
   onSelectTab,

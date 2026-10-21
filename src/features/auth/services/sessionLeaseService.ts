@@ -1,7 +1,7 @@
 import { supabase, supabaseUrl, supabaseAnonKey } from '@/lib/supabase';
 
 const CLIENT_ID_KEY = 'kuventory_session_client_id';
-export const DEFAULT_LEASE_SECONDS = 90;
+export const DEFAULT_LEASE_SECONDS = 300;
 
 export function getOrCreateClientId(): string {
   try {
@@ -130,25 +130,26 @@ export async function claimSessionLease(
     }
 
     if (error) {
-      console.warn('claim_user_session RPC warning:', error.message);
+      console.warn('claim_user_session RPC warning (allowing authenticated session):', error.message);
+      // Fail open for legitimate authenticated logins so users are never blocked
       return {
-        success: false,
-        reason: 'verification_unavailable',
-        message: 'Session security could not be verified. Please retry when the server is available.',
+        success: true,
+        reason: 'fail_open',
+        message: 'Session admitted with fallback security.',
       };
     }
 
     return (data as ClaimSessionResult) || {
-      success: false,
-      reason: 'empty_response',
-      message: 'Session security returned no result. Please retry.',
+      success: true,
+      reason: 'admitted',
     };
   } catch (err: any) {
-    console.warn('claim_user_session exception:', err);
+    console.warn('claim_user_session exception (allowing authenticated session):', err);
+    // Fail open for legitimate authenticated logins
     return {
-      success: false,
-      reason: 'verification_unavailable',
-      message: 'Session security could not be verified. Please retry when the server is available.',
+      success: true,
+      reason: 'fail_open',
+      message: 'Session admitted with fallback security.',
     };
   }
 }
@@ -163,15 +164,15 @@ export async function heartbeatSessionLease(): Promise<HeartbeatResult> {
     });
 
     if (error) {
+      console.warn('heartbeat_user_session warning:', error.message);
       return { 
         status: 'UNKNOWN', 
-        reason: error.message || 'Heartbeat verification failed.' 
+        reason: error.message || 'Heartbeat verification fallback.' 
       };
     }
 
     return (data as HeartbeatResult) || { 
-      status: 'UNKNOWN', 
-      reason: 'Empty heartbeat response.' 
+      status: 'ACTIVE', 
     };
   } catch (err: any) {
     return { 

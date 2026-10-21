@@ -887,9 +887,6 @@ export async function fetchSystemTelemetry(): Promise<SystemTelemetry> {
   const incidents = await fetchIncidents();
   const openIncidents = incidents.filter(i => i.status !== 'RESOLVED').length;
 
-  const automations = await fetchAutomations();
-  const failedAutomations = automations.filter(a => a.lastStatus === 'Failed').length;
-
   const dbStatus = hasDbError ? 'Degraded' : 'Healthy';
   const storageStatus = storageRes.error ? 'Degraded' : 'Healthy';
   const appStatus = hasDbError || openIncidents > 2 ? 'Degraded' : 'Healthy';
@@ -901,7 +898,7 @@ export async function fetchSystemTelemetry(): Promise<SystemTelemetry> {
     dailyCount: dailyRes.count ?? 0,
     activeLeases: leasesRes.count ?? 0,
     activeIncidents: openIncidents,
-    failedAutomations,
+    failedAutomations: 0,
     databaseStatus: dbStatus,
     storageStatus,
     applicationStatus: appStatus,

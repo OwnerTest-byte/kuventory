@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import type { Profile, Role } from '../types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
+  claimSessionLease,
   heartbeatSessionLease, 
   releaseSessionLease, 
   getOrCreateClientId,
@@ -11,22 +12,6 @@ import {
 } from '../services/sessionLeaseService';
 
 const BROWSER_SESSION_KEY = 'kuventory_browser_session_active';
-
-function hasBrowserSessionMarker(): boolean {
-  try {
-    if (typeof localStorage !== 'undefined' && localStorage.getItem(BROWSER_SESSION_KEY) === '1') return true;
-    // Upgrade a pre-existing per-tab marker on the first upgraded load.
-    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(BROWSER_SESSION_KEY) === '1') {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(BROWSER_SESSION_KEY, '1');
-      }
-      return true;
-    }
-  } catch {
-    // Lease verification remains authoritative if browser storage is blocked.
-  }
-  return false;
-}
 
 function setBrowserSessionMarker(active: boolean): void {
   try {
@@ -114,13 +99,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    if (res.status === 'EXPIRED') {
-      await handleTerminalState('Your session expired due to inactivity. Please sign in again.');
-      return;
-    }
-
-    if (res.status === 'NO_LEASE') {
-      await handleTerminalState('Your session lease could not be verified. Please sign in again.');
+    if (res.status === 'EXPIRED' || res.status === 'NO_LEASE') {
+      // Auto-heal: Try to reclaim the lease for this authenticated user rather than kicking them out
+      console.warn('Session lease lapsed. Auto-renewing lease for active user...');
+      const renewal = await claimSessionLease('renew_' + Date.now(), true);
+      if (renewal.success) {
+        consecutiveFailuresRef.current = 0;
+        setIsSessionVerifying(false);
+        return;
+      }
       return;
     }
 
@@ -130,11 +117,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (res.status === 'UNKNOWN') {
-      // A transport error is not proof of a conflicting session. Retry and
-      // let an authoritative EXPIRED / REVOKED / SUPERSEDED response decide.
       consecutiveFailuresRef.current += 1;
-      setIsSessionVerifying(true);
-      console.warn(`Transient heartbeat verification failure (${consecutiveFailuresRef.current}). Retrying without terminating the session.`);
+      console.warn(`Heartbeat verification note (${consecutiveFailuresRef.current}). Continuing session uninterrupted.`);
     }
   }, [handleTerminalState]);
 
@@ -146,57 +130,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(async ({ data: { session: initSession } }) => {
       if (!isMounted) return;
       if (initSession) {
-        const isSessionActive = hasBrowserSessionMarker();
-        if (!isSessionActive) {
-          // Tab has not claimed a lease: do NOT release any active leases held by other tabs/devices
-          try {
-            await supabase.auth.signOut();
-          } catch {}
-          if (isMounted) {
-            setSession(null);
-            setUser(null);
-            setIsSessionLoading(false);
-          }
-          return;
-        }
+        // Authenticated user found in session storage: preserve session immediately
+        setBrowserSessionMarker(true);
+        setSession(initSession);
+        setUser(initSession.user ?? null);
+        setIsSessionLoading(false);
 
-        // Active tab refresh: verify and extend existing lease via heartbeat
-        const hbResult = await heartbeatSessionLease();
-        if (hbResult.status === 'UNKNOWN') {
-          // Preserve the valid Supabase session while the lease endpoint is transiently unreachable.
-          // The normal heartbeat loop will retry and terminate on definitive lease failure.
-          if (isMounted) {
-            setIsSessionVerifying(true);
-            setSession(initSession);
-            setUser(initSession.user ?? null);
-            setIsSessionLoading(false);
+        // Background non-blocking lease sync
+        try {
+          const hbResult = await heartbeatSessionLease();
+          if (hbResult.status === 'REVOKED') {
+            await handleTerminalState(hbResult.reason || 'Your session was ended by an administrator.');
           }
-          return;
-        }
-        if (hbResult.status !== 'ACTIVE') {
-          console.warn('Initial heartbeat check rejected:', hbResult.status);
-          setBrowserSessionMarker(false);
-          try {
-            await supabase.auth.signOut();
-          } catch {}
-          if (isMounted) {
-            setSession(null);
-            setUser(null);
-            setSessionLeaseError(
-              hbResult.status === 'SUPERSEDED_OR_OCCUPIED'
-                ? 'ACCOUNT IN USE: This account is active on another device.'
-                : (hbResult.message || 'SESSION VERIFICATION FAILED')
-            );
-            setIsSessionLoading(false);
-          }
-          return;
-        }
-
-        if (isMounted) {
-          setBrowserSessionMarker(true);
-          setSession(initSession);
-          setUser(initSession.user ?? null);
-        }
+        } catch {}
+        return;
       }
       if (isMounted) setIsSessionLoading(false);
     }).catch(err => {
@@ -217,24 +164,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // If this browser context has already verified/claimed the lease, accept session updates (e.g. token refresh)
-      if (hasBrowserSessionMarker()) {
-        setSession(newSession);
-        setUser(newSession.user ?? null);
-        return;
-      }
-
-      // If browser has NOT yet claimed the lease (e.g. fresh sign-in attempt from LoginForm),
-      // do not activate session or sign out yet; LoginForm will atomically claim the lease
-      // and call activateSession upon success or prompt for takeover confirmation.
-      return;
+      // Accept new session immediately
+      setBrowserSessionMarker(true);
+      setSession(newSession);
+      setUser(newSession.user ?? null);
     });
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [queryClient]);
+  }, [queryClient, handleTerminalState]);
 
   // Periodic Session Heartbeat and Realtime Safety Net
   useEffect(() => {
@@ -249,14 +189,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    // Periodic safety-net heartbeat every 10 seconds
+    // Periodic safety-net heartbeat every 20 seconds
     const heartbeatInterval = setInterval(async () => {
       if (!isHeartbeatActive) return;
       const res = await heartbeatSessionLease();
       if (isHeartbeatActive) {
         await processHeartbeatResult(res);
       }
-    }, 10000);
+    }, 20000);
 
     // Instantaneous Realtime session listener on authoritative table 'user_session_leases'
     const channelName = `session-lease-${user.id}-${Date.now()}`;

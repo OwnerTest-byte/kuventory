@@ -151,7 +151,6 @@ export function useRealtimeSync() {
           queryClient.invalidateQueries({ queryKey: ['system-settings'] });
           queryClient.invalidateQueries({ queryKey: ['system_setting'] });
           queryClient.invalidateQueries({ queryKey: ['system-maintenance-lock'] });
-          queryClient.invalidateQueries({ queryKey: ['super-automations'] });
           queryClient.invalidateQueries({ queryKey: ['super-deployments'] });
           queryClient.invalidateQueries({ queryKey: ['super-incidents'] });
         }
