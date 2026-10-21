@@ -24,6 +24,7 @@ import {
   Eye
 } from 'lucide-react';
 import { ItemFormModal } from '../components/ItemFormModal';
+import { useCreateItem } from '../hooks/useCreateItem';
 import { StockUpdateModal } from '../components/StockUpdateModal';
 import { ItemQuickViewDrawer } from '../components/ItemQuickViewDrawer';
 import { StockBatchesPage } from './StockBatchesPage';
@@ -42,7 +43,8 @@ export function ItemsCatalogPage() {
     queryFn: getInventory,
   });
   
-  const { createItem, updateItem, archiveItem, deleteItem } = useItems();
+  const { updateItem, archiveItem, deleteItem } = useItems();
+  const { createItemWithStock, createItem } = useCreateItem();
   const { add, remove, adjust } = useStockMutations();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -131,14 +133,23 @@ export function ItemsCatalogPage() {
       if (editingItem) {
         await updateItem({ id: editingItem.id, ...data });
       } else {
-        const newItem = await createItem(data);
-        if (initialQty && initialQty > 0) {
-          await add.mutateAsync({
-            itemId: newItem.id,
-            quantity: initialQty,
-            expiryDate: initialExpiryDate ? new Date(initialExpiryDate).toISOString() : undefined,
-            reason: 'Initial Opening Stock Balance'
+        if (initialQty && initialQty > 0 && initialExpiryDate) {
+          await createItemWithStock({
+            item_name: data.item_name,
+            category_id: data.category_id,
+            unit: data.unit,
+            initial_quantity: initialQty,
+            expiry_date: initialExpiryDate,
+            item_code: data.item_code,
+            description: data.description || '',
+            unit_cost: data.unit_cost,
+            min_quantity: data.min_qty,
+            supplier_a: data.supplier_a || '',
+            supplier_b: data.supplier_b || '',
+            image_path: data.image_path,
           });
+        } else {
+          await createItem(data);
         }
       }
     } finally {

@@ -9,8 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { InventoryRow } from './InventoryRow';
 import { ItemFormModal } from '@/features/inventory/components/ItemFormModal';
-import { createItem } from '@/features/inventory/api';
-import { useStockMutations } from '@/features/inventory/hooks/useStockMutations';
+import { useCreateItem } from '@/features/inventory/hooks/useCreateItem';
 import type { InventoryItem } from '@/features/inventory/types';
 import { getStationMeta, allocateStationIcon } from '../utils/stationIcons';
 import { 
@@ -48,7 +47,7 @@ interface StationGroup {
 
 export function InventorySheet({ session, isReadOnly, date, isCorrectionMode }: InventorySheetProps) {
   const queryClient = useQueryClient();
-  const { add } = useStockMutations();
+  const { createItemWithStock, createItem } = useCreateItem();
 
   // Station navigation scroll container ref & wheel handler
   const pillsContainerRef = useRef<HTMLDivElement>(null);
@@ -216,17 +215,28 @@ export function InventorySheet({ session, isReadOnly, date, isCorrectionMode }: 
   // Item Creation Handler for this station
   const handleCreateItemForStation = async (
     data: Omit<InventoryItem, 'id' | 'is_archived' | 'created_at' | 'updated_at' | 'current_qty'>,
-    initialQty?: number
+    initialQty?: number,
+    initialExpiryDate?: string
   ) => {
     setIsSubmittingItem(true);
     try {
-      const newItem = await createItem(data);
-      if (initialQty && initialQty > 0) {
-        await add.mutateAsync({
-          itemId: newItem.id,
-          quantity: initialQty,
-          reason: 'Initial Opening Stock Balance'
+      if (initialQty && initialQty > 0 && initialExpiryDate) {
+        await createItemWithStock({
+          item_name: data.item_name,
+          category_id: data.category_id,
+          unit: data.unit,
+          initial_quantity: initialQty,
+          expiry_date: initialExpiryDate,
+          item_code: data.item_code,
+          description: data.description || '',
+          unit_cost: data.unit_cost,
+          min_quantity: data.min_qty,
+          supplier_a: data.supplier_a || '',
+          supplier_b: data.supplier_b || '',
+          image_path: data.image_path,
         });
+      } else {
+        await createItem(data);
       }
       await queryClient.invalidateQueries({ queryKey: ['inventory'] });
       await queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) });

@@ -136,7 +136,7 @@ export const InventoryRow = memo(function InventoryRow({
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleInputChange = (field: 'beg' | 'add' | 'am' | 'pm', value: string) => {
+  const handleInputChange = (field: 'beg' | 'add' | 'am' | 'pm', value: string, inputElement?: HTMLInputElement) => {
     if (isReadOnly) return;
 
     // Strict non-negative inventory rule: strip negative signs and disallow numbers < 0
@@ -153,6 +153,7 @@ export const InventoryRow = memo(function InventoryRow({
         notifySalesBlocked('zero_stock');
         if (field === 'am') setAm('0');
         if (field === 'pm') setPm('0');
+        if (inputElement) inputElement.value = '0';
         return;
       }
 
@@ -163,6 +164,7 @@ export const InventoryRow = memo(function InventoryRow({
         notifySalesBlocked('exceeds_stock', optTotal);
         sanitized = maxForThis.toString();
         parsed = maxForThis;
+        if (inputElement) inputElement.value = sanitized;
       }
     }
 
@@ -215,8 +217,16 @@ export const InventoryRow = memo(function InventoryRow({
     }
   };
 
-  const handleBlur = (field: 'beg' | 'add' | 'am' | 'pm') => {
+  const handleBlur = (field: 'beg' | 'add' | 'am' | 'pm', inputElement?: HTMLInputElement) => {
     setFocusedField(null);
+    if ((field === 'am' || field === 'pm') && optTotal === 0) {
+      if (field === 'am') setAm('0');
+      if (field === 'pm') setPm('0');
+      if (inputElement) inputElement.value = '0';
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      saveRow(beg, add, '0', '0', field);
+      return;
+    }
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     saveRow(beg, add, am, pm, field);
   };
@@ -351,11 +361,11 @@ export const InventoryRow = memo(function InventoryRow({
             type="number" 
             min="0"
             step="any"
-            value={am} 
+            value={optTotal === 0 ? '0' : am} 
             onFocus={() => handleSalesFocusOrClick('am')}
             onClick={() => handleSalesFocusOrClick('am')}
-            onChange={e => handleInputChange('am', e.target.value)}
-            onBlur={() => handleBlur('am')}
+            onChange={e => handleInputChange('am', e.target.value, e.target)}
+            onBlur={e => handleBlur('am', e.target)}
             onKeyDown={e => handleKeyDown(e, 'am')}
             disabled={isReadOnly}
             title={optTotal === 0 ? "Cannot enter sales: Current stock is 0. Please add stock first." : undefined}
@@ -370,11 +380,11 @@ export const InventoryRow = memo(function InventoryRow({
             type="number" 
             min="0" 
             step="any"
-            value={pm} 
+            value={optTotal === 0 ? '0' : pm} 
             onFocus={() => handleSalesFocusOrClick('pm')}
             onClick={() => handleSalesFocusOrClick('pm')}
-            onChange={e => handleInputChange('pm', e.target.value)}
-            onBlur={() => handleBlur('pm')}
+            onChange={e => handleInputChange('pm', e.target.value, e.target)}
+            onBlur={e => handleBlur('pm', e.target)}
             onKeyDown={e => handleKeyDown(e, 'pm')}
             disabled={isReadOnly}
             title={optTotal === 0 ? "Cannot enter sales: Current stock is 0. Please add stock first." : undefined}

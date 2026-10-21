@@ -9,6 +9,7 @@ import type { InventoryItem, Category } from '../types';
 import { useSuppliers } from '../api/suppliers';
 import { addStock } from '../api';
 import { ImageUploadInput } from './ImageUploadInput';
+import { getBusinessDateString } from '@/lib/businessDate';
 
 interface Props {
   item?: InventoryItem; // If undefined, it's a create action
@@ -34,7 +35,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
     unit: item?.unit || 'pcs',
     unit_cost: item?.unit_cost?.toString() || '0',
     min_qty: item?.min_qty?.toString() || '0',
-    initial_qty: '0',
+    initial_qty: '',
     initial_expiry_date: '',
     image_path: item?.image_path || ''
   });
@@ -54,7 +55,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
       formData.supplier_a !== (item?.supplier_a || '') ||
       formData.supplier_b !== (item?.supplier_b || '') ||
       formData.image_path !== (item?.image_path || '') ||
-      (!item && (formData.initial_qty !== '0' || formData.initial_expiry_date !== ''))
+      (!item && (formData.initial_qty !== '' || formData.initial_expiry_date !== ''))
     );
   }, [formData, item, defaultCategoryId]);
 
@@ -124,22 +125,26 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
       return;
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const businessDate = getBusinessDateString();
 
-    if (!item && parseFloat(formData.initial_qty) < 0) {
-      setError("Initial stock quantity cannot be negative.");
-      return;
-    }
+    let initialQtyNum: number | undefined = undefined;
+    if (!item) {
+      const parsedQty = parseFloat(formData.initial_qty);
+      if (!formData.initial_qty || isNaN(parsedQty) || parsedQty <= 0) {
+        setError("Initial stock quantity must be greater than zero.");
+        return;
+      }
+      initialQtyNum = parsedQty;
 
-    const initialQtyNum = !item ? Math.max(0, parseFloat(formData.initial_qty) || 0) : 0;
-    if (initialQtyNum > 0 && !formData.initial_expiry_date) {
-      setError("Expiration date is required when adding initial stock (FEFO tracking)");
-      return;
-    }
+      if (!formData.initial_expiry_date) {
+        setError("Expiration date is mandatory for new stocked items.");
+        return;
+      }
 
-    if (formData.initial_expiry_date && formData.initial_expiry_date < todayStr) {
-      setError("Expiration date cannot be in the past. Stock is already expired.");
-      return;
+      if (formData.initial_expiry_date < businessDate) {
+        setError("Expiration date cannot be in the past (before current business date).");
+        return;
+      }
     }
 
     const selectedCategoryName = categories?.find(c => c.id === categoryIdToUse)?.name || 'General';
@@ -167,19 +172,19 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
   const handleAddBatchToExisting = async () => {
     if (!matchedExistingItem) return;
     const qty = parseFloat(formData.initial_qty);
-    if (!qty || qty <= 0) {
-      setError("QUANTITY REQUIRED");
+    if (!qty || isNaN(qty) || qty <= 0) {
+      setError("Initial stock quantity must be greater than zero.");
       return;
     }
 
     if (!formData.initial_expiry_date) {
-      setError("EXPIRATION DATE REQUIRED");
+      setError("Expiration date is mandatory when adding stock batches.");
       return;
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (formData.initial_expiry_date < todayStr) {
-      setError("Expiration date cannot be in the past. Stock is already expired.");
+    const businessDate = getBusinessDateString();
+    if (formData.initial_expiry_date < businessDate) {
+      setError("Expiration date cannot be in the past.");
       return;
     }
 
@@ -346,13 +351,20 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
               {!item && (
                 <>
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-foreground">Initial Stock Quantity</label>
+                    <label className="text-sm font-semibold text-foreground flex items-center justify-between">
+                      <span>Initial Stock Quantity <span className="text-rose-500 font-bold">*</span></span>
+                      <span className="text-[10px] text-amber-500 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                        REQUIRED &gt; 0
+                      </span>
+                    </label>
                     <Input 
                       type="number"
-                      min="0"
+                      min="0.001"
+                      step="any"
+                      required
                       value={formData.initial_qty}
                       onChange={e => setFormData({ ...formData, initial_qty: e.target.value })}
-                      placeholder="Initial units on hand"
+                      placeholder="Units on hand (e.g. 10)"
                     />
                   </div>
 
@@ -360,20 +372,16 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
                     <label className="text-sm font-semibold text-foreground flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-primary" />
-                        Initial Batch Expiry Date {parseFloat(formData.initial_qty) > 0 && <span className="text-rose-500 font-bold">*</span>}
+                        Initial Batch Expiry Date <span className="text-rose-500 font-bold">*</span>
                       </span>
-                      {parseFloat(formData.initial_qty) > 0 ? (
-                        <span className="text-[10px] text-rose-500 font-bold bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">
-                          REQUIRED FOR FEFO
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground font-semibold">Optional if 0 stock</span>
-                      )}
+                      <span className="text-[10px] text-rose-500 font-bold bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">
+                        REQUIRED FOR FEFO
+                      </span>
                     </label>
                     <Input 
                       type="date"
-                      min={new Date().toISOString().split('T')[0]}
-                      required={parseFloat(formData.initial_qty) > 0}
+                      min={getBusinessDateString()}
+                      required
                       value={formData.initial_expiry_date}
                       onChange={e => setFormData({ ...formData, initial_expiry_date: e.target.value })}
                     />
@@ -446,7 +454,7 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
             disabled={isSubmitting}
             className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold cursor-pointer"
           >
-            {isSubmitting ? 'Saving...' : 'Save Item'}
+            {isSubmitting ? 'Saving...' : item ? 'Save Changes' : 'Create Item & Add Stock'}
           </Button>
         </div>
       </div>

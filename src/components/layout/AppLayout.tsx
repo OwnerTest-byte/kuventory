@@ -32,8 +32,7 @@ import { useLogoutPrompt } from '@/features/auth/hooks/useLogoutPrompt';
 import { LogoutConfirmationModal } from '@/components/common/LogoutConfirmationModal';
 import { CommandPalette } from './CommandPalette';
 import { ItemFormModal } from '@/features/inventory/components/ItemFormModal';
-import { useItems } from '@/features/inventory/hooks/useItems';
-import { useStockMutations } from '@/features/inventory/hooks/useStockMutations';
+import { useCreateItem } from '@/features/inventory/hooks/useCreateItem';
 import { useUnreadNotificationsCount } from '@/features/inventory/hooks/useNotifications';
 import type { InventoryItem } from '@/features/inventory/types';
 
@@ -206,7 +205,7 @@ function SidebarNavigation({
   const userInitials = getUserInitials(profile || user?.email);
   const userDisplayName = formatUserDisplayName(profile, user?.email);
 
-  const isSuperUser = role === 'SUPER_ADMIN' || user?.email === 'superadmin@kuventory.com' || role === 'MASTER_ADMIN' || user?.email === 'master@kuventory.com';
+  const isSuperUser = role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN';
   const unreadCount = useUnreadNotificationsCount();
 
   const navList = [
@@ -480,8 +479,7 @@ export function AppLayout() {
   };
 
   const { theme, toggleTheme } = useTheme();
-  const { createItem } = useItems();
-  const { add } = useStockMutations();
+  const { createItemWithStock, createItem } = useCreateItem();
   const { profile, user, role } = useAuth();
   const unreadNotifications = useUnreadNotificationsCount();
   const location = useLocation();
@@ -525,17 +523,28 @@ export function AppLayout() {
 
   const handleCreateItem = async (
     data: Omit<InventoryItem, 'id' | 'is_archived' | 'created_at' | 'updated_at' | 'current_qty'>,
-    initialQty?: number
+    initialQty?: number,
+    initialExpiryDate?: string
   ) => {
     setIsSubmittingItem(true);
     try {
-      const newItem = await createItem(data);
-      if (initialQty && initialQty > 0) {
-        await add.mutateAsync({
-          itemId: newItem.id,
-          quantity: initialQty,
-          reason: 'Initial Opening Stock Balance'
+      if (initialQty && initialQty > 0 && initialExpiryDate) {
+        await createItemWithStock({
+          item_name: data.item_name,
+          category_id: data.category_id,
+          unit: data.unit,
+          initial_quantity: initialQty,
+          expiry_date: initialExpiryDate,
+          item_code: data.item_code,
+          description: data.description || '',
+          unit_cost: data.unit_cost,
+          min_quantity: data.min_qty,
+          supplier_a: data.supplier_a || '',
+          supplier_b: data.supplier_b || '',
+          image_path: data.image_path,
         });
+      } else {
+        await createItem(data);
       }
       setIsNewItemModalOpen(false);
     } finally {
