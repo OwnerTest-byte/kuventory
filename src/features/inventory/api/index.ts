@@ -178,9 +178,10 @@ export async function syncItemToTodayDailyInventory(
       .maybeSingle();
 
     if (!session) {
-      const { data: draftId } = await supabase.rpc('create_daily_inventory_draft', {
+      const res = await supabase.rpc('create_daily_inventory_draft', {
         p_target_date: today,
       });
+      const draftId = res?.data;
       if (draftId) {
         session = { id: draftId, state: 'DRAFT' };
       }

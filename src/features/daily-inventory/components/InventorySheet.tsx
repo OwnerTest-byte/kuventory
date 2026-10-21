@@ -351,8 +351,7 @@ export function InventorySheet({ session, isReadOnly, date, isCorrectionMode }: 
           beg: currentStock,
           add: 0,
           am: 0,
-          pm: 0,
-          ending: currentStock
+          pm: 0
         });
       if (insertError) throw insertError;
 
