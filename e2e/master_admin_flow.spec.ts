@@ -50,12 +50,12 @@ test.describe('Master Admin Authentication & Control Center Flow', () => {
     expect(outlineStyle.outline).not.toContain('rgb(255, 255, 255)');
   });
 
-  test('Smart login succeeds with master@kuventory.com and MasterAdmin2026', async ({ page }) => {
+  test('Master Admin login succeeds with exact credentials', async ({ page }) => {
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
 
     await page.fill('#email', 'master@kuventory.com');
-    await page.fill('#password', 'MasterAdmin2026'); // omitting trailing '!' to test smart auto-tolerance
+    await page.fill('#password', 'MasterAdmin2026!');
     await page.click('button[type="submit"]');
 
     const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');
@@ -72,13 +72,13 @@ test.describe('Master Admin Authentication & Control Center Flow', () => {
     await page.waitForTimeout(500);
   });
 
-  test('Master Admin Control Center displays all 10 modular sub-tabs and real metrics', async ({ page }) => {
+  test('Master Admin Control Center displays all 8 modular operational areas and real metrics', async ({ page }) => {
     test.setTimeout(60000);
     // 1. Log in
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
     await page.fill('#email', 'master@kuventory.com');
-    await page.fill('#password', 'MasterAdmin2026');
+    await page.fill('#password', 'MasterAdmin2026!');
     await page.click('button[type="submit"]');
 
     const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');
@@ -96,13 +96,12 @@ test.describe('Master Admin Authentication & Control Center Flow', () => {
     await page.waitForURL((url) => url.pathname.includes('/super-admin'), { timeout: 15000 });
 
     // Verify Master / Super Admin Console is rendered
-    await expect(page.locator('h1, h2').filter({ hasText: /Super Admin/ }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('h1, h2').filter({ hasText: /KUVENTORY Operations|Super Admin/ }).first()).toBeVisible({ timeout: 10000 });
 
-    // Verify Sub-navigation rail tabs
+    // Verify 8-area Sub-navigation rail tabs
     const tabs = [
-      'Overview', 'Database', 'Storage', 'Backups & Recovery',
-      'Scheduled Services', 'Monitoring', 'Security & Access',
-      'Incidents', 'Logs', 'Settings'
+      'Overview', 'Inventory Integrity', 'Daily Operations', 'People & Access',
+      'System Health', 'Data & Recovery', 'Jobs & Integrations', 'Audit & Settings'
     ];
 
     for (const tabTitle of tabs) {
@@ -110,24 +109,24 @@ test.describe('Master Admin Authentication & Control Center Flow', () => {
       await expect(tabButton).toBeVisible();
     }
 
-    // 3. Test Monitoring sub-tab
-    await page.locator('button', { hasText: 'Monitoring' }).first().click();
-    await expect(page.locator('text=Realtime Telemetry & WebSocket Engine')).toBeVisible({ timeout: 10000 });
+    // 3. Test Inventory Integrity sub-tab
+    await page.locator('button', { hasText: 'Inventory Integrity' }).first().click();
+    await expect(page.locator('text=Inventory Integrity & Stock Reconciliation')).toBeVisible({ timeout: 10000 });
 
-    // 4. Test Database sub-tab
-    await page.locator('button', { hasText: 'Database' }).first().click();
-    await expect(page.locator('text=PostgreSQL Engine & Real-Time Monitoring')).toBeVisible({ timeout: 10000 });
+    // 4. Test Daily Operations sub-tab
+    await page.locator('button', { hasText: 'Daily Operations' }).first().click();
+    await expect(page.locator('text=Daily Operations & Worksheet Completeness')).toBeVisible({ timeout: 10000 });
 
-    // 5. Test Security & Access sub-tab
-    await page.locator('button', { hasText: 'Security & Access' }).first().click();
+    // 5. Test People & Access sub-tab
+    await page.locator('button', { hasText: 'People & Access' }).first().click();
     await expect(page.locator('text=Security Clearance & Session Lease Management')).toBeVisible({ timeout: 10000 });
 
-    // 6. Test Scheduled Services sub-tab
-    await page.locator('button', { hasText: 'Scheduled Services' }).first().click();
-    await expect(page.locator('text=Background Automation & Maintenance Engine')).toBeVisible({ timeout: 10000 });
+    // 6. Test System Health sub-tab
+    await page.locator('button', { hasText: 'System Health' }).first().click();
+    await expect(page.locator('text=Live Realtime Stream')).toBeVisible({ timeout: 10000 });
 
-    // 7. Test Backups & Recovery sub-tab
-    await page.locator('button', { hasText: 'Backups & Recovery' }).first().click();
+    // 7. Test Data & Recovery sub-tab
+    await page.locator('button', { hasText: 'Data & Recovery' }).first().click();
     await expect(page.locator('text=Disaster Recovery & Recovery Registry')).toBeVisible({ timeout: 10000 });
 
     console.log('Master Admin E2E flow verified with 100% success!');

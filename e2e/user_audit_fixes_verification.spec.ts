@@ -97,7 +97,7 @@ test.describe('User Audit Fixes Verification (Playwright Functional End-to-End)'
     await page.waitForLoadState('networkidle');
 
     await page.fill('#email', 'master@kuventory.com');
-    await page.fill('#password', 'MasterAdmin2026');
+    await page.fill('#password', 'MasterAdmin2026!');
     await page.click('button[type="submit"]');
 
     const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');
@@ -134,7 +134,7 @@ test.describe('User Audit Fixes Verification (Playwright Functional End-to-End)'
     await page.waitForLoadState('networkidle');
 
     await page.fill('#email', 'master@kuventory.com');
-    await page.fill('#password', 'MasterAdmin2026');
+    await page.fill('#password', 'MasterAdmin2026!');
     await page.click('button[type="submit"]');
 
     const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');

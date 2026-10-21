@@ -946,6 +946,13 @@ export function DailyInventoryPage() {
                 <LayoutDashboard className="w-4 h-4 mr-2 text-muted-foreground" />
                 Return to Dashboard
               </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setShowCelebrationModal(false)}
+                className="w-full text-muted-foreground hover:text-foreground text-xs font-semibold cursor-pointer"
+              >
+                Stay on Worksheet
+              </Button>
             </div>
           </div>
         </DialogContent>

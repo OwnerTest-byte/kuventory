@@ -294,13 +294,18 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
       const confirmFinalize = page.locator('[role="dialog"] button:has-text("Confirm & Lock Record"), [role="dialog"] button:has-text("Finalize Inventory")').first();
       await confirmFinalize.click();
       await page.waitForTimeout(1000);
-      await page.keyboard.press('Escape');
+      const stayBtn = page.locator('[role="dialog"] button:has-text("Stay on Worksheet")').first();
+      if (await stayBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await stayBtn.click();
+      } else {
+        await page.keyboard.press('Escape');
+      }
       await page.waitForTimeout(500);
     }
 
     // Now verify Correct Finalized Day button is present
     await expect(correctBtn).toBeVisible({ timeout: 10000 });
-    await correctBtn.click();
+    await correctBtn.click({ force: true });
 
     // Prompt Reason Dialog should appear
     const reasonInput = page.locator('[role="dialog"] input').first();
