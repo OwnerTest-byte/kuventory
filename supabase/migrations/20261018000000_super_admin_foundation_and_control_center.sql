@@ -64,12 +64,52 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.is_master_admin() TO authenticated, anon;
 
+-- Update protect_profile_role to trust postgres and service_role migration runner
+CREATE OR REPLACE FUNCTION public.protect_profile_role()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  -- Superusers, service roles, and database migration runners are trusted
+  IF CURRENT_USER IN ('postgres', 'supabase_admin') OR 
+     SESSION_USER IN ('postgres', 'supabase_admin') OR
+     COALESCE(auth.role(), '') = 'service_role' THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.role IS DISTINCT FROM OLD.role THEN
+    IF NOT (
+      public.is_admin() OR public.is_super_admin()
+    ) THEN
+      RAISE EXCEPTION 'Privilege escalation rejected: only administrators can change user roles.';
+    END IF;
+
+    -- Only existing SUPER_ADMIN or MASTER_ADMIN can promote a user to elevated admin
+    IF UPPER(TRIM(NEW.role)) IN ('SUPER_ADMIN', 'MASTER_ADMIN') AND NOT (
+      public.is_super_admin() OR public.is_master_admin()
+    ) THEN
+      RAISE EXCEPTION 'Privilege escalation rejected: only Super Administrators can grant the elevated admin role.';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
 -- 2. PROVISION DEDICATED SUPER ADMIN ACCOUNT (superadmin@kuventory.com)
 DO $$
 DECLARE
   v_super_id UUID := '7a3e8b12-9c4d-4e5f-b6a1-2d3e4f5a6b7c';
   v_salt TEXT := extensions.gen_salt('bf');
+  v_phone TEXT := NULL;
 BEGIN
+  -- Only assign phone if it is not already taken by another account in auth.users
+  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE phone = '09917101298') THEN
+    v_phone := '09917101298';
+  END IF;
+
   -- If superadmin account does not exist, insert into auth.users
   IF NOT EXISTS (SELECT 1 FROM auth.users WHERE LOWER(email) = 'superadmin@kuventory.com') THEN
     INSERT INTO auth.users (
@@ -98,9 +138,9 @@ BEGIN
       'superadmin@kuventory.com',
       extensions.crypt(encode(extensions.gen_random_bytes(24), 'base64'), v_salt),
       now(),
-      '09917101298',
+      v_phone,
       '{"provider":"email","providers":["email"]}',
-      '{"role":"SUPER_ADMIN","first_name":"Super","last_name":"Admin","phone":"09917101298"}',
+      jsonb_build_object('role', 'SUPER_ADMIN', 'first_name', 'Super', 'last_name', 'Admin', 'phone', COALESCE(v_phone, '09917101298')),
       now(),
       now(),
       '', '', '', ''
@@ -150,10 +190,16 @@ BEGIN
         updated_at = now();
   ELSE
     SELECT id INTO v_super_id FROM auth.users WHERE LOWER(email) = 'superadmin@kuventory.com';
-    UPDATE auth.users
-    SET phone = '09917101298',
-        raw_user_meta_data = raw_user_meta_data || '{"role":"SUPER_ADMIN","phone":"09917101298"}'::jsonb
-    WHERE id = v_super_id;
+    IF v_phone IS NOT NULL THEN
+      UPDATE auth.users
+      SET phone = v_phone,
+          raw_user_meta_data = raw_user_meta_data || jsonb_build_object('role', 'SUPER_ADMIN', 'phone', v_phone)
+      WHERE id = v_super_id;
+    ELSE
+      UPDATE auth.users
+      SET raw_user_meta_data = raw_user_meta_data || '{"role":"SUPER_ADMIN"}'::jsonb
+      WHERE id = v_super_id;
+    END IF;
 
     UPDATE public.profiles
     SET role = 'SUPER_ADMIN',
@@ -162,10 +208,8 @@ BEGIN
     WHERE id = v_super_id;
   END IF;
 
-  -- Also migrate any existing master@kuventory.com to SUPER_ADMIN role
-  UPDATE public.profiles
-  SET role = 'SUPER_ADMIN'
-  WHERE role = 'MASTER_ADMIN' OR id IN (SELECT id FROM auth.users WHERE LOWER(email) = 'master@kuventory.com');
+  -- Preserve master@kuventory.com role (both MASTER_ADMIN and SUPER_ADMIN are elevated)
+  NULL;
 
 END $$;
 
