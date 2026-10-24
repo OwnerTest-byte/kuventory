@@ -330,7 +330,7 @@ export function DailyInventoryPage() {
               onClick={() => setShowCorrectionRequestModal(true)}
               disabled={hasPendingRequest}
               className="bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer shadow-xs disabled:opacity-50"
-              title={hasPendingRequest ? 'A correction request is already under review' : 'Submit a correction request for Admin & Super Admin review'}
+              title={hasPendingRequest ? 'A correction request is already under review' : 'Submit a correction request for Administrator review'}
             >
               <ClipboardList className="w-4 h-4 mr-1.5" />
               {hasPendingRequest ? 'Correction Pending' : 'Request Correction'}
@@ -541,7 +541,7 @@ export function DailyInventoryPage() {
                 Correction Requests Review Queue
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                Review submitted correction requests for this worksheet. Admin review provides Stage 1 verification; Super Admin approval atomically applies stock reconciliation.
+                Review submitted correction requests for this worksheet. An Administrator's approval verifies the request and atomically applies the stock reconciliation.
               </DialogDescription>
             </DialogHeader>
             <div className="py-2">

@@ -232,3 +232,35 @@ describe('KUVENTORY Role Model Cleanup & Admin-Only Correction Workflow Suite', 
     });
   });
 });
+
+describe('3. Correction approval UI must advertise the real admin-only workflow', () => {
+  it('verifies that active source code contains NO two-stage / Super Admin Final Approval copy', () => {
+    const srcRoot = path.resolve(__dirname, '..');
+    const offenders: string[] = [];
+
+    const scan = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name !== '__tests__' && entry.name !== 'node_modules') scan(full);
+        } else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))) {
+          if (full.includes('roleCleanupAndCorrectionWorkflow.test.ts')) continue;
+          const content = fs.readFileSync(full, 'utf8');
+          if (
+            content.includes('Super Admin Final Approval') ||
+            content.includes('Admin Review (Stage 1)') ||
+            /2-stage approval workflow/i.test(content)
+          ) {
+            offenders.push(full);
+          }
+        }
+      }
+    };
+    scan(srcRoot);
+
+    expect(
+      offenders,
+      `Active source still advertises a retired two-stage correction flow: ${offenders.join(', ')}`
+    ).toEqual([]);
+  });
+});

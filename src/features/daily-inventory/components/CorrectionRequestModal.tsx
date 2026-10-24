@@ -144,7 +144,7 @@ export function CorrectionRequestModal({
                 Request Finalized Inventory Correction
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Worksheet Date: <span className="font-semibold text-foreground">{inventoryDate}</span>. Proposed changes will enter a 2-stage approval workflow.
+                Worksheet Date: <span className="font-semibold text-foreground">{inventoryDate}</span>. Proposed changes will be queued for Administrator review and atomic application.
               </DialogDescription>
             </div>
           </div>
@@ -169,11 +169,11 @@ export function CorrectionRequestModal({
           <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-foreground flex items-start gap-3">
             <Info className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <p className="font-semibold text-amber-600 dark:text-amber-400">Strict Governance Protocol Active</p>
+              <p className="font-semibold text-amber-600 dark:text-amber-400">Governance Protocol Active</p>
               <p className="text-muted-foreground leading-relaxed">
-                Submitting this request does <strong>not</strong> change inventory or stock records. It will be queued for
-                <strong> Admin Review (Stage 1)</strong>, followed by <strong>Super Admin Final Approval (Stage 2)</strong>.
-                Only after both approvals are granted will the database atomically apply stock reconciliation and create an official revision.
+                Submitting this request does <strong>not</strong> change inventory or stock records. It will be queued
+                for <strong>Administrator review</strong>. Once an Administrator (who is not the requester) approves it,
+                the database atomically applies the stock reconciliation and creates an official revision.
               </p>
             </div>
           </div>
