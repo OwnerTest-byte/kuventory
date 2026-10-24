@@ -564,3 +564,177 @@ describe('LoginForm pending-review card (live admin-review status)', () => {
     expect(sessionStorage.getItem('kuventory_recovery_ticket')).toBeNull();
   });
 });
+
+describe('Recovery existence gate + truthful attempt messaging + conditional contacts (WS1/2/4)', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    localStorage.clear();
+  });
+
+  it('rejects an identifier that matches no account, with the server message and no ticket', async () => {
+    mockRpc({
+      submit_assisted_recovery_request: async () => ({
+        data: {
+          accepted: false,
+          account_exists: false,
+          server_now: iso(0),
+          message: 'No KUVENTORY account matches this identifier. Check the spelling or contact your administrator.',
+        },
+        error: null,
+      }),
+    });
+
+    render(<LoginForm />);
+    await openRecoveryModal();
+    await fillAndSubmitRecovery('ghost.user@kuventory.com');
+    await flush();
+
+    expect(
+      screen.getAllByRole('alert').some(a => a.textContent?.includes('No KUVENTORY account matches this identifier'))
+    ).toBe(true);
+    expect(screen.queryByText('Recovery Ticket Logged')).not.toBeInTheDocument();
+    expect(sessionStorage.getItem('kuventory_recovery_ticket')).toBeNull();
+  });
+
+  it('shows the attempt count once, clears it on lockout, and reports the fresh count after expiry', async () => {
+    let phase: 'fail4' | 'lock' | 'after-expiry' = 'fail4';
+    mockRpc({
+      check_account_lockout: async () => ({
+        data: { status: 'UNLOCKED', is_locked: false, failed_attempts: 0, server_now: iso(0) },
+        error: null,
+      }),
+      record_failed_login_attempt: async () => {
+        if (phase === 'fail4') {
+          return { data: { status: 'UNLOCKED', is_locked: false, failed_attempts: 4, server_now: iso(0) }, error: null };
+        }
+        if (phase === 'lock') {
+          return {
+            data: { status: 'LOCKED', is_locked: true, failed_attempts: 5, locked_until: iso(300_000), seconds_remaining: 300, lockout_token: 'tok-ws2', server_now: iso(0) },
+            error: null,
+          };
+        }
+        return { data: { status: 'UNLOCKED', is_locked: false, failed_attempts: 1, server_now: iso(300_000) }, error: null };
+      },
+      check_lockout_status_by_token: async () => ({
+        data: { status: 'EXPIRED', is_locked: false, token_valid: true, server_now: iso(300_000) },
+        error: null,
+      }),
+    });
+    const signIn = vi.mocked(supabase.auth.signInWithPassword);
+    signIn.mockResolvedValue({ data: { session: null }, error: { message: 'Invalid login credentials' } } as any);
+
+    render(<LoginForm />);
+
+    // 4th failure: plain error + single truthful sub-note.
+    await submitLogin('staff@kuventory.com', 'wrongpass');
+    expect(screen.getByText('Invalid email or password.')).toBeInTheDocument();
+    expect(screen.getByText(/1 attempt remaining before the account locks automatically/i)).toBeInTheDocument();
+
+    // 5th failure: lockout card replaces the form — no stale note anywhere.
+    phase = 'lock';
+    await submitLogin('staff@kuventory.com', 'wrongpass');
+    expect(screen.getByText(/sign-in temporarily paused/i)).toBeInTheDocument();
+    expect(screen.queryByText(/attempt(s)? remaining before the account locks automatically/i)).not.toBeInTheDocument();
+
+    // Lockout expires: clean banner, still no stale attempt note.
+    await act(async () => {
+      vi.advanceTimersByTime(300_000);
+    });
+    await flush();
+    expect(screen.getByText(/lockout period has ended/i)).toBeInTheDocument();
+    expect(screen.queryByText(/attempt(s)? remaining before the account locks automatically/i)).not.toBeInTheDocument();
+
+    // Fresh window after expiry: server says attempt 1 -> truthful "4 remaining".
+    phase = 'after-expiry';
+    await submitLogin('staff@kuventory.com', 'wrongpass');
+    expect(screen.getByText(/4 attempts remaining before the account locks automatically/i)).toBeInTheDocument();
+  });
+
+  it('renders each contact detail only when provided and hides the card when a contact has none', async () => {
+    const { fetchPublicSupportContacts } = await import('@/features/admin/services/profileService');
+    vi.mocked(fetchPublicSupportContacts).mockResolvedValue([
+      {
+        display_name: 'Admin One',
+        job_title: 'Branch Administrator',
+        support_phone: '09171234567',
+        support_email: null,
+        avatar_url: null,
+        role: 'ADMIN',
+        links: [{ id: 'l1', label: 'Facebook Page', platform: 'facebook', url: 'https://facebook.com/kuventory', sort_order: 1 }],
+      },
+      {
+        display_name: 'Admin Two',
+        job_title: 'System Administrator',
+        support_phone: null,
+        support_email: null,
+        avatar_url: null,
+        role: 'SUPER_ADMIN',
+        links: [],
+      },
+    ] as any);
+
+    mockRpc({});
+    render(<LoginForm />);
+    await openRecoveryModal();
+    await flush();
+
+    // Admin One: phone row + link chip; no email row for them.
+    expect(screen.getByText('09171234567')).toBeInTheDocument();
+    expect(screen.getByText('Facebook Page')).toBeInTheDocument();
+    expect(screen.queryByText(/Email:/i)).not.toBeInTheDocument();
+    // Admin Two has no public method at all: the header shows, but their name
+    // must NOT be listed as a contactable channel.
+    expect(screen.queryByText(/Admin Two/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Admin One/i)).toBeInTheDocument();
+  });
+
+  it('hides the entire contacts card when no administrator provided any detail', async () => {
+    const { fetchPublicSupportContacts } = await import('@/features/admin/services/profileService');
+    vi.mocked(fetchPublicSupportContacts).mockResolvedValue([
+      {
+        display_name: 'Admin Three',
+        job_title: 'Branch Administrator',
+        support_phone: null,
+        support_email: null,
+        avatar_url: null,
+        role: 'ADMIN',
+        links: [],
+      },
+    ] as any);
+
+    mockRpc({});
+    render(<LoginForm />);
+    await openRecoveryModal();
+    await flush();
+
+    expect(screen.queryByText('Administrator Support')).not.toBeInTheDocument();
+  });
+
+  it('ticket panel uses the theme-aware palette (light base + dark variants)', async () => {
+    mockRpc({
+      submit_assisted_recovery_request: async () => ({
+        data: {
+          accepted: true,
+          throttled: false,
+          request_reference: 'REF-20261025-THEME1',
+          status_credential: 'ST-' + 'ef'.repeat(16),
+          server_now: iso(0),
+          next_allowed_at: iso(120_000),
+          seconds_remaining: 120,
+          message: 'received',
+        },
+        error: null,
+      }),
+    });
+    render(<LoginForm />);
+    await openRecoveryModal();
+    await fillAndSubmitRecovery('staff@kuventory.com');
+
+    const panel = document.querySelector('[class*="bg-emerald-50/70"]');
+    expect(panel).toBeTruthy();
+    expect(panel!.className).toContain('dark:bg-emerald-950/40');
+    const referenceBlock = document.querySelector('[class*="bg-white/70"]');
+    expect(referenceBlock).toBeTruthy();
+    expect(referenceBlock!.className).toContain('dark:bg-black/50');
+  });
+});

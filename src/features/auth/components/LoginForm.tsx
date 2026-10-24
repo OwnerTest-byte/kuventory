@@ -193,6 +193,9 @@ export function LoginForm() {
 
       if (res.outcome === 'LOCKED' && res.lockedUntil) {
         setLockoutVerifyError(null);
+        // The attempts counter is meaningless once the lockout engages (the
+        // locked card replaces the form); drop any stale value.
+        setAttemptsRemaining(null);
         setLockout(prev => ({
           lockedUntil: res.lockedUntil!,
           secondsRemaining: computeRemainingSeconds(res.lockedUntil, serverClockRef.current),
@@ -204,6 +207,9 @@ export function LoginForm() {
       // Verified non-locked outcomes — only these may clear the locked screen.
       setLockout(null);
       setLockoutVerifyError(null);
+      // After expiry/unlock the server starts a fresh 15-minute window, so
+      // any previously displayed attempt count is stale and must not survive.
+      setAttemptsRemaining(null);
       if (res.outcome === 'ADMIN_UNLOCKED') {
         setAuthError('Your account lockout has been lifted by an administrator. You may now sign in.');
       } else if (res.outcome === 'EXPIRED') {
@@ -472,6 +478,16 @@ export function LoginForm() {
     const email = data.email.trim().toLowerCase();
     lockoutEmailRef.current = email;
 
+    // The remember flag must be settled BEFORE authentication: it decides
+    // which storage the auth token is written to during sign-in (remembered
+    // -> persists across browser restarts; not remembered -> dies with the
+    // browser session).
+    if (rememberMe) {
+      localStorage.setItem('kuventory_remember_me', 'true');
+    } else {
+      localStorage.removeItem('kuventory_remember_me');
+    }
+
     try {
       // 1. Server-authoritative pre-check before password verification.
       //    If the status cannot be verified, do NOT proceed as if unlocked.
@@ -508,13 +524,11 @@ export function LoginForm() {
             'Invalid email or password. (The attempt could not be recorded because the server was unreachable — lockout status unverified. Please retry.)'
           );
         } else {
+          // The sub-note under the banner is the single display of the
+          // remaining count, always driven by this fresh server response.
           const remaining = Math.max(0, 5 - (attemptResult.failedAttempts || 1));
           setAttemptsRemaining(remaining);
-          setAuthError(
-            remaining > 0
-              ? `Invalid email or password. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before 30-minute lockout.`
-              : 'Invalid email or password.'
-          );
+          setAuthError('Invalid email or password.');
         }
         setIsLoading(false);
         return;
@@ -542,12 +556,12 @@ export function LoginForm() {
       }
 
       if (activeSession) {
+        // Email convenience only — the session-persistence flag was already
+        // applied before sign-in (see onSubmit).
         if (rememberMe) {
           localStorage.setItem('kuventory_remembered_email', email);
-          localStorage.setItem('kuventory_remember_me', 'true');
         } else {
           localStorage.removeItem('kuventory_remembered_email');
-          localStorage.removeItem('kuventory_remember_me');
         }
 
         // Deterministic session lease claim: verify if account is already active on another device
@@ -745,39 +759,39 @@ export function LoginForm() {
       {/* ------------------------------------------------------------- */}
       {lockout ? (
         <div className="space-y-5 animate-in fade-in zoom-in-95 duration-200">
-          <div className="p-5 rounded-2xl bg-rose-950/80 border border-rose-500/50 shadow-xl space-y-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 mx-auto flex items-center justify-center">
+          <div className="p-5 rounded-2xl bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-500/50 shadow-xl space-y-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 mx-auto flex items-center justify-center">
               <ShieldAlert className="w-6 h-6" />
             </div>
 
             <div className="space-y-1">
-              <h3 className="font-bold text-base text-rose-100">Sign-In Temporarily Paused</h3>
-              <p className="text-xs text-rose-200/80">
+              <h3 className="font-bold text-base text-rose-900 dark:text-rose-100">Sign-In Temporarily Paused</h3>
+              <p className="text-xs text-rose-700 dark:text-rose-200/80">
                 5 consecutive failed login attempts detected. Access is locked for 30 minutes to protect your account.
               </p>
             </div>
 
             {/* Countdown Display — derived from the database locked_until timestamp */}
-            <div className="p-3.5 rounded-xl bg-black/40 border border-rose-500/30 flex flex-col items-center justify-center space-y-1">
-              <span className="text-[10px] uppercase font-bold tracking-widest text-rose-300 flex items-center gap-1.5">
+            <div className="p-3.5 rounded-xl bg-rose-100/70 dark:bg-black/40 border border-rose-200 dark:border-rose-500/30 flex flex-col items-center justify-center space-y-1">
+              <span className="text-[10px] uppercase font-bold tracking-widest text-rose-600 dark:text-rose-300 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5" /> Time Remaining
               </span>
               <span
-                className="font-mono text-3xl font-black text-white tracking-wider tabular-nums"
+                className="font-mono text-3xl font-black text-rose-950 dark:text-white tracking-wider tabular-nums"
                 aria-live="polite"
                 role="timer"
               >
                 {formatTimer(lockout.secondsRemaining || 0)}
               </span>
-              <span className="text-[10px] text-rose-300/70">
+              <span className="text-[10px] text-rose-600/80 dark:text-rose-300/70">
                 Synced with database security ledger
               </span>
             </div>
 
             {lockoutVerifyError && (
               <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left flex items-start gap-2" role="alert">
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                <span className="text-[11px] text-amber-200 leading-relaxed">{lockoutVerifyError}</span>
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+                <span className="text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed">{lockoutVerifyError}</span>
               </div>
             )}
 
@@ -789,7 +803,7 @@ export function LoginForm() {
                 size="sm"
                 disabled={isCheckingLockout}
                 onClick={handleManualCheckLockout}
-                className="w-full h-9 text-xs rounded-xl border-rose-500/30 text-rose-200 hover:bg-rose-900/40 hover:text-white"
+                className="w-full h-9 text-xs rounded-xl border-rose-300 dark:border-rose-500/30 text-rose-700 dark:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-900/40 dark:hover:text-white"
               >
                 {isCheckingLockout ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
@@ -799,7 +813,7 @@ export function LoginForm() {
                 Check Lockout Status Now
               </Button>
 
-              <p className="text-[11px] text-rose-300/60 italic">
+              <p className="text-[11px] text-rose-600/80 dark:text-rose-300/60 italic">
                 An administrator can clear your lockout early with an authorized override.
               </p>
             </div>
@@ -884,7 +898,7 @@ export function LoginForm() {
               ? 'p-4 rounded-2xl bg-primary/5 dark:bg-primary/10 border border-primary/30 shadow-sm space-y-2.5 animate-in fade-in duration-200'
               : ticketStatus.kind === 'COMPLETED'
                 ? 'p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/40 shadow-sm space-y-2.5 animate-in fade-in duration-200'
-                : 'p-4 rounded-2xl bg-rose-950/70 border border-rose-500/40 shadow-sm space-y-2.5 animate-in fade-in duration-200'
+                : 'p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/70 border border-rose-200 dark:border-rose-500/40 shadow-sm space-y-2.5 animate-in fade-in duration-200'
           }>
             <div className="flex items-start gap-3">
               <div className={
@@ -931,8 +945,8 @@ export function LoginForm() {
                   </>
                 ) : (
                   <>
-                    <p className="text-sm font-bold text-rose-100">Your recovery request was {ticketStatus.kind === 'REJECTED' ? 'declined' : 'closed'}</p>
-                    <p className="text-[11px] text-rose-200/80 leading-relaxed mt-1 break-words">
+                    <p className="text-sm font-bold text-rose-900 dark:text-rose-100">Your recovery request was {ticketStatus.kind === 'REJECTED' ? 'declined' : 'closed'}</p>
+                    <p className="text-[11px] text-rose-700 dark:text-rose-200/80 leading-relaxed mt-1 break-words">
                       {ticketStatus.decisionReason || 'No reason was provided. Contact your administrator through the official channels for next steps.'}
                     </p>
                   </>
@@ -943,7 +957,7 @@ export function LoginForm() {
                   type="button"
                   onClick={dismissTicketCard}
                   aria-label="Dismiss recovery notice"
-                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 cursor-pointer shrink-0"
+                  className="p-1 rounded-lg text-rose-500 dark:text-rose-300 hover:text-rose-700 dark:hover:text-rose-100 hover:bg-rose-100 dark:hover:bg-rose-900/40 cursor-pointer shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -958,13 +972,13 @@ export function LoginForm() {
         <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-5" aria-label="Sign In Form">
           {((authError && !authError.includes('active on another device')) ||
             (sessionLeaseError && !sessionLeaseError.includes('active on another device') && !sessionLeaseError.includes('ACCOUNT IN USE'))) && (
-            <div className="p-3.5 text-sm font-semibold text-rose-200 bg-rose-950/80 border border-rose-500/40 rounded-xl flex items-center gap-2.5 animate-in fade-in" role="alert">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <div className="p-3.5 text-sm font-semibold text-rose-800 dark:text-rose-200 bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-500/40 rounded-xl flex items-center gap-2.5 animate-in fade-in" role="alert">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-500 dark:text-rose-400" />
               <div className="text-left">
                 <span className="font-bold block tracking-wide">{authError || sessionLeaseError}</span>
                 {attemptsRemaining !== null && attemptsRemaining > 0 && (
-                  <span className="text-xs text-rose-300 block font-normal mt-0.5">
-                    Account locks automatically after {attemptsRemaining} more failed attempt{attemptsRemaining === 1 ? '' : 's'}.
+                  <span className="text-xs text-rose-600 dark:text-rose-300 block font-normal mt-0.5">
+                    {attemptsRemaining} attempt{attemptsRemaining === 1 ? '' : 's'} remaining before the account locks automatically.
                   </span>
                 )}
               </div>
@@ -1080,14 +1094,14 @@ export function LoginForm() {
           </div>
 
           <div className="flex items-center justify-between py-1">
-            <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground select-none">
+            <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground select-none" title="Keeps you signed in on this device after closing the browser, and remembers your email. Unchecked, your session ends when the browser closes.">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={e => setRememberMe(e.target.checked)}
                 className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
               />
-              <span>Remember my email</span>
+              <span>Remember me on this device</span>
             </label>
           </div>
 
@@ -1152,16 +1166,16 @@ export function LoginForm() {
                   </p>
                 </div>
 
-                <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-left space-y-3">
-                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <div className="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-500/40 text-left space-y-3">
+                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <span>Recovery Ticket Logged</span>
                   </div>
                   {ticketStatus && (
                     <div aria-live="polite" className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border w-fit">
                       {ticketStatus.kind === 'PENDING' ? (
-                        <span className="flex items-center gap-1.5 bg-primary/10 text-primary border-primary/20">
-                          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                        <span className="flex items-center gap-1.5 bg-muted text-foreground border-border">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                           Administrators reviewing
                         </span>
                       ) : ticketStatus.kind === 'COMPLETED' ? (
@@ -1173,20 +1187,20 @@ export function LoginForm() {
                       )}
                     </div>
                   )}
-                  <p className="text-xs text-emerald-200/90 leading-relaxed">
+                  <p className="text-xs text-emerald-700 dark:text-emerald-200/90 leading-relaxed">
                     Your recovery request is safely recorded. An administrator will verify your identity through the
                     official channels below before any password change is made.
                   </p>
 
-                  <div className="p-3 rounded-lg bg-black/50 border border-emerald-500/30 space-y-1">
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400">Request Reference</span>
+                  <div className="p-3 rounded-lg bg-white/70 dark:bg-black/50 border border-emerald-200 dark:border-emerald-500/30 space-y-1">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 dark:text-emerald-400">Request Reference</span>
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-mono text-base font-black text-white select-all break-all">{assistedTicket.reference}</p>
+                      <p className="font-mono text-base font-black text-foreground select-all break-all">{assistedTicket.reference}</p>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="h-7 px-2 text-[10px] shrink-0 border-emerald-500/40 text-emerald-200 hover:bg-emerald-900/40"
+                        className="h-7 px-2 text-[10px] shrink-0 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
                         onClick={() => handleCopy('Reference', assistedTicket.reference)}
                         aria-label="Copy request reference"
                       >
@@ -1195,15 +1209,15 @@ export function LoginForm() {
                     </div>
                   </div>
 
-                  <div className="p-3 rounded-lg bg-black/50 border border-amber-500/30 space-y-1">
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400">Status Credential (shown once)</span>
+                  <div className="p-3 rounded-lg bg-amber-50 dark:bg-black/50 border border-amber-200 dark:border-amber-500/30 space-y-1">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-amber-600 dark:text-amber-400">Status Credential (shown once)</span>
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-mono text-xs font-bold text-white select-all break-all">{assistedTicket.credential}</p>
+                      <p className="font-mono text-xs font-bold text-foreground select-all break-all">{assistedTicket.credential}</p>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="h-7 px-2 text-[10px] shrink-0 border-amber-500/40 text-amber-200 hover:bg-amber-900/40"
+                        className="h-7 px-2 text-[10px] shrink-0 border-amber-300 dark:border-amber-500/40 text-amber-700 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/40"
                         onClick={() => handleCopy('Credential', assistedTicket.credential)}
                         aria-label="Copy status credential"
                       >
@@ -1213,7 +1227,7 @@ export function LoginForm() {
                   </div>
 
                   {copyNotice && (
-                    <p className="text-[11px] text-emerald-300" role="status">{copyNotice}</p>
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-300" role="status">{copyNotice}</p>
                   )}
 
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -1301,9 +1315,11 @@ export function LoginForm() {
               </>
             )}
 
-            {/* Configured Support Contact Details */}
-            {supportContacts.length > 0 && (
-              <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 text-xs space-y-2 text-left">
+            {/* Configured Support Contact Details — each row renders only when
+                the administrator actually provided that detail; the card hides
+                entirely when no contact carries any public method. */}
+            {supportContacts.some(c => c.support_phone || c.support_email || (c.links && c.links.length > 0)) && (
+              <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 text-xs space-y-2.5 text-left">
                 <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
                   <span className="font-bold text-foreground text-xs flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-primary" />
@@ -1312,27 +1328,55 @@ export function LoginForm() {
                   <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Official Channels</span>
                 </div>
 
-                <div className="space-y-1.5 text-[11px] text-foreground/80">
-                  {supportContacts[0].support_phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-3.5 h-3.5 text-primary shrink-0" />
-                      <span className="font-medium text-muted-foreground">Hotline: </span>
-                      <a href={`tel:${supportContacts[0].support_phone}`} className="hover:underline font-mono text-foreground font-bold">
-                        {supportContacts[0].support_phone}
-                      </a>
-                    </div>
-                  )}
+                {supportContacts.map((contact, idx) => (
+                  <div key={idx} className="space-y-1.5">
+                    {(contact.support_phone || contact.support_email || (contact.links && contact.links.length > 0)) && (
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        {contact.display_name || 'System Administrator'}
+                        {contact.job_title ? ` — ${contact.job_title}` : ''}
+                      </p>
+                    )}
 
-                  {supportContacts[0].support_email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-3.5 h-3.5 text-primary shrink-0" />
-                      <span className="font-medium text-muted-foreground">Email: </span>
-                      <a href={`mailto:${supportContacts[0].support_email}`} className="hover:underline text-foreground font-semibold">
-                        {supportContacts[0].support_email}
-                      </a>
+                    <div className="space-y-1.5 text-[11px] text-foreground/80">
+                      {contact.support_phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-3.5 h-3.5 text-primary shrink-0" />
+                          <span className="font-medium text-muted-foreground">Hotline: </span>
+                          <a href={`tel:${contact.support_phone}`} className="hover:underline font-mono text-foreground font-bold">
+                            {contact.support_phone}
+                          </a>
+                        </div>
+                      )}
+
+                      {contact.support_email && (
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-3.5 h-3.5 text-primary shrink-0" />
+                          <span className="font-medium text-muted-foreground">Email: </span>
+                          <a href={`mailto:${contact.support_email}`} className="hover:underline text-foreground font-semibold">
+                            {contact.support_email}
+                          </a>
+                        </div>
+                      )}
+
+                      {contact.links && contact.links.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
+                          {contact.links.map(link => (
+                            <a
+                              key={link.id}
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-muted hover:bg-muted/80 text-foreground border border-border/60 transition-colors"
+                            >
+                              <span>{link.label}</span>
+                              <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+                            </a>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </div>
+                ))}
               </div>
             )}
 
