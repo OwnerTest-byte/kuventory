@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { downloadCsv, escapeCsvField } from '../export/csv';
 import { getBusinessDateString } from '@/lib/businessDate';
+import { ErrorState } from '@/components/common/ErrorState';
 
 export function ReportsLibraryPage() {
   const location = useLocation();
@@ -61,7 +62,13 @@ export function ReportsLibraryPage() {
   const totalPages = Math.ceil(totalCount / limit);
 
   // Tab 2: Live Stock & Valuation
-  const { data: inventory = [], isLoading: isInvLoading } = useQuery({
+  const {
+    data: inventory = [],
+    isLoading: isInvLoading,
+    isError: isInvError,
+    error: invError,
+    refetch: refetchInventory,
+  } = useQuery({
     queryKey: ['inventory'],
     queryFn: getInventory,
   });
@@ -87,7 +94,13 @@ export function ReportsLibraryPage() {
 
   // Tab 3: Movement Audit
   const [movementFilterDate, setMovementFilterDate] = useState('');
-  const { data: movements = [], isLoading: isMovementsLoading } = useQuery({
+  const {
+    data: movements = [],
+    isLoading: isMovementsLoading,
+    isError: isMovementsError,
+    error: movementsError,
+    refetch: refetchMovements,
+  } = useQuery({
     queryKey: ['global-stock-history'],
     queryFn: () => getStockMovementHistory(),
   });
@@ -107,7 +120,13 @@ export function ReportsLibraryPage() {
   }, [inventory]);
 
   // Tab 5: Expiry Risk & Active Batches
-  const { data: batches = [], isLoading: isBatchesLoading } = useQuery({
+  const {
+    data: batches = [],
+    isLoading: isBatchesLoading,
+    isError: isBatchesError,
+    error: batchesError,
+    refetch: refetchBatches,
+  } = useQuery({
     queryKey: ['report-active-batches'],
     queryFn: getAllActiveBatches,
   });
@@ -233,6 +252,18 @@ export function ReportsLibraryPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 text-foreground">
+      {(isInvError || isMovementsError || isBatchesError) && (
+        <ErrorState
+          error={invError || movementsError || batchesError}
+          operation="load the report data"
+          onRetry={() => {
+            void refetchInventory();
+            void refetchMovements();
+            void refetchBatches();
+          }}
+          retryLabel="Refresh Data"
+        />
+      )}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 border-border">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">

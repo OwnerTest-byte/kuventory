@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { normalizeUserError } from '@/lib/errors';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { getBusinessDateString } from '@/lib/businessDate';
 import { 
@@ -465,7 +466,7 @@ export function DailyInventoryPage() {
                   : 'Unable to Load Worksheet'}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                {(error as Error).message}
+                {normalizeUserError(error, 'load this worksheet').message}
               </p>
             </div>
           </div>

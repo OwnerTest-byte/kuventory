@@ -29,6 +29,7 @@ import {
 } from '@/features/auth/services/passwordResetService';
 import { LoginLockoutsTab } from '../components/LoginLockoutsTab';
 import { AssistedRecoveryQueue } from '../components/AssistedRecoveryQueue';
+import { ErrorState } from '@/components/common/ErrorState';
 import { CorrectionRequestsQueue } from '@/features/daily-inventory/components/CorrectionRequestsQueue';
 import { MyProfileModal } from '../components/MyProfileModal';
 
@@ -331,6 +332,7 @@ export function AdminPage() {
   }, [users]);
 
   // Toggle role mutation
+  const [roleActionError, setRoleActionError] = useState<Error | { message: string } | null>(null);
   const toggleRoleMutation = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string; newRole: 'ADMIN' | 'USER' }) => {
       const { error } = await supabase.rpc('admin_update_user_role', {
@@ -339,11 +341,12 @@ export function AdminPage() {
       });
       if (error) throw error;
     },
+    onMutate: () => setRoleActionError(null),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles-admin'] });
     },
-    onError: (err: any) => {
-      alert(err.message || 'Failed to update user role');
+    onError: (err: unknown) => {
+      setRoleActionError(err instanceof Error ? err : { message: String((err as any)?.message ?? err) });
     }
   });
 
@@ -700,6 +703,15 @@ export function AdminPage() {
 
         {/* TAB 2: USER & STAFF MANAGEMENT */}
         <TabsContent value="users" className="space-y-6">
+          {roleActionError !== null && (
+            <ErrorState
+              error={roleActionError}
+              operation="update the user role"
+              onRetry={() => setRoleActionError(null)}
+              retryLabel="Dismiss"
+              compact
+            />
+          )}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl border border-border">
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">

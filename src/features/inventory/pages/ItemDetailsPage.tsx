@@ -112,39 +112,32 @@ export function ItemDetailsPage() {
   }
 
   const handleStockUpdateSubmit = async (data: any) => {
-    try {
-      if (data.action === 'add') {
-        await add.mutateAsync({
-          itemId: item.id,
-          quantity: data.quantity,
-          expiryDate: data.expiryDate,
-          reason: data.reason
-        });
-      } else if (data.action === 'remove') {
-        await remove.mutateAsync({
-          itemId: item.id,
-          quantity: data.quantity,
-          reason: data.reason
-        });
-      } else if (data.action === 'adjust') {
-        await adjust.mutateAsync({
-          itemId: item.id,
-          targetQuantity: data.quantity,
-          reason: data.reason
-        });
-      }
-      setIsUpdateStockOpen(false);
-      refetchItem();
-      refetchBatches();
-      refetchHistory();
-    } catch (err: any) {
-      const msg = err.message || '';
-      if (msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('deficit')) {
-        alert(`INSUFFICIENT STOCK\nAvailable: ${item.current_qty} ${item.unit || 'pcs'}`);
-      } else {
-        alert(err.message || 'Operation failed');
-      }
+    // Failures propagate to StockUpdateModal, which explains them inline and
+    // keeps the entered values — no blocking alert()s.
+    if (data.action === 'add') {
+      await add.mutateAsync({
+        itemId: item.id,
+        quantity: data.quantity,
+        expiryDate: data.expiryDate,
+        reason: data.reason
+      });
+    } else if (data.action === 'remove') {
+      await remove.mutateAsync({
+        itemId: item.id,
+        quantity: data.quantity,
+        reason: data.reason
+      });
+    } else if (data.action === 'adjust') {
+      await adjust.mutateAsync({
+        itemId: item.id,
+        targetQuantity: data.quantity,
+        reason: data.reason
+      });
     }
+    setIsUpdateStockOpen(false);
+    refetchItem();
+    refetchBatches();
+    refetchHistory();
   };
 
   const handleEditSubmit = async (formData: any) => {

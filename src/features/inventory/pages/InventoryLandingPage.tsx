@@ -23,6 +23,7 @@ import { format } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getNotificationRoute } from '../utils/notificationRouter';
+import { ErrorState } from '@/components/common/ErrorState';
 
 export function InventoryLandingPage() {
   const navigate = useNavigate();
@@ -31,7 +32,12 @@ export function InventoryLandingPage() {
   const isAuthorizedToCorrect = !!user;
 
   // 1. Fetch Inventory Items
-  const { data: items = [] } = useQuery({
+  const {
+    data: items = [],
+    isError: isItemsError,
+    error: itemsError,
+    refetch: refetchItems,
+  } = useQuery({
     queryKey: ['inventory'],
     queryFn: getInventory,
   });
@@ -103,6 +109,14 @@ export function InventoryLandingPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
+      {isItemsError && (
+        <ErrorState
+          error={itemsError}
+          operation="load your inventory overview"
+          onRetry={() => void refetchItems()}
+          retryLabel="Refresh Data"
+        />
+      )}
       {/* 1. HEADER: Time Greeting & Current User */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
         <div>

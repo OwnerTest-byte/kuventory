@@ -10,6 +10,7 @@ import { useSuppliers } from '../api/suppliers';
 import { addStock } from '../api';
 import { ImageUploadInput } from './ImageUploadInput';
 import { getBusinessDateString } from '@/lib/businessDate';
+import { normalizeUserError } from '@/lib/errors';
 
 interface Props {
   item?: InventoryItem; // If undefined, it's a create action
@@ -165,8 +166,9 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
         image_path: formData.image_path || null,
         category_name: selectedCategoryName
       }, !item ? initialQtyNum : undefined, formData.initial_expiry_date || undefined);
-    } catch (err: any) {
-      setError(err.message || 'Failed to save item');
+    } catch (err: unknown) {
+      // Your entered information is preserved on screen; say so honestly.
+      setError(normalizeUserError(err, 'save this item').message);
     }
   };
 
@@ -200,8 +202,8 @@ export function ItemFormModal({ item, defaultCategoryId, onClose, onSubmit, isSu
       setTimeout(() => {
         onClose();
       }, 1000);
-    } catch (err: any) {
-      setError(err.message || 'SAVE FAILED');
+    } catch (err: unknown) {
+      setError(normalizeUserError(err, 'add this stock batch').message);
     }
   };
 

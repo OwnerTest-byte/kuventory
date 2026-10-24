@@ -175,36 +175,29 @@ export function ItemsCatalogPage() {
 
   const handleStockUpdateSubmit = async (data: any) => {
     if (!stockUpdateItem) return;
-    try {
-      if (data.action === 'add') {
-        await add.mutateAsync({
-          itemId: stockUpdateItem.id,
-          quantity: data.quantity,
-          expiryDate: data.expiryDate,
-          reason: data.reason
-        });
-      } else if (data.action === 'remove') {
-        await remove.mutateAsync({
-          itemId: stockUpdateItem.id,
-          quantity: data.quantity,
-          reason: data.reason
-        });
-      } else if (data.action === 'adjust') {
-        await adjust.mutateAsync({
-          itemId: stockUpdateItem.id,
-          targetQuantity: data.quantity,
-          reason: data.reason
-        });
-      }
-      setStockUpdateItem(null);
-    } catch (err: any) {
-      const msg = err.message || '';
-      if (msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('deficit')) {
-        alert(`INSUFFICIENT STOCK\nAvailable: ${stockUpdateItem?.current_qty} ${stockUpdateItem?.unit || 'pcs'}`);
-      } else {
-        alert(err.message || 'Operation failed');
-      }
+    // Failures propagate to StockUpdateModal, which explains them inline and
+    // keeps the entered values — no blocking alert()s.
+    if (data.action === 'add') {
+      await add.mutateAsync({
+        itemId: stockUpdateItem.id,
+        quantity: data.quantity,
+        expiryDate: data.expiryDate,
+        reason: data.reason
+      });
+    } else if (data.action === 'remove') {
+      await remove.mutateAsync({
+        itemId: stockUpdateItem.id,
+        quantity: data.quantity,
+        reason: data.reason
+      });
+    } else if (data.action === 'adjust') {
+      await adjust.mutateAsync({
+        itemId: stockUpdateItem.id,
+        targetQuantity: data.quantity,
+        reason: data.reason
+      });
     }
+    setStockUpdateItem(null);
   };
 
   const handleToggleArchive = async (item: InventoryItem) => {

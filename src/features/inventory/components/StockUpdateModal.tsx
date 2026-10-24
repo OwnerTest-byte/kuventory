@@ -7,6 +7,7 @@ import type { InventoryStock, StockBatch } from '../types';
 import { PlusCircle, MinusCircle, RefreshCw, Layers, Calendar, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { getBusinessDateString } from '@/lib/businessDate';
+import { normalizeUserError } from '@/lib/errors';
 
 interface StockUpdateModalProps {
   item: InventoryStock;
@@ -101,14 +102,18 @@ export function StockUpdateModal({ item, batches, isOpen, onClose, onSubmit, isS
     setErrorMsg('');
     setIsSubmittingLocal(true);
     try {
-      await onSubmit({ 
-        action, 
-        quantity: Number(quantity), 
-        reason: reason || (action === 'add' ? 'New delivery received' : action === 'remove' ? 'Stock deduction' : 'Physical count adjustment'), 
-        batchId, 
+      await onSubmit({
+        action,
+        quantity: Number(quantity),
+        reason: reason || (action === 'add' ? 'New delivery received' : action === 'remove' ? 'Stock deduction' : 'Physical count adjustment'),
+        batchId,
         // A date input already returns YYYY-MM-DD; keep it as a PostgreSQL DATE.
-        expiryDate: expiryDate ? expiryDate.trim().slice(0, 10) : undefined 
+        expiryDate: expiryDate ? expiryDate.trim().slice(0, 10) : undefined
       });
+    } catch (err: unknown) {
+      // Keep the form open with the entered values and explain what to do
+      // next — the stock levels did not change.
+      setErrorMsg(normalizeUserError(err, 'update the stock').message);
     } finally {
       setIsSubmittingLocal(false);
     }
