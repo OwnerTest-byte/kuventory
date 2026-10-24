@@ -21,7 +21,8 @@ import {
   RefreshCw,
   ExternalLink,
   ShieldAlert,
-  ArrowLeft
+  ArrowLeft,
+  AlertTriangle
 } from 'lucide-react';
 import {
   Dialog,
@@ -573,14 +574,14 @@ export function LoginForm() {
           )}
 
           {pendingTakeoverSession && (
-            <div className="p-3.5 text-xs text-amber-200 bg-amber-950/70 border border-amber-500/40 rounded-xl space-y-2.5 animate-in fade-in" role="region" aria-label="Session Takeover Notice">
+            <div className="p-3.5 text-xs text-amber-900 dark:text-amber-200 bg-amber-500/15 dark:bg-amber-950/70 border border-amber-600/30 dark:border-amber-500/40 rounded-xl space-y-2.5 animate-in fade-in" role="region" aria-label="Session Takeover Notice">
               <div className="flex items-start gap-2">
-                <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <ShieldCheck className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold text-amber-100">
+                  <p className="font-bold text-amber-950 dark:text-amber-100">
                     Active session detected: {parseHumanDeviceInfo(pendingTakeoverSession.deviceInfo)}
                   </p>
-                  <p className="text-amber-300/80 mt-0.5">
+                  <p className="text-amber-900/90 dark:text-amber-200/90 mt-0.5 font-medium">
                     Would you like to end the previous device's session and continue here?
                   </p>
                 </div>
@@ -602,7 +603,7 @@ export function LoginForm() {
                   size="sm"
                   disabled={isTakingOver}
                   onClick={handleCancelTakeover}
-                  className="h-8 px-3 text-xs text-amber-300 hover:text-white hover:bg-amber-900/40 rounded-lg"
+                  className="h-8 px-3 text-xs text-amber-900 dark:text-amber-200 hover:text-amber-950 dark:hover:text-white hover:bg-amber-500/20 dark:hover:bg-amber-900/40 rounded-lg"
                 >
                   Cancel
                 </Button>
@@ -740,12 +741,14 @@ export function LoginForm() {
           </DialogHeader>
 
           {/* Mode Switcher Tabs */}
-          <div className="grid grid-cols-2 gap-1 p-1 bg-muted/60 rounded-xl text-xs font-semibold my-2">
+          <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-muted/80 dark:bg-muted/50 rounded-xl text-xs font-bold my-2 border border-border/50">
             <button
               type="button"
               onClick={() => { setRecoveryMode('email'); setForgotError(null); }}
-              className={`py-2 px-3 rounded-lg transition-colors cursor-pointer ${
-                recoveryMode === 'email' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              className={`py-2 px-3 rounded-lg transition-all cursor-pointer text-center font-bold ${
+                recoveryMode === 'email'
+                  ? 'bg-card text-foreground shadow-xs border border-border/70'
+                  : 'text-foreground/70 dark:text-muted-foreground hover:text-foreground hover:bg-card/50'
               }`}
             >
               Email Reset
@@ -753,8 +756,10 @@ export function LoginForm() {
             <button
               type="button"
               onClick={() => { setRecoveryMode('assisted'); setForgotError(null); }}
-              className={`py-2 px-3 rounded-lg transition-colors cursor-pointer ${
-                recoveryMode === 'assisted' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              className={`py-2 px-3 rounded-lg transition-all cursor-pointer text-center font-bold ${
+                recoveryMode === 'assisted'
+                  ? 'bg-card text-foreground shadow-xs border border-border/70'
+                  : 'text-foreground/70 dark:text-muted-foreground hover:text-foreground hover:bg-card/50'
               }`}
             >
               Assisted Recovery
@@ -763,10 +768,13 @@ export function LoginForm() {
 
           <form onSubmit={handleForgotSubmit} className="space-y-4 py-1" aria-label="Password Reset Form">
             {recoveryMode === 'assisted' && !assistedTicket && (
-              <div className="p-3 text-xs bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 text-left">
-                <p className="font-semibold text-amber-100">For @kuventory.com login aliases & inaccessible mailboxes</p>
-                <p className="text-[11px] mt-0.5 text-amber-300/80">
-                  Submits an official recovery ticket. You can safely close your browser once submitted.
+              <div className="p-3.5 text-xs bg-amber-500/15 dark:bg-amber-950/60 border border-amber-600/30 dark:border-amber-500/40 rounded-xl text-left space-y-1">
+                <p className="font-bold text-amber-950 dark:text-amber-100 flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0" />
+                  <span>For @kuventory.com login aliases & inaccessible mailboxes</span>
+                </p>
+                <p className="text-[11px] text-amber-900 dark:text-amber-200/90 leading-relaxed font-medium">
+                  Submits an official recovery ticket for administrator review. You can safely close your browser once submitted.
                 </p>
               </div>
             )}
@@ -810,7 +818,7 @@ export function LoginForm() {
                 )}
 
                 <div className="space-y-1.5 text-left">
-                  <Label htmlFor="forgot-email" className="text-xs font-semibold">
+                  <Label htmlFor="forgot-email" className="text-xs font-bold text-foreground">
                     {recoveryMode === 'assisted' ? 'Account Login Identifier (Email)' : 'Your Account Email'}
                   </Label>
                   <Input
@@ -821,20 +829,22 @@ export function LoginForm() {
                     onFocus={handleScrollToViewOnFocus}
                     placeholder="e.g. staff@kuventory.com"
                     required
-                    className="h-11 text-sm rounded-xl"
+                    className="h-11 text-sm rounded-xl border-input text-foreground font-medium bg-background placeholder:text-muted-foreground/70"
                   />
                 </div>
 
                 {recoveryMode === 'assisted' && (
                   <div className="space-y-1.5 text-left">
-                    <Label htmlFor="assisted-reason" className="text-xs font-semibold">Reason for Request (Optional)</Label>
+                    <Label htmlFor="assisted-reason" className="text-xs font-bold text-foreground">
+                      Reason for Request (Optional)
+                    </Label>
                     <Input
                       id="assisted-reason"
                       type="text"
                       value={assistedReason}
                       onChange={e => setAssistedReason(e.target.value)}
                       placeholder="e.g. Forgot password, no email mailbox access"
-                      className="h-10 text-xs rounded-xl"
+                      className="h-10 text-xs rounded-xl border-input text-foreground font-medium bg-background placeholder:text-muted-foreground/70"
                     />
                   </div>
                 )}
@@ -843,20 +853,20 @@ export function LoginForm() {
 
             {/* Configured Support Contact Details */}
             {supportContacts.length > 0 && (
-              <div className="p-3.5 rounded-xl bg-muted/30 border border-border/50 text-xs space-y-2 text-left">
-                <div className="flex items-center justify-between">
+              <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 text-xs space-y-2 text-left">
+                <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
                   <span className="font-bold text-foreground text-xs flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-primary" />
                     <span>Administrator Support</span>
                   </span>
-                  <span className="text-[10px] text-muted-foreground uppercase font-semibold">Official Channels</span>
+                  <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Official Channels</span>
                 </div>
 
-                <div className="space-y-1.5 text-[11px] text-muted-foreground">
+                <div className="space-y-1.5 text-[11px] text-foreground/80">
                   {supportContacts[0].support_phone && (
                     <div className="flex items-center gap-2">
                       <Phone className="w-3.5 h-3.5 text-primary shrink-0" />
-                      <span>Hotline: </span>
+                      <span className="font-medium text-muted-foreground">Hotline: </span>
                       <a href={`tel:${supportContacts[0].support_phone}`} className="hover:underline font-mono text-foreground font-bold">
                         {supportContacts[0].support_phone}
                       </a>
@@ -866,8 +876,8 @@ export function LoginForm() {
                   {supportContacts[0].support_email && (
                     <div className="flex items-center gap-2">
                       <Mail className="w-3.5 h-3.5 text-primary shrink-0" />
-                      <span>Email: </span>
-                      <a href={`mailto:${supportContacts[0].support_email}`} className="hover:underline text-foreground font-medium">
+                      <span className="font-medium text-muted-foreground">Email: </span>
+                      <a href={`mailto:${supportContacts[0].support_email}`} className="hover:underline text-foreground font-semibold">
                         {supportContacts[0].support_email}
                       </a>
                     </div>
@@ -886,7 +896,7 @@ export function LoginForm() {
                   setForgotMessage(null);
                   setForgotError(null);
                 }}
-                className="h-10 text-xs rounded-xl cursor-pointer"
+                className="h-10 text-xs font-semibold rounded-xl cursor-pointer border-border hover:bg-muted text-foreground"
               >
                 <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> Back to Sign In
               </Button>
@@ -895,7 +905,7 @@ export function LoginForm() {
                 <Button
                   type="submit"
                   disabled={isSendingReset || !forgotEmail || forgotCooldown > 0}
-                  className="h-10 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl cursor-pointer"
+                  className="h-10 text-xs font-bold rounded-xl cursor-pointer shadow-xs"
                 >
                   {isSendingReset ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
