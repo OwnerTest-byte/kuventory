@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useDeferredValue } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getInventory, getBatches } from '../api';
@@ -48,6 +48,9 @@ export function ItemsCatalogPage() {
   const { add, remove, adjust } = useStockMutations();
   
   const [searchTerm, setSearchTerm] = useState('');
+  // Typing stays responsive at any catalog size: filtering re-runs against
+  // the deferred value at lower priority instead of blocking each keystroke.
+  const deferredSearchTerm = useDeferredValue(searchTerm);
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
   const [statusFilter, setStatusFilter] = useState('Active');
   const [sortBy, setSortBy] = useState<'name_asc' | 'name_desc' | 'cost_desc' | 'cost_asc' | 'qty_desc' | 'qty_asc' | 'category'>('name_asc');
@@ -67,10 +70,10 @@ export function ItemsCatalogPage() {
 
   const filteredItems = useMemo(() => {
     let list = inventory || [];
-    
+
     // Search across name, code, description, and suppliers
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
+    if (deferredSearchTerm) {
+      const q = deferredSearchTerm.toLowerCase();
       list = list.filter(i => 
         (i.item_name?.toLowerCase().includes(q) ?? false) || 
         (i.item_code?.toLowerCase().includes(q) ?? false) ||
@@ -103,7 +106,7 @@ export function ItemsCatalogPage() {
       if (sortBy === 'category') return (a.category_name || '').localeCompare(b.category_name || '');
       return 0;
     });
-  }, [inventory, searchTerm, statusFilter, categoryFilter, sortBy]);
+  }, [inventory, deferredSearchTerm, statusFilter, categoryFilter, sortBy]);
 
   const uniqueCategories = useMemo(() => {
     const cats = new Set<string>();

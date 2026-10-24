@@ -9,7 +9,10 @@ export async function getInventory(): Promise<InventoryItem[]> {
   const { data, error } = await supabase
     .from('inventory_stock_view')
     .select('*')
-    .order('name');
+    .order('name')
+    // Guard against unbounded payloads if the catalog ever grows abnormally;
+    // normal establishments are far below this bound.
+    .limit(2000);
 
   if (error) {
     console.error('getInventory error:', error);

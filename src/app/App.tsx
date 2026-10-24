@@ -40,6 +40,24 @@ export function App() {
     initKeepaliveHeartbeat();
   }, []);
 
+  // Warm the two heaviest first-destination route chunks while the browser is
+  // idle so post-login navigation feels instant, without competing with
+  // first paint.
+  useEffect(() => {
+    const w = window as any;
+    const idle: (cb: () => void) => number = w.requestIdleCallback
+      ? w.requestIdleCallback.bind(window)
+      : (cb: () => void) => window.setTimeout(cb, 1500);
+    const id = idle(() => {
+      void import('@/features/daily-inventory/pages/DailyInventoryPage');
+      void import('@/features/inventory/pages/ItemsCatalogPage');
+    });
+    return () => {
+      if (w.cancelIdleCallback) w.cancelIdleCallback(id);
+      else clearTimeout(id);
+    };
+  }, []);
+
   return (
     <AuthProvider>
       <RealtimeSubscriptionManager />
