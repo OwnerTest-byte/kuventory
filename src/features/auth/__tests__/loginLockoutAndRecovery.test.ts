@@ -75,9 +75,8 @@ describe('Login Lockout & Account Recovery Suite (Phase 2 & Phase 3)', () => {
       expect(result.seconds_remaining).toBe(1800);
       expect(result.lockout_token).toBe(opaqueToken);
       expect(result.locked_until).toBe(futureExpiry);
-      expect(mockRpc).toHaveBeenCalledWith('record_login_attempt', {
+      expect(mockRpc).toHaveBeenCalledWith('record_failed_login_attempt', {
         p_email: 'attacker@kuventory.com',
-        p_success: false,
         p_ip: '192.168.1.100',
         p_user_agent: 'Mozilla/5.0 TestBrowser',
       });

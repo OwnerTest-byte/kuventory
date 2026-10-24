@@ -20,6 +20,9 @@ Audit Date:          2026-10-24
 | **FFRC-04** | Inventory Decoupling | Decouple ad-hoc physical deductions from daily tally sheet sync; no 90d fabricated expiries. | `src/features/inventory/api/index.ts`, `20261024190000_blueprint_remediation_p0_and_p1.sql` | Concurrency & FEFO test suites |
 | **FFRC-05** | Auth & Session Integrity | Roles derived strictly from DB profile; single session lease checks before takeover. | `AuthContext.tsx`, `LoginForm.tsx`, `20261024170000_release_c_login_lockout_and_account_security.sql` | `sessionLeaseReliability.test.ts`, `loginLockoutAndRecovery.test.ts` |
 | **FFRC-06** | Cross-Device & Responsive | Universal viewport adaptation (320px–1440px), table horizontal scroll, WCAG 2.2 touch targets. | Modals, Queues, Data Tables | Chromium, Firefox, WebKit, Mobile viewport checks |
+| **FFRC-07** | Synthetic Email & Account Recovery | `@kuventory.com` addresses are technical login IDs, not mailboxes; recovery via phone OTP/assisted tickets; zero fake success. | `LoginForm.tsx`, `passwordResetService.ts`, `ResetPasswordPage.tsx` | Vitest & E2E recovery specs |
+| **FFRC-08** | Client Untrusted Parameter Boundary | Eliminate caller-supplied `p_success`; lockout tracking strictly server-enforced; separate failed counter from authenticated reset. | `loginLockoutService.ts`, `20261024200000_comprehensive_auth_and_trust_boundary_repair.sql` | `loginLockoutAndRecovery.test.ts` (10 tests) |
+| **FFRC-09** | Modal Geometry System | Configurable `DialogSize` prop (`sm` to `5xl`, `full`); prevent mobile clipping and vertical blowout. | `src/components/ui/dialog.tsx`, `MyProfileModal.tsx`, `CorrectionRequestModal.tsx` | `responsive_multi_device.spec.ts` |
 
 ---
 
@@ -102,3 +105,45 @@ Audit Date:          2026-10-24
 * **Failure Modes & Safe Behavior:**
   * *320px smartphone screen:* Modals scale to `w-[95vw]`; tables scroll horizontally smoothly (`overflow-x-auto min-w-115`); buttons stack cleanly.
   * *Keyboard-only navigation:* Visible focus rings (`focus-visible:ring-2 focus-visible:ring-emerald-500`) and dialog focus trapping.
+
+---
+
+### FFRC-07: Synthetic Login Identifier & Password Recovery Trust Boundary
+
+* **Problem & User Outcome:** Synthetic addresses such as `staff@kuventory.com` are internal system login identifiers and do not have deliverable email inboxes. Prompting users to check an inbox they cannot access produces support deadlock and false success impressions. User outcome: clear notification that generated addresses are login identifiers; password reset directs users to verified SMS OTP or assisted administrator recovery with out-of-band identity verification.
+* **Current-State Trace:** `LoginForm.tsx` $\to$ `passwordResetService.ts` $\to$ `account_recovery_factors` / `account_recovery_requests` $\to$ `ResetPasswordPage.tsx`.
+* **Invariants:**
+  * Never claim a reset email was delivered to an inaccessible `@kuventory.com` account.
+  * An arbitrary requester cannot type a phone number and receive an OTP to reset someone else's account.
+  * Password reset requires an authenticated recovery grant (`type=recovery` hash or `PASSWORD_RECOVERY` event); regular signed-in sessions cannot access the reset page directly.
+* **Failure Modes & Safe Behavior:**
+  * *No verified phone on file:* System guides operator to submit an assisted recovery request with an opaque reference ID.
+  * *Network/RPC failure on reset request:* Fails visibly with support contact instructions; never shows a false green "Reset Link Sent" card.
+  * *Direct navigation to `/reset-password` without token:* Redirects to `/login` with an informative notification.
+
+---
+
+### FFRC-08: Client Untrusted Parameter Boundary & Login Lockout Security
+
+* **Problem & User Outcome:** The previous lockout implementation accepted a client-supplied `p_success` boolean via public RPC `record_login_attempt`, allowing a malicious actor to manipulate attempt counters or lock arbitrary users out. User outcome: client code calls `record_failed_login_attempt` (which only increments failure counters) and authenticated users call `reset_my_login_lockout` (which resets counters using `auth.uid()`).
+* **Current-State Trace:** `loginLockoutService.ts` $\to$ `record_failed_login_attempt` / `reset_my_login_lockout` $\to$ `login_attempts` table.
+* **Invariants:**
+  * Unauthenticated clients cannot reset failed attempt counters.
+  * Authentication success claims are never accepted from unauthenticated browser parameters.
+  * Accounts lock server-side after 5 consecutive failures for a 30-minute cooldown window.
+* **Failure Modes & Safe Behavior:**
+  * *Malicious client sends fake success:* Blocked; `record_failed_login_attempt` only increments failures.
+  * *Brute force attack:* Server enforces 30-minute lockout on the 5th attempt; opaque lockout tokens prevent user enumeration.
+
+---
+
+### FFRC-09: Responsive Modal Geometry & Dialog Sizing System
+
+* **Problem & User Outcome:** Fixed `sm:max-w-sm` styles caused profile and inventory correction modals to squish inputs, clip tables, and overflow viewports vertically on laptops and mobile devices. User outcome: modals adapt cleanly to content with configurable `DialogSize` (`sm`, `md`, `lg`, `xl`, `2xl`, `3xl`, `4xl`, `5xl`, `full`) and enforce `max-h-[calc(100dvh-2rem)] overflow-y-auto`.
+* **Current-State Trace:** `src/components/ui/dialog.tsx` $\to$ `DialogContent` $\to$ `MyProfileModal.tsx`, `CorrectionRequestModal.tsx`.
+* **Invariants:**
+  * Modals must never clip or overflow beyond the browser viewport on any screen width from 320px to 1920px.
+  * Wide tabular content inside modals scrolls horizontally within its container without breaking modal borders.
+* **Failure Modes & Safe Behavior:**
+  * *Small viewport (320px–412px):* Dialog automatically shrinks to `w-[95vw]` with vertical scroll.
+  * *Large data table in modal:* Container applies `overflow-x-auto` while title wraps cleanly with `wrap-break-word`.

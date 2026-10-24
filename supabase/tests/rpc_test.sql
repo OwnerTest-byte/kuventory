@@ -1,29 +1,36 @@
 -- ========================================================================================
--- KUVENTORY TEST: RPC Transaction Engine & Stock Logic
--- Validates atomic inventory receipts, FEFO consumption, and finalized worksheet controls
+-- KUVENTORY TEST: RPC Transaction Engine & Stock Logic (Isolated Fixtures)
+-- Validates atomic inventory receipts, FEFO consumption, and worksheet controls
+-- Uses unique disposable fixtures and cleans up test data upon completion.
 -- ========================================================================================
 
 CREATE OR REPLACE FUNCTION test_rpc_engine() RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
-  v_admin_uid UUID := '11111111-1111-1111-1111-111111111111';
-  v_item_id UUID;
+  v_admin_uid UUID := gen_random_uuid();
+  v_item_id UUID := gen_random_uuid();
+  v_category_id UUID := gen_random_uuid();
   v_daily_id UUID;
   v_daily_item_id UUID;
   v_batch_id UUID;
   v_target_date DATE := CURRENT_DATE;
   v_qty NUMERIC;
 BEGIN
+  -- Setup isolated admin profile fixture
+  INSERT INTO public.profiles (id, role, display_name)
+  VALUES (v_admin_uid, 'ADMIN', 'RPC Test Admin Fixture')
+  ON CONFLICT (id) DO UPDATE SET role = 'ADMIN';
+
   -- Setup Admin Context
   PERFORM set_config('role', 'authenticated', true);
   PERFORM set_config('request.jwt.claims', format('{"sub":"%s"}', v_admin_uid), true);
 
-  -- 1. Ensure test item exists
-  SELECT id INTO v_item_id FROM public.inventory_items WHERE is_active = true LIMIT 1;
-  IF v_item_id IS NULL THEN
-    INSERT INTO public.inventory_items (name, unit, unit_cost, min_quantity, is_active)
-    VALUES ('Audit Test Item', 'pcs', 10.00, 5.00, true)
-    RETURNING id INTO v_item_id;
-  END IF;
+  -- 1. Create dedicated isolated test category and item (NEVER select a live catalog item)
+  INSERT INTO public.categories (id, name, display_order)
+  VALUES (v_category_id, '_Test Category Fixture', 9999)
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO public.inventory_items (id, category_id, name, unit, unit_cost, min_quantity, is_active)
+  VALUES (v_item_id, v_category_id, '_Test Item Fixture ' || substr(v_item_id::text, 1, 8), 'pcs', 10.00, 5.00, true);
 
   -- 2. Create or fetch Daily Inventory Draft
   v_daily_id := public.create_daily_inventory_draft(v_target_date);
@@ -48,7 +55,7 @@ BEGIN
     25.00,
     CURRENT_DATE + INTERVAL '45 days',
     v_admin_uid,
-    'RPC Audit Test Receiving'
+    'RPC Isolated Test Receiving'
   );
 
   IF v_batch_id IS NULL THEN
@@ -75,6 +82,14 @@ BEGIN
     RAISE EXCEPTION 'Atomic stock adjustment failed to reconcile to target. Expected 50.00, got %', v_qty;
   END IF;
 
-  RAISE NOTICE 'SUCCESS: All RPC transaction engine tests passed successfully.';
+  -- 5. Cleanup test fixtures safely
+  DELETE FROM public.stock_movements WHERE item_id = v_item_id;
+  DELETE FROM public.stock_batches WHERE item_id = v_item_id;
+  DELETE FROM public.daily_inventory_items WHERE id = v_daily_item_id;
+  DELETE FROM public.inventory_items WHERE id = v_item_id;
+  DELETE FROM public.categories WHERE id = v_category_id;
+  DELETE FROM public.profiles WHERE id = v_admin_uid;
+
+  RAISE NOTICE 'SUCCESS: All RPC transaction engine tests passed with clean fixture teardown.';
 END;
 $$;

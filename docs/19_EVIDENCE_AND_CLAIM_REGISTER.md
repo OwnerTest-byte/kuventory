@@ -33,7 +33,7 @@ Every claim in the KUVENTORY documentation suite is classified under one of the 
 | Claim ID | System Claim / Assertion | Status Label | Concrete Verification Evidence & Source Reference |
 | :---: | :--- | :---: | :--- |
 | **CLM-01** | Application runs on React 19.2.8 and TypeScript 6.0.3 | `[VERIFIED-SOURCE]` | `package.json` line 46, `package-lock.json`, confirmed via Node inspection script. |
-| **CLM-02** | Automated test suite contains 164 passing tests across 21 files | `[VERIFIED-TEST]` | Executed `npm test` on 2026-10-24: 21 passed, 164 passed, 0 failed. |
+| **CLM-02** | Automated test suite contains 170 passing tests across 22 files | `[VERIFIED-TEST]` | Executed `npm test` on 2026-10-24: 22 passed, 170 passed, 0 failed. |
 | **CLM-03** | TypeScript strict typecheck passes with 0 errors | `[VERIFIED-TEST]` | Executed `npm run typecheck` (`tsc --noEmit`): 0 errors on 140 source files. |
 | **CLM-04** | Oxlint linter passes with 0 errors | `[VERIFIED-TEST]` | Executed `npm run lint` (`oxlint`): 0 errors, 24 React Compiler advisories. |
 | **CLM-05** | Production build compiles clean in under 3.5 seconds | `[VERIFIED-TEST]` | Executed `npm run build` (`tsc -b && vite build`): built in ~2.0s. |
@@ -76,3 +76,10 @@ Every claim in the KUVENTORY documentation suite is classified under one of the 
 | **CLM-42** | Stock adjustment integrity and fail-closed FEFO consumption | `[VERIFIED-SOURCE]` | Migration `20261024190000`, eliminates 90-day expiry fabrication and fails closed on unauthenticated or unauthorized calls. |
 | **CLM-43** | RBAC role authority strictly derived from database profiles | `[VERIFIED-SOURCE]` | `src/features/auth/context/AuthContext.tsx`, removed email-based role elevation bypasses. |
 | **CLM-44** | Standard error taxonomy and Feature Failure & Recovery Cards | `[VERIFIED-TEST]` | `src/lib/errors.ts`, `docs/FEATURE_FAILURE_AND_RECOVERY_CARDS.md`, `src/__tests__/errorTaxonomy.test.ts` (9 tests passing). |
+| **CLM-45** | Remote Supabase project guard prevents E2E test pollution | `[VERIFIED-TEST]` | `e2e/helpers/testSafetyGuard.ts`, `src/__tests__/testSafetyGuard.test.ts` (6 tests passing). |
+| **CLM-46** | Responsive modal geometry system with configurable DialogSize | `[VERIFIED-TEST]` | `src/components/ui/dialog.tsx`, `e2e/responsive_multi_device.spec.ts` (11 viewports: 320px–1920px). |
+| **CLM-47** | Untrusted parameter boundary eliminates client-supplied success flags | `[VERIFIED-TEST]` | Migration `20261024200000`, `loginLockoutService.ts`, `loginLockoutAndRecovery.test.ts` (10 tests passing). |
+| **CLM-48** | Synthetic login address decoupled from email recovery | `[VERIFIED-SOURCE]` | `LoginForm.tsx`, `passwordResetService.ts`, `ResetPasswordPage.tsx`, eliminating fake delivery messages. |
+| **CLM-49** | Idempotency key and atomic FOR UPDATE lock on daily inventory corrections | `[VERIFIED-TEST]` | Migration `20261024200000`, `correctionRequestService.ts`, `correctionApprovals.test.ts` (13 tests passing). |
+| **CLM-50** | Profile avatar upload validates storage bucket and fails closed | `[VERIFIED-SOURCE]` | `src/features/admin/services/profileService.ts`, eliminated base64 data URI fallback. |
+| **CLM-51** | Content-Security-Policy and HTTP security headers canonicalized | `[VERIFIED-SOURCE]` | `netlify.toml`, `public/_headers`, eliminated wildcard CORS on frontend assets. |

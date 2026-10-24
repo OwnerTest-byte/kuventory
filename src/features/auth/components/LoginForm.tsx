@@ -362,7 +362,10 @@ export function LoginForm() {
       });
 
       if (resetErr) {
-        console.warn('Supabase resetPasswordForEmail warning:', resetErr.message);
+        console.warn('Supabase resetPasswordForEmail error:', resetErr.message);
+        setForgotError('We could not submit the recovery request right now. Please try again later or contact your system administrator.');
+        setIsSendingReset(false);
+        return;
       }
 
       setForgotCooldown(120); // 2-minute cooldown
@@ -706,7 +709,7 @@ export function LoginForm() {
               <div className="p-3.5 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-xl space-y-1" role="status">
                 <div className="flex items-center gap-1.5 font-bold">
                   <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
-                  <span>Request Dispatched</span>
+                  <span>Request Submitted</span>
                 </div>
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
                   {forgotMessage}

@@ -82,7 +82,7 @@ export function MyProfileModal({ open, onOpenChange }: MyProfileModalProps) {
       setJobTitle((profile as any).job_title || '');
       setPhone(profile.phone || '');
       setSupportPhone((profile as any).support_phone || profile.phone || '');
-      setSupportEmail((profile as any).support_email || user?.email || '');
+      setSupportEmail((profile as any).support_email || '');
       setShowOnLockoutScreen(Boolean((profile as any).show_on_lockout_screen));
       setAvatarUrl((profile as any).avatar_url || '');
     }
@@ -182,7 +182,7 @@ export function MyProfileModal({ open, onOpenChange }: MyProfileModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl bg-card border-border shadow-2xl">
+      <DialogContent size="2xl" className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90dvh] overflow-y-auto p-0 rounded-2xl bg-card border-border shadow-2xl">
         <DialogHeader className="p-6 border-b border-border/60 bg-muted/20">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
@@ -313,7 +313,7 @@ export function MyProfileModal({ open, onOpenChange }: MyProfileModalProps) {
 
           {/* Support Contacts (Admin / Super Admin Configuration) */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-border/40 pb-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/40 pb-2">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Phone className="w-4 h-4 text-primary" />
                 <span>Support Contact Channels</span>
@@ -413,13 +413,13 @@ export function MyProfileModal({ open, onOpenChange }: MyProfileModalProps) {
                 <span>Add Contact / Social Channel</span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                 <div>
                   <Input
                     placeholder="Label (e.g. Official Page)"
                     value={newLinkLabel}
                     onChange={e => setNewLinkLabel(e.target.value)}
-                    className="h-9 text-xs rounded-lg"
+                    className="h-9 text-xs rounded-lg min-w-0 w-full"
                     required
                   />
                 </div>

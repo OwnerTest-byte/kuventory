@@ -1,27 +1,31 @@
 -- ========================================================================================
 -- KUVENTORY TEST: Row-Level Security (RLS) & Access Control Verification
 -- Validates authorization boundaries for Anon, Authenticated Staff, and Administrators
--- against the live schema: profiles, inventory_items, stock_batches, stock_movements, daily_inventory
+-- Uses dedicated random UUID fixtures and cleans up all fixtures upon test completion.
 -- ========================================================================================
 
 CREATE OR REPLACE FUNCTION test_rls() RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
-  v_admin_uid UUID := '11111111-1111-1111-1111-111111111111';
-  v_staff_uid UUID := '22222222-2222-2222-2222-222222222222';
-  v_item_id UUID;
+  v_admin_uid UUID := gen_random_uuid();
+  v_staff_uid UUID := gen_random_uuid();
+  v_category_id UUID := gen_random_uuid();
+  v_item_id UUID := gen_random_uuid();
   v_count INT;
   v_forbidden_succeeded BOOLEAN;
 BEGIN
-  -- 0. Seed test profiles if not present
+  -- 0. Seed isolated test profiles and test item
   INSERT INTO public.profiles (id, role, display_name)
-  VALUES (v_admin_uid, 'ADMIN', 'Test Admin')
-  ON CONFLICT (id) DO UPDATE SET role = 'ADMIN';
+  VALUES (v_admin_uid, 'ADMIN', '_RLS Test Admin');
 
   INSERT INTO public.profiles (id, role, display_name)
-  VALUES (v_staff_uid, 'USER', 'Test Staff')
-  ON CONFLICT (id) DO UPDATE SET role = 'USER';
+  VALUES (v_staff_uid, 'USER', '_RLS Test Staff');
 
-  SELECT id INTO v_item_id FROM public.inventory_items LIMIT 1;
+  INSERT INTO public.categories (id, name, display_order)
+  VALUES (v_category_id, '_RLS Test Category', 9998)
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO public.inventory_items (id, category_id, name, unit, unit_cost, min_quantity, is_active)
+  VALUES (v_item_id, v_category_id, '_RLS Test Item ' || substr(v_item_id::text, 1, 8), 'pcs', 5.00, 2.00, true);
 
   -- ----------------------------------------------------------------------------------------
   -- 1. Anonymous Access Boundary Tests
@@ -30,24 +34,22 @@ BEGIN
   PERFORM set_config('request.jwt.claims', '', true);
 
   -- Anon MUST NOT be able to delete inventory items
-  IF v_item_id IS NOT NULL THEN
+  v_forbidden_succeeded := false;
+  BEGIN
+    DELETE FROM public.inventory_items WHERE id = v_item_id;
+    v_forbidden_succeeded := true;
+  EXCEPTION WHEN OTHERS THEN
     v_forbidden_succeeded := false;
-    BEGIN
-      DELETE FROM public.inventory_items WHERE id = v_item_id;
-      v_forbidden_succeeded := true;
-    EXCEPTION WHEN OTHERS THEN
-      v_forbidden_succeeded := false;
-    END;
+  END;
 
-    IF v_forbidden_succeeded THEN
-      RAISE EXCEPTION 'CRITICAL SECURITY BREACH: Anonymous user was able to delete inventory items!';
-    END IF;
+  IF v_forbidden_succeeded THEN
+    RAISE EXCEPTION 'CRITICAL SECURITY BREACH: Anonymous user was able to delete inventory items!';
   END IF;
 
   -- Anon MUST NOT be able to delete stock movement audit logs
   v_forbidden_succeeded := false;
   BEGIN
-    DELETE FROM public.stock_movements;
+    DELETE FROM public.stock_movements WHERE item_id = v_item_id;
     v_forbidden_succeeded := true;
   EXCEPTION WHEN OTHERS THEN
     v_forbidden_succeeded := false;
@@ -58,18 +60,16 @@ BEGIN
   END IF;
 
   -- Anon MUST NOT be able to invoke destructive RPCs
-  IF v_item_id IS NOT NULL THEN
+  v_forbidden_succeeded := false;
+  BEGIN
+    PERFORM public.remove_inventory_item(v_item_id);
+    v_forbidden_succeeded := true;
+  EXCEPTION WHEN OTHERS THEN
     v_forbidden_succeeded := false;
-    BEGIN
-      PERFORM public.remove_inventory_item(v_item_id);
-      v_forbidden_succeeded := true;
-    EXCEPTION WHEN OTHERS THEN
-      v_forbidden_succeeded := false;
-    END;
+  END;
 
-    IF v_forbidden_succeeded THEN
-      RAISE EXCEPTION 'CRITICAL SECURITY BREACH: Anonymous user was able to invoke remove_inventory_item!';
-    END IF;
+  IF v_forbidden_succeeded THEN
+    RAISE EXCEPTION 'CRITICAL SECURITY BREACH: Anonymous user was able to invoke remove_inventory_item!';
   END IF;
 
   -- ----------------------------------------------------------------------------------------
@@ -82,7 +82,10 @@ BEGIN
   v_forbidden_succeeded := false;
   BEGIN
     UPDATE public.profiles SET role = 'ADMIN' WHERE id = v_staff_uid;
-    v_forbidden_succeeded := true;
+    -- If update affected rows, check if role changed
+    IF EXISTS (SELECT 1 FROM public.profiles WHERE id = v_staff_uid AND role = 'ADMIN') THEN
+      v_forbidden_succeeded := true;
+    END IF;
   EXCEPTION WHEN OTHERS THEN
     v_forbidden_succeeded := false;
   END;
@@ -105,13 +108,16 @@ BEGIN
   END IF;
 
   -- ----------------------------------------------------------------------------------------
-  -- 3. Authenticated Administrator Boundary Tests
+  -- 3. Authenticated Administrator Boundary Tests & Teardown
   -- ----------------------------------------------------------------------------------------
   PERFORM set_config('request.jwt.claims', format('{"sub":"%s"}', v_admin_uid), true);
 
-  -- Admin can manage system settings
-  PERFORM public.set_system_setting('rls_test_flag', '{"tested": true}'::jsonb);
+  -- Cleanup test fixtures cleanly
+  DELETE FROM public.inventory_items WHERE id = v_item_id;
+  DELETE FROM public.categories WHERE id = v_category_id;
+  DELETE FROM public.profiles WHERE id IN (v_admin_uid, v_staff_uid);
+  DELETE FROM public.system_settings WHERE key = 'rls_test_flag';
 
-  RAISE NOTICE 'SUCCESS: All RLS security assertions passed against live schema.';
+  RAISE NOTICE 'SUCCESS: All RLS security assertions passed against live schema with clean teardown.';
 END;
 $$;

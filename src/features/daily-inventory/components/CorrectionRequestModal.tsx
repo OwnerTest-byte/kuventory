@@ -133,14 +133,14 @@ export function CorrectionRequestModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl bg-card border-border shadow-2xl">
+      <DialogContent size="4xl" className="w-[calc(100vw-2rem)] max-w-4xl max-h-[90dvh] overflow-y-auto p-0 rounded-2xl bg-card border-border shadow-2xl">
         <DialogHeader className="p-6 border-b border-border/60 bg-muted/20 text-left">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 shrink-0 mt-0.5 sm:mt-0">
               <FileText className="w-5 h-5" />
             </div>
-            <div>
-              <DialogTitle className="text-xl font-bold tracking-tight text-foreground">
+            <div className="min-w-0">
+              <DialogTitle className="text-xl font-bold tracking-tight text-foreground wrap-break-word">
                 Request Finalized Inventory Correction
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">

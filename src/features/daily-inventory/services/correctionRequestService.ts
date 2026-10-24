@@ -54,7 +54,8 @@ export interface DailyInventoryCorrectionRequest {
 export async function submitCorrectionRequest(
   dailyInventoryId: string,
   reason: string,
-  proposedItems: ProposedCorrectionItem[]
+  proposedItems: ProposedCorrectionItem[],
+  idempotencyKey?: string
 ): Promise<{ success: boolean; requestId: string; status: string; message: string }> {
   const cleanReason = reason.trim();
   if (!cleanReason) {
@@ -68,6 +69,8 @@ export async function submitCorrectionRequest(
   if (!proposedItems || proposedItems.length === 0) {
     throw new Error('At least one proposed item correction must be specified.');
   }
+
+  const clientKey = idempotencyKey || `idem_corr_${dailyInventoryId}_${crypto.randomUUID()}`;
 
   const payload = proposedItems.map(item => ({
     item_id: item.item_id,
@@ -84,6 +87,7 @@ export async function submitCorrectionRequest(
     p_daily_inventory_id: dailyInventoryId,
     p_reason: cleanReason,
     p_proposed_items: payload,
+    p_idempotency_key: clientKey,
   });
 
   if (error) {

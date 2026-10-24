@@ -60,6 +60,7 @@ describe('Finalized Daily Inventory Correction Approval & Atomic Reconciliation 
       expect(mockRpc).toHaveBeenCalledWith('submit_correction_request', {
         p_daily_inventory_id: 'sheet-123',
         p_reason: 'AM sales were 15 instead of 25',
+        p_idempotency_key: expect.stringMatching(/^idem_corr_sheet-123_/),
         p_proposed_items: [
           {
             item_id: 'item-1',

@@ -1,22 +1,14 @@
 import { test, expect } from '@playwright/test';
-import { createClient } from '@supabase/supabase-js';
+import { assertSafeE2EEnvironment, createSafeTestClient } from './helpers/testSafetyGuard';
 
-// Environment-Driven Test Configuration & Hard Production Guard (P0-1)
-const targetSupabaseUrl = process.env.PLAYWRIGHT_SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://stotgoylyzltzpahuglc.supabase.co';
-const targetAnonKey = process.env.PLAYWRIGHT_SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_sww0L_JeH4y7i0Zq5kX0Xg_ZWhJ7PsN';
+// Environment-Driven Test Configuration & Hard Production Guard (P0-1 / KUV-P0-02)
+const safeConfig = assertSafeE2EEnvironment();
+const directSupabase = createSafeTestClient(safeConfig);
 
-// Hard Production Protection Guard: Refuse execution against remote production unless explicitly authorized
-const isRemoteTarget = !targetSupabaseUrl.includes('127.0.0.1') && !targetSupabaseUrl.includes('localhost');
-if (isRemoteTarget && process.env.E2E_ALLOW_REMOTE !== 'true') {
-  console.warn('⚠️ E2E Production Guard: Target is remote and E2E_ALLOW_REMOTE is not set to true. Set E2E_ALLOW_REMOTE=true to run against configured staging project.');
-}
-
-const directSupabase = createClient(targetSupabaseUrl, targetAnonKey);
-
-const SUPER_ADMIN_EMAIL = process.env.E2E_SUPER_ADMIN_EMAIL || 'superadmin@kuventory.com';
-const SUPER_ADMIN_PASSWORD = process.env.E2E_SUPER_ADMIN_PASSWORD || 'SuperAdmin2026!';
-const STAFF_EMAIL = process.env.E2E_STAFF_EMAIL || 'staff@kuventory.com';
-const STAFF_PASSWORD = process.env.E2E_STAFF_PASSWORD || 'Staff123!';
+const SUPER_ADMIN_EMAIL = safeConfig.superAdminEmail;
+const SUPER_ADMIN_PASSWORD = safeConfig.superAdminPassword || '';
+const STAFF_EMAIL = safeConfig.staffEmail;
+const STAFF_PASSWORD = safeConfig.staffPassword || '';
 
 async function cleanSignOut(page: any) {
   try {
@@ -40,7 +32,7 @@ async function cleanSignOut(page: any) {
 }
 
 async function resetMaintenanceToNormal() {
-  if (isRemoteTarget && process.env.E2E_ALLOW_REMOTE !== 'true') return;
+  if (safeConfig.isRemote || !SUPER_ADMIN_PASSWORD) return;
   try {
     await directSupabase.auth.signInWithPassword({
       email: SUPER_ADMIN_EMAIL,

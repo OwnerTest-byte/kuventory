@@ -18,27 +18,43 @@ export function ResetPasswordPage() {
   const [isSessionValid, setIsSessionValid] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Check if recovery session is active or hash params contain access token
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setIsSessionValid(true);
-      } else {
-        // Listen for auth state change if the hash is currently being parsed by Supabase client
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
-          if (event === 'PASSWORD_RECOVERY' || s) {
-            setIsSessionValid(true);
-          }
-        });
-        // Give client a moment to parse the URL hash
-        setTimeout(() => {
-          setIsSessionValid((prev) => prev ?? false);
-        }, 1500);
+    let isMounted = true;
 
-        return () => subscription.unsubscribe();
+    // Check if the current URL hash indicates a recovery grant (#...type=recovery)
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    const isRecoveryHash = hash.includes('type=recovery');
+
+    // Subscribe to authoritative auth events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (!isMounted) return;
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsSessionValid(true);
       }
+    });
+
+    // Check if a recovery event or token is present
+    if (isRecoveryHash) {
+      setIsSessionValid(true);
+    } else {
+      // Check session context only if explicitly in recovery state
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!isMounted) return;
+        // Verify session was generated for recovery (not a normal browsing session)
+        if (session && isRecoveryHash) {
+          setIsSessionValid(true);
+        } else {
+          // Acknowledge invalid or missing recovery grant after settling
+          setTimeout(() => {
+            if (isMounted) setIsSessionValid(prev => prev ?? false);
+          }, 1200);
+        }
+      });
+    }
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
     };
-    checkSession();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,12 +75,18 @@ export function ResetPasswordPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      setSuccessMessage('Password has been reset successfully! Redirecting...');
+
+      // Revoke the one-time recovery session and direct to standard sign-in
+      try {
+        await supabase.auth.signOut();
+      } catch {}
+
+      setSuccessMessage('Password has been updated successfully! Please sign in with your new credentials.');
       setTimeout(() => {
-        navigate('/inventory');
-      }, 2000);
+        navigate('/login', { replace: true });
+      }, 2500);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to update password. Your reset link may have expired.');
+      setErrorMessage(err.message || 'Failed to update password. Your reset link may have expired or already been used.');
     } finally {
       setIsLoading(false);
     }

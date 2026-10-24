@@ -254,10 +254,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         // Authoritative role evaluation strictly from server record
-        const isSuper = data?.role === 'SUPER_ADMIN' || data?.role === 'MASTER_ADMIN';
-        const isAdmin = isSuper || data?.role === 'ADMIN';
         const roleFromDb = data?.role as Role;
-        const resolvedRole: Role = isSuper ? 'SUPER_ADMIN' : (isAdmin ? 'ADMIN' : (roleFromDb || 'USER'));
+        const validRoles: Role[] = ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN', 'USER'];
+        const resolvedRole: Role = validRoles.includes(roleFromDb) ? roleFromDb : 'USER';
 
         return {
           id: user.id,
@@ -299,11 +298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isLoading = isSessionLoading || (!!user && isProfileLoading);
-  const isSuperUser = profile?.role === 'SUPER_ADMIN' || profile?.role === 'MASTER_ADMIN';
-  const isAdminUser = isSuperUser || profile?.role === 'ADMIN';
-  const role: Role = isSuperUser 
-    ? 'SUPER_ADMIN' 
-    : (isAdminUser ? 'ADMIN' : (profile?.role ?? 'USER'));
+  const role: Role = profile?.role ?? 'USER';
 
   const clearSessionLeaseError = () => setSessionLeaseError(null);
 

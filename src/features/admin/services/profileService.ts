@@ -205,20 +205,14 @@ export async function uploadProfileAvatar(file: File): Promise<string> {
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
   const filePath = `${currentUserId}/avatar_${Date.now()}.${ext}`;
 
-  // Try standard avatars bucket
+  // Upload to standard avatars bucket
   const { error: uploadError } = await supabase.storage
     .from('avatars')
     .upload(filePath, file, { upsert: true });
 
   if (uploadError) {
-    // If bucket doesn't exist, convert to safe small base64 thumbnail for preview
-    console.warn('Avatars bucket upload fallback:', uploadError.message);
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error('Failed to read image file.'));
-      reader.readAsDataURL(file);
-    });
+    console.error('Avatars bucket upload error:', uploadError.message);
+    throw new Error(`Failed to upload avatar to storage: ${uploadError.message}. Please verify storage bucket permissions.`);
   }
 
   const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
