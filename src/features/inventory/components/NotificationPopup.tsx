@@ -16,6 +16,8 @@ import { getNotificationRoute } from '../utils/notificationRouter';
 import { supabase } from '@/lib/supabase';
 import type { AppNotification } from '../types';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/features/auth/context/AuthContext';
+import { isAuthorizedForNotification } from '../utils/notificationSecurity';
 
 interface ActiveToast {
   notification: AppNotification;
@@ -45,6 +47,7 @@ function markSeenId(id: string) {
 
 export function NotificationPopup() {
   const navigate = useNavigate();
+  const { user, role } = useAuth();
   const [activeToasts, setActiveToasts] = useState<ActiveToast[]>([]);
   const { data: notifications = [] } = useNotifications();
   const { items = [] } = useItems();
@@ -53,6 +56,11 @@ export function NotificationPopup() {
   useEffect(() => {
     activeToastsRef.current = activeToasts;
   }, [activeToasts]);
+
+  // Immediately clear any active toasts when active account or role transitions
+  useEffect(() => {
+    setActiveToasts([]);
+  }, [user?.id, role]);
 
   const dismissToast = useCallback((id: string) => {
     setActiveToasts(prev => {
@@ -64,6 +72,11 @@ export function NotificationPopup() {
 
   const showNotificationToast = useCallback((notif: AppNotification) => {
     if (!notif || notif.is_read) return;
+
+    // Defense-in-depth: Never display unauthorized notifications to non-authorized roles
+    if (!isAuthorizedForNotification(notif, user?.id, role)) {
+      return;
+    }
 
     markSeenId(notif.id);
 
@@ -82,7 +95,7 @@ export function NotificationPopup() {
     };
 
     setActiveToasts(prev => [newToast, ...prev.slice(0, 2)]);
-  }, [dismissToast]);
+  }, [dismissToast, user?.id, role]);
 
   // 1. Initial check for unread alerts that have not yet been seen in this session
   useEffect(() => {
@@ -97,7 +110,9 @@ export function NotificationPopup() {
 
   // 2. Real-time Supabase subscription for instant 0ms pop-up arrival
   useEffect(() => {
-    const channelName = `popup-listener-${Date.now()}`;
+    if (!user) return;
+
+    const channelName = `popup-listener-${user.id}-${Date.now()}`;
     const channel = supabase
       .channel(channelName)
       .on(
@@ -105,7 +120,7 @@ export function NotificationPopup() {
         { event: '*', schema: 'public', table: 'notifications' },
         (payload) => {
           const newNotif = payload.new as AppNotification;
-          if (newNotif && !newNotif.is_read) {
+          if (newNotif && !newNotif.is_read && isAuthorizedForNotification(newNotif, user.id, role)) {
             showNotificationToast(newNotif);
           }
         }
@@ -115,12 +130,12 @@ export function NotificationPopup() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [showNotificationToast]);
+  }, [user, role, showNotificationToast]);
 
   // 3. Custom in-app event listener for guaranteed zero-latency notification dispatches
   useEffect(() => {
     const handleCustomToast = (e: any) => {
-      if (e.detail && !e.detail.is_read) {
+      if (e.detail && !e.detail.is_read && isAuthorizedForNotification(e.detail, user?.id, role)) {
         showNotificationToast(e.detail);
       }
     };
@@ -128,13 +143,18 @@ export function NotificationPopup() {
     return () => {
       window.removeEventListener('kuventory:show-toast', handleCustomToast);
     };
-  }, [showNotificationToast]);
+  }, [user, role, showNotificationToast]);
 
   const handleCardClick = (notif: AppNotification) => {
     // 1. Dismiss this toast
     dismissToast(notif.id);
 
-    // 2. Mark as read
+    // 2. Security validation
+    if (!isAuthorizedForNotification(notif, user?.id, role)) {
+      return;
+    }
+
+    // 3. Mark as read
     if (!notif.is_read) {
       markAsRead.mutate(notif.id);
     }

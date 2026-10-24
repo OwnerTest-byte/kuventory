@@ -21,6 +21,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { getNotificationRoute } from '../utils/notificationRouter';
 import type { AppNotification, InventoryItem } from '../types';
+import { useAuth } from '@/features/auth/context/AuthContext';
+import { isAuthorizedForNotification } from '../utils/notificationSecurity';
 
 function getIcon(type: string) {
   switch (type) {
@@ -122,8 +124,9 @@ function resolveNotificationMeta(
 
 export function NotificationCenter() {
   const navigate = useNavigate();
+  const { user, role } = useAuth();
   const [filter, setFilter] = useState<'ALL' | 'UNREAD' | 'WARNINGS' | 'CRITICAL'>('ALL');
-  const { data: notifications = [], isLoading, isError, refetch } = useNotifications();
+  const { data: rawNotifications = [], isLoading, isError, refetch } = useNotifications();
   const { items = [] } = useItems();
   const markAsRead = useMarkNotificationAsRead();
   const markAllAsRead = useMarkAllNotificationsAsRead();
@@ -136,7 +139,13 @@ export function NotificationCenter() {
     return map;
   }, [items]);
 
+  // Defense-in-depth: Ensure only authorized notifications are displayed
+  const notifications = useMemo(() => {
+    return rawNotifications.filter(n => isAuthorizedForNotification(n, user?.id, role));
+  }, [rawNotifications, user?.id, role]);
+
   const handleOpen = (n: AppNotification) => {
+    if (!isAuthorizedForNotification(n, user?.id, role)) return;
     if (!n.is_read) markAsRead.mutate(n.id);
     const targetUrl = getNotificationRoute(n, items);
     navigate(targetUrl);

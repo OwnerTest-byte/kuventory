@@ -82,6 +82,7 @@ export type DailyInventoryEntry = {
 
 export type AppNotification = {
   id: string;
+  user_id?: string | null;
   title: string;
   message: string;
   type: 'LOW_STOCK' | 'EXPIRING_SOON' | 'OUT_OF_STOCK' | 'EXPIRED' | 'PASSWORD_RESET' | 'SYSTEM' | string;

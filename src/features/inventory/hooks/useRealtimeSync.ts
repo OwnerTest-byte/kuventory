@@ -3,10 +3,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { dailyInventoryKeys } from '@/features/daily-inventory/hooks/useDailyInventory';
 import { useAuth } from '@/features/auth/context/AuthContext';
+import { isAuthorizedForNotification } from '../utils/notificationSecurity';
 
 export function useRealtimeSync() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
   useEffect(() => {
     // Only subscribe to real-time events for authenticated sessions
@@ -57,8 +58,18 @@ export function useRealtimeSync() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications' },
         (payload) => {
+          const scopedKey = ['notifications', user?.id, role];
+
           if (payload.eventType === 'INSERT') {
             const newNotif = payload.new as any;
+            if (!newNotif || !isAuthorizedForNotification(newNotif, user?.id, role)) {
+              return;
+            }
+            queryClient.setQueryData<any[]>(scopedKey, (old: any[] | undefined) => {
+              const current = old || [];
+              if (current.some((n: any) => n.id === newNotif.id)) return current;
+              return [newNotif, ...current];
+            });
             queryClient.setQueryData<any[]>(['notifications'], (old: any[] | undefined) => {
               const current = old || [];
               if (current.some((n: any) => n.id === newNotif.id)) return current;
@@ -66,6 +77,22 @@ export function useRealtimeSync() {
             });
           } else if (payload.eventType === 'UPDATE') {
             const updatedNotif = payload.new as any;
+            if (!updatedNotif) return;
+            if (!isAuthorizedForNotification(updatedNotif, user?.id, role)) {
+              queryClient.setQueryData<any[]>(scopedKey, (old: any[] | undefined) => {
+                const current = old || [];
+                return current.filter((n: any) => n.id !== updatedNotif.id);
+              });
+              queryClient.setQueryData<any[]>(['notifications'], (old: any[] | undefined) => {
+                const current = old || [];
+                return current.filter((n: any) => n.id !== updatedNotif.id);
+              });
+              return;
+            }
+            queryClient.setQueryData<any[]>(scopedKey, (old: any[] | undefined) => {
+              const current = old || [];
+              return current.map((n: any) => (n.id === updatedNotif.id ? { ...n, ...updatedNotif } : n));
+            });
             queryClient.setQueryData<any[]>(['notifications'], (old: any[] | undefined) => {
               const current = old || [];
               return current.map((n: any) => (n.id === updatedNotif.id ? { ...n, ...updatedNotif } : n));
@@ -73,6 +100,10 @@ export function useRealtimeSync() {
           } else if (payload.eventType === 'DELETE') {
             const deletedId = (payload.old as any)?.id;
             if (deletedId) {
+              queryClient.setQueryData<any[]>(scopedKey, (old: any[] | undefined) => {
+                const current = old || [];
+                return current.filter((n: any) => n.id !== deletedId);
+              });
               queryClient.setQueryData<any[]>(['notifications'], (old: any[] | undefined) => {
                 const current = old || [];
                 return current.filter((n: any) => n.id !== deletedId);
@@ -207,5 +238,5 @@ export function useRealtimeSync() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       supabase.removeChannel(channel);
     };
-  }, [queryClient, user]);
+  }, [queryClient, user, role]);
 }
