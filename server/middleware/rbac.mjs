@@ -1,6 +1,6 @@
 /**
  * Role-Based Access Control (RBAC) Middleware
- * Enforces permissions with MASTER_ADMIN universal bypass and force-override capabilities.
+ * Enforces permissions with SUPER_ADMIN universal override capabilities.
  */
 import { createClient } from '@supabase/supabase-js';
 
@@ -43,12 +43,11 @@ export async function authenticateUser(req, res, next) {
     const devUserId = req.headers['x-user-id'];
     if (devRole && (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development')) {
       const normalizedDevRole = devRole.toUpperCase();
-      const isSuper = normalizedDevRole === 'SUPER_ADMIN' || normalizedDevRole === 'MASTER_ADMIN';
+      const isSuper = normalizedDevRole === 'SUPER_ADMIN';
       req.user = {
         id: devUserId || 'test-user-id',
         role: isSuper ? 'SUPER_ADMIN' : normalizedDevRole,
         isSuperAdmin: isSuper,
-        isMasterAdmin: isSuper,
         canForceOverride: isSuper
       };
       return next();
@@ -62,26 +61,28 @@ export async function authenticateUser(req, res, next) {
       });
     }
 
-    const token = authHeader.split(' ')[1];
-    req.token = token;
-    
-    // Create request-scoped client forwarding the verified caller token
-    const client = getAuthenticatedSupabaseClient(token);
-    const { data: { user }, error: authError } = await client.auth.getUser(token);
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+
+    // 2. Validate token with Supabase Auth
+    const authClient = getAuthenticatedSupabaseClient(token);
+    const {
+      data: { user },
+      error: authError
+    } = await authClient.auth.getUser();
 
     if (authError || !user) {
       return res.status(401).json({
-        error: 'Invalid or expired authentication session.',
-        code: 'AUTH_INVALID_TOKEN'
+        error: 'Invalid, expired, or revoked authentication session token.',
+        code: 'TOKEN_INVALID'
       });
     }
 
-    // Fetch user profile role using request-scoped client forwarding the token
-    const { data: profile, error: profileError } = await client
+    // 3. Fetch canonical role from database profile (Single Source of Truth)
+    const { data: profile, error: profileError } = await authClient
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (profileError || !profile) {
       return res.status(403).json({
@@ -91,7 +92,7 @@ export async function authenticateUser(req, res, next) {
     }
 
     const rawRole = (profile?.role || '').toUpperCase();
-    const isSuperAdmin = rawRole === 'SUPER_ADMIN' || rawRole === 'MASTER_ADMIN';
+    const isSuperAdmin = rawRole === 'SUPER_ADMIN';
     const canonicalRole = isSuperAdmin ? 'SUPER_ADMIN' : rawRole;
 
     req.user = {
@@ -100,7 +101,6 @@ export async function authenticateUser(req, res, next) {
       role: canonicalRole,
       rawRole,
       isSuperAdmin,
-      isMasterAdmin: isSuperAdmin,
       canForceOverride: isSuperAdmin
     };
 
@@ -117,7 +117,7 @@ export async function authenticateUser(req, res, next) {
 /**
  * RBAC Guard Middleware:
  * Allows access if the user's role is in `allowedRoles`,
- * OR if the user is a `SUPER_ADMIN` / `MASTER_ADMIN` (universal bypass).
+ * OR if the user is a `SUPER_ADMIN` (universal bypass).
  */
 export function requireRole(allowedRoles = []) {
   const normalizedAllowed = allowedRoles.map((r) => r.toUpperCase());
@@ -130,9 +130,9 @@ export function requireRole(allowedRoles = []) {
       });
     }
 
-    // SUPER_ADMIN (and legacy MASTER_ADMIN) has absolute bypass-level permissions across all operational endpoints
-    if (req.user.isSuperAdmin || req.user.isMasterAdmin || req.user.role === 'SUPER_ADMIN' || req.user.role === 'MASTER_ADMIN') {
-      req.bypassedByMasterAdmin = true;
+    // SUPER_ADMIN has absolute bypass-level permissions across all operational endpoints
+    if (req.user.isSuperAdmin || req.user.role === 'SUPER_ADMIN') {
+      req.bypassedBySuperAdmin = true;
       return next();
     }
 
@@ -157,7 +157,7 @@ export function requireForceOverridePermission(req, res, next) {
     return res.status(401).json({ error: 'Authentication required.', code: 'AUTH_REQUIRED' });
   }
 
-  if (req.user.isSuperAdmin || req.user.isMasterAdmin || req.user.role === 'SUPER_ADMIN' || req.user.role === 'MASTER_ADMIN') {
+  if (req.user.isSuperAdmin || req.user.role === 'SUPER_ADMIN') {
     return next();
   }
 

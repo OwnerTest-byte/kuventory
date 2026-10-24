@@ -255,7 +255,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Authoritative role evaluation strictly from server record
         const roleFromDb = data?.role as Role;
-        const validRoles: Role[] = ['MASTER_ADMIN', 'SUPER_ADMIN', 'ADMIN', 'USER'];
+        const validRoles: Role[] = ['SUPER_ADMIN', 'ADMIN', 'USER'];
         const resolvedRole: Role = validRoles.includes(roleFromDb) ? roleFromDb : 'USER';
 
         return {

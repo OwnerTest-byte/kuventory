@@ -36,7 +36,7 @@ export function LoginLockoutsTab() {
   const [unlockReason, setUnlockReason] = useState('');
   const [isUnlocking, setIsUnlocking] = useState(false);
 
-  const isSuperAdmin = profile?.role === 'SUPER_ADMIN' || profile?.role === 'MASTER_ADMIN';
+  const isSuperAdmin = profile?.role === 'SUPER_ADMIN';
 
   const loadAccounts = async () => {
     setIsLoading(true);

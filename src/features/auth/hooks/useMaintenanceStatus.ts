@@ -4,7 +4,7 @@ import { useAuth } from '@/features/auth/context/AuthContext';
 
 export function useMaintenanceStatus() {
   const { role } = useAuth();
-  const isSuperUser = role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN';
+  const isSuperUser = role === 'SUPER_ADMIN';
 
   const { data: maintenance = {
     status: 'NORMAL' as const,

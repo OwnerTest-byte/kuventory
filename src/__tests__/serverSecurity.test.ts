@@ -46,10 +46,10 @@ describe('Server Security & Input Sanitization (Unit Tests)', () => {
     expect((safeResult.clean as any).description).toBe('High Grade Premium tea');
   });
 
-  it('enforces RBAC privilege levels: MASTER_ADMIN has universal override capability', () => {
-    const masterAdmin = evaluateForceOverridePermission('MASTER_ADMIN', true);
-    expect(masterAdmin.allowed).toBe(true);
-    expect(masterAdmin.reason).toBe('MASTER_ADMIN_BYPASS_GRANTED');
+  it('enforces RBAC privilege levels: SUPER_ADMIN has universal override capability', () => {
+    const superAdmin = evaluateForceOverridePermission('SUPER_ADMIN', true);
+    expect(superAdmin.allowed).toBe(true);
+    expect(superAdmin.reason).toBe('SUPER_ADMIN_BYPASS_GRANTED');
 
     const admin = evaluateForceOverridePermission('ADMIN', true);
     expect(admin.allowed).toBe(false);

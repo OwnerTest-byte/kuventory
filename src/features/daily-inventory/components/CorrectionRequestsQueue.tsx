@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   fetchCorrectionRequests,
   adminReviewCorrectionRequest,
-  superAdminReviewCorrectionRequest,
   type DailyInventoryCorrectionRequest,
 } from '../services/correctionRequestService';
 import { useAuth } from '@/features/auth/context/AuthContext';
@@ -44,11 +43,11 @@ export function CorrectionRequestsQueue({ dailyInventoryId, onCorrectionApplied 
 
   // Selected request for review
   const [selectedRequest, setSelectedRequest] = useState<DailyInventoryCorrectionRequest | null>(null);
-  const [reviewDecision, setReviewDecision] = useState<'APPROVE' | 'FORWARD' | 'RETURN' | 'REJECT' | null>(null);
+  const [reviewDecision, setReviewDecision] = useState<'APPROVE' | 'RETURN' | 'REJECT' | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
   const [isProcessingDecision, setIsProcessingDecision] = useState(false);
 
-  const isSuperAdmin = profile?.role === 'SUPER_ADMIN' || profile?.role === 'MASTER_ADMIN';
+  const isSuperAdmin = profile?.role === 'SUPER_ADMIN';
   const isAdmin = profile?.role === 'ADMIN' || isSuperAdmin;
 
   const loadRequests = async () => {
@@ -68,7 +67,7 @@ export function CorrectionRequestsQueue({ dailyInventoryId, onCorrectionApplied 
     loadRequests();
   }, []);
 
-  const handleOpenReview = (req: DailyInventoryCorrectionRequest, decision: 'APPROVE' | 'FORWARD' | 'RETURN' | 'REJECT') => {
+  const handleOpenReview = (req: DailyInventoryCorrectionRequest, decision: 'APPROVE' | 'RETURN' | 'REJECT') => {
     setSelectedRequest(req);
     setReviewDecision(decision);
     setReviewNotes('');
@@ -83,13 +82,18 @@ export function CorrectionRequestsQueue({ dailyInventoryId, onCorrectionApplied 
     setErrorMessage(null);
 
     try {
-      if (reviewDecision === 'FORWARD') {
+      if (reviewDecision === 'APPROVE') {
+        // Admin approves and atomically applies correction to finalized sheet
         const res = await adminReviewCorrectionRequest(
           selectedRequest.id,
-          'APPROVE_AND_FORWARD',
-          reviewNotes.trim() || 'Verified by Admin'
+          'APPROVE',
+          reviewNotes.trim() || 'Approved by Admin'
         );
         setSuccessMessage(res.message);
+        await queryClient.invalidateQueries({ queryKey: ['reports'] });
+        await queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        await queryClient.invalidateQueries({ queryKey: ['batches'] });
+        onCorrectionApplied?.();
       } else if (reviewDecision === 'RETURN') {
         if (!reviewNotes.trim()) {
           setErrorMessage('Notes are required when returning a request to the requester.');
@@ -108,25 +112,8 @@ export function CorrectionRequestsQueue({ dailyInventoryId, onCorrectionApplied 
           setIsProcessingDecision(false);
           return;
         }
-        if (selectedRequest.status === 'PENDING_ADMIN') {
-          const res = await adminReviewCorrectionRequest(selectedRequest.id, 'REJECT', reviewNotes.trim());
-          setSuccessMessage(res.message);
-        } else {
-          const res = await superAdminReviewCorrectionRequest(selectedRequest.id, 'REJECT', reviewNotes.trim());
-          setSuccessMessage(res.message);
-        }
-      } else if (reviewDecision === 'APPROVE') {
-        // Super Admin Stage 2 final approval & atomic application
-        const res = await superAdminReviewCorrectionRequest(
-          selectedRequest.id,
-          'APPROVE',
-          reviewNotes.trim() || 'Final approval granted'
-        );
+        const res = await adminReviewCorrectionRequest(selectedRequest.id, 'REJECT', reviewNotes.trim());
         setSuccessMessage(res.message);
-        await queryClient.invalidateQueries({ queryKey: ['reports'] });
-        await queryClient.invalidateQueries({ queryKey: ['inventory'] });
-        await queryClient.invalidateQueries({ queryKey: ['batches'] });
-        onCorrectionApplied?.();
       }
 
       setSelectedRequest(null);
@@ -143,13 +130,7 @@ export function CorrectionRequestsQueue({ dailyInventoryId, onCorrectionApplied 
       case 'PENDING_ADMIN':
         return (
           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-            Pending Admin Review (Stage 1)
-          </span>
-        );
-      case 'PENDING_SUPER_ADMIN':
-        return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-            Pending Super Admin Approval (Stage 2)
+            Pending Admin Review
           </span>
         );
       case 'APPLIED':
@@ -165,10 +146,15 @@ export function CorrectionRequestsQueue({ dailyInventoryId, onCorrectionApplied 
           </span>
         );
       case 'REJECTED_BY_ADMIN':
-      case 'REJECTED_BY_SUPER_ADMIN':
         return (
           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
             Rejected
+          </span>
+        );
+      case 'CONFLICT_REQUIRES_RESUBMISSION':
+        return (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+            Revision Conflict
           </span>
         );
       default:
@@ -192,7 +178,7 @@ export function CorrectionRequestsQueue({ dailyInventoryId, onCorrectionApplied 
               Finalized Inventory Correction Queue
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Two-stage approval governance: Staff request → Admin review (Stage 1) → Super Admin final approval & atomic stock reconciliation (Stage 2).
+              Admin approval governance: Staff submit correction request → Administrator reviews & atomically applies revision to finalized worksheet.
             </p>
           </div>
         </div>
@@ -280,47 +266,7 @@ export function CorrectionRequestsQueue({ dailyInventoryId, onCorrectionApplied 
                             <>
                               {isRequester ? (
                                 <span className="text-[10px] text-muted-foreground italic">
-                                  Self-review prohibited
-                                </span>
-                              ) : (
-                                <>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    onClick={() => handleOpenReview(req, 'FORWARD')}
-                                    className="h-7 px-2.5 text-[11px] bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg"
-                                  >
-                                    Verify & Forward
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleOpenReview(req, 'RETURN')}
-                                    className="h-7 px-2 text-[11px] rounded-lg"
-                                  >
-                                    Return
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleOpenReview(req, 'REJECT')}
-                                    className="h-7 px-2 text-[11px] text-destructive hover:bg-destructive/10 rounded-lg"
-                                  >
-                                    Reject
-                                  </Button>
-                                </>
-                              )}
-                            </>
-                          )}
-
-                          {/* Stage 2 Actions (Super Admin Only, NOT self-approval) */}
-                          {req.status === 'PENDING_SUPER_ADMIN' && isSuperAdmin && (
-                            <>
-                              {isRequester ? (
-                                <span className="text-[10px] text-muted-foreground italic">
-                                  Self-review prohibited
+                                  Self-approval prohibited
                                 </span>
                               ) : (
                                 <>
@@ -331,6 +277,15 @@ export function CorrectionRequestsQueue({ dailyInventoryId, onCorrectionApplied 
                                     className="h-7 px-2.5 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg"
                                   >
                                     Approve & Apply
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleOpenReview(req, 'RETURN')}
+                                    className="h-7 px-2 text-[11px] rounded-lg"
+                                  >
+                                    Return
                                   </Button>
                                   <Button
                                     type="button"
@@ -484,8 +439,6 @@ export function CorrectionRequestsQueue({ dailyInventoryId, onCorrectionApplied 
                     className={`h-9 px-4 text-xs font-bold rounded-xl text-white ${
                       reviewDecision === 'APPROVE'
                         ? 'bg-emerald-600 hover:bg-emerald-500'
-                        : reviewDecision === 'FORWARD'
-                        ? 'bg-purple-600 hover:bg-purple-500'
                         : reviewDecision === 'RETURN'
                         ? 'bg-blue-600 hover:bg-blue-500'
                         : 'bg-rose-600 hover:bg-rose-500'

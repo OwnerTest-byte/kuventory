@@ -48,7 +48,7 @@ export function MyProfileModal({ open, onOpenChange }: MyProfileModalProps) {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
 
-  const isPrivileged = profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN' || profile?.role === 'MASTER_ADMIN';
+  const isPrivileged = profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN';
 
   // Form State
   const [displayName, setDisplayName] = useState('');

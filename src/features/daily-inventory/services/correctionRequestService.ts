@@ -26,16 +26,13 @@ export interface DailyInventoryCorrectionRequest {
     | 'PENDING_ADMIN'
     | 'RETURNED_TO_REQUESTER'
     | 'REJECTED_BY_ADMIN'
-    | 'PENDING_SUPER_ADMIN'
-    | 'REJECTED_BY_SUPER_ADMIN'
     | 'APPLIED'
-    | 'FAILED_REQUIRES_REVIEW';
+    | 'CONFLICT_REQUIRES_RESUBMISSION'
+    | 'FAILED_REQUIRES_REVIEW'
+    | 'CANCELLED';
   admin_reviewer_id?: string | null;
   admin_reviewed_at?: string | null;
   admin_notes?: string | null;
-  super_admin_reviewer_id?: string | null;
-  super_admin_reviewed_at?: string | null;
-  super_admin_notes?: string | null;
   applied_at?: string | null;
   applied_revision_id?: string | null;
   idempotency_key?: string | null;
@@ -127,14 +124,14 @@ export async function fetchCorrectionRequests(
 }
 
 /**
- * Stage 1: Admin review of a correction request.
- * Enforces separation of duties: requester cannot review own request.
+ * Admin review and decision on a finalized-sheet correction request.
+ * Enforces separation of duties: requester cannot review or approve own request.
  */
 export async function adminReviewCorrectionRequest(
   requestId: string,
-  decision: 'APPROVE_AND_FORWARD' | 'RETURN' | 'REJECT',
+  decision: 'APPROVE' | 'RETURN' | 'REJECT' | 'APPROVE_AND_FORWARD',
   notes: string
-): Promise<{ success: boolean; status: string; message: string }> {
+): Promise<{ success: boolean; status?: string; revision_number?: number; message: string }> {
   const { data, error } = await supabase.rpc('admin_review_correction_request', {
     p_request_id: requestId,
     p_decision: decision,
@@ -149,22 +146,31 @@ export async function adminReviewCorrectionRequest(
 }
 
 /**
- * Stage 2: Super Admin final approval and atomic application.
+ * Direct approval and atomic application of a finalized sheet correction by an authorized Administrator.
+ */
+export async function approveAndApplyCorrection(
+  requestId: string,
+  adminNotes?: string
+): Promise<{ success: boolean; revision_number: number; message: string }> {
+  const { data, error } = await supabase.rpc('apply_approved_daily_inventory_correction', {
+    p_request_id: requestId,
+    p_admin_notes: (adminNotes || '').trim(),
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Failed to approve and apply correction.');
+  }
+
+  return data;
+}
+
+/**
+ * Super Admin review compatibility wrapper (delegates to authoritative Admin review).
  */
 export async function superAdminReviewCorrectionRequest(
   requestId: string,
   decision: 'APPROVE' | 'REJECT',
   notes: string
 ): Promise<{ success: boolean; revision_number?: number; message: string }> {
-  const { data, error } = await supabase.rpc('super_admin_review_correction_request', {
-    p_request_id: requestId,
-    p_decision: decision,
-    p_notes: notes.trim(),
-  });
-
-  if (error) {
-    throw new Error(error.message || 'Super Admin review failed.');
-  }
-
-  return data;
+  return adminReviewCorrectionRequest(requestId, decision, notes);
 }

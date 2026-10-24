@@ -3,7 +3,7 @@ import {
   submitCorrectionRequest,
   fetchCorrectionRequests,
   adminReviewCorrectionRequest,
-  superAdminReviewCorrectionRequest,
+  approveAndApplyCorrection,
   type ProposedCorrectionItem
 } from '../services/correctionRequestService';
 import { correctFinalizedDailyInventory } from '../services/correctionService';
@@ -128,31 +128,52 @@ describe('Finalized Daily Inventory Correction Approval & Atomic Reconciliation 
     });
   });
 
-  describe('3. Admin Stage 1 Review Workflow', () => {
-    it('approves and forwards request to Super Admin', async () => {
+  describe('3. Admin Review & Direct Approval Workflow (Admin-Only Governance)', () => {
+    it('approves and applies correction directly without requiring Super Admin stage', async () => {
       const mockRpc = vi.mocked(supabase.rpc);
       mockRpc.mockResolvedValueOnce({
         data: {
           success: true,
-          status: 'PENDING_SUPER_ADMIN',
-          message: 'Correction request verified and forwarded to Super Admin for final approval.'
+          revision_number: 2,
+          message: 'Correction request approved and applied. Revision 2 recorded.'
         },
         error: null
       } as any);
 
       const res = await adminReviewCorrectionRequest(
         'req-456',
-        'APPROVE_AND_FORWARD',
+        'APPROVE',
         'Physical count verified against store audit log.'
       );
 
       expect(res.success).toBe(true);
-      expect(res.status).toBe('PENDING_SUPER_ADMIN');
+      expect(res.revision_number).toBe(2);
       expect(mockRpc).toHaveBeenCalledWith('admin_review_correction_request', {
         p_request_id: 'req-456',
-        p_decision: 'APPROVE_AND_FORWARD',
+        p_decision: 'APPROVE',
         p_notes: 'Physical count verified against store audit log.'
       });
+    });
+
+    it('returns request to requester with required reviewer notes', async () => {
+      const mockRpc = vi.mocked(supabase.rpc);
+      mockRpc.mockResolvedValueOnce({
+        data: {
+          success: true,
+          status: 'RETURNED_TO_REQUESTER',
+          message: 'Correction request returned for clarification.'
+        },
+        error: null
+      } as any);
+
+      const res = await adminReviewCorrectionRequest(
+        'req-456',
+        'RETURN',
+        'Please verify whether PM count was before or after waste writeoff.'
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.status).toBe('RETURNED_TO_REQUESTER');
     });
 
     it('rejects request with required reviewer explanation', async () => {
@@ -180,39 +201,37 @@ describe('Finalized Daily Inventory Correction Approval & Atomic Reconciliation 
       const mockRpc = vi.mocked(supabase.rpc);
       mockRpc.mockResolvedValueOnce({
         data: null,
-        error: { message: 'Separation of duties violation: requester cannot review their own correction request.' }
+        error: { message: 'Conflict of Interest: you cannot review a correction request that you submitted.' }
       } as any);
 
       await expect(
-        adminReviewCorrectionRequest('req-456', 'APPROVE_AND_FORWARD', 'Self approve attempt')
-      ).rejects.toThrow('Separation of duties violation');
+        adminReviewCorrectionRequest('req-456', 'APPROVE', 'Self approve attempt')
+      ).rejects.toThrow('Conflict of Interest');
     });
   });
 
-  describe('4. Super Admin Stage 2 Review & Atomic Stock Reconciliation', () => {
+  describe('4. Direct approveAndApplyCorrection RPC & Atomic Stock Reconciliation', () => {
     it('executes atomic application and returns newly minted revision number', async () => {
       const mockRpc = vi.mocked(supabase.rpc);
       mockRpc.mockResolvedValueOnce({
         data: {
           success: true,
           revision_number: 2,
-          message: 'Correction request approved and applied. Revision 2 recorded.'
+          message: 'Successfully applied Revision #2 to finalized inventory sheet.'
         },
         error: null
       } as any);
 
-      const res = await superAdminReviewCorrectionRequest(
+      const res = await approveAndApplyCorrection(
         'req-456',
-        'APPROVE',
         'Approved after reviewing differential stock deltas.'
       );
 
       expect(res.success).toBe(true);
       expect(res.revision_number).toBe(2);
-      expect(mockRpc).toHaveBeenCalledWith('super_admin_review_correction_request', {
+      expect(mockRpc).toHaveBeenCalledWith('apply_approved_daily_inventory_correction', {
         p_request_id: 'req-456',
-        p_decision: 'APPROVE',
-        p_notes: 'Approved after reviewing differential stock deltas.'
+        p_admin_notes: 'Approved after reviewing differential stock deltas.'
       });
     });
 
@@ -224,7 +243,7 @@ describe('Finalized Daily Inventory Correction Approval & Atomic Reconciliation 
       } as any);
 
       await expect(
-        superAdminReviewCorrectionRequest('req-456', 'APPROVE', 'Attempting approval')
+        approveAndApplyCorrection('req-456', 'Attempting approval')
       ).rejects.toThrow('Stock reconciliation failed');
     });
   });

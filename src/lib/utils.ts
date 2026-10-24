@@ -42,7 +42,6 @@ export function formatRoleLabel(role?: string | null): string {
   if (!role) return 'Staff';
   switch (role.toUpperCase()) {
     case 'SUPER_ADMIN':
-    case 'MASTER_ADMIN':
       return 'Super Admin';
     case 'ADMIN':
       return 'Admin';

@@ -76,7 +76,7 @@ router.get('/stream', (req, res) => {
 router.post(
   '/publish',
   authenticateUser,
-  requireRole(['ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN']),
+  requireRole(['ADMIN', 'SUPER_ADMIN']),
   (req, res) => {
     const { title, message, type = 'info', metadata = {} } = req.body || {};
 
@@ -135,7 +135,7 @@ router.post(
 router.get(
   '/clients',
   authenticateUser,
-  requireRole(['ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN']),
+  requireRole(['ADMIN', 'SUPER_ADMIN']),
   (_req, res) => {
     res.json({ activeClients: sseClients.size });
   }

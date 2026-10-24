@@ -39,7 +39,7 @@ export function DailyInventoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { user, role } = useAuth();
-  const isSuperAdmin = role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN';
+  const isSuperAdmin = role === 'SUPER_ADMIN';
   const isAdmin = role === 'ADMIN' || isSuperAdmin;
   const isAuthorizedToCorrect = !!user;
 
@@ -176,12 +176,12 @@ export function DailyInventoryPage() {
   });
 
   const pendingRequest = correctionRequests.find(r => 
-    r.status === 'PENDING_ADMIN' || r.status === 'PENDING_SUPER_ADMIN'
+    r.status === 'PENDING_ADMIN'
   );
   const returnedRequest = correctionRequests.find(r => r.status === 'RETURNED_TO_REQUESTER');
   const hasPendingRequest = !!pendingRequest;
   const pendingRequestsCount = correctionRequests.filter(r => 
-    r.status === 'PENDING_ADMIN' || r.status === 'PENDING_SUPER_ADMIN'
+    r.status === 'PENDING_ADMIN'
   ).length;
 
   const [finalizedSnapshot, setFinalizedSnapshot] = useState<{

@@ -62,14 +62,14 @@ export function evaluateForceOverridePermission(
     return { allowed: true };
   }
 
-  // If record IS locked, ONLY MASTER_ADMIN can force override
-  if (normalizedRole === 'MASTER_ADMIN') {
-    return { allowed: true, reason: 'MASTER_ADMIN_BYPASS_GRANTED' };
+  // If record IS locked, ONLY SUPER_ADMIN can force override
+  if (normalizedRole === 'SUPER_ADMIN') {
+    return { allowed: true, reason: 'SUPER_ADMIN_BYPASS_GRANTED' };
   }
 
   return {
     allowed: false,
-    reason: `Permission denied: Role '${normalizedRole}' cannot override finalized/locked records. Requires MASTER_ADMIN.`,
+    reason: `Permission denied: Role '${normalizedRole}' cannot override finalized/locked records. Requires SUPER_ADMIN.`,
   };
 }
 
@@ -120,16 +120,16 @@ describe('Database Concurrency & Transaction Safety (Unit Tests)', () => {
     expect(result.error).toContain('Insufficient stock');
   });
 
-  it('allows MASTER_ADMIN to force override locked records', () => {
-    const res = evaluateForceOverridePermission('MASTER_ADMIN', true);
+  it('allows SUPER_ADMIN to force override locked records', () => {
+    const res = evaluateForceOverridePermission('SUPER_ADMIN', true);
     expect(res.allowed).toBe(true);
-    expect(res.reason).toBe('MASTER_ADMIN_BYPASS_GRANTED');
+    expect(res.reason).toBe('SUPER_ADMIN_BYPASS_GRANTED');
   });
 
-  it('blocks regular ADMIN and STAFF from modifying locked records without MASTER_ADMIN role', () => {
+  it('blocks regular ADMIN and STAFF from modifying locked records without SUPER_ADMIN role', () => {
     const adminRes = evaluateForceOverridePermission('ADMIN', true);
     expect(adminRes.allowed).toBe(false);
-    expect(adminRes.reason).toContain('Requires MASTER_ADMIN');
+    expect(adminRes.reason).toContain('Requires SUPER_ADMIN');
 
     const staffRes = evaluateForceOverridePermission('STAFF', true);
     expect(staffRes.allowed).toBe(false);

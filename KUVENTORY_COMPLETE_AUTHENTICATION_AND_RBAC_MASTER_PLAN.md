@@ -164,34 +164,35 @@ stateDiagram-v2
 
 ## 4. Canonical Roles and Permission Policy
 
-### 4.1 Preserve Role Distinctions
+### 4.1 Authoritative Role Hierarchy
 
-The auth context must never collapse `SUPER_ADMIN` and `MASTER_ADMIN` into the same role. The matrix below defines the target permission contract:
+`SUPER_ADMIN` is KUVENTORY's single highest account role across backend, database, and client layers. The legacy `MASTER_ADMIN` role has been permanently retired via forward migration `20261024210000`.
 
-| Capability | Staff / Ordinary User | ADMIN | SUPER_ADMIN | MASTER_ADMIN |
-| :--- | :---: | :---: | :---: | :---: |
-| **Sign in and use assigned daily inventory workflows** | Yes | Yes | Yes | Yes |
-| **View/update own allowed profile fields** | Yes | Yes | Yes | Yes |
-| **Change own password with current credential or recovery grant** | Yes | Yes | Yes | Yes |
-| **Enroll/change own recovery factor** | Yes, with step-up verification | Yes, with step-up MFA | Yes, with step-up MFA | Yes, with step-up MFA and audit |
-| **View own sessions and revoke own other sessions** | Yes | Yes | Yes | Yes |
-| **Manage ordinary Staff accounts** | No | Yes | Yes | Yes |
-| **Create/activate/deactivate Staff** | No | Yes, with audit/reason | Yes | Yes |
-| **Change roles or grant privileges** | No | Staff-level only if explicitly allowed | Up to Admin, never self/escalation | System-owner-level roles under two-person procedure |
-| **Review Staff-assisted recovery** | No | Yes, cannot approve own or privileged | Yes, as independent reviewer | Yes, cannot silently bypass process |
-| **Approve high-risk recovery of an Admin** | No | No | Independent Super Admin / Master Admin | Yes, with independent verification; no self-approval |
-| **Recover own account using normal admin console powers** | No | No | No | No |
-| **View/manipulate secrets or OTP values** | No | No | No | No (secrets remain server-side only) |
-| **Alter/delete security audit history** | No | No | No | No (controlled maintenance only) |
-| **Change global auth/security settings** | No | Limited operational settings only | Yes, subject to policy | Yes, guarded and audited |
-| **Manage other Master Admins** | No | No | No | Only via documented break-glass procedure |
+The target permission matrix defines the authoritative contract:
+
+| Capability | Staff / Ordinary User | ADMIN | SUPER_ADMIN |
+| :--- | :---: | :---: | :---: |
+| **Sign in and use assigned daily inventory workflows** | Yes | Yes | Yes |
+| **View/update own allowed profile fields** | Yes | Yes | Yes |
+| **Change own password with current credential or recovery grant** | Yes | Yes | Yes |
+| **Enroll/change own recovery factor** | Yes, with step-up verification | Yes, with step-up MFA | Yes, with step-up MFA and audit |
+| **View own sessions and revoke own other sessions** | Yes | Yes | Yes |
+| **Manage ordinary Staff accounts** | No | Yes | Yes |
+| **Create/activate/deactivate Staff** | No | Yes, with audit/reason | Yes |
+| **Change roles or grant privileges** | No | Staff-level only if explicitly allowed | Full administrative role authority |
+| **Review Staff-assisted recovery** | No | Yes, cannot approve own or privileged | Yes, as independent reviewer |
+| **Approve finalized-sheet inventory corrections** | No | Yes, direct approval & apply (no self-approval) | Yes, as administrative reviewer |
+| **Recover own account using normal admin console powers** | No | No | No |
+| **View/manipulate secrets or OTP values** | No | No | No (secrets remain server-side only) |
+| **Alter/delete security audit history** | No | No | No (immutable audit trail) |
+| **Change global auth/security settings** | No | Limited operational settings only | Yes, subject to policy |
 
 ### 4.2 Role Boundaries & Separation of Duties
 
 - **Staff / Ordinary User:** Limited to daily inventory operations. Can view only their own profile, recovery status, and active sessions. Cannot modify their database role, status, or login identifier.
-- **Admin:** Manages Staff accounts and operational configurations within assigned branch scope. Can review standard Staff recovery requests. Cannot view OTPs, set passwords directly, approve their own requests, or escalate privileges.
-- **Super Admin:** Oversees administrative operations and high-risk reviews. Can create/modify Admin roles via validated operations with confirmation, justification, and immutable audit logs. Cannot reset their own account or bypass the state machine.
-- **Master Admin:** Highest system-owner tier. Governed by distinct permissions and a dedicated audit trail. Privileged access requires MFA and an out-of-band break-glass recovery workflow.
+- **Admin:** Manages Staff accounts and operational configurations within assigned branch scope. Can review standard Staff recovery requests. Can review and directly approve/apply finalized inventory sheet corrections (no Super Admin required). Cannot approve their own requests, view OTPs, set passwords directly, or self-escalate.
+- **Super Admin:** Highest system authority tier. Oversees administrative operations, security controls, lockout overrides, and system-level configurations. Actions are governed by immutable audit logging and strict authorization boundaries.
+- **Master Admin:** Permanently retired. No active code path, role enum, database grant, or UI label recognizes or grants access to this legacy role.
 
 ### 4.3 Prevent Privilege Escalation
 
@@ -375,7 +376,7 @@ The auth context must never collapse `SUPER_ADMIN` and `MASTER_ADMIN` into the s
 ### 8.1 `profiles` (Existing & Hardened)
 
 - `id UUID PRIMARY KEY REFERENCES auth.users(id)`
-- `role TEXT NOT NULL CHECK (role IN ('STAFF', 'ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN'))`
+- `role TEXT NOT NULL CHECK (role IN ('STAFF', 'USER', 'ADMIN', 'SUPER_ADMIN'))`
 - `status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('PENDING_ACTIVATION', 'ACTIVE', 'TEMPORARILY_LOCKED', 'SUSPENDED', 'DEACTIVATED'))`
 - `display_name TEXT`, `first_name TEXT`, `last_name TEXT`, `phone TEXT`
 - `support_phone TEXT`, `support_email TEXT`, `show_on_lockout_screen BOOLEAN DEFAULT false`
@@ -464,10 +465,10 @@ The auth context must never collapse `SUPER_ADMIN` and `MASTER_ADMIN` into the s
 - [x] Password recovery does not promise email delivery to synthetic aliases.
 - [x] Password reset requires an authenticated recovery grant; ordinary sessions cannot enter reset pages.
 - [x] Client cannot supply `p_success` to bypass lockout security.
-- [x] `MASTER_ADMIN` is preserved as a distinct role from `SUPER_ADMIN`.
+- [x] `SUPER_ADMIN` is established as the single highest account role; `MASTER_ADMIN` is permanently retired.
+- [x] Finalized inventory sheet corrections streamlined to Admin-only approval with atomic reconciliation, OCC revision concurrency check, and self-approval prohibition.
 - [x] Overlapping RPC overloads causing PostgREST `PGRST202` errors are resolved.
-- [x] Finalized inventory corrections enforce idempotency, row-level locks, revision checks, and genuine batch expiry provenance.
 - [x] Shared dialog components adapt to viewports from 320px to 1920px without clipping or horizontal blowout.
-- [x] Automated test suites pass with 100% success (22 files, 170 passing tests).
+- [x] Automated test suites pass with 100% success (23 files, 181 passing tests).
 - [x] E2E test isolation prevents accidental remote database mutation.
 - [x] Production build compiles cleanly with zero TypeScript errors.

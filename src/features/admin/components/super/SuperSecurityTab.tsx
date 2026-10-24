@@ -70,7 +70,7 @@ export function SuperSecurityTab({
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .in('role', ['SUPER_ADMIN', 'MASTER_ADMIN', 'ADMIN'])
+        .in('role', ['SUPER_ADMIN', 'ADMIN'])
         .order('role');
       if (error) return [];
       return data || [];
@@ -368,7 +368,7 @@ export function SuperSecurityTab({
                           </div>
                           <span className={cn(
                             "ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase",
-                            s.role === 'SUPER_ADMIN' || s.role === 'MASTER_ADMIN'
+                            s.role === 'SUPER_ADMIN'
                               ? "bg-amber-500/15 text-amber-500 border border-amber-500/30"
                               : s.role === 'ADMIN'
                               ? "bg-blue-500/15 text-blue-400 border border-blue-500/30"
@@ -493,11 +493,11 @@ export function SuperSecurityTab({
               </div>
               <span className={cn(
                 "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
-                u.role === 'SUPER_ADMIN' || u.role === 'MASTER_ADMIN'
+                u.role === 'SUPER_ADMIN'
                   ? "bg-amber-500/15 text-amber-500 border border-amber-500/30"
                   : "bg-blue-500/15 text-blue-500 border border-blue-500/30"
               )}>
-                {u.role === 'SUPER_ADMIN' || u.role === 'MASTER_ADMIN' ? 'Super Admin' : 'Admin'}
+                {u.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin'}
               </span>
             </div>
           ))}

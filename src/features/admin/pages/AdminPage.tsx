@@ -33,7 +33,7 @@ import { MyProfileModal } from '../components/MyProfileModal';
 
 interface ProfileRow {
   id: string;
-  role: 'SUPER_ADMIN' | 'MASTER_ADMIN' | 'ADMIN' | 'USER';
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'USER';
   display_name: string | null;
   created_at: string;
 }
@@ -42,8 +42,7 @@ export function AdminPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { user, profile, role } = useAuth();
-  const isSuperAdmin = role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN';
-  const isMasterAdmin = isSuperAdmin;
+  const isSuperAdmin = role === 'SUPER_ADMIN';
   const isAdmin = role === 'ADMIN' || isSuperAdmin;
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -305,24 +304,18 @@ export function AdminPage() {
     email: string;
     password: string;
     displayName: string;
-    role: 'USER' | 'ADMIN' | 'MASTER_ADMIN';
+    role: 'USER' | 'ADMIN';
   }>({ email: '', password: '', displayName: '', role: 'USER' });
   const [addError, setAddError] = useState<string | null>(null);
 
   // Fetch real users from public.profiles
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
-    queryKey: ['profiles-admin', isMasterAdmin],
+    queryKey: ['profiles-admin'],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('id, role, display_name, created_at')
         .order('created_at', { ascending: false });
-
-      if (!isMasterAdmin) {
-        query = query.neq('role', 'MASTER_ADMIN');
-      }
-
-      const { data, error } = await query;
 
       if (error) {
         console.error('Fetch profiles error:', error);
@@ -333,9 +326,8 @@ export function AdminPage() {
   });
 
   const visibleUsers = useMemo(() => {
-    if (isMasterAdmin) return users;
-    return users.filter(u => u.role !== 'MASTER_ADMIN');
-  }, [users, isMasterAdmin]);
+    return users;
+  }, [users]);
 
   // Toggle role mutation
   const toggleRoleMutation = useMutation({
@@ -711,9 +703,9 @@ export function AdminPage() {
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-sm font-bold text-foreground">Authorized Users & Roles</h2>
-                {isMasterAdmin && (
+                {isSuperAdmin && (
                   <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                    1 Super Admin (Developer Root)
+                    1 Super Admin (System Root)
                   </span>
                 )}
                 <span className={cn(
@@ -726,7 +718,7 @@ export function AdminPage() {
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                {isMasterAdmin 
+                {isSuperAdmin 
                   ? 'Only 1 Super Admin and up to 3 Administrators are permitted. Staff users perform daily inventory counting.' 
                   : 'Up to 3 Administrators are permitted. Staff users perform daily inventory counting.'}
               </p>
@@ -758,7 +750,7 @@ export function AdminPage() {
                   </TableRow>
                 ) : (
                   visibleUsers.map(u => {
-                    const isTargetMaster = u.role === 'MASTER_ADMIN';
+                    const isTargetSuper = u.role === 'SUPER_ADMIN';
                     const isTargetAdmin = u.role === 'ADMIN';
                     const isSelf = u.id === user?.id;
 
@@ -768,13 +760,13 @@ export function AdminPage() {
                           <div className="font-bold text-foreground flex items-center gap-2">
                             <div className={cn(
                               "w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs",
-                              isTargetMaster 
+                              isTargetSuper 
                                 ? "bg-amber-500/20 text-amber-500 border border-amber-500/30"
                                 : isTargetAdmin 
                                   ? "bg-primary/10 text-primary border border-primary/20" 
                                   : "bg-muted text-foreground border border-border"
                             )}>
-                              {isTargetMaster ? <Crown className="w-3.5 h-3.5 text-amber-500" /> : (u.display_name?.charAt(0).toUpperCase() || 'U')}
+                              {isTargetSuper ? <Crown className="w-3.5 h-3.5 text-amber-500" /> : (u.display_name?.charAt(0).toUpperCase() || 'U')}
                             </div>
                             <span className="flex items-center gap-1.5">
                               {u.display_name || 'Staff Member'}
@@ -792,15 +784,15 @@ export function AdminPage() {
                         <TableCell className="text-center">
                           <span className={cn(
                             "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider",
-                            isTargetMaster 
+                            isTargetSuper 
                               ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
                               : isTargetAdmin 
                                 ? "bg-primary/15 text-primary border border-primary/20" 
                                 : "bg-emerald-500/15 text-emerald-500 border border-emerald-500/20"
                           )}>
-                            {isTargetMaster && <Crown className="w-3 h-3 text-amber-500" />}
+                            {isTargetSuper && <Crown className="w-3 h-3 text-amber-500" />}
                             {isTargetAdmin && <Shield className="w-3 h-3 text-primary" />}
-                            {isTargetMaster ? 'SUPER ADMIN' : isTargetAdmin ? 'ADMIN' : 'STAFF'}
+                            {isTargetSuper ? 'SUPER ADMIN' : isTargetAdmin ? 'ADMIN' : 'STAFF'}
                           </span>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs">
@@ -825,12 +817,12 @@ export function AdminPage() {
                             </Button>
 
                             {/* Role management controls */}
-                            {isMasterAdmin && !isSelf && !isTargetMaster && (
+                            {isSuperAdmin && !isSelf && !isTargetSuper && (
                               <select
                                 value={u.role}
                                 onChange={(e) => toggleRoleMutation.mutate({ 
-                                  userId: u.id, 
-                                  newRole: e.target.value as 'USER' | 'ADMIN' 
+                                   userId: u.id, 
+                                   newRole: e.target.value as 'USER' | 'ADMIN' 
                                 })}
                                 disabled={toggleRoleMutation.isPending}
                                 className="h-8 px-2 bg-card border border-border text-foreground rounded text-xs font-semibold outline-none cursor-pointer"
@@ -845,7 +837,7 @@ export function AdminPage() {
                               </select>
                             )}
 
-                            {!isMasterAdmin && !isTargetMaster && !isSelf && (
+                            {!isSuperAdmin && !isTargetSuper && !isSelf && (
                               <Button 
                                 variant="outline" 
                                 size="sm" 
@@ -866,7 +858,7 @@ export function AdminPage() {
                                   deleteUserMutation.mutate(u.id);
                                 }
                               }}
-                              disabled={deleteUserMutation.isPending || isSelf || (!isMasterAdmin && isTargetMaster)}
+                              disabled={deleteUserMutation.isPending || isSelf || (!isSuperAdmin && isTargetSuper)}
                               title={isSelf ? "Cannot delete your own account" : "Remove user access"}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1612,9 +1604,9 @@ export function AdminPage() {
                 <option value="USER">Staff / Operator (Worksheet entry)</option>
                 <option 
                   value="ADMIN" 
-                  disabled={!isMasterAdmin || users.filter(u => u.role === 'ADMIN').length >= 3}
+                  disabled={!isSuperAdmin || users.filter(u => u.role === 'ADMIN').length >= 3}
                 >
-                  System Administrator {!isMasterAdmin ? '(Only Super Admin can assign)' : users.filter(u => u.role === 'ADMIN').length >= 3 ? '(Quota 3/3 Full)' : `(${users.filter(u => u.role === 'ADMIN').length}/3 filled)`}
+                  System Administrator {!isSuperAdmin ? '(Only Super Admin can assign)' : users.filter(u => u.role === 'ADMIN').length >= 3 ? '(Quota 3/3 Full)' : `(${users.filter(u => u.role === 'ADMIN').length}/3 filled)`}
                 </option>
               </select>
               {users.filter(u => u.role === 'ADMIN').length >= 3 && (

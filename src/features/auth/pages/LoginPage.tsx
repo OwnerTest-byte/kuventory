@@ -18,7 +18,7 @@ export function LoginPage() {
 
   // Redirect role-specifically if already logged in (Admin / Super Admin -> Dashboard, Staff -> Daily Inventory)
   if (session) {
-    const landingPath = (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN') ? '/inventory' : '/daily-inventory';
+    const landingPath = (role === 'ADMIN' || role === 'SUPER_ADMIN') ? '/inventory' : '/daily-inventory';
     return <Navigate to={landingPath} replace />;
   }
 

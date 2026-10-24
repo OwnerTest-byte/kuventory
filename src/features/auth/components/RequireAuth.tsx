@@ -44,7 +44,7 @@ export function RequireAdmin() {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (role !== 'ADMIN' && role !== 'SUPER_ADMIN' && role !== 'MASTER_ADMIN') {
+  if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-background px-4">
         <h1 className="text-2xl font-bold text-foreground mb-2">Access Denied</h1>
@@ -74,7 +74,7 @@ export function RequireSuperAdmin() {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  const isSuperUser = role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN';
+  const isSuperUser = role === 'SUPER_ADMIN';
   if (!isSuperUser) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-background px-4">
