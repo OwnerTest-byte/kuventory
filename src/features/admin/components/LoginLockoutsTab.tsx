@@ -54,7 +54,21 @@ export function LoginLockoutsTab() {
   useEffect(() => {
     loadAccounts();
     const interval = setInterval(loadAccounts, 30000); // Poll every 30s
-    return () => clearInterval(interval);
+    // No realtime here by design: account_security_state RLS deliberately
+    // blocks all client reads, so bounded polling is the safe mechanism.
+    // Reconcile immediately when the tab regains focus or connectivity.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadAccounts();
+    };
+    window.addEventListener('focus', loadAccounts);
+    window.addEventListener('online', loadAccounts);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', loadAccounts);
+      window.removeEventListener('online', loadAccounts);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   const handleOpenUnlock = (acc: LockedAccountRecord) => {

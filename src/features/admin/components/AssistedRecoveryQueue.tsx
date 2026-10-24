@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn, formatSafeDate } from '@/lib/utils';
+import { useRealtimeTableSync } from '../hooks/useRealtimeTableSync';
 import {
   fetchAssistedRecoveryRequests,
   reviewAssistedRecoveryRequest,
@@ -67,7 +68,20 @@ export function AssistedRecoveryQueue() {
   } = useQuery({
     queryKey: ['assisted-recovery-requests'],
     queryFn: fetchAssistedRecoveryRequests,
+    // Bounded fallback: realtime (below) triggers refetches on new tickets
+    // and decisions; this poll covers dropped connections and reconnects.
     refetchInterval: 15000,
+  });
+
+  // Realtime acceleration: new submissions and review decisions from any
+  // administrator session appear here immediately (RLS admits admins only;
+  // the refetched query response remains the trusted state).
+  const { isLive: isRealtimeLive } = useRealtimeTableSync({
+    table: 'account_recovery_requests',
+    channelName: 'assisted-recovery-queue-sync',
+    onEvent: () => {
+      void queryClient.invalidateQueries({ queryKey: ['assisted-recovery-requests'] });
+    },
   });
 
   const reviewMutation = useMutation({
@@ -144,6 +158,13 @@ export function AssistedRecoveryQueue() {
               <h3 className="text-sm font-bold text-foreground">Assisted Recovery Queue</h3>
               <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/20">
                 {requests.filter(r => OPEN_STATUSES.has(r.status)).length} Open
+              </span>
+              <span
+                title={isRealtimeLive ? 'Realtime connected — new requests appear instantly' : 'Realtime unavailable — auto-refreshing every 15s'}
+                className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border flex items-center gap-1"
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${isRealtimeLive ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/60'}`} />
+                <span className="text-muted-foreground">{isRealtimeLive ? 'Live' : 'Polling'}</span>
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">

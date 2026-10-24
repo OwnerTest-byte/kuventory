@@ -6,6 +6,7 @@ import {
   type DailyInventoryCorrectionRequest,
 } from '../services/correctionRequestService';
 import { useAuth } from '@/features/auth/context/AuthContext';
+import { useRealtimeTableSync } from '@/features/admin/hooks/useRealtimeTableSync';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -66,6 +67,18 @@ export function CorrectionRequestsQueue({ dailyInventoryId, onCorrectionApplied 
   useEffect(() => {
     loadRequests();
   }, []);
+
+  // Realtime acceleration for the administrator queue: submissions and
+  // decisions from any session refresh this list instantly (RLS admits
+  // admins/requesters only; the refetched response is the trusted state).
+  useRealtimeTableSync({
+    table: 'daily_inventory_correction_requests',
+    channelName: `correction-queue-sync-${dailyInventoryId}`,
+    onEvent: () => {
+      void loadRequests();
+    },
+    enabled: isAdmin,
+  });
 
   const handleOpenReview = (req: DailyInventoryCorrectionRequest, decision: 'APPROVE' | 'RETURN' | 'REJECT') => {
     setSelectedRequest(req);
