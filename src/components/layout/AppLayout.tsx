@@ -583,6 +583,14 @@ export function AppLayout() {
 
   return (
     <div className="flex h-dvh min-h-dvh max-h-dvh bg-background text-foreground overflow-hidden font-sans">
+      {/* Keyboard users can jump straight past the navigation rail */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-xl focus:bg-card focus:text-foreground focus:border focus:border-border focus:shadow-lg focus:text-sm focus:font-bold"
+      >
+        Skip to main content
+      </a>
+
       {/* Global Real-time Notification Popups */}
       <NotificationPopup />
 
@@ -827,7 +835,7 @@ export function AppLayout() {
         <AppBreadcrumbs />
 
         {/* Main Content Viewport */}
-        <main className="flex-1 flex flex-col min-w-0 h-full relative z-0 isolate bg-background overflow-hidden">
+        <main id="main-content" className="flex-1 flex flex-col min-w-0 h-full relative z-0 isolate bg-background overflow-hidden">
           <div className="flex-1 overflow-y-auto pb-20 md:pb-8 overscroll-none scroll-smooth">
             <Outlet />
           </div>
