@@ -24,6 +24,25 @@
 -- ----------------------------------------------------------------------------
 -- 1. MIGRATE LEGACY MASTER_ADMIN ACCOUNTS TO SUPER_ADMIN WITH AUDIT LOGS
 -- ----------------------------------------------------------------------------
+-- Verify that every existing role is expected
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE UPPER(TRIM(COALESCE(role, ''))) NOT IN ('STAFF', 'USER', 'ADMIN', 'SUPER_ADMIN', 'MASTER_ADMIN')
+  ) THEN
+    RAISE EXCEPTION 'Unexpected profile role found. Review roles before migration.';
+  END IF;
+END $$;
+
+-- Drop any legacy triggers that specifically block demoting / modifying master admin
+DROP TRIGGER IF EXISTS trg_prevent_master_admin_demotion ON public.profiles;
+DROP TRIGGER IF EXISTS prevent_master_admin_demotion ON public.profiles;
+DROP TRIGGER IF EXISTS trg_protect_profile_role ON public.profiles;
+
+-- Temporarily disable user triggers on profiles to allow authoritative system role migration
+ALTER TABLE public.profiles DISABLE TRIGGER USER;
+
 DO $$
 DECLARE
   v_rec RECORD;
@@ -53,6 +72,14 @@ BEGIN
   END LOOP;
 END $$;
 
+-- Normalize remaining role values
+UPDATE public.profiles 
+SET role = UPPER(TRIM(role)) 
+WHERE role IS NOT NULL AND role IS DISTINCT FROM UPPER(TRIM(role));
+
+-- Re-enable user triggers on profiles
+ALTER TABLE public.profiles ENABLE TRIGGER USER;
+
 -- Also update user metadata in auth.users if role was stored there
 DO $$
 BEGIN
@@ -64,16 +91,11 @@ EXCEPTION
 END $$;
 
 -- ----------------------------------------------------------------------------
--- 2. HARDEN PROFILES ROLE CHECK CONSTRAINT
+-- 2. HARDEN PROFILES ROLE CHECK CONSTRAINT (No silent error suppression)
 -- ----------------------------------------------------------------------------
-DO $$
-BEGIN
-  ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
-  ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check 
-    CHECK (role IN ('STAFF', 'USER', 'ADMIN', 'SUPER_ADMIN'));
-EXCEPTION
-  WHEN OTHERS THEN NULL;
-END $$;
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check 
+  CHECK (role IN ('STAFF', 'USER', 'ADMIN', 'SUPER_ADMIN'));
 
 -- ----------------------------------------------------------------------------
 -- 3. UPDATE AUTHORIZATION FUNCTIONS & DEPRECIATE MASTER_ADMIN
@@ -169,6 +191,12 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_protect_profile_role ON public.profiles;
+CREATE TRIGGER trg_protect_profile_role
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.protect_profile_role();
+
 -- ----------------------------------------------------------------------------
 -- 4. UPDATE RECOVERY POINTS AND SECURITY FUNCTIONS TO USE SUPER_ADMIN
 -- ----------------------------------------------------------------------------
@@ -182,6 +210,7 @@ USING (public.is_super_admin())
 WITH CHECK (public.is_super_admin());
 
 -- Update create_recovery_checkpoint
+DROP FUNCTION IF EXISTS public.create_recovery_checkpoint(TEXT, TEXT, TEXT, BOOLEAN);
 CREATE OR REPLACE FUNCTION public.create_recovery_checkpoint(
   p_name TEXT,
   p_description TEXT DEFAULT NULL,
@@ -237,6 +266,7 @@ END;
 $$;
 
 -- Update cleanup_expired_recovery_points
+DROP FUNCTION IF EXISTS public.cleanup_expired_recovery_points();
 CREATE OR REPLACE FUNCTION public.cleanup_expired_recovery_points()
 RETURNS INT
 LANGUAGE plpgsql
@@ -272,6 +302,7 @@ END;
 $$;
 
 -- Update force_override_daily_inventory
+DROP FUNCTION IF EXISTS public.force_override_daily_inventory(UUID);
 CREATE OR REPLACE FUNCTION public.force_override_daily_inventory(
   p_daily_inventory_id UUID
 )
@@ -332,6 +363,7 @@ ALTER TABLE public.daily_inventory_correction_requests
   );
 
 -- C. Apply Approved Daily Inventory Correction (Admin-Only Approval & Apply)
+DROP FUNCTION IF EXISTS public.apply_approved_daily_inventory_correction(UUID, TEXT);
 CREATE OR REPLACE FUNCTION public.apply_approved_daily_inventory_correction(
   p_request_id UUID,
   p_admin_notes TEXT DEFAULT NULL
@@ -602,6 +634,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.apply_approved_daily_inventory_correction(UUID, TEXT) TO authenticated;
 
 -- D. Admin Review RPC (Approve, Return, or Reject)
+DROP FUNCTION IF EXISTS public.admin_review_correction_request(UUID, TEXT, TEXT);
 CREATE OR REPLACE FUNCTION public.admin_review_correction_request(
   p_request_id UUID,
   p_decision TEXT,
@@ -711,6 +744,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.admin_review_correction_request(UUID, TEXT, TEXT) TO authenticated;
 
 -- E. Aliased super_admin_review_correction_request for backward compatibility with existing clients
+DROP FUNCTION IF EXISTS public.super_admin_review_correction_request(UUID, TEXT, TEXT);
 CREATE OR REPLACE FUNCTION public.super_admin_review_correction_request(
   p_request_id UUID,
   p_decision TEXT,

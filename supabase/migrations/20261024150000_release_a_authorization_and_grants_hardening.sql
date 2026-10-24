@@ -13,15 +13,18 @@
 -- ----------------------------------------------------------------------------
 -- 1. REVOKE DANGEROUS GRANTS FROM anon AND PUBLIC
 -- ----------------------------------------------------------------------------
-REVOKE EXECUTE ON FUNCTION public.consume_stock(UUID, NUMERIC, TEXT) FROM anon, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.consume_stock(UUID, NUMERIC, UUID, TEXT) FROM anon, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.add_stock(UUID, NUMERIC, DATE, DATE, TEXT) FROM anon, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.adjust_stock_to_target(UUID, NUMERIC, TEXT, UUID, DATE) FROM anon, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.receive_daily_inventory_stock(UUID, NUMERIC, DATE, UUID, TEXT) FROM anon, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.create_daily_inventory_draft(DATE) FROM anon, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.finalize_daily_inventory(UUID) FROM anon, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.create_inventory_item_with_initial_stock(UUID, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, NUMERIC, DATE, TEXT) FROM anon, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.correct_finalized_daily_inventory(UUID, JSONB, TEXT) FROM anon, PUBLIC;
+DO $$
+BEGIN
+  BEGIN REVOKE EXECUTE ON FUNCTION public.consume_stock(UUID, NUMERIC, TEXT) FROM anon, PUBLIC; EXCEPTION WHEN undefined_function THEN NULL; END;
+  BEGIN REVOKE EXECUTE ON FUNCTION public.consume_stock(UUID, NUMERIC, UUID, TEXT) FROM anon, PUBLIC; EXCEPTION WHEN undefined_function THEN NULL; END;
+  BEGIN REVOKE EXECUTE ON FUNCTION public.add_stock(UUID, NUMERIC, DATE, DATE, TEXT) FROM anon, PUBLIC; EXCEPTION WHEN undefined_function THEN NULL; END;
+  BEGIN REVOKE EXECUTE ON FUNCTION public.adjust_stock_to_target(UUID, NUMERIC, TEXT, UUID, DATE) FROM anon, PUBLIC; EXCEPTION WHEN undefined_function THEN NULL; END;
+  BEGIN REVOKE EXECUTE ON FUNCTION public.receive_daily_inventory_stock(UUID, NUMERIC, DATE, UUID, TEXT) FROM anon, PUBLIC; EXCEPTION WHEN undefined_function THEN NULL; END;
+  BEGIN REVOKE EXECUTE ON FUNCTION public.create_daily_inventory_draft(DATE) FROM anon, PUBLIC; EXCEPTION WHEN undefined_function THEN NULL; END;
+  BEGIN REVOKE EXECUTE ON FUNCTION public.finalize_daily_inventory(UUID) FROM anon, PUBLIC; EXCEPTION WHEN undefined_function THEN NULL; END;
+  BEGIN REVOKE EXECUTE ON FUNCTION public.create_inventory_item_with_initial_stock(UUID, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, NUMERIC, DATE, TEXT) FROM anon, PUBLIC; EXCEPTION WHEN undefined_function THEN NULL; END;
+  BEGIN REVOKE EXECUTE ON FUNCTION public.correct_finalized_daily_inventory(UUID, JSONB, TEXT) FROM anon, PUBLIC; EXCEPTION WHEN undefined_function THEN NULL; END;
+END $$;
 
 -- ----------------------------------------------------------------------------
 -- 2. HARDEN consume_stock (3-arg and 4-arg overloads)
@@ -131,6 +134,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.consume_stock(UUID, NUMERIC, UUID, TEXT);
 CREATE OR REPLACE FUNCTION public.consume_stock(
   p_item_id UUID,
   p_quantity NUMERIC,
@@ -205,6 +209,7 @@ $$;
 -- ----------------------------------------------------------------------------
 -- 3. HARDEN receive_daily_inventory_stock
 -- ----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.receive_daily_inventory_stock(UUID, NUMERIC, DATE, UUID, TEXT);
 CREATE OR REPLACE FUNCTION public.receive_daily_inventory_stock(
   p_daily_inventory_item_id UUID,
   p_quantity NUMERIC,
@@ -528,6 +533,7 @@ $$;
 -- ----------------------------------------------------------------------------
 -- 7. HARDEN create_inventory_item_with_initial_stock
 -- ----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.create_inventory_item_with_initial_stock(UUID, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, NUMERIC, DATE, TEXT);
 CREATE OR REPLACE FUNCTION public.create_inventory_item_with_initial_stock(
   p_category_id UUID,
   p_item_code TEXT,
@@ -650,6 +656,7 @@ $$;
 -- ----------------------------------------------------------------------------
 -- 8. HARDEN correct_finalized_daily_inventory (Fail-closed)
 -- ----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.correct_finalized_daily_inventory(UUID, JSONB, TEXT);
 CREATE OR REPLACE FUNCTION public.correct_finalized_daily_inventory(
   p_daily_inventory_id UUID,
   p_items JSONB,

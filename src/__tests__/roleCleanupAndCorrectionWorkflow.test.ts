@@ -83,7 +83,7 @@ describe('KUVENTORY Role Model Cleanup & Admin-Only Correction Workflow Suite', 
       const sqlContent = fs.readFileSync(migrationPath, 'utf8');
       
       // Asserts migration script updates profiles to SUPER_ADMIN with audit log
-      expect(sqlContent).toContain("UPDATE public.profiles \n    SET role = 'SUPER_ADMIN'");
+      expect(sqlContent).toMatch(/UPDATE\s+public\.profiles\s+SET\s+role\s*=\s*'SUPER_ADMIN'/);
       expect(sqlContent).toContain("'MIGRATE_LEGACY_ROLE'");
       // Asserts check constraint is updated to exclude MASTER_ADMIN
       expect(sqlContent).toContain("CHECK (role IN ('STAFF', 'USER', 'ADMIN', 'SUPER_ADMIN'))");
