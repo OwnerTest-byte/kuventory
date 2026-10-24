@@ -23,6 +23,8 @@ Audit Date:          2026-10-24
 | **FFRC-07** | Synthetic Email & Account Recovery | `@kuventory.com` addresses are technical login IDs, not mailboxes; recovery via phone OTP/assisted tickets; zero fake success. | `LoginForm.tsx`, `passwordResetService.ts`, `ResetPasswordPage.tsx` | Vitest & E2E recovery specs |
 | **FFRC-08** | Client Untrusted Parameter Boundary | Eliminate caller-supplied `p_success`; lockout tracking strictly server-enforced; separate failed counter from authenticated reset. | `loginLockoutService.ts`, `20261024200000_comprehensive_auth_and_trust_boundary_repair.sql` | `loginLockoutAndRecovery.test.ts` (10 tests) |
 | **FFRC-09** | Modal Geometry System | Configurable `DialogSize` prop (`sm` to `5xl`, `full`); prevent mobile clipping and vertical blowout. | `src/components/ui/dialog.tsx`, `MyProfileModal.tsx`, `CorrectionRequestModal.tsx` | `responsive_multi_device.spec.ts` |
+| **FFRC-10** | Notification Route Storage & Live Recovery | `target_id` TEXT storage; one-time status credential; live admin-review status on the login screen. | `20261025200000_notification_route_storage_and_realtime_repair.sql`, `LoginForm.tsx`, `recoveryTicketStore.ts` | `routeStorageMigrationContract.test.ts`, `recoveryAndLockoutUi.test.tsx` |
+| **FFRC-11** | Actionable Error Standard | Every failure: plain title + meaning + next step; no raw internals; no blind retries on unknown outcomes. | `src/lib/errors.ts`, `ErrorState.tsx`, stock/report/admin surfaces | `errors.test.ts`, `ErrorState.test.tsx` |
 
 ---
 
@@ -147,3 +149,32 @@ Audit Date:          2026-10-24
 * **Failure Modes & Safe Behavior:**
   * *Small viewport (320px–412px):* Dialog automatically shrinks to `w-[95vw]` with vertical scroll.
   * *Large data table in modal:* Container applies `overflow-x-auto` while title wraps cleanly with `wrap-break-word`.
+
+### FFRC-10: Notification Route Storage & Live Recovery Status
+
+* **Problem & User Outcome:** `notifications.target_id` and `audit_logs.target_id` were UUID columns while every writer stored navigation route strings (`/settings?tab=users`, `/items/<id>`), so every such INSERT failed with `22P02 invalid input syntax for type uuid` — silently breaking assisted-recovery ticket creation, password-reset notifications, low-stock/expiry cron alerts, maintenance broadcasts, and correction notifications. User outcome: route strings are the documented storage format (TEXT), and the login screen now shows a live "Administrators are reviewing your recovery request" state that survives reloads (sessionStorage cache, credential never on disk) and resolves to an honest completed/rejected outcome.
+* **Current-State Trace:** `submit_assisted_recovery_request` $\to$ `notifications(target_id TEXT)` $\to$ `AssistedRecoveryQueue` (realtime refetch) $\to$ `review_assisted_recovery_request` decision $\to$ `check_assisted_recovery_status` $\to$ `LoginForm` RecoveryPendingCard.
+* **Invariants:**
+  * `target_id` accepts any route string; existing UUID values preserved as text.
+  * The requester's status credential is returned exactly once and never written to disk (sessionStorage only, cleared on outcome).
+  * Ticket status only reaches `COMPLETED` inside the same transaction that performs the authorized password reset.
+  * Anonymous clients learn ticket state only through the reference+credential RPC — never a realtime broadcast.
+* **Failure Modes & Safe Behavior:**
+  * *Status check transport failure:* pending card stays with "Status check unavailable — retrying automatically"; storage is not cleared.
+  * *Invalid reference/credential pair:* tracking stops silently; no state is fabricated.
+  * *Realtime subscription drop (admin queue):* badge falls back to "Polling" and the 15s bounded poll remains authoritative-fallback.
+* **Observability & Recovery:** `security_events` rows for submission/throttle/decision; admin queue Live/Polling indicator; migration contract test `routeStorageMigrationContract.test.ts` + component suites in `recoveryAndLockoutUi.test.tsx`.
+
+### FFRC-11: Actionable Error Handling Standard
+
+* **Problem & User Outcome:** Failures surfaced as raw `error.message` passthrough, silent empty tables on query error, and blocking `alert()`s (sometimes while the open modal showed nothing). User outcome: every failure states what happened, what it means, and the next step — with input preserved and a real recovery action.
+* **Current-State Trace:** thrown value / Supabase error $\to$ `normalizeUserError` (`src/lib/errors.ts`, builds on `ErrorClass` taxonomy) $\to$ `ErrorState` component $\to$ surface-specific recovery action (Retry / Refresh Data / adjust input / official support channel).
+* **Invariants:**
+  * RPC-authored human messages pass through; machine noise (fetch failed, timeouts, unknown outcomes) and internal jargon (SQL, schema names, tokens) are replaced with curated copy.
+  * `retrySafe` marks which failures can be retried without duplicating effects — `OUTCOME_UNKNOWN` never blind-retries.
+  * Errors clear or update only after authoritative recovery, never on a local countdown.
+* **Failure Modes & Safe Behavior:**
+  * *Stock update failure:* modal stays open with entered values and an inline explanation.
+  * *Query failure on landing/reports:* ErrorState with Refresh Data instead of a silent empty screen.
+  * *Admin role-toggle failure:* inline ErrorState instead of `alert()`.
+* **Observability & Recovery:** `src/lib/__tests__/errors.test.ts` (classification + normalization + pass-through/jargon rules) and `ErrorState.test.tsx` (rendering + retry wiring).

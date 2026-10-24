@@ -14,10 +14,10 @@
 - **Routing:** `[VERIFIED]` `react-router-dom` (v7.13.0) with browser routing, protected route guards (`ProtectedRoute.tsx`), and role-based redirects.
 - **Backend & Database:** `[VERIFIED]` Supabase (PostgreSQL 17 on Linux, PostgREST 12, GoTrue Auth, Realtime engine).
 - **Backend Authorization & Security:** `[VERIFIED]` PostgreSQL Row-Level Security (RLS) policies, PostgreSQL `SECURITY DEFINER` functions with fixed `search_path = public, auth, pg_temp`, table constraints, and foreign key cascades.
-- **Authentication:** `[VERIFIED]` Supabase GoTrue Auth (Email & Password), single-active session lease enforcement (`user_session_leases` table and `claim_user_session` / `heartbeat_user_session` / `release_user_session` RPCs), failed login lockout engine (`account_security_state`), assisted account recovery tickets (`account_recovery_requests`).
+- **Authentication:** `[VERIFIED]` Supabase GoTrue Auth (Email & Password), single-active session lease enforcement (`user_session_leases` table and `claim_user_session` / `heartbeat_user_session` / `release_user_session` RPCs), failed login lockout engine (`account_security_state`), assisted account recovery tickets (`account_recovery_requests`) with atomic cooldown, authorized admin review (`review_assisted_recovery_request`), and live requester status via reference+credential.
 - **Real-Time Communication:** `[VERIFIED]` Supabase Realtime WebSocket client (`supabase.channel(...)`) listening to `postgres_changes` on `public.notifications`, `public.inventory_items`, `public.stock_batches`, `public.stock_movements`, `public.daily_inventory`.
 - **Validation:** `[VERIFIED]` `zod` (v3.25.7) for forms, `@hookform/resolvers/zod` for `react-hook-form` validation.
-- **Testing Suite:** `[VERIFIED]` Vitest (v4.1.11, 23 test suites, 182 passed tests), Playwright (v1.58.2, cross-browser matrix across Chromium, Firefox, WebKit, Mobile, Tablet).
+- **Testing Suite:** `[VERIFIED]` Vitest (v4.1.11, 33 test suites, 335 passed tests), Playwright (v1.58.2, cross-browser matrix across Chromium, Firefox, WebKit, Mobile, Tablet).
 - **CI/CD:** `[VERIFIED]` GitHub Actions (`.github/workflows/ci.yml`) triggering on `[main, master]` running lint (`oxlint`), typecheck (`tsc -b`), Vitest, production build, and Playwright matrix.
 - **Production Build:** `[VERIFIED]` Output to `dist/`, single-page application redirect rule `/* -> /index.html 200` in `netlify.toml` with strict security headers (CSP, HSTS, X-Frame-Options: DENY, nosniff).
 
@@ -158,3 +158,20 @@ graph TD
   - `src/features/inventory/__tests__/notificationSecurityIsolation.test.ts`
   - `scripts/verify_backend_database_connections.mjs`
   - `scripts/inspect_policies.mjs`
+
+---
+
+## Synchronization Policy (per-feature authoritative source of truth)
+
+| Feature | Authoritative source | Live mechanism | Fallback / reconnect | Rationale |
+| :--- | :--- | :--- | :--- | :--- |
+| Notifications (operational + admin) | `notifications` table (RLS-scoped SELECT) | Realtime `postgres_changes` + toast | 30s staleTime refetch; optimistic mark-as-read with rollback | Existing architecture; realtime already authorized per role |
+| Assisted recovery queue (admin) | `account_recovery_requests` (SELECT policy: ADMIN/SUPER_ADMIN) | Realtime `postgres_changes` → query refetch; Live/Polling badge | 15s bounded poll | RLS filters events to admin sessions; response stays authoritative |
+| Correction requests queue (admin) | `daily_inventory_correction_requests` (requester-own OR admin SELECT) | Realtime `postgres_changes` → reload | Refetch on open/decision | Same RLS-filtered model |
+| Recovery ticket status (anonymous requester) | `check_assisted_recovery_status` RPC (reference + credential) | 20s bounded poll + focus/visibility/online reconcile | Keep pending + retry note on failure | No safe anonymous subscription exists; credential-gated RPC only |
+| Login lockout status | `check_lockout_status_by_token` / `check_account_lockout` | 10s token poll while locked + focus/online + zero-time recheck | Polling only — **no realtime by design**: `account_security_state` RLS blocks all client reads | Security data must not broadcast |
+| Login lockout admin console | `get_locked_accounts` RPC | 30s poll + focus/online | Manual refresh | Same RLS constraint as above |
+| Inventory catalog & reports | React Query cache over RLS-scoped views | staleTime 30s + invalidation on mutation | ErrorState with Refresh Data | Server response authoritative; deferred search keeps UI responsive |
+| Session lease | `user_session_leases` | Realtime revocation listener + 20s heartbeat | UNKNOWN heartbeat → verifying banner (never terminates on transport failure) | Fail-open for availability, fail-closed for revocation |
+
+**Cross-cutting rules:** browser-local storage (`sessionStorage` recovery ticket, remember-me email) is a UX cache only — the database decides every outcome; realtime events trigger refetches whose responses are the trusted state; no credential, token, or security record is ever broadcast to unauthorized clients.
