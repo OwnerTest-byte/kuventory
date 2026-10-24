@@ -33,7 +33,7 @@ Every claim in the KUVENTORY documentation suite is classified under one of the 
 | Claim ID | System Claim / Assertion | Status Label | Concrete Verification Evidence & Source Reference |
 | :---: | :--- | :---: | :--- |
 | **CLM-01** | Application runs on React 19.2.8 and TypeScript 6.0.3 | `[VERIFIED-SOURCE]` | `package.json` line 46, `package-lock.json`, confirmed via Node inspection script. |
-| **CLM-02** | Automated test suite contains 123 passing tests across 17 files | `[VERIFIED-TEST]` | Executed `npm test` on 2026-10-19: 17 passed, 123 passed, 0 failed. |
+| **CLM-02** | Automated test suite contains 164 passing tests across 21 files | `[VERIFIED-TEST]` | Executed `npm test` on 2026-10-24: 21 passed, 164 passed, 0 failed. |
 | **CLM-03** | TypeScript strict typecheck passes with 0 errors | `[VERIFIED-TEST]` | Executed `npm run typecheck` (`tsc --noEmit`): 0 errors on 140 source files. |
 | **CLM-04** | Oxlint linter passes with 0 errors | `[VERIFIED-TEST]` | Executed `npm run lint` (`oxlint`): 0 errors, 24 React Compiler advisories. |
 | **CLM-05** | Production build compiles clean in under 3.5 seconds | `[VERIFIED-TEST]` | Executed `npm run build` (`tsc -b && vite build`): built in ~2.0s. |
@@ -67,3 +67,12 @@ Every claim in the KUVENTORY documentation suite is classified under one of the 
 | **CLM-33** | Single active session lease enforced with First Session Wins and takeover confirmation | `[VERIFIED-TEST]` | `sessionLeaseService.ts`, `AuthContext.tsx`, `LoginForm.tsx`, verified by `e2e/single_session_and_fefo_directive.spec.ts`. |
 | **CLM-34** | Save State Read-Only Inspection Modal guarantees zero production writes | `[VERIFIED-TEST]` | `SuperRecoveryTab.tsx`, verified by `e2e/single_session_and_fefo_directive.spec.ts` and `e2e/super_admin_operations_console.spec.ts`. |
 | **CLM-35** | Scheduled Services tab strictly monitors read-only background jobs | `[VERIFIED-SOURCE]` | `SuperAutomationsTab.tsx`, `SuperAdminControlCenter.tsx`, verified by `e2e/super_admin_operations_console.spec.ts`. |
+| **CLM-36** | Least-privilege authorization hardening and actor fallback revocation | `[VERIFIED-SOURCE]` | Migration `20261024150000`, revokes `anon`/`PUBLIC` on `consume_stock`, `finalize_daily_inventory`, `correct_finalized_daily_inventory`. |
+| **CLM-37** | Operator profile contact self-service and public directory view | `[VERIFIED-SOURCE]` | Migration `20261024160000`, `profileService.ts`, `MyProfileModal.tsx`. |
+| **CLM-38** | Progressive login lockout, unlock governance, and security audit log | `[VERIFIED-TEST]` | Migration `20261024170000`, `loginLockoutService.ts`, `LoginLockoutsTab.tsx`, `loginLockoutAndRecovery.test.ts` (10 tests passing). |
+| **CLM-39** | Two-stage finalized daily inventory correction approval workflow | `[VERIFIED-TEST]` | Migration `20261024180000`, `correctionRequestService.ts`, `CorrectionRequestModal.tsx`, `CorrectionRequestsQueue.tsx`, `correctionApprovals.test.ts` (13 tests passing). |
+| **CLM-40** | E2E test isolation and remote project execution guard | `[VERIFIED-TEST]` | `e2e/critical_workflow_repairs.spec.ts`, credential env var lookups and remote project guard. |
+| **CLM-41** | Decoupling physical stock deduction from daily tally sheet sync | `[VERIFIED-SOURCE]` | `src/features/inventory/api/index.ts`, `removeStock` does not mutate `daily_inventory_items`, preventing double-consumption. |
+| **CLM-42** | Stock adjustment integrity and fail-closed FEFO consumption | `[VERIFIED-SOURCE]` | Migration `20261024190000`, eliminates 90-day expiry fabrication and fails closed on unauthenticated or unauthorized calls. |
+| **CLM-43** | RBAC role authority strictly derived from database profiles | `[VERIFIED-SOURCE]` | `src/features/auth/context/AuthContext.tsx`, removed email-based role elevation bypasses. |
+| **CLM-44** | Standard error taxonomy and Feature Failure & Recovery Cards | `[VERIFIED-TEST]` | `src/lib/errors.ts`, `docs/FEATURE_FAILURE_AND_RECOVERY_CARDS.md`, `src/__tests__/errorTaxonomy.test.ts` (9 tests passing). |

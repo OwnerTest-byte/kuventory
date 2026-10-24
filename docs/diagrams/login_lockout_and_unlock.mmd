@@ -1,0 +1,39 @@
+flowchart TD
+    Start([User Submits Login Credentials]) --> PreCheck[Call check_account_lockout RPC<br/>src/features/auth/services/loginLockoutService.ts]
+    
+    PreCheck --> CheckLock{Is Account Currently Locked?<br/>locked_until > NOW}
+    
+    %% Locked branch
+    CheckLock -- Yes --> ReturnLocked[Return Lock Expiry & Opaque Token<br/>account_security_state.lockout_token_hash]
+    ReturnLocked --> ShowCountdown[Display 30-min Countdown & Actions<br/>src/features/auth/components/LoginForm.tsx]
+    ShowCountdown --> PollToken{Poll check_lockout_status_by_token<br/>Every 12s / Manual Check}
+    PollToken -- Lock Active --> ShowCountdown
+    PollToken -- Lock Lifted / Expired --> ResetUI[Reset LoginForm UI to Allow Sign-in]
+    ResetUI --> Start
+    
+    %% Contact Admin branch
+    ShowCountdown --> ContactSupport[Click Contact Admin / Super Admin<br/>Fetch get_public_support_contacts RPC]
+    ContactSupport --> AdminIntervention[Authorized Admin / Super Admin Logs In<br/>src/features/admin/components/LoginLockoutsTab.tsx]
+    AdminIntervention --> CallUnlock[Call unlock_account RPC<br/>Requires Valid Reason & Role Verification]
+    CallUnlock --> UnlockDB[(Update account_security_state<br/>Append event to security_events)]
+    UnlockDB --> PollToken
+    
+    %% Unlocked pre-check branch
+    CheckLock -- No --> AuthAttempt[Attempt Credentials Verification<br/>Supabase Auth / POST /api/auth/login]
+    
+    AuthAttempt --> AuthResult{Credentials Valid?}
+    
+    %% Auth Success
+    AuthResult -- Success --> RecordSuccess[Call record_login_attempt p_success=TRUE<br/>Resets failed_attempts to 0]
+    RecordSuccess --> SessionInit[Initialize Session Lease & AuthContext<br/>src/features/auth/context/AuthContext.tsx]
+    SessionInit --> AppRedirect([Redirect by Role: Staff -> /daily-inventory, Admin -> /admin])
+    
+    %% Auth Failure
+    AuthResult -- Invalid Credentials --> RecordFail[Call record_login_attempt p_success=FALSE<br/>Atomic Transaction on account_security_state]
+    RecordFail --> FailCount{Failed Attempts in 15-min Window >= 5?}
+    
+    FailCount -- Under 5 --> ShowErr[Display Generic Invalid Credentials Error<br/>Attempts remaining: 5 - count]
+    ShowErr --> Retry([User Retries Login])
+    
+    FailCount -- Equals 5 --> SetLockout[(Set locked_until = NOW + 30 MIN<br/>Generate Opaque Token & Hash in DB<br/>Insert security_events record)]
+    SetLockout --> ReturnLocked

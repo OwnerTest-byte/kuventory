@@ -16,6 +16,7 @@ import {
   revokeSessionLease 
 } from '@/features/auth/services/sessionLeaseService';
 import type { ActiveSessionRecord } from '@/features/auth/services/sessionLeaseService';
+import { LoginLockoutsTab } from '../LoginLockoutsTab';
 
 interface SuperSecurityTabProps {
   maintenanceLocked: boolean;
@@ -264,7 +265,10 @@ export function SuperSecurityTab({
         </div>
       </div>
 
-      {/* 3. Live Session Leases Table */}
+      {/* 3. Account Security & Login Lockouts Management */}
+      <LoginLockoutsTab />
+
+      {/* 4. Live Session Leases Table */}
       <div className="p-5 rounded-2xl bg-card border border-border shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>

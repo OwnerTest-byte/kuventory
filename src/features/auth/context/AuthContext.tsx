@@ -253,8 +253,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('Profile fetch warning (using metadata fallback):', error.message);
         }
 
-        // Authoritative role evaluation strictly from server record + designated Super Admin accounts
-        const isSuper = data?.role === 'SUPER_ADMIN' || data?.role === 'MASTER_ADMIN' || user.email === 'superadmin@kuventory.com' || user.email === 'master@kuventory.com';
+        // Authoritative role evaluation strictly from server record
+        const isSuper = data?.role === 'SUPER_ADMIN' || data?.role === 'MASTER_ADMIN';
         const isAdmin = isSuper || data?.role === 'ADMIN';
         const roleFromDb = data?.role as Role;
         const resolvedRole: Role = isSuper ? 'SUPER_ADMIN' : (isAdmin ? 'ADMIN' : (roleFromDb || 'USER'));
@@ -299,7 +299,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isLoading = isSessionLoading || (!!user && isProfileLoading);
-  const isSuperUser = profile?.role === 'SUPER_ADMIN' || profile?.role === 'MASTER_ADMIN' || user?.email === 'superadmin@kuventory.com' || user?.email === 'master@kuventory.com';
+  const isSuperUser = profile?.role === 'SUPER_ADMIN' || profile?.role === 'MASTER_ADMIN';
   const isAdminUser = isSuperUser || profile?.role === 'ADMIN';
   const role: Role = isSuperUser 
     ? 'SUPER_ADMIN' 

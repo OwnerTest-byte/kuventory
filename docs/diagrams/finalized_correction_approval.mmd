@@ -1,0 +1,47 @@
+flowchart TD
+    Start([Staff Opens Finalized Daily Inventory Sheet]) --> ReadOnly[Sheet is Strictly Read-Only<br/>DailyInventoryPage isReadOnly=true]
+    
+    ReadOnly --> ClickRequest[Staff Clicks 'Request a Correction'<br/>CorrectionRequestModal.tsx]
+    ClickRequest --> FillForm[Enter Mandatory Reason & Proposed Item Values<br/>Calculates Ending Stock & Shows Comparison Diff]
+    
+    FillForm --> SubmitReq[Call submit_correction_request RPC<br/>correctionRequestService.ts]
+    
+    SubmitReq --> InsertReq[(Insert daily_inventory_correction_requests<br/>status='PENDING_ADMIN'<br/>Worksheet and stock remain 100% UNTOUCHED)]
+    
+    InsertReq --> NotifyAdmin[Admin Alerted of Pending Review<br/>CorrectionRequestsQueue.tsx]
+    
+    NotifyAdmin --> AdminReview{Admin Stage 1 Review<br/>admin_review_correction_request RPC}
+    
+    %% Admin Decisions
+    AdminReview -- Requester is Admin --> RejectSelf[BLOCKED: Separation of Duties<br/>Requester cannot review own request]
+    AdminReview -- Notes Missing / Incomplete --> ReturnReq[(status='RETURNED_TO_REQUESTER'<br/>Requester sees notes & can resubmit)]
+    AdminReview -- Invalid Request --> RejectAdmin[(status='REJECTED_BY_ADMIN'<br/>Terminal state with notes)]
+    AdminReview -- Verified & Validated --> ForwardSuper[(status='PENDING_SUPER_ADMIN'<br/>Stores admin_reviewer_id & timestamp)]
+    
+    ReturnReq --> FillForm
+    
+    ForwardSuper --> NotifySuper[Super Admin Alerted in Operations Console]
+    
+    NotifySuper --> SuperReview{Super Admin Stage 2 Review<br/>super_admin_review_correction_request RPC}
+    
+    %% Super Admin Decisions
+    SuperReview -- Rejected --> RejectSuper[(status='REJECTED_BY_SUPER_ADMIN'<br/>Terminal state with reviewer notes)]
+    
+    SuperReview -- Approved --> BeginAtomic[Call apply_approved_daily_inventory_correction RPC<br/>SINGLE ATOMIC POSTGRESQL TRANSACTION]
+    
+    subgraph AtomicTransaction["Atomic PostgreSQL Transaction (Fail-Closed)"]
+        LockRows[Lock Request & daily_inventory with FOR UPDATE]
+        VerifyState{Sheet Still FINALIZED & Version Matches?}
+        VerifyState -- No / Changed --> StaleAbort[ABORT: Sheet state or version modified concurrently]
+        
+        VerifyState -- Yes --> CalcDeltas[Calculate Stock Deltas for Each Item<br/>Differential: new_sales - old_sales]
+        CalcDeltas --> StockCheck{Sufficient Batch Stock to Consume / FEFO?}
+        StockCheck -- Insufficient / Error --> StockRollback[ROLLBACK ALL WRITES:<br/>status='FAILED_REQUIRES_REVIEW'<br/>No partial changes persisted]
+        
+        StockCheck -- Success --> MutateData[1. Update daily_inventory_items beg, add, am, pm<br/>2. Generated total & ending recalculate automatically<br/>3. Insert stock_movements & reconcile batches<br/>4. Insert daily_inventory_revisions record<br/>5. Regenerate reports snapshot<br/>6. Insert immutable audit_logs record<br/>7. Set request status='APPLIED']
+    end
+    
+    BeginAtomic --> LockRows
+    MutateData --> CommitSuccess[COMMIT TRANSACTION]
+    CommitSuccess --> BroadcastRealtime[Invalidate Query Cache & Broadcast Update]
+    BroadcastRealtime --> Final([Requester, Admin, and Super Admin See Applied Revision])

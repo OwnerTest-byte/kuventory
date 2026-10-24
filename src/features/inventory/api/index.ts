@@ -261,43 +261,28 @@ export async function removeStock(params: {
 
   const item = await getItemById(params.itemId);
   const available = Math.max(0, item.current_qty);
-  const qtyToConsume = Math.min(available, requestedQty);
 
   if (requestedQty > available) {
-    // Physical inventory deficit: cannot be negative, log discrepancy notification
-    const deficit = Number((requestedQty - available).toFixed(2));
-    const today = getBusinessDateString();
-    try {
-      await supabase.from('notifications').upsert({
-        type: 'STOCK_DISCREPANCY',
-        title: `Stock Deficit Auto-Zeroed: ${item.item_name}`,
-        message: `Attempted deduction of ${requestedQty} ${item.unit} for "${item.item_name}" exceeded available physical stock (${available} ${item.unit}) by ${deficit} ${item.unit}. Physical stock has been zeroed to 0.`,
-        item_id: params.itemId,
-        target_id: `/items/${params.itemId}`,
-        dedup_key: `DEFICIT_${params.itemId}_${today}`,
-        is_read: false,
-        created_at: new Date().toISOString(),
-      }, { onConflict: 'dedup_key' });
-    } catch (e) {
-      console.warn('Failed to upsert discrepancy notification on removeStock:', e);
-    }
+    throw new Error(
+      `Insufficient physical stock for "${item.item_name}": requested ${requestedQty} ${item.unit}, but only ${available} ${item.unit} available in active batches.`
+    );
   }
 
-  if (qtyToConsume > 0) {
-    const { error } = await supabase.rpc('consume_stock', {
-      p_item_id: params.itemId,
-      p_quantity: qtyToConsume,
-      p_reason: params.reason || 'Stock Consumption / Sales',
-    });
+  const { error } = await supabase.rpc('consume_stock', {
+    p_item_id: params.itemId,
+    p_quantity: requestedQty,
+    p_reason: params.reason || 'Stock Consumption / Sales',
+  });
 
-    if (error) {
-      console.error('removeStock RPC error:', error);
-      throw error;
-    }
-
-    // 2-Way Sync: Propagate consumption directly into today's Daily Inventory sheet
-    await syncItemToTodayDailyInventory(params.itemId, { salesDelta: qtyToConsume });
+  if (error) {
+    console.error('removeStock RPC error:', error);
+    throw error;
   }
+
+  // NOTE: We deliberately do NOT call syncItemToTodayDailyInventory(..., { salesDelta }) here.
+  // Physical stock has now been consumed. Daily shift sales are tracked separately on the
+  // Daily Inventory sheet and consumed when the sheet is finalized. Adding it here caused
+  // the exact same units to be deducted twice upon finalization.
 
   // Check if item reached zero
   try {

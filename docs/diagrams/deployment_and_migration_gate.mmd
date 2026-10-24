@@ -1,0 +1,33 @@
+flowchart TD
+    Start([Branch feat/security-recovery-and-correction-approvals]) --> GateA{Gate A: Security & Authorization Audit}
+    
+    subgraph ReleaseA["Release A: Database Authorization Hardening"]
+        M1["Migration: 20261024150000_release_a_authorization_and_grants_hardening.sql<br/>Revoke anon/PUBLIC on consume_stock<br/>Strip fallback actor identities<br/>Remove exception swallowing"]
+        T1["Verify: Anonymous execution denied on sensitive RPCs<br/>Negative security tests pass"]
+    end
+    GateA --> ReleaseA --> GateB{Gate B: Profile & Support Contacts}
+    
+    subgraph ReleaseB["Release B: Shared Profile & Public Support Channels"]
+        M2["Migration: 20261024160000_release_b_profile_and_support_contacts.sql<br/>Create profile_contact_links table<br/>Define get_public_support_contacts RPC<br/>Define self-only update_my_profile RPC"]
+        T2["Verify: Admin & Super Admin edit profile & links<br/>Staff cannot publish contacts<br/>Public RPC returns ONLY opted-in fields"]
+    end
+    GateB --> ReleaseB --> GateC{Gate C: Login Lockout & Recovery}
+    
+    subgraph ReleaseC["Release C: Server-Owned Login Security & Recovery"]
+        M3["Migration: 20261024170000_release_c_login_lockout_and_account_security.sql<br/>Create account_security_state & security_events<br/>Implement 5-attempt/30-min lockout in record_login_attempt<br/>Define opaque token check & hierarchical unlock RPCs"]
+        T3["Verify: 4 attempts allowed, 5th locks for 30m<br/>Countdown rendered from server time<br/>Admin unlocks Staff; Super Admin unlocks Admin"]
+    end
+    GateC --> ReleaseC --> GateD{Gate D: Correction Approvals & Atomic Reconciliation}
+    
+    subgraph ReleaseD["Release D: Finalized Inventory Correction Governance"]
+        M4["Migration: 20261024180000_release_d_finalized_correction_approvals.sql<br/>Create daily_inventory_correction_requests<br/>Implement submit_correction_request RPC<br/>Implement two-stage review & apply RPCs"]
+        T4["Verify: Staff submits request (sheet untouched)<br/>Admin stage 1 verification<br/>Super Admin final approval & atomic stock reconciliation<br/>Rollback on stock error"]
+    end
+    GateD --> ReleaseD --> GateE{Gate E: Production Sign-Off & Verification}
+    
+    subgraph ReleaseE["Release E: Defense & Production Release Gate"]
+        Q1["Quality Assurance Checks:<br/>1. npm run typecheck (0 errors)<br/>2. npm run lint (0 errors)<br/>3. npm test -- --run (All 19 test suites pass)<br/>4. npm run build (Vite bundle built)"]
+        Q2["Auditor Evidence Package:<br/>Docs updated & Mermaid diagrams mapped to real code<br/>Supabase Auth bcrypt proof documented<br/>No plaintext passwords or secret values stored"]
+        Q3["Production Deployment Policy:<br/>Database migrations applied via staged CLI<br/>Never deploy directly to production without explicit authorization<br/>Env variables recorded by name only"]
+    end
+    GateE --> ReleaseE --> ProductionDeploy([Ready for Staging & Authorized Production Deployment])

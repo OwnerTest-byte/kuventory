@@ -1,0 +1,76 @@
+flowchart TD
+    subgraph Roles["Canonical User Roles"]
+        ANON["Anonymous (anon)"]
+        STAFF["Staff (staff)"]
+        ADMIN["Admin (admin)"]
+        SUPER["Super Admin (super_admin)"]
+    end
+
+    subgraph AuthOperations["Authentication & Security Operations"]
+        L1["Submit Login Credentials"]
+        L2["Read Public Support Contacts (get_public_support_contacts)"]
+        L3["Poll Lockout Status by Opaque Token"]
+        L4["Unlock Staff Account (unlock_account)"]
+        L5["Unlock Admin Account (unlock_account)"]
+    end
+
+    subgraph InventoryOperations["Inventory & Finalization Operations"]
+        I1["Create & Edit Active Daily Inventory"]
+        I2["Finalize Daily Inventory (finalize_daily_inventory)"]
+        I3["Directly Mutate Finalized Sheet"]
+        I4["Submit Finalized Correction Request (submit_correction_request)"]
+        I5["Admin Stage 1 Review (admin_review_correction_request)"]
+        I6["Super Admin Final Approval & Apply (apply_approved_daily_inventory_correction)"]
+    end
+
+    subgraph ProfileOperations["Profile & Role Governance"]
+        P1["Update Own Allowed Profile (update_my_profile)"]
+        P2["Publish Public Support Contacts & Links"]
+        P3["Promote/Demote Users & Change Roles"]
+        P4["Sole Super Admin Break-Glass Recovery"]
+    end
+
+    %% Role to Auth Connections
+    ANON --> L1
+    ANON --> L2
+    ANON --> L3
+    STAFF --> L1
+    ADMIN --> L1
+    ADMIN --> L4
+    SUPER --> L1
+    SUPER --> L4
+    SUPER --> L5
+
+    %% Role to Inventory Connections
+    STAFF --> I1
+    STAFF --> I2
+    STAFF --> I4
+    ADMIN --> I1
+    ADMIN --> I2
+    ADMIN --> I4
+    ADMIN --> I5
+    SUPER --> I1
+    SUPER --> I2
+    SUPER --> I4
+    SUPER --> I5
+    SUPER --> I6
+
+    %% Prohibitions
+    STAFF -.x|FORBIDDEN: Database RPC Checks Role| I5
+    STAFF -.x|FORBIDDEN: Database RPC Checks Role| I6
+    ADMIN -.x|FORBIDDEN: Separation of Duties & Role Check| I6
+    ANON -.x|REVOKED: No anonymous execution| I1
+    ANON -.x|REVOKED: No anonymous execution| I2
+    ANON -.x|REVOKED: No anonymous execution| I6
+    ALL_ROLES["All Roles"] -.x|FORBIDDEN: Finalized Sheets are Read-Only| I3
+
+    %% Role to Profile Connections
+    STAFF --> P1
+    ADMIN --> P1
+    ADMIN --> P2
+    SUPER --> P1
+    SUPER --> P2
+    SUPER --> P3
+    SUPER --> P4
+    STAFF -.x|FORBIDDEN: Public display restricted to Admins| P2
+    ADMIN -.x|FORBIDDEN: Super Admin only| P3

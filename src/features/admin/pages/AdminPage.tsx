@@ -7,7 +7,7 @@ import { pingSupabaseKeepalive, getLastKeepaliveTimestamp } from '@/lib/keepaliv
 import { 
   Users, Shield, Loader2, Plus, Trash2, Store, Bell, Activity, 
   Info, CheckCircle2, AlertCircle, Save, Database, KeyRound, RefreshCw, Layers,
-  Lock, Eye, EyeOff, Server, Cpu, Crown
+  Lock, Eye, EyeOff, Server, Cpu, Crown, ShieldAlert, ClipboardList, User
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -27,6 +27,9 @@ import {
   updatePasswordResetRequestStatus, 
   type PasswordResetRequest 
 } from '@/features/auth/services/passwordResetService';
+import { LoginLockoutsTab } from '../components/LoginLockoutsTab';
+import { CorrectionRequestsQueue } from '@/features/daily-inventory/components/CorrectionRequestsQueue';
+import { MyProfileModal } from '../components/MyProfileModal';
 
 interface ProfileRow {
   id: string;
@@ -45,6 +48,7 @@ export function AdminPage() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get('tab');
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Super Admin is a standalone area (/super-admin) - redirect if accessed via Settings tab
   useEffect(() => {
@@ -58,7 +62,7 @@ export function AdminPage() {
   }, [urlTab, isSuperAdmin, navigate, setSearchParams]);
 
   const allowedTabs = isAdmin
-    ? ['account', 'restaurant', 'users', 'notifications', 'activity', 'about'] 
+    ? ['account', 'restaurant', 'users', 'lockouts', 'corrections', 'notifications', 'activity', 'about'] 
     : ['account', 'restaurant', 'about'];
 
   const activeTab = (urlTab && allowedTabs.includes(urlTab))
@@ -463,6 +467,12 @@ export function AdminPage() {
               <TabsTrigger value="users" className="font-semibold text-xs sm:text-sm">
                 <Users className="w-4 h-4 mr-2" /> Staff & Users ({visibleUsers.length})
               </TabsTrigger>
+              <TabsTrigger value="lockouts" className="font-semibold text-xs sm:text-sm">
+                <ShieldAlert className="w-4 h-4 mr-2" /> Login Lockouts
+              </TabsTrigger>
+              <TabsTrigger value="corrections" className="font-semibold text-xs sm:text-sm">
+                <ClipboardList className="w-4 h-4 mr-2" /> Finalized Corrections
+              </TabsTrigger>
               <TabsTrigger value="notifications" className="font-semibold text-xs sm:text-sm">
                 <Bell className="w-4 h-4 mr-2" /> Preferences & Alerts
               </TabsTrigger>
@@ -507,6 +517,28 @@ export function AdminPage() {
                 </span>
               </div>
             </div>
+
+            {isAdmin && (
+              <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <User className="w-4 h-4 text-primary" />
+                    Public Support Profile & Contact Channels
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Configure your support phone, email, and social links (Facebook, WhatsApp, etc.) displayed to users on the lockout and recovery screens.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setIsProfileModalOpen(true)}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs shrink-0 cursor-pointer"
+                >
+                  Edit Profile & Contacts
+                </Button>
+              </div>
+            )}
 
             <hr className="border-border" />
 
@@ -1493,6 +1525,17 @@ export function AdminPage() {
           </div>
         </TabsContent>
 
+        {isAdmin && (
+          <>
+            <TabsContent value="lockouts" className="space-y-6">
+              <LoginLockoutsTab />
+            </TabsContent>
+            <TabsContent value="corrections" className="space-y-6">
+              <CorrectionRequestsQueue />
+            </TabsContent>
+          </>
+        )}
+
       </Tabs>
 
       {/* Add User Modal */}
@@ -1688,6 +1731,12 @@ export function AdminPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Shared My Profile & Support Contacts Modal */}
+      <MyProfileModal 
+        open={isProfileModalOpen} 
+        onOpenChange={setIsProfileModalOpen} 
+      />
     </div>
   );
 }

@@ -1,0 +1,31 @@
+flowchart TD
+    Start([Admin / Super Admin Clicks Avatar / Edit Profile]) --> OpenModal[Open MyProfileModal<br/>src/features/admin/components/MyProfileModal.tsx]
+    
+    OpenModal --> LoadProfile[Load Current Profile & Contact Links<br/>fetchMyContactLinks in profileService.ts]
+    LoadProfile --> RenderForm[Render Form Fields:<br/>Display Name, Support Phone, Support Email, Job Title,<br/>Show on Lockout Toggle, Social Contact Links, Avatar]
+    
+    RenderForm --> UserEdit[User Modifies Fields / Uploads Avatar / Adds Links]
+    
+    UserEdit --> AvatarUpload{Avatar Image Changed?}
+    AvatarUpload -- Yes --> BucketUpload[Upload to Supabase Storage 'avatars'<br/>Path: userId/avatar.ext<br/>Enforce MIME type & 2MB max size]
+    AvatarUpload -- No --> ValidateFields
+    BucketUpload --> ValidateFields[Validate Form & Link URLs]
+    
+    ValidateFields --> URLCheck{Are URLs Valid HTTPS / tel: / mailto:?}
+    URLCheck -- Invalid Scheme (javascript:/data:) --> ShowValidationError[Display Protocol Validation Error]
+    ShowValidationError --> RenderForm
+    
+    URLCheck -- Valid --> SaveRPC[Call update_my_profile RPC<br/>Self-only: auth.uid = profiles.id<br/>Role & privilege fields NOT modifiable]
+    
+    SaveRPC --> LinkSync[Upsert Rows in profile_contact_links<br/>Filter: profile_id = auth.uid]
+    
+    LinkSync --> SaveDB[(Update public.profiles & public.profile_contact_links<br/>RLS enforced)]
+    
+    SaveDB --> RealtimeInvalidate[Invalidate Query Cache in TanStack Query<br/>Query Key: ['public_support_contacts']<br/>Supabase Realtime Channel Notification]
+    
+    RealtimeInvalidate --> ToastSuccess[Show 'Profile updated successfully']
+    
+    %% Consumer: Public Login Screen
+    RealtimeInvalidate -. Broadcast / Query Invalidation .-> LoginConsumer[Login Screen Lockout Card<br/>src/features/auth/components/LoginForm.tsx]
+    LoginConsumer --> CallPublicRPC[Call get_public_support_contacts RPC<br/>Returns ONLY display_name, phone, email, and public links<br/>No private profile or role details exposed]
+    CallPublicRPC --> RenderSupportCard([Locked User Sees Updated Support Channels & Links])

@@ -1,0 +1,46 @@
+flowchart LR
+    subgraph ClientLayer["Frontend Client Layer (React + TanStack Query + TailwindCSS)"]
+        UI_Login["LoginForm.tsx<br/>- 5-Attempt Lockout Countdown<br/>- Opaque Token Polling (12s)<br/>- Dynamic Support Channels"]
+        UI_Reset["ResetPasswordPage.tsx<br/>- Recovery Session Verification<br/>- Password Strength Validation"]
+        UI_Profile["MyProfileModal.tsx<br/>- Admin/Super Admin Profile<br/>- Opt-in Support Contacts<br/>- Validated Social Links"]
+        UI_Daily["DailyInventoryPage.tsx<br/>- Read-Only Finalized Sheet<br/>- Request Correction Modal"]
+        UI_Admin["AdminPage.tsx & SuperSecurityTab.tsx<br/>- Login Lockouts Management<br/>- Correction Requests Queue"]
+    end
+
+    subgraph ServiceLayer["Service & Network Gateway Layer"]
+        S_Auth["loginLockoutService.ts & server/routes/auth.mjs<br/>- checkAccountLockout()<br/>- recordLoginAttempt()<br/>- checkLockoutStatusByToken()"]
+        S_Reset["passwordResetService.ts<br/>- request_password_reset RPC<br/>- Generic Non-Enumerating Message"]
+        S_Profile["profileService.ts<br/>- get_public_support_contacts()<br/>- update_my_profile()"]
+        S_Corr["correctionRequestService.ts & correctionService.ts<br/>- submitCorrectionRequest()<br/>- adminReviewCorrectionRequest()<br/>- superAdminReviewCorrectionRequest()"]
+    end
+
+    subgraph DatabaseLayer["Supabase PostgreSQL 15 & Auth Engine"]
+        DB_Auth["Supabase Auth Engine<br/>- auth.users.encrypted_password (bcrypt)<br/>- Single-use Recovery Tokens<br/>- Zero password columns in public schema"]
+        
+        DB_Security["Security Tables (Release C)<br/>- account_security_state<br/>- security_events<br/>- password_reset_requests"]
+        
+        DB_Profile["Profile Tables (Release B)<br/>- public.profiles<br/>- public.profile_contact_links<br/>- Storage Bucket: avatars"]
+        
+        DB_Inventory["Inventory Tables (Release D)<br/>- daily_inventory (FOR UPDATE locks)<br/>- daily_inventory_items (GENERATED total/ending)<br/>- daily_inventory_correction_requests<br/>- daily_inventory_revisions<br/>- stock_batches & stock_movements"]
+    end
+
+    %% UI to Service Wiring
+    UI_Login --> S_Auth
+    UI_Reset --> S_Reset
+    UI_Profile --> S_Profile
+    UI_Daily --> S_Corr
+    UI_Admin --> S_Auth
+    UI_Admin --> S_Corr
+
+    %% Service to DB Wiring
+    S_Auth --> DB_Security
+    S_Auth --> DB_Auth
+    S_Reset --> DB_Auth
+    S_Reset --> DB_Security
+    S_Profile --> DB_Profile
+    S_Corr --> DB_Inventory
+
+    %% Cross Module Links
+    S_Profile -. Provides Opted-in Contacts .-> UI_Login
+    DB_Security -. State Broadcast / Poll .-> UI_Login
+    DB_Inventory -. Realtime Invalidation .-> UI_Daily

@@ -1,0 +1,30 @@
+flowchart TD
+    subgraph ErrorSources["Triggering Events & Operations"]
+        E1["5 Failed Login Attempts in 15 mins"]
+        E2["Password Reset Email Delivery Fails (SMTP Offline)"]
+        E3["Correction RPC Fails / Stock Inconsistency"]
+        E4["Supabase Realtime Channel Drops"]
+        E5["Stale Concurrent Sheet Modification"]
+    end
+
+    subgraph DefenseMechanisms["Fail-Closed Enforcement"]
+        D1["AUTH_LOCKED: Server sets locked_until = NOW + 30m<br/>Generates opaque lockout status token"]
+        D2["RESET_DELIVERY_PENDING: Generic confirmation shown<br/>Fallback to get_public_support_contacts"]
+        D3["CORRECTION_APPLY_FAILED: Full transaction rollback<br/>No fake success in system_settings"]
+        D4["STALE_STATE: Mark query stale in TanStack Query<br/>Preserve offline UI read state"]
+        D5["STALE_REVISION: FOR UPDATE locks detect revision mismatch<br/>Aborts mutation with rollback"]
+    end
+
+    subgraph UserRecoveryActions["Actionable User & Admin Recovery"]
+        R1["User: Observe live MM:SS countdown timer<br/>Click 'Check Status Now' / Poll token<br/>Contact Admin via verified channels"]
+        R2["Admin: Open Login Lockouts Tab<br/>Verify identity, submit reason, unlock account<br/>Or trigger authorized password reset"]
+        R3["Requester / Reviewer: Request status shows 'FAILED_REQUIRES_REVIEW'<br/>Inspect discrepancy notes, adjust counts, resubmit"]
+        R4["App: Automatic background reconnect on window focus<br/>Manual 'Refresh' button on all queue views"]
+    end
+
+    E1 --> D1 --> R1
+    D1 -. Escalation .-> R2
+    E2 --> D2 --> R1
+    E3 --> D3 --> R3
+    E4 --> D4 --> R4
+    E5 --> D5 --> R3

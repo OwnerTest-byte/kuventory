@@ -45,7 +45,7 @@ export async function correctFinalizedDailyInventory({
   reason,
   correctedItems,
   baselineItems: _baselineItems,
-  userProfile,
+  userProfile: _userProfile,
 }: CorrectFinalizedDayParams): Promise<{ success: boolean; revisionNumber: number; message: string }> {
   const cleanReason = reason.trim();
   if (!cleanReason) {
@@ -79,54 +79,6 @@ export async function correctFinalizedDailyInventory({
   });
 
   if (rpcErr) {
-    if (rpcErr.code === 'PGRST202' || rpcErr.message?.includes('schema cache') || rpcErr.message?.includes('PGRST202')) {
-      console.warn('Remote Supabase schema missing correct_finalized_daily_inventory RPC; falling back to resilient revision recording');
-      const key = `daily_rev_${dailyInventoryId}`;
-      const { data: settingsData } = await supabase
-        .from('system_settings')
-        .select('value')
-        .eq('key', key)
-        .maybeSingle();
-
-      const existingList = (settingsData && Array.isArray((settingsData as any).value)) ? (settingsData as any).value : [];
-      const revisionNumber = existingList.length + 1;
-      const newRev = {
-        id: crypto.randomUUID(),
-        daily_inventory_id: dailyInventoryId,
-        revision_number: revisionNumber,
-        reason: cleanReason,
-        corrected_by: userProfile?.id || null,
-        user_name: userProfile?.displayName || 'Super Admin',
-        created_at: new Date().toISOString(),
-        stock_deltas: [],
-      };
-
-      try {
-        await supabase.from('daily_inventory_revisions').insert({
-          id: newRev.id,
-          daily_inventory_id: dailyInventoryId,
-          revision_number: revisionNumber,
-          reason: cleanReason,
-          corrected_by: userProfile?.id || null,
-          created_at: newRev.created_at,
-          snapshot_data: payload,
-          stock_deltas: []
-        });
-      } catch {}
-
-      await supabase.from('system_settings').upsert({
-        key,
-        value: [...existingList, newRev],
-        updated_at: new Date().toISOString()
-      });
-
-      return {
-        success: true,
-        revisionNumber,
-        message: `Revision ${revisionNumber} recorded successfully.`,
-      };
-    }
-
     console.error('correct_finalized_daily_inventory RPC failed; correction aborted:', rpcErr);
     throw new Error(`Finalized worksheet correction failed on server: ${rpcErr.message}`);
   }

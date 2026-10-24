@@ -35,6 +35,7 @@ import { ItemFormModal } from '@/features/inventory/components/ItemFormModal';
 import { useCreateItem } from '@/features/inventory/hooks/useCreateItem';
 import { useUnreadNotificationsCount } from '@/features/inventory/hooks/useNotifications';
 import type { InventoryItem } from '@/features/inventory/types';
+import { MyProfileModal } from '@/features/admin/components/MyProfileModal';
 
 // Custom SVG icon matching ChatGPT's exact sidebar toggle [ | ] icon
 function SidebarToggleIcon({ className }: { className?: string }) {
@@ -144,6 +145,7 @@ interface SidebarNavigationProps {
   onToggleCollapse?: () => void;
   onOpenSearch?: () => void;
   onPromptLogout?: (unsaved?: boolean) => void;
+  onOpenProfile?: () => void;
 }
 
 function SidebarNavigation({ 
@@ -151,11 +153,13 @@ function SidebarNavigation({
   isCollapsed = false, 
   onToggleCollapse,
   onOpenSearch,
-  onPromptLogout
+  onPromptLogout,
+  onOpenProfile
 }: SidebarNavigationProps) {
   const { role, profile, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isItemActive = (to: string) => {
     if (to === '/inventory') {
@@ -387,14 +391,18 @@ function SidebarNavigation({
               {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-amber-200" />}
             </button>
 
-            <Link
-              to="/settings?tab=account"
-              onClick={closeMobileMenu}
-              title={`${userDisplayName} (${(role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN') ? 'Super Admin' : role === 'ADMIN' ? 'Administrator' : 'Staff'})`}
+            <button
+              type="button"
+              onClick={() => {
+                closeMobileMenu?.();
+                if (onOpenProfile) onOpenProfile();
+                else navigate('/settings?tab=account');
+              }}
+              title={`${userDisplayName} (${(role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN') ? 'Super Admin' : role === 'ADMIN' ? 'Administrator' : 'Staff'}) - Edit Profile & Support Contacts`}
               className="h-9 w-9 rounded-full bg-[#611A1F] text-white flex items-center justify-center font-bold text-xs shrink-0 border border-[#C5A059]/40 cursor-pointer shadow-xs hover:ring-2 hover:ring-[#C5A059] transition-all"
             >
               {userInitials}
-            </Link>
+            </button>
 
             <button
               type="button"
@@ -407,11 +415,15 @@ function SidebarNavigation({
           </div>
         ) : (
           <div className="flex items-center justify-between p-2 rounded-xl bg-[#231A17] border border-[#342722] shadow-2xs">
-            <Link 
-              to="/settings?tab=account" 
-              onClick={closeMobileMenu}
-              title="Manage Account & Password"
-              className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-90 transition-opacity cursor-pointer group"
+            <button 
+              type="button"
+              onClick={() => {
+                closeMobileMenu?.();
+                if (onOpenProfile) onOpenProfile();
+                else navigate('/settings?tab=account');
+              }}
+              title="Manage Account, Profile & Contacts"
+              className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-90 transition-opacity cursor-pointer group text-left"
             >
               <div className="h-9 w-9 rounded-full bg-[#611A1F] text-white flex items-center justify-center font-bold text-xs shrink-0 border border-[#C5A059]/40 shadow-xs group-hover:ring-2 group-hover:ring-[#C5A059] transition-all">
                 {userInitials}
@@ -431,7 +443,7 @@ function SidebarNavigation({
                   {formatRoleLabel(role)}
                 </span>
               </div>
-            </Link>
+            </button>
 
             <div className="flex items-center gap-1">
               <button
@@ -466,6 +478,7 @@ export function AppLayout() {
   const [quickActionOpen, setQuickActionOpen] = useState(false);
   const [isNewItemModalOpen, setIsNewItemModalOpen] = useState(false);
   const [isSubmittingItem, setIsSubmittingItem] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     return localStorage.getItem('kuventory_sidebar_collapsed') === 'true';
   });
@@ -583,6 +596,7 @@ export function AppLayout() {
           onToggleCollapse={toggleSidebar}
           onOpenSearch={() => setIsCommandOpen(true)}
           onPromptLogout={promptLogout}
+          onOpenProfile={() => setIsProfileModalOpen(true)}
         />
       </aside>
 
@@ -601,6 +615,10 @@ export function AppLayout() {
                 setIsCommandOpen(true);
               }}
               onPromptLogout={promptLogout}
+              onOpenProfile={() => {
+                setMobileMenuOpen(false);
+                setIsProfileModalOpen(true);
+              }}
             />
           </div>
         </div>
@@ -892,6 +910,12 @@ export function AppLayout() {
         onConfirm={confirmLogout}
         isLoggingOut={isLoggingOut}
         hasUnsavedChanges={hasLogoutUnsavedChanges}
+      />
+
+      {/* Global My Profile & Support Contacts Modal */}
+      <MyProfileModal
+        open={isProfileModalOpen}
+        onOpenChange={setIsProfileModalOpen}
       />
     </div>
   );

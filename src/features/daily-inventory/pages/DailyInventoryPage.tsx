@@ -6,7 +6,6 @@ import { useDailyInventory, useFinalizeDailyInventory, dailyInventoryKeys } from
 import { InventorySheet } from '../components/InventorySheet';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { 
   Loader2, 
   AlertTriangle, 
@@ -17,26 +16,31 @@ import {
   FileText, 
   LayoutDashboard,
   Sparkles,
-  Edit3,
   History,
-  Save
+  ClipboardList,
+  ShieldCheck
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { cn, formatUserDisplayName } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { getBusinessDateString } from '@/lib/businessDate';
 import { 
-  correctFinalizedDailyInventory, 
   fetchDailyInventoryRevisions, 
   type DailyInventoryRevision 
 } from '../services/correctionService';
+import { CorrectionRequestModal } from '../components/CorrectionRequestModal';
+import { CorrectionRequestsQueue } from '../components/CorrectionRequestsQueue';
+import { 
+  fetchCorrectionRequests 
+} from '../services/correctionRequestService';
 
 export function DailyInventoryPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const { profile, user } = useAuth();
-  // All authenticated users (Staff, Admins, Super Admins) are authorized to correct a finalized day with an audit reason
+  const { user, role } = useAuth();
+  const isSuperAdmin = role === 'SUPER_ADMIN' || role === 'MASTER_ADMIN';
+  const isAdmin = role === 'ADMIN' || isSuperAdmin;
   const isAuthorizedToCorrect = !!user;
 
   // Use business-timezone date helper (Asia/Manila, UTC+8) or URL searchParam if present
@@ -45,18 +49,12 @@ export function DailyInventoryPage() {
   const [showCelebrationModal, setShowCelebrationModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Correction Mode & Revision History States
-  const [isCorrectionMode, setIsCorrectionMode] = useState(false);
-  const [showCorrectionPrompt, setShowCorrectionPrompt] = useState(false);
-  const [correctionReason, setCorrectionReason] = useState('');
-  const [showSaveCorrectionDialog, setShowSaveCorrectionDialog] = useState(false);
-  const [isSubmittingCorrection, setIsSubmittingCorrection] = useState(false);
-  const [correctionResult, setCorrectionResult] = useState<{ revisionNumber: number; message: string } | null>(null);
-  const [showCorrectionSuccessModal, setShowCorrectionSuccessModal] = useState(false);
+  // Correction Request & Two-Stage Approval Workflow States
+  const [showCorrectionRequestModal, setShowCorrectionRequestModal] = useState(false);
+  const [showRequestsQueueModal, setShowRequestsQueueModal] = useState(false);
   const [showRevisionHistoryModal, setShowRevisionHistoryModal] = useState(false);
   const [revisions, setRevisions] = useState<DailyInventoryRevision[]>([]);
   const [isLoadingRevisions, setIsLoadingRevisions] = useState(false);
-  const [baselineEntries, setBaselineEntries] = useState<any[] | null>(null);
   
   const { data: record, isLoading, error } = useDailyInventory(date);
   const finalizeMutation = useFinalizeDailyInventory(date);
@@ -74,10 +72,10 @@ export function DailyInventoryPage() {
     }
   }, [fetchedRevisions]);
 
-  // Automatically trigger correction prompt if navigated with ?correct=true
+  // Automatically trigger correction modal if navigated with ?correct=true
   useEffect(() => {
     if (searchParams.get('correct') === 'true' && record?.status === 'FINALIZED' && isAuthorizedToCorrect) {
-      setShowCorrectionPrompt(true);
+      setShowCorrectionRequestModal(true);
       const next = new URLSearchParams(searchParams);
       next.delete('correct');
       setSearchParams(next, { replace: true });
@@ -110,6 +108,15 @@ export function DailyInventoryPage() {
         { event: '*', schema: 'public', table: 'daily_inventory_items' },
         () => {
           queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'daily_inventory_correction_requests' },
+        () => {
+          if (record?.id) {
+            queryClient.invalidateQueries({ queryKey: ['daily-correction-requests', record.id] });
+          }
         }
       )
       .on(
@@ -161,6 +168,22 @@ export function DailyInventoryPage() {
   const completionPct = totalEntries > 0 ? Math.min(100, Math.round((completedCount / totalEntries) * 100)) : 0;
   const isFinalized = record?.status === 'FINALIZED';
 
+  // Correction requests query for this sheet
+  const { data: correctionRequests = [], refetch: refetchCorrectionRequests } = useQuery({
+    queryKey: ['daily-correction-requests', record?.id],
+    queryFn: () => (record?.id ? fetchCorrectionRequests(record.id) : Promise.resolve([])),
+    enabled: !!record?.id && isFinalized,
+  });
+
+  const pendingRequest = correctionRequests.find(r => 
+    r.status === 'PENDING_ADMIN' || r.status === 'PENDING_SUPER_ADMIN'
+  );
+  const returnedRequest = correctionRequests.find(r => r.status === 'RETURNED_TO_REQUESTER');
+  const hasPendingRequest = !!pendingRequest;
+  const pendingRequestsCount = correctionRequests.filter(r => 
+    r.status === 'PENDING_ADMIN' || r.status === 'PENDING_SUPER_ADMIN'
+  ).length;
+
   const [finalizedSnapshot, setFinalizedSnapshot] = useState<{
     totalItems: number;
     salesAm: number;
@@ -172,6 +195,9 @@ export function DailyInventoryPage() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) });
+    if (record?.id) {
+      await refetchCorrectionRequests();
+    }
     setTimeout(() => setIsRefreshing(false), 500);
   };
 
@@ -186,109 +212,6 @@ export function DailyInventoryPage() {
       console.warn('Error fetching revisions:', e);
     } finally {
       setIsLoadingRevisions(false);
-    }
-  };
-
-  const handleStartCorrection = () => {
-    if (!correctionReason.trim()) {
-      alert('Please enter a reason for correcting this finalized day.');
-      return;
-    }
-    const currentEntries = (record?.daily_inventory_entries || []).map(e => ({
-      id: e.id,
-      item_id: e.item_id,
-      item_name: e.item_name,
-      unit: e.unit,
-      beg: e.beginning_qty,
-      add: e.add_qty,
-      am: e.sales_am,
-      pm: e.sales_pm,
-      ending: e.ending_qty,
-    }));
-    setBaselineEntries(currentEntries);
-    setShowCorrectionPrompt(false);
-    setIsCorrectionMode(true);
-  };
-
-  const handleCancelCorrection = async () => {
-    if (baselineEntries && baselineEntries.length > 0 && record?.id) {
-      try {
-        for (const item of baselineEntries) {
-          await supabase
-            .from('daily_inventory_items')
-            .update({
-              beg: item.beg,
-              add: item.add,
-              am: item.am,
-              pm: item.pm,
-            })
-            .eq('id', item.id);
-        }
-        await queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) });
-      } catch (err) {
-        console.warn('Error reverting baseline entries on cancel:', err);
-      }
-    }
-    setIsCorrectionMode(false);
-    setCorrectionReason('');
-    setBaselineEntries(null);
-  };
-
-  const handleSaveCorrectionSubmit = async () => {
-    if (!record?.id) return;
-    setIsSubmittingCorrection(true);
-    try {
-      const entries = record.daily_inventory_entries || [];
-      const correctedItems = entries.map(e => ({
-        id: e.id,
-        item_id: e.item_id,
-        item_name: e.item_name,
-        unit: e.unit,
-        beg: e.beginning_qty,
-        add: e.add_qty,
-        am: e.sales_am,
-        pm: e.sales_pm,
-        ending: e.ending_qty,
-      }));
-
-      const res = await correctFinalizedDailyInventory({
-        dailyInventoryId: record.id,
-        inventoryDate: record.inventory_date,
-        reason: correctionReason || 'Audit reconciliation correction',
-        correctedItems,
-        baselineItems: baselineEntries || undefined,
-        userProfile: {
-          id: profile?.id || user?.id,
-          email: user?.email,
-          displayName: formatUserDisplayName(profile, user?.email),
-        }
-      });
-
-      setCorrectionResult({
-        revisionNumber: res.revisionNumber,
-        message: res.message,
-      });
-
-      await queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.all });
-      await queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) });
-      await queryClient.invalidateQueries({ queryKey: ['reports'] });
-      await queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      await queryClient.invalidateQueries({ queryKey: ['items'] });
-      await queryClient.invalidateQueries({ queryKey: ['batches'] });
-      await queryClient.invalidateQueries({ queryKey: ['today-inventory-session'] });
-      await queryClient.invalidateQueries({ queryKey: ['daily-inventory-revisions', record.id] });
-      const updatedRevs = await fetchDailyInventoryRevisions(record.id);
-      setRevisions(updatedRevs);
-
-      setShowSaveCorrectionDialog(false);
-      setIsCorrectionMode(false);
-      setCorrectionReason('');
-      setBaselineEntries(null);
-      setShowCorrectionSuccessModal(true);
-    } catch (err: any) {
-      alert(err.message || 'Failed to save correction');
-    } finally {
-      setIsSubmittingCorrection(false);
     }
   };
 
@@ -319,11 +242,16 @@ export function DailyInventoryPage() {
               isFinalized ? (
                 <div className="flex items-center gap-1.5">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/25">
-                    <Lock size={12} /> {isCorrectionMode ? 'CORRECTION IN PROGRESS' : 'FINALIZED'}
+                    <Lock size={12} /> FINALIZED
                   </span>
                   {revisions.length > 0 && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                       REV {revisions[0]?.revision_number || revisions.length}
+                    </span>
+                  )}
+                  {hasPendingRequest && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/35 animate-pulse">
+                      CORRECTION PENDING
                     </span>
                   )}
                 </div>
@@ -397,36 +325,27 @@ export function DailyInventoryPage() {
             </Button>
           )}
 
-          {isFinalized && isAuthorizedToCorrect && !isCorrectionMode && (
+          {isFinalized && isAuthorizedToCorrect && (
             <Button
-              onClick={() => {
-                setCorrectionReason('');
-                setShowCorrectionPrompt(true);
-              }}
-              className="bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer shadow-xs"
+              onClick={() => setShowCorrectionRequestModal(true)}
+              disabled={hasPendingRequest}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer shadow-xs disabled:opacity-50"
+              title={hasPendingRequest ? 'A correction request is already under review' : 'Submit a correction request for Admin & Super Admin review'}
             >
-              <Edit3 className="w-4 h-4 mr-1.5" />
-              Correct Finalized Day
+              <ClipboardList className="w-4 h-4 mr-1.5" />
+              {hasPendingRequest ? 'Correction Pending' : 'Request Correction'}
             </Button>
           )}
 
-          {isCorrectionMode && (
-            <>
-              <Button
-                variant="outline"
-                onClick={handleCancelCorrection}
-                className="border-border text-foreground font-semibold hover:bg-muted cursor-pointer"
-              >
-                Cancel Edit
-              </Button>
-              <Button
-                onClick={() => setShowSaveCorrectionDialog(true)}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer shadow-xs"
-              >
-                <Save className="w-4 h-4 mr-1.5" />
-                Save Finalized Correction
-              </Button>
-            </>
+          {isFinalized && isAdmin && (
+            <Button
+              variant="outline"
+              onClick={() => setShowRequestsQueueModal(true)}
+              className="border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 font-bold hover:bg-amber-500/20 cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4 mr-1.5" />
+              Correction Queue {pendingRequestsCount > 0 ? `(${pendingRequestsCount})` : ''}
+            </Button>
           )}
           
           {!isFinalized && (
@@ -442,8 +361,8 @@ export function DailyInventoryPage() {
         </div>
       </div>
 
-      {/* Correction Mode Active Banner */}
-      {isCorrectionMode && (
+      {/* Active Correction Request Status Banners */}
+      {pendingRequest && (
         <div className="bg-amber-500/15 border-2 border-amber-500/40 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md animate-in fade-in duration-200">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
@@ -451,34 +370,39 @@ export function DailyInventoryPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-sm text-foreground">CORRECTION MODE ACTIVE</span>
+                <span className="font-bold text-sm text-foreground">CORRECTION REQUEST UNDER REVIEW</span>
                 <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-600 dark:text-amber-400">
-                  Auditable Revision
+                  {pendingRequest.status}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Reason: <strong className="text-foreground">{correctionReason || 'Post-finalization correction'}</strong>. Adjust values below. Changes are reconciled against FEFO stock ledger upon save.
+                Reason: <strong className="text-foreground">{pendingRequest.reason}</strong>. Status: <strong className="text-foreground">{pendingRequest.status}</strong>. Worksheet remains strictly locked and read-only.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCancelCorrection}
-              className="text-xs font-semibold border-border text-foreground hover:bg-muted cursor-pointer"
-            >
-              Cancel Edit
-            </Button>
+          {isAdmin && (
             <Button
               size="sm"
-              onClick={() => setShowSaveCorrectionDialog(true)}
-              disabled={isSubmittingCorrection}
-              className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+              onClick={() => setShowRequestsQueueModal(true)}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs cursor-pointer shrink-0"
             >
-              <Save className="w-3.5 h-3.5 mr-1.5" />
-              Save Finalized Correction
+              <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
+              Review in Queue
             </Button>
+          )}
+        </div>
+      )}
+
+      {returnedRequest && !pendingRequest && (
+        <div className="bg-sky-500/15 border border-sky-500/30 rounded-xl p-4 flex items-start gap-3 shadow-xs">
+          <div className="p-2 rounded-lg bg-sky-500/20 text-sky-600 dark:text-sky-400 shrink-0">
+            <ClipboardList className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="font-bold text-sm text-foreground">Correction Request Returned for Information</span>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Reviewer feedback: <strong className="text-foreground">{returnedRequest.admin_notes || 'Please clarify the item adjustments and re-submit.'}</strong>
+            </p>
           </div>
         </div>
       )}
@@ -577,166 +501,63 @@ export function DailyInventoryPage() {
       {record && !isLoading && (
         <InventorySheet 
           session={record} 
-          isReadOnly={isFinalized && !isCorrectionMode} 
+          isReadOnly={isFinalized} 
           date={date}
-          isCorrectionMode={isCorrectionMode}
         />
       )}
 
-      {/* Modal 1: Prompt Reason for Entering Correction Mode */}
-      <Dialog open={showCorrectionPrompt} onOpenChange={setShowCorrectionPrompt}>
-        <DialogContent className="bg-card text-foreground border-border max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-foreground">
-              <Edit3 className="w-5 h-5 text-amber-500" />
-              Correct Finalized Inventory
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-xs leading-relaxed">
-              You are unlocking the finalized sheet for <strong>{format(new Date(date + 'T00:00:00'), 'MMMM dd, yyyy')}</strong> in auditable correction mode. All modified quantities will be differentials-reconciled against the stock ledger.
-            </DialogDescription>
-          </DialogHeader>
+      {/* Two-Stage Approval Workflow: Correction Request Modal */}
+      {record && (
+        <CorrectionRequestModal
+          open={showCorrectionRequestModal}
+          onOpenChange={setShowCorrectionRequestModal}
+          dailyInventoryId={record.id}
+          inventoryDate={record.inventory_date}
+          items={(record.daily_inventory_entries || []).map(e => ({
+            id: e.id,
+            item_id: e.item_id,
+            item_name: e.item_name || 'Item',
+            unit: e.unit,
+            beginning_qty: e.beginning_qty || 0,
+            add_qty: e.add_qty || 0,
+            sales_am: e.sales_am || 0,
+            sales_pm: e.sales_pm || 0,
+            ending_qty: e.ending_qty || 0,
+          }))}
+          onSuccess={() => {
+            refetchCorrectionRequests();
+            queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) });
+          }}
+        />
+      )}
 
-          <div className="space-y-3 py-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-foreground">
-                Audit Reason for Correction <span className="text-rose-500">*</span>
-              </label>
-              <Input
-                value={correctionReason}
-                onChange={(e) => setCorrectionReason(e.target.value)}
-                placeholder="e.g. Recounted PM bar usage / adjusted misplaced stock"
-                className="text-xs bg-card border-border text-foreground h-10"
-                autoFocus
-              />
-              <p className="text-[11px] text-muted-foreground">
-                This explanation will be permanently recorded in the revision history.
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowCorrectionPrompt(false)}
-              className="border-border text-foreground cursor-pointer"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={handleStartCorrection}
-              disabled={!correctionReason.trim()}
-              className="bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer"
-            >
-              Enter Correction Mode
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal 2: Confirm Saving Finalized Day Correction */}
-      <Dialog open={showSaveCorrectionDialog} onOpenChange={setShowSaveCorrectionDialog}>
-        <DialogContent className="bg-card text-foreground border-border max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-foreground">
-              <Save className="w-5 h-5 text-amber-500" />
-              Save Finalized Sheet Correction?
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-xs leading-relaxed">
-              Saving will atomically compute net stock changes, apply non-duplicate FEFO ledger adjustments, freeze a new official revision, and lock the sheet.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="p-3 bg-muted/40 rounded-xl border border-border text-xs space-y-1.5">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Reporting Date:</span>
-              <span className="font-bold text-foreground">{date}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Audit Reason:</span>
-              <span className="font-semibold text-foreground max-w-xs truncate">{correctionReason || 'Post-finalization adjustment'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Corrected By:</span>
-              <span className="font-semibold text-foreground">{formatUserDisplayName(profile, user?.email)}</span>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowSaveCorrectionDialog(false)}
-              disabled={isSubmittingCorrection}
-              className="border-border text-foreground cursor-pointer"
-            >
-              Keep Editing
-            </Button>
-            <Button
-              type="button"
-              onClick={handleSaveCorrectionSubmit}
-              disabled={isSubmittingCorrection}
-              className="bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer"
-            >
-              {isSubmittingCorrection ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving & Reconciling...
-                </>
-              ) : (
-                'Confirm & Save Revision'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal 3: Celebratory Correction Success Modal */}
-      <Dialog open={showCorrectionSuccessModal} onOpenChange={setShowCorrectionSuccessModal}>
-        <DialogContent className="bg-card text-foreground border-border max-w-md text-center">
-          <div className="py-2 space-y-4">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/25 mx-auto">
-              <CheckCircle2 className="w-7 h-7" />
-            </div>
-
-            <div>
-              <DialogTitle className="text-xl font-black text-foreground">
-                CORRECTION RECORDED
+      {/* Queue Modal for Admins & Super Admins */}
+      {isAdmin && record && (
+        <Dialog open={showRequestsQueueModal} onOpenChange={setShowRequestsQueueModal}>
+          <DialogContent className="bg-card text-foreground border-border max-w-4xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-amber-500" />
+                Correction Requests Review Queue
               </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground mt-1">
-                Revision <strong className="text-foreground">{correctionResult?.revisionNumber || 1}</strong> applied for <strong className="text-foreground">{format(new Date(date + 'T00:00:00'), 'MMMM dd, yyyy')}</strong>.
+              <DialogDescription className="text-xs text-muted-foreground">
+                Review submitted correction requests for this worksheet. Admin review provides Stage 1 verification; Super Admin approval atomically applies stock reconciliation.
               </DialogDescription>
-            </div>
-
-            <p className="text-xs text-muted-foreground bg-muted/40 p-3 rounded-xl border border-border">
-              {correctionResult?.message || 'Inventory items and stock ledger have been reconciled with zero duplicate deductions.'}
-            </p>
-
-            <div className="flex flex-col gap-2 pt-2">
-              <Button
-                onClick={() => {
-                  setShowCorrectionSuccessModal(false);
-                  if (record?.id) {
-                    navigate(`/reports/${record.id}`);
-                  }
+            </DialogHeader>
+            <div className="py-2">
+              <CorrectionRequestsQueue
+                dailyInventoryId={record.id}
+                onCorrectionApplied={() => {
+                  queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.all });
+                  queryClient.invalidateQueries({ queryKey: dailyInventoryKeys.date(date) });
+                  refetchCorrectionRequests();
+                  setShowRequestsQueueModal(false);
                 }}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-10 cursor-pointer shadow-xs"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                View Updated Report
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowCorrectionSuccessModal(false)}
-                className="w-full border-border text-foreground font-semibold h-10 cursor-pointer"
-              >
-                Back to Worksheet
-              </Button>
+              />
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Modal 4: Revision History Inspection Modal */}
       <Dialog open={showRevisionHistoryModal} onOpenChange={setShowRevisionHistoryModal}>
@@ -962,7 +783,7 @@ export function DailyInventoryPage() {
       <div className="fixed bottom-16 left-0 right-0 p-3 bg-card/95 backdrop-blur-md border-t border-border flex items-center justify-between gap-3 sm:hidden z-30 shadow-lg">
         <div className="flex items-center gap-2 min-w-0">
           <div className="text-xs font-bold text-foreground truncate">
-            {isFinalized ? (isCorrectionMode ? 'Correcting' : 'Finalized') : `${completionPct}% Reconciled`}
+            {isFinalized ? (hasPendingRequest ? 'Pending Review' : 'Finalized') : `${completionPct}% Reconciled`}
           </div>
           <span className="text-[10px] text-muted-foreground font-mono">
             ({completedCount}/{totalEntries})
@@ -982,26 +803,14 @@ export function DailyInventoryPage() {
             Report
           </Button>
 
-          {isFinalized && isAuthorizedToCorrect && !isCorrectionMode && (
+          {isFinalized && isAuthorizedToCorrect && (
             <Button
               size="sm"
-              onClick={() => {
-                setCorrectionReason('');
-                setShowCorrectionPrompt(true);
-              }}
-              className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-9 px-3 shadow-sm cursor-pointer"
+              onClick={() => setShowCorrectionRequestModal(true)}
+              disabled={hasPendingRequest}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-9 px-3 shadow-sm cursor-pointer disabled:opacity-50"
             >
-              Correct Finalized Day
-            </Button>
-          )}
-
-          {isCorrectionMode && (
-            <Button
-              size="sm"
-              onClick={() => setShowSaveCorrectionDialog(true)}
-              className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-9 px-3 shadow-sm cursor-pointer"
-            >
-              Save
+              {hasPendingRequest ? 'Pending' : 'Correction'}
             </Button>
           )}
 
