@@ -153,19 +153,44 @@ export function MyProfileModal({ open, onOpenChange }: MyProfileModalProps) {
   };
 
   const handleSaveProfile = async () => {
-    setIsSaving(true);
     setErrorMessage(null);
     setSaveSuccessTime(null);
 
+    const trimmedDisplay = displayName.trim();
+    const trimmedSupportEmail = supportEmail.trim();
+    const hasPublicChannel =
+      supportPhone.trim() !== '' ||
+      trimmedSupportEmail !== '' ||
+      contactLinks.some(l => l.is_public);
+
+    // Honest validation: a save must either publish something real or say why
+    // it cannot — never succeed silently into invisibility.
+    if (!trimmedDisplay) {
+      setErrorMessage('Display name is required.');
+      return;
+    }
+    if (trimmedSupportEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedSupportEmail)) {
+      setErrorMessage('Support email must be a valid email address.');
+      return;
+    }
+    if (showOnLockoutScreen && !hasPublicChannel) {
+      setErrorMessage(
+        'Add at least one contact channel (phone, email, or link) or uncheck "Show on locked login screen" — otherwise you will never appear on the recovery screen.'
+      );
+      return;
+    }
+
+    setIsSaving(true);
+
     try {
       await updateMyProfile({
-        displayName: displayName.trim(),
+        displayName: trimmedDisplay,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         jobTitle: jobTitle.trim(),
         phone: phone.trim(),
         supportPhone: supportPhone.trim(),
-        supportEmail: supportEmail.trim(),
+        supportEmail: trimmedSupportEmail,
         showOnLockoutScreen,
         avatarUrl,
       });
@@ -206,9 +231,13 @@ export function MyProfileModal({ open, onOpenChange }: MyProfileModalProps) {
           )}
 
           {saveSuccessTime && (
-            <div className="p-3.5 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-xl flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
-              <span>Profile settings saved successfully at {saveSuccessTime}.</span>
+            <div className="p-3.5 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-xl flex items-start gap-2" role="status">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500 mt-0.5" />
+              <span>
+                {(showOnLockoutScreen && (supportPhone.trim() !== '' || supportEmail.trim() !== '' || contactLinks.some(l => l.is_public)))
+                  ? `Saved at ${saveSuccessTime}. Your support channels are now live on the login recovery and lockout screens.`
+                  : `Saved at ${saveSuccessTime}. Your contacts stay private — they are not shown on the recovery screen.`}
+              </span>
             </div>
           )}
 
@@ -319,15 +348,21 @@ export function MyProfileModal({ open, onOpenChange }: MyProfileModalProps) {
                 <span>Support Contact Channels</span>
               </h3>
               {isPrivileged && (
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-medium">
-                  <input
-                    type="checkbox"
-                    checked={showOnLockoutScreen}
-                    onChange={e => setShowOnLockoutScreen(e.target.checked)}
-                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
-                  />
-                  <span>Show on locked login screen</span>
-                </label>
+                <div className="space-y-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-medium">
+                    <input
+                      type="checkbox"
+                      checked={showOnLockoutScreen}
+                      onChange={e => setShowOnLockoutScreen(e.target.checked)}
+                      className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                    />
+                    <span>Show on locked login screen</span>
+                  </label>
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    Staff recovering a password or locked out will see your name, hotline, email, and links on the
+                    Forgot Password and lockout screens — but only the channels you actually filled above.
+                  </p>
+                </div>
               )}
             </div>
 

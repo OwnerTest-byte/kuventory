@@ -3,6 +3,20 @@ import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vite
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { LoginForm } from '../components/LoginForm';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const createTestQueryClient = () => new QueryClient({
+  defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+});
+
+/** LoginForm uses React Query for public support contacts. */
+function renderForm() {
+  return render(
+    <QueryClientProvider client={createTestQueryClient()}>
+      <LoginForm />
+    </QueryClientProvider>
+  );
+}
 import { supabase } from '@/lib/supabase';
 
 vi.mock('@/lib/supabase', () => ({
@@ -51,9 +65,15 @@ function mockRpc(handlers: Record<string, RpcHandler>) {
 }
 
 const flush = async () => {
+  // Enough microtask rounds for React Query's observer notifications to
+  // settle (queryFn -> notifyManager -> observer -> React setState).
   await act(async () => {
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let i = 0; i < 6; i++) {
+      await Promise.resolve();
+      // React Query v5's notifyManager flushes observer batches via
+      // setTimeout(0) — frozen under fake timers until the clock advances.
+      vi.advanceTimersByTime(0);
+    }
   });
 };
 
@@ -112,7 +132,7 @@ describe('LoginForm assisted recovery workflow (component behavior)', () => {
       }),
     });
 
-    render(<LoginForm />);
+    renderForm();
     await openRecoveryModal();
 
     // The dialog explains the real workflow: no mailbox, admin-assisted only.
@@ -156,7 +176,7 @@ describe('LoginForm assisted recovery workflow (component behavior)', () => {
       },
     });
 
-    render(<LoginForm />);
+    renderForm();
     // Pre-fill the login email so opening the dialog reconciles the cooldown.
     fireEvent.change(screen.getByLabelText(/^Email$/), { target: { value: 'staff@kuventory.com' } });
     await openRecoveryModal();
@@ -200,7 +220,7 @@ describe('LoginForm assisted recovery workflow (component behavior)', () => {
       }),
     });
 
-    render(<LoginForm />);
+    renderForm();
     fireEvent.change(screen.getByLabelText(/^Email$/), { target: { value: 'staff@kuventory.com' } });
 
     await openRecoveryModal();
@@ -235,7 +255,7 @@ describe('LoginForm assisted recovery workflow (component behavior)', () => {
       }),
     });
 
-    render(<LoginForm />);
+    renderForm();
     await openRecoveryModal();
     await fillAndSubmitRecovery('staff@kuventory.com');
 
@@ -252,7 +272,7 @@ describe('LoginForm assisted recovery workflow (component behavior)', () => {
       check_assisted_recovery_cooldown: async () => ({ data: null, error: { message: 'db down' } }),
     });
 
-    render(<LoginForm />);
+    renderForm();
     fireEvent.change(screen.getByLabelText(/^Email$/), { target: { value: 'staff@kuventory.com' } });
     await openRecoveryModal();
     await flush();
@@ -294,7 +314,7 @@ describe('LoginForm login lockout behavior (component behavior)', () => {
       error: { message: 'Invalid login credentials' },
     } as any);
 
-    render(<LoginForm />);
+    renderForm();
     await submitLogin('staff@kuventory.com', 'wrongpass');
 
     // Locked card with the authoritative 30-minute value.
@@ -352,7 +372,7 @@ describe('LoginForm login lockout behavior (component behavior)', () => {
       error: { message: 'Invalid login credentials' },
     } as any);
 
-    render(<LoginForm />);
+    renderForm();
     await submitLogin('staff@kuventory.com', 'wrongpass');
     expect(screen.getByRole('timer')).toHaveTextContent('05:00');
 
@@ -397,7 +417,7 @@ describe('LoginForm login lockout behavior (component behavior)', () => {
       error: { message: 'Invalid login credentials' },
     } as any);
 
-    render(<LoginForm />);
+    renderForm();
     await submitLogin('staff@kuventory.com', 'wrongpass');
     expect(screen.getByRole('timer')).toHaveTextContent('30:00');
 
@@ -418,7 +438,7 @@ describe('LoginForm login lockout behavior (component behavior)', () => {
     });
     const signIn = vi.mocked(supabase.auth.signInWithPassword);
 
-    render(<LoginForm />);
+    renderForm();
     await submitLogin('staff@kuventory.com', 'anypassword123');
 
     expect(screen.getByText(/could not verify your account security status/i)).toBeInTheDocument();
@@ -448,7 +468,7 @@ describe('LoginForm pending-review card (live admin-review status)', () => {
 
   async function submitTicket(handlers: Record<string, RpcHandler>) {
     mockRpc(handlers);
-    render(<LoginForm />);
+    renderForm();
     await openRecoveryModal();
     await fillAndSubmitRecovery('staff@kuventory.com');
   }
@@ -485,7 +505,7 @@ describe('LoginForm pending-review card (live admin-review status)', () => {
 
     // Simulate a reload: full unmount + remount with the same session storage.
     cleanup();
-    render(<LoginForm />);
+    renderForm();
     await flush();
 
     expect(screen.getByText(/Administrators are reviewing/i)).toBeInTheDocument();
@@ -584,7 +604,7 @@ describe('Recovery existence gate + truthful attempt messaging + conditional con
       }),
     });
 
-    render(<LoginForm />);
+    renderForm();
     await openRecoveryModal();
     await fillAndSubmitRecovery('ghost.user@kuventory.com');
     await flush();
@@ -623,7 +643,7 @@ describe('Recovery existence gate + truthful attempt messaging + conditional con
     const signIn = vi.mocked(supabase.auth.signInWithPassword);
     signIn.mockResolvedValue({ data: { session: null }, error: { message: 'Invalid login credentials' } } as any);
 
-    render(<LoginForm />);
+    renderForm();
 
     // 4th failure: plain error + single truthful sub-note.
     await submitLogin('staff@kuventory.com', 'wrongpass');
@@ -674,7 +694,7 @@ describe('Recovery existence gate + truthful attempt messaging + conditional con
     ] as any);
 
     mockRpc({});
-    render(<LoginForm />);
+    renderForm();
     await openRecoveryModal();
     await flush();
 
@@ -703,7 +723,7 @@ describe('Recovery existence gate + truthful attempt messaging + conditional con
     ] as any);
 
     mockRpc({});
-    render(<LoginForm />);
+    renderForm();
     await openRecoveryModal();
     await flush();
 
@@ -726,7 +746,7 @@ describe('Recovery existence gate + truthful attempt messaging + conditional con
         error: null,
       }),
     });
-    render(<LoginForm />);
+    renderForm();
     await openRecoveryModal();
     await fillAndSubmitRecovery('staff@kuventory.com');
 
@@ -736,5 +756,33 @@ describe('Recovery existence gate + truthful attempt messaging + conditional con
     const referenceBlock = document.querySelector('[class*="bg-white/70"]');
     expect(referenceBlock).toBeTruthy();
     expect(referenceBlock!.className).toContain('dark:bg-black/50');
+  });
+});
+
+describe('Login screen contact sync (Fix 4)', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    localStorage.clear();
+  });
+
+  it('refetches administrator contacts every time the recovery dialog opens', async () => {
+    const { fetchPublicSupportContacts } = await import('@/features/admin/services/profileService');
+    const spy = vi.mocked(fetchPublicSupportContacts).mockResolvedValue([]);
+    mockRpc({});
+
+    renderForm();
+    await flush();
+    const afterMount = spy.mock.calls.length;
+    expect(afterMount).toBeGreaterThanOrEqual(1);
+
+    // Close + reopen: fresh directory data each time.
+    await openRecoveryModal();
+    await flush();
+    fireEvent.click(screen.getByRole('button', { name: /back to sign in/i }));
+    await flush();
+    await openRecoveryModal();
+    await flush();
+
+    expect(spy.mock.calls.length).toBeGreaterThan(afterMount);
   });
 });

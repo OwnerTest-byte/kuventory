@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,12 +15,9 @@ import {
   AlertCircle,
   Loader2,
   ShieldCheck,
-  Phone,
-  Mail,
   Send,
   Clock,
   RefreshCw,
-  ExternalLink,
   ShieldAlert,
   ArrowLeft,
   AlertTriangle,
@@ -44,9 +42,9 @@ import {
   type LockoutCheckResult
 } from '../services/loginLockoutService';
 import {
-  fetchPublicSupportContacts,
-  type PublicSupportContact
+  fetchPublicSupportContacts
 } from '@/features/admin/services/profileService';
+import { SupportContactDirectory } from '@/components/common/SupportContactDirectory';
 import {
   submitAssistedRecoveryTicket,
   checkAssistedRecoveryCooldown,
@@ -91,7 +89,6 @@ export function LoginForm() {
   const [lockout, setLockout] = useState<LockoutUiState | null>(null);
   const [lockoutVerifyError, setLockoutVerifyError] = useState<string | null>(null);
   const [isCheckingLockout, setIsCheckingLockout] = useState(false);
-  const [supportContacts, setSupportContacts] = useState<PublicSupportContact[]>([]);
 
   /** Server-time offset derived from server_now in every lockout RPC response. */
   const serverClockRef = useRef<ServerClock | null>(null);
@@ -163,12 +160,18 @@ export function LoginForm() {
     },
   });
 
-  // Load public support contacts on mount
-  useEffect(() => {
-    fetchPublicSupportContacts()
-      .then(setSupportContacts)
-      .catch(err => console.warn('Could not load public support contacts:', err));
-  }, []);
+  // Public administrator contacts — live and synced: refetches on window
+  // focus, on a bounded 30s cadence, and when the recovery dialog opens, so
+  // an administrator's saved profile appears here without a reload.
+  // (Anonymous realtime on `profiles` is impossible by RLS design — bounded
+  // refetch is the documented safe synchronization mechanism.)
+  const { data: supportContacts = [], refetch: refetchSupportContacts } = useQuery({
+    queryKey: ['public-support-contacts'],
+    queryFn: fetchPublicSupportContacts,
+    refetchOnWindowFocus: true,
+    refetchInterval: 30000,
+    staleTime: 15000,
+  });
 
   // Clear stale session lease messages
   if (sessionLeaseError?.includes('active on another device') || sessionLeaseError?.includes('ACCOUNT IN USE')) {
@@ -633,6 +636,9 @@ export function LoginForm() {
     setForgotMessage(null);
     setCopyNotice(null);
     setIsForgotModalOpen(true);
+    // Fresh administrator contacts every time the dialog opens — an admin's
+    // saved profile appears here without a page reload.
+    void refetchSupportContacts();
     // Reconcile the authoritative cooldown immediately (covers reopen after
     // close, reload, and submissions from other tabs or devices).
     const email = (getValues('email') || '').trim().toLowerCase();
@@ -819,7 +825,7 @@ export function LoginForm() {
             </div>
           </div>
 
-          {/* Configured Support Contacts Card */}
+          {/* Administrator Contact Directory (shared with the recovery dialog) */}
           <div className="p-4 rounded-xl bg-card border border-border/80 shadow-sm space-y-3">
             <div className="flex items-center justify-between border-b border-border/60 pb-2">
               <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
@@ -829,62 +835,15 @@ export function LoginForm() {
               <span className="text-[10px] text-muted-foreground uppercase font-semibold">Assistance</span>
             </div>
 
-            {supportContacts.length === 0 ? (
-              <div className="text-xs text-muted-foreground py-2 text-center">
-                <p>No public support channels configured.</p>
-                <p className="mt-1 text-[11px]">Please contact your branch supervisor directly or wait until the security timer expires.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {supportContacts.map((contact, idx) => (
-                  <div key={idx} className="p-3 rounded-lg bg-muted/30 border border-border/40 space-y-2 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-foreground">{contact.display_name || 'System Administrator'}</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold uppercase">
-                        {contact.job_title}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1 text-muted-foreground text-[11px]">
-                      {contact.support_phone && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-3.5 h-3.5 text-primary shrink-0" />
-                          <a href={`tel:${contact.support_phone}`} className="hover:underline font-mono text-foreground font-semibold">
-                            {contact.support_phone}
-                          </a>
-                        </div>
-                      )}
-
-                      {contact.support_email && (
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-3.5 h-3.5 text-primary shrink-0" />
-                          <a href={`mailto:${contact.support_email}`} className="hover:underline text-foreground">
-                            {contact.support_email}
-                          </a>
-                        </div>
-                      )}
-                    </div>
-
-                    {contact.links && contact.links.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/30">
-                        {contact.links.map(link => (
-                          <a
-                            key={link.id}
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-muted hover:bg-muted/80 text-foreground border border-border/60 transition-colors"
-                          >
-                            <span>{link.label}</span>
-                            <ExternalLink className="w-2.5 h-2.5 opacity-60" />
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <SupportContactDirectory
+              contacts={supportContacts}
+              emptyFallback={
+                <div className="text-xs text-muted-foreground py-2 text-center">
+                  <p>No public support channels configured.</p>
+                  <p className="mt-1 text-[11px]">Please contact your branch supervisor directly or wait until the security timer expires.</p>
+                </div>
+              }
+            />
           </div>
         </div>
       ) : (
@@ -1315,70 +1274,14 @@ export function LoginForm() {
               </>
             )}
 
-            {/* Configured Support Contact Details — each row renders only when
-                the administrator actually provided that detail; the card hides
-                entirely when no contact carries any public method. */}
-            {supportContacts.some(c => c.support_phone || c.support_email || (c.links && c.links.length > 0)) && (
-              <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 text-xs space-y-2.5 text-left">
-                <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
-                  <span className="font-bold text-foreground text-xs flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-                    <span>Administrator Support</span>
-                  </span>
-                  <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Official Channels</span>
-                </div>
-
-                {supportContacts.map((contact, idx) => (
-                  <div key={idx} className="space-y-1.5">
-                    {(contact.support_phone || contact.support_email || (contact.links && contact.links.length > 0)) && (
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                        {contact.display_name || 'System Administrator'}
-                        {contact.job_title ? ` — ${contact.job_title}` : ''}
-                      </p>
-                    )}
-
-                    <div className="space-y-1.5 text-[11px] text-foreground/80">
-                      {contact.support_phone && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-3.5 h-3.5 text-primary shrink-0" />
-                          <span className="font-medium text-muted-foreground">Hotline: </span>
-                          <a href={`tel:${contact.support_phone}`} className="hover:underline font-mono text-foreground font-bold">
-                            {contact.support_phone}
-                          </a>
-                        </div>
-                      )}
-
-                      {contact.support_email && (
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-3.5 h-3.5 text-primary shrink-0" />
-                          <span className="font-medium text-muted-foreground">Email: </span>
-                          <a href={`mailto:${contact.support_email}`} className="hover:underline text-foreground font-semibold">
-                            {contact.support_email}
-                          </a>
-                        </div>
-                      )}
-
-                      {contact.links && contact.links.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-0.5">
-                          {contact.links.map(link => (
-                            <a
-                              key={link.id}
-                              href={link.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-muted hover:bg-muted/80 text-foreground border border-border/60 transition-colors"
-                            >
-                              <span>{link.label}</span>
-                              <ExternalLink className="w-2.5 h-2.5 opacity-60" />
-                            </a>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Administrator contact directory — one card per opted-in admin,
+                each showing only the channels they filled; hidden entirely
+                when nobody published any public method. Same component as the
+                lockout screen. */}
+            <SupportContactDirectory
+              contacts={supportContacts}
+              className="p-3.5 rounded-xl bg-muted/40 border border-border/70 text-xs text-left"
+            />
 
             <DialogFooter className="pt-2 gap-2 sm:gap-0 flex-col-reverse sm:flex-row">
               <Button

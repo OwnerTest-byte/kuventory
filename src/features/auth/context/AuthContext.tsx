@@ -267,13 +267,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const validRoles: Role[] = ['SUPER_ADMIN', 'ADMIN', 'USER'];
         const resolvedRole: Role = validRoles.includes(roleFromDb) ? roleFromDb : 'USER';
 
+        // Return the FULL profile row (support contacts, job title, avatar,
+        // opt-in flag, names) — profile screens must reflect what was saved.
+        // The spread keeps every column; overrides below only pin identity
+        // and fail-closed role resolution.
         return {
+          ...data,
           id: user.id,
           role: resolvedRole,
-          first_name: data?.display_name || user.email?.split('@')[0] || 'User',
-          last_name: '',
+          first_name: data?.first_name || data?.display_name || user.email?.split('@')[0] || 'User',
+          last_name: data?.last_name ?? '',
           created_at: data?.created_at || new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: data?.updated_at || new Date().toISOString(),
         } as Profile;
       } catch (err) {
         console.warn('Profile query exception (failing closed to least-privileged role):', err);
