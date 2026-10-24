@@ -31,6 +31,7 @@ function getIcon(type: string) {
     case 'EXPIRING_SOON': return <Clock className="h-5 w-5 text-amber-500" />;
     case 'EXPIRED': return <AlertCircle className="h-5 w-5 text-red-500" />;
     case 'PASSWORD_RESET': return <KeyRound className="h-5 w-5 text-amber-600" />;
+    case 'ASSISTED_RECOVERY_REQUEST': return <ShieldAlert className="h-5 w-5 text-amber-600" />;
     case 'SYSTEM': return <ShieldAlert className="h-5 w-5 text-primary" />;
     default: return <Info className="h-5 w-5 text-blue-500" />;
   }
@@ -43,6 +44,7 @@ function getBadgeVariant(type: string) {
     case 'EXPIRING_SOON': return 'outline' as const;
     case 'EXPIRED': return 'destructive' as const;
     case 'PASSWORD_RESET': return 'secondary' as const;
+    case 'ASSISTED_RECOVERY_REQUEST': return 'secondary' as const;
     default: return 'default' as const;
   }
 }
@@ -54,6 +56,7 @@ function typeLabel(type: string) {
     case 'EXPIRING_SOON': return 'EXPIRING SOON';
     case 'EXPIRED': return 'EXPIRED';
     case 'PASSWORD_RESET': return 'PASSWORD RESET';
+    case 'ASSISTED_RECOVERY_REQUEST': return 'ACCOUNT RECOVERY';
     case 'SYSTEM': return 'SYSTEM ALERT';
     case 'STOCK_DISCREPANCY': return 'DISCREPANCY';
     default: return type;
@@ -95,6 +98,7 @@ function resolveNotificationMeta(
         case 'EXPIRED': displayTitle = 'Expired Batch Alert'; break;
         case 'STOCK_DISCREPANCY': displayTitle = 'Stock Discrepancy Alert'; break;
         case 'PASSWORD_RESET': displayTitle = 'Password Reset Request'; break;
+        case 'ASSISTED_RECOVERY_REQUEST': displayTitle = 'Assisted Recovery Request'; break;
         default: displayTitle = 'System Alert'; break;
       }
     }
@@ -109,7 +113,7 @@ function resolveNotificationMeta(
     }
   } else if (n.type === 'STOCK_DISCREPANCY' || n.type === 'DAILY_SHEET') {
     actionLabel = 'Daily Sheet';
-  } else if (n.type === 'PASSWORD_RESET') {
+  } else if (n.type === 'PASSWORD_RESET' || n.type === 'ASSISTED_RECOVERY_REQUEST') {
     actionLabel = 'User Settings';
   } else if (n.type === 'LOW_STOCK' || n.type === 'OUT_OF_STOCK') {
     actionLabel = 'Low Stock Report';

@@ -28,6 +28,7 @@ import {
   type PasswordResetRequest 
 } from '@/features/auth/services/passwordResetService';
 import { LoginLockoutsTab } from '../components/LoginLockoutsTab';
+import { AssistedRecoveryQueue } from '../components/AssistedRecoveryQueue';
 import { CorrectionRequestsQueue } from '@/features/daily-inventory/components/CorrectionRequestsQueue';
 import { MyProfileModal } from '../components/MyProfileModal';
 
@@ -873,7 +874,11 @@ export function AdminPage() {
             </Table>
           </div>
 
-          {/* PASSWORD RESET REQUESTS LOG */}
+          {/* ASSISTED RECOVERY REVIEW QUEUE (authoritative workflow for
+              accounts without mailboxes) */}
+          <AssistedRecoveryQueue />
+
+          {/* LEGACY EMAIL RESET REQUEST LOG */}
           <div className="bg-card rounded-xl border border-border shadow-xs overflow-hidden mt-6">
             <div className="p-4 border-b border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-muted/30">
               <div className="flex items-center gap-2.5">
@@ -882,7 +887,7 @@ export function AdminPage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-foreground">Password Reset & Account Recovery Requests</h3>
+                    <h3 className="text-sm font-bold text-foreground">Email Reset Request Log (Legacy)</h3>
                     <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/20">
                       {passwordResetRequests.length} Requests Logged
                     </span>

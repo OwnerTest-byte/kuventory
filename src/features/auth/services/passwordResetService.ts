@@ -14,112 +14,254 @@ export interface PasswordResetRequest {
   created_at?: string;
 }
 
-/**
- * Submit a safe password reset request using the canonical database RPC and Supabase Auth.
- * Generic messaging protects account enumeration privacy.
- */
-export async function submitPasswordResetRequest(
-  email: string
-): Promise<{ success: boolean; message: string; requestCode?: string }> {
-  const cleanEmail = email.trim().toLowerCase();
-  if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
-    throw new Error('Please enter a valid email address.');
-  }
+export interface AssistedRecoverySubmitResult {
+  /** True only when the server actually created (or authorized) a ticket. */
+  accepted: boolean;
+  throttled: boolean;
+  /** Present when accepted: shown to the requester exactly once. */
+  requestReference?: string;
+  statusCredential?: string;
+  message: string;
+  serverNow?: string | null;
+  /** Authoritative cooldown expiry (ISO) — set on accept AND throttle. */
+  nextAllowedAt?: string | null;
+  secondsRemaining?: number;
+}
 
-  // 1. Authoritative rate-limited request record via database RPC
-  const { data: rpcData, error: rpcErr } = await supabase.rpc('request_password_reset', {
-    p_email: cleanEmail,
-  });
-
-  if (rpcErr) {
-    throw new Error('Unable to record reset request. Please contact your system administrator.');
-  }
-
-  if (rpcData?.throttled) {
-    return {
-      success: true,
-      message: rpcData.message || 'A reset request was recently submitted. Please wait before requesting another link.',
-      requestCode: rpcData.request_code,
-    };
-  }
-
-  // 2. Trigger official Supabase Auth recovery email
-  const { error: resetErr } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-    redirectTo: `${window.location.origin}/reset-password`,
-  });
-
-  if (resetErr) {
-    throw new Error(
-      'We could not submit the recovery request right now. Please try again later or contact your system administrator.'
-    );
-  }
-
-  return {
-    success: true,
-    message:
-      'If an account matches this address, a reset link will arrive by email. Check your inbox and spam folder. For your security, this page does not confirm whether the address belongs to an account.',
-    requestCode: rpcData?.request_code,
-  };
+export interface AssistedRecoveryCooldown {
+  /** False when the check itself failed: the cooldown is then unknown. */
+  verified: boolean;
+  canSubmit: boolean;
+  serverNow?: string | null;
+  nextAllowedAt?: string | null;
+  secondsRemaining: number;
+  message?: string;
 }
 
 /**
- * Submit an assisted account recovery ticket when the user cannot access a registered recovery mailbox
- * or holds a synthetic @kuventory.com login identifier.
+ * Submit an assisted account recovery ticket. KUVENTORY login identifiers
+ * (admin-created @kuventory.com aliases) have no mailbox, so administrator-
+ * assisted recovery is the real recovery workflow for these accounts.
+ *
+ * The database enforces the cooldown atomically; this wrapper throws on any
+ * RPC/network failure so a transport error is never presented as success.
  */
 export async function submitAssistedRecoveryTicket(
   email: string,
   reason: string
-): Promise<{ success: boolean; requestReference?: string; statusCredential?: string; message: string }> {
+): Promise<AssistedRecoverySubmitResult> {
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail || !cleanEmail.includes('@')) {
-    throw new Error('Please enter a valid account email identifier.');
+    throw new Error('Please enter a valid account login identifier.');
   }
 
-  const { data, error } = await supabase.rpc('submit_assisted_recovery_request', {
-    p_email: cleanEmail,
-    p_reason: reason.trim() || 'User cannot access registered recovery channel',
-  });
+  let data: any;
+  try {
+    const res = await supabase.rpc('submit_assisted_recovery_request', {
+      p_email: cleanEmail,
+      p_reason: reason.trim() || 'User cannot access registered recovery channel',
+    });
+    if (res.error) throw new Error(res.error.message);
+    data = res.data;
+  } catch (err: any) {
+    console.warn('submit_assisted_recovery_request failed:', err?.message || err);
+    throw new Error(
+      err?.message ||
+        'The recovery request could not be submitted because the server could not be reached. Please check your connection and try again.'
+    );
+  }
 
-  if (error) {
-    throw new Error(error.message || 'Unable to submit recovery ticket. Please contact support directly.');
+  if (!data || typeof data !== 'object') {
+    throw new Error('The server returned an unreadable response. No recovery request was confirmed.');
+  }
+
+  if (data.accepted === false && !data.throttled) {
+    throw new Error(data.message || data.error || 'Unable to submit recovery request.');
   }
 
   return {
-    success: data?.success ?? true,
-    requestReference: data?.request_reference,
-    statusCredential: data?.status_credential,
-    message: data?.message || 'Your recovery request has been submitted for administrator review.',
+    accepted: data.accepted === true,
+    throttled: data.throttled === true,
+    requestReference: data.request_reference,
+    statusCredential: data.status_credential,
+    message: data.message || 'Your recovery request has been submitted for administrator review.',
+    serverNow: data.server_now ?? null,
+    nextAllowedAt: data.next_allowed_at ?? null,
+    secondsRemaining: typeof data.seconds_remaining === 'number' ? data.seconds_remaining : undefined,
   };
 }
 
 /**
- * Check status of an assisted recovery ticket without leaking account identity.
+ * Read the authoritative assisted-recovery cooldown WITHOUT creating a ticket.
+ * Used when the recovery dialog opens, when it is reopened, after a reload,
+ * and whenever the local countdown reaches zero (before re-enabling submit).
+ *
+ * A failed check returns verified: false — callers must keep any active
+ * cooldown and surface a retry, never assume the cooldown expired.
+ */
+export async function checkAssistedRecoveryCooldown(email: string): Promise<AssistedRecoveryCooldown> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    return { verified: false, canSubmit: false, secondsRemaining: 0, message: 'Enter your account login identifier.' };
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('check_assisted_recovery_cooldown', {
+      p_email: cleanEmail,
+    });
+
+    if (error) {
+      console.warn('check_assisted_recovery_cooldown RPC error:', error.message);
+      return {
+        verified: false,
+        canSubmit: false,
+        secondsRemaining: 0,
+        message: 'Cooldown status could not be verified. Please retry.',
+      };
+    }
+
+    return {
+      verified: true,
+      canSubmit: data?.can_submit === true,
+      serverNow: data?.server_now ?? null,
+      nextAllowedAt: data?.next_allowed_at ?? null,
+      secondsRemaining: typeof data?.seconds_remaining === 'number' ? data.seconds_remaining : 0,
+      message: data?.message,
+    };
+  } catch (err) {
+    console.warn('check_assisted_recovery_cooldown network error:', err);
+    return {
+      verified: false,
+      canSubmit: false,
+      secondsRemaining: 0,
+      message: 'Cooldown status could not be verified. Please retry.',
+    };
+  }
+}
+
+/**
+ * Check the status of an assisted recovery ticket without leaking account
+ * identity: requires BOTH the public reference and the secret status
+ * credential issued at submission time.
  */
 export async function checkAssistedRecoveryTicketStatus(
   requestReference: string,
   statusCredential: string
-): Promise<{ valid: boolean; status?: string; submittedAt?: string; decisionReason?: string; message?: string }> {
+): Promise<{
+  valid: boolean;
+  status?: string;
+  submittedAt?: string;
+  resolvedAt?: string | null;
+  decisionReason?: string;
+  message?: string;
+}> {
   const { data, error } = await supabase.rpc('check_assisted_recovery_status', {
     p_request_reference: requestReference.trim(),
     p_status_credential: statusCredential.trim(),
   });
 
   if (error) {
-    throw new Error(error.message || 'Failed to verify recovery status.');
+    throw new Error(error.message || 'Failed to verify recovery status. Please check your connection and retry.');
   }
 
   return {
     valid: data?.valid ?? false,
     status: data?.status,
     submittedAt: data?.submitted_at,
+    resolvedAt: data?.resolved_at ?? null,
     decisionReason: data?.decision_reason,
     message: data?.message,
   };
 }
 
+// ---------------------------------------------------------------------------
+// Administrator review queue (account_recovery_requests)
+// ---------------------------------------------------------------------------
+
+export type AssistedRecoveryStatus =
+  | 'RECEIVED'
+  | 'HUMAN_REVIEW'
+  | 'NEEDS_INFORMATION'
+  | 'REJECTED'
+  | 'COMPLETED'
+  | 'EXPIRED';
+
+export interface AssistedRecoveryRequest {
+  id: string;
+  request_reference: string;
+  email_lookup: string;
+  user_id: string | null;
+  status: AssistedRecoveryStatus;
+  reason: string | null;
+  admin_reviewer_id: string | null;
+  admin_reviewed_at: string | null;
+  decision_reason: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AssistedRecoveryDecision = 'HUMAN_REVIEW' | 'NEEDS_INFORMATION' | 'REJECT' | 'RESOLVE_RESET';
+
 /**
- * Fetch password reset request log for Administrators and Super Administrators.
- * Queries the authoritative password_reset_requests table.
+ * Fetch the private assisted-recovery review queue. Server-side RLS restricts
+ * rows to ADMIN and SUPER_ADMIN; the status credential hash is never selected.
+ */
+export async function fetchAssistedRecoveryRequests(): Promise<AssistedRecoveryRequest[]> {
+  const { data, error } = await supabase
+    .from('account_recovery_requests')
+    .select(
+      'id, request_reference, email_lookup, user_id, status, reason, admin_reviewer_id, admin_reviewed_at, decision_reason, resolved_at, created_at, updated_at'
+    )
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    throw new Error(error.message || 'Failed to load assisted recovery requests.');
+  }
+
+  return (data as AssistedRecoveryRequest[]) || [];
+}
+
+/**
+ * Apply an authorized administrative decision to a recovery ticket.
+ * RESOLVE_RESET performs the verified password reset server-side and marks
+ * the ticket COMPLETED only if that reset actually succeeded.
+ */
+export async function reviewAssistedRecoveryRequest(params: {
+  requestId: string;
+  decision: AssistedRecoveryDecision;
+  notes?: string;
+  newPassword?: string;
+}): Promise<{ success: boolean; status: string; message: string }> {
+  const { requestId, decision, notes, newPassword } = params;
+
+  const { data, error } = await supabase.rpc('review_assisted_recovery_request', {
+    p_request_id: requestId,
+    p_decision: decision,
+    p_notes: notes?.trim() || null,
+    p_new_password: newPassword || null,
+  });
+
+  if (error) {
+    throw new Error(error.message || 'The review decision could not be applied.');
+  }
+
+  return {
+    success: data?.success === true,
+    status: data?.status || '',
+    message: data?.message || 'Decision applied.',
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Legacy email reset request log (real-mailbox accounts only)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch the password reset request log for Administrators and Super
+ * Administrators. Legacy log for the email-reset path; synthetic
+ * @kuventory.com identifiers use assisted recovery instead.
  */
 export async function fetchPasswordResetRequests(): Promise<PasswordResetRequest[]> {
   try {
@@ -142,7 +284,8 @@ export async function fetchPasswordResetRequests(): Promise<PasswordResetRequest
 }
 
 /**
- * Update request status (e.g. IN REVIEW, RESOLVED, FAILED) on the authoritative table.
+ * Update legacy request status (e.g. IN REVIEW, RESOLVED, FAILED) on the
+ * authoritative table.
  */
 export async function updatePasswordResetRequestStatus(
   requestId: string,

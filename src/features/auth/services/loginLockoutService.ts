@@ -1,5 +1,33 @@
 import { supabase } from '@/lib/supabase';
 
+/**
+ * Explicit lockout verification outcomes.
+ *
+ * A status lookup must never collapse "the server could not be reached" into
+ * "the account is unlocked". STATUS_UNKNOWN is returned for every transport /
+ * RPC failure so callers can fail closed and offer a retry.
+ */
+export type LockoutOutcome =
+  | 'LOCKED'
+  | 'UNLOCKED'
+  | 'EXPIRED'
+  | 'ADMIN_UNLOCKED'
+  | 'NOT_FOUND'
+  | 'STATUS_UNKNOWN';
+
+export interface LockoutCheckResult {
+  outcome: LockoutOutcome;
+  /** Authoritative expiry of the active lockout (ISO string) when locked. */
+  lockedUntil?: string | null;
+  /** Server clock at response time (ISO string); used to derive a server-time offset. */
+  serverNow?: string | null;
+  secondsRemaining?: number;
+  failedAttempts?: number;
+  /** Opaque token for non-enumerating polling; only present when issued. */
+  lockoutToken?: string | null;
+  message?: string;
+}
+
 export interface LockoutStatus {
   is_locked: boolean;
   locked_until?: string | null;
@@ -24,13 +52,59 @@ export interface LockedAccountRecord {
   updated_at: string;
 }
 
+const UNKNOWN: LockoutCheckResult = { outcome: 'STATUS_UNKNOWN' };
+
 /**
- * Pre-check whether an account is currently locked before submitting credentials.
+ * Normalize a lockout RPC payload into the typed contract. Tolerates responses
+ * from database versions predating the explicit `status` field by inferring
+ * from is_locked / was_unlocked, but never maps missing data to "unlocked".
  */
-export async function checkAccountLockout(email: string, ip?: string): Promise<LockoutStatus> {
+export function mapLockoutRpc(data: any): LockoutCheckResult {
+  if (!data || typeof data !== 'object') {
+    return { ...UNKNOWN };
+  }
+
+  const base: LockoutCheckResult = {
+    outcome: 'STATUS_UNKNOWN',
+    lockedUntil: data.locked_until ?? data.lockedUntil ?? null,
+    serverNow: data.server_now ?? data.serverNow ?? null,
+    secondsRemaining:
+      typeof data.seconds_remaining === 'number'
+        ? data.seconds_remaining
+        : typeof data.secondsRemaining === 'number'
+          ? data.secondsRemaining
+          : undefined,
+    failedAttempts:
+      typeof data.failed_attempts === 'number' ? data.failed_attempts : undefined,
+    lockoutToken: data.lockout_token ?? data.lockoutToken ?? null,
+    message: data.message,
+  };
+
+  if (typeof data.status === 'string' && data.status.length > 0) {
+    const st = data.status.toUpperCase();
+    if (st === 'LOCKED' || st === 'UNLOCKED' || st === 'EXPIRED' || st === 'ADMIN_UNLOCKED' || st === 'NOT_FOUND') {
+      return { ...base, outcome: st };
+    }
+    return { ...UNKNOWN };
+  }
+
+  // Legacy shape inference (no explicit status): only confident signals map.
+  if (data.is_locked === true) return { ...base, outcome: 'LOCKED' };
+  if (data.was_unlocked === true) return { ...base, outcome: 'ADMIN_UNLOCKED' };
+  if (data.is_locked === false && (data.token_valid === true || data.locked_until === null)) {
+    return { ...base, outcome: 'EXPIRED' };
+  }
+  return { ...UNKNOWN };
+}
+
+/**
+ * Pre-check whether an account is currently locked before submitting
+ * credentials. Fails closed: any RPC/network failure yields STATUS_UNKNOWN.
+ */
+export async function checkAccountLockout(email: string, ip?: string): Promise<LockoutCheckResult> {
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail) {
-    return { is_locked: false, seconds_remaining: 0, failed_attempts: 0 };
+    return { ...UNKNOWN };
   }
 
   try {
@@ -41,28 +115,30 @@ export async function checkAccountLockout(email: string, ip?: string): Promise<L
 
     if (error) {
       console.warn('check_account_lockout RPC error:', error.message);
-      return { is_locked: false, seconds_remaining: 0, failed_attempts: 0 };
+      return { ...UNKNOWN, message: 'Lockout status could not be verified.' };
     }
 
-    return data as LockoutStatus;
+    return mapLockoutRpc(data);
   } catch (err) {
     console.warn('check_account_lockout network error:', err);
-    return { is_locked: false, seconds_remaining: 0, failed_attempts: 0 };
+    return { ...UNKNOWN, message: 'Lockout status could not be verified.' };
   }
 }
 
 /**
- * Record a failed login attempt atomically on the server (Unauthenticated / Public).
- * On 5 failed attempts within 15 minutes, initiates a 30-minute lockout.
+ * Record a failed login attempt atomically on the server (anon caller).
+ * Policy: 5 failures within a 15-minute window trigger a 30-minute lockout.
+ * A recording failure is surfaced as STATUS_UNKNOWN — it is never reported as
+ * a successful increment or as an unlocked state.
  */
 export async function recordFailedLoginAttempt(
   email: string,
   ip?: string,
   userAgent?: string
-): Promise<LockoutStatus> {
+): Promise<LockoutCheckResult> {
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail) {
-    return { is_locked: false, seconds_remaining: 0, failed_attempts: 0 };
+    return { ...UNKNOWN };
   }
 
   try {
@@ -73,26 +149,20 @@ export async function recordFailedLoginAttempt(
     });
 
     if (error) {
-      console.warn('record_failed_login_attempt RPC error (fallback to record_login_attempt):', error.message);
-      // Compatibility fallback
-      const { data: fbData } = await supabase.rpc('record_login_attempt', {
-        p_email: cleanEmail,
-        p_success: false,
-        p_ip: ip || null,
-        p_user_agent: userAgent || null,
-      });
-      return (fbData as LockoutStatus) || { is_locked: false, seconds_remaining: 0, failed_attempts: 0 };
+      console.warn('record_failed_login_attempt RPC error:', error.message);
+      return { ...UNKNOWN, message: 'The failed attempt could not be recorded securely.' };
     }
 
-    return data as LockoutStatus;
+    return mapLockoutRpc(data);
   } catch (err) {
     console.warn('record_failed_login_attempt network error:', err);
-    return { is_locked: false, seconds_remaining: 0, failed_attempts: 0 };
+    return { ...UNKNOWN, message: 'The failed attempt could not be recorded securely.' };
   }
 }
 
 /**
- * Reset lockout counters after confirmed authentication (Authenticated caller only).
+ * Reset lockout counters after confirmed authentication (authenticated caller,
+ * own account only — enforced server-side by reset_my_login_lockout).
  */
 export async function resetMyLoginLockout(): Promise<{ success: boolean; message?: string }> {
   try {
@@ -109,34 +179,31 @@ export async function resetMyLoginLockout(): Promise<{ success: boolean; message
 }
 
 /**
- * Record login attempt with enforced trust boundary.
+ * Record a login attempt with the enforced trust boundary: only a confirmed
+ * authenticated session may reset counters; failures go through the atomic
+ * server-side recorder.
  */
 export async function recordLoginAttempt(
   email: string,
   success: boolean,
   ip?: string,
   userAgent?: string
-): Promise<LockoutStatus> {
+): Promise<LockoutCheckResult> {
   if (success) {
     await resetMyLoginLockout();
-    return { is_locked: false, seconds_remaining: 0, failed_attempts: 0 };
-  } else {
-    return recordFailedLoginAttempt(email, ip, userAgent);
+    return { outcome: 'UNLOCKED', secondsRemaining: 0, failedAttempts: 0 };
   }
+  return recordFailedLoginAttempt(email, ip, userAgent);
 }
 
 /**
  * Poll lockout status using the opaque, cryptographically random token.
- * Non-enumerating: never requires sending an email address.
+ * Non-enumerating: never sends an email address. Fails closed: transport and
+ * RPC errors return STATUS_UNKNOWN instead of resembling an unlocked account.
  */
-export async function checkLockoutStatusByToken(token: string): Promise<{
-  is_locked: boolean;
-  locked_until?: string | null;
-  seconds_remaining: number;
-  was_unlocked: boolean;
-}> {
-  if (!token) {
-    return { is_locked: false, seconds_remaining: 0, was_unlocked: false };
+export async function checkLockoutStatusByToken(token: string): Promise<LockoutCheckResult> {
+  if (!token || !token.trim()) {
+    return { ...UNKNOWN, message: 'No lockout token available for this session.' };
   }
 
   try {
@@ -146,13 +213,13 @@ export async function checkLockoutStatusByToken(token: string): Promise<{
 
     if (error) {
       console.warn('check_lockout_status_by_token RPC error:', error.message);
-      return { is_locked: false, seconds_remaining: 0, was_unlocked: false };
+      return { ...UNKNOWN, message: 'Lockout status could not be verified.' };
     }
 
-    return data;
+    return mapLockoutRpc(data);
   } catch (err) {
     console.warn('check_lockout_status_by_token network error:', err);
-    return { is_locked: false, seconds_remaining: 0, was_unlocked: false };
+    return { ...UNKNOWN, message: 'Lockout status could not be verified.' };
   }
 }
 
@@ -194,7 +261,9 @@ export async function fetchLockedAccounts(): Promise<LockedAccountRecord[]> {
 }
 
 /**
- * Authoritative password reset request with server-side throttling.
+ * Authoritative password reset request with server-side throttling
+ * (legacy email-mailbox path; synthetic @kuventory.com identifiers are
+ * routed to assisted recovery instead).
  */
 export async function requestPasswordResetAuth(
   email: string,

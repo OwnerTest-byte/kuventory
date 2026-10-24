@@ -7,6 +7,7 @@ import type { AppNotification } from '../types';
 export const ADMIN_NOTIFICATION_TYPES = [
   'PASSWORD_RESET',
   'RECOVERY_REQUEST',
+  'ASSISTED_RECOVERY_REQUEST',
   'ACCOUNT_LOCKOUT',
   'SECURITY_ALERT',
   'SYSTEM',

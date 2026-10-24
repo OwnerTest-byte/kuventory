@@ -22,7 +22,8 @@ import {
   ExternalLink,
   ShieldAlert,
   ArrowLeft,
-  AlertTriangle
+  AlertTriangle,
+  Copy
 } from 'lucide-react';
 import {
   Dialog,
@@ -39,13 +40,24 @@ import {
   checkAccountLockout,
   recordLoginAttempt,
   checkLockoutStatusByToken,
-  type LockoutStatus
+  type LockoutCheckResult
 } from '../services/loginLockoutService';
 import {
   fetchPublicSupportContacts,
   type PublicSupportContact
 } from '@/features/admin/services/profileService';
-import { submitAssistedRecoveryTicket } from '../services/passwordResetService';
+import {
+  submitAssistedRecoveryTicket,
+  checkAssistedRecoveryCooldown,
+  checkAssistedRecoveryTicketStatus
+} from '../services/passwordResetService';
+import {
+  computeRemainingSeconds,
+  deriveServerOffsetMs,
+  formatTimer,
+  formatRemainingLabel,
+  type ServerClock
+} from '../utils/countdown';
 
 export const loginSchema = z.object({
   email: z.string().email('invalid email address'),
@@ -54,6 +66,13 @@ export const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
+interface LockoutUiState {
+  /** Authoritative expiry from the database. Never locally decremented. */
+  lockedUntil: string;
+  secondsRemaining: number;
+  lockoutToken: string | null;
+}
+
 export function LoginForm() {
   const { sessionLeaseError, clearSessionLeaseError, activateSession } = useAuth();
   const [authError, setAuthError] = useState<string | null>(null);
@@ -61,15 +80,15 @@ export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Lockout State (Server-backed 30-minute lockout on 5 failed attempts)
-  const [lockoutState, setLockoutState] = useState<LockoutStatus>({
-    is_locked: false,
-    seconds_remaining: 0,
-    locked_until: null,
-    lockout_token: null,
-  });
-  const [isCheckingLockoutToken, setIsCheckingLockoutToken] = useState(false);
+  // Lockout State (server-backed 30-minute lockout on 5 failed attempts)
+  const [lockout, setLockout] = useState<LockoutUiState | null>(null);
+  const [lockoutVerifyError, setLockoutVerifyError] = useState<string | null>(null);
+  const [isCheckingLockout, setIsCheckingLockout] = useState(false);
   const [supportContacts, setSupportContacts] = useState<PublicSupportContact[]>([]);
+
+  /** Server-time offset derived from server_now in every lockout RPC response. */
+  const serverClockRef = useRef<ServerClock | null>(null);
+  const lockoutEmailRef = useRef<string>('');
 
   // Session Takeover State
   const [pendingTakeoverSession, setPendingTakeoverSession] = useState<{
@@ -82,9 +101,9 @@ export function LoginForm() {
   // Remember Me State
   const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('kuventory_remember_me') === 'true');
 
-  // Forgot Password & Assisted Recovery State
+  // Account Recovery State (administrator-assisted; @kuventory.com login
+  // identifiers have no mailbox, so email reset is not offered as a method)
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
-  const [recoveryMode, setRecoveryMode] = useState<'email' | 'assisted'>('email');
   const [forgotEmail, setForgotEmail] = useState('');
   const [assistedReason, setAssistedReason] = useState('');
   const [assistedTicket, setAssistedTicket] = useState<{
@@ -94,9 +113,24 @@ export function LoginForm() {
   const [isSendingReset, setIsSendingReset] = useState(false);
   const [forgotMessage, setForgotMessage] = useState<string | null>(null);
   const [forgotError, setForgotError] = useState<string | null>(null);
-  const [forgotCooldown, setForgotCooldown] = useState(0);
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
 
-  const pollIntervalRef = useRef<any>(null);
+  // Authoritative recovery cooldown (expiry-based, server-decided)
+  const [cooldownUntilIso, setCooldownUntilIso] = useState<string | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [cooldownVerified, setCooldownVerified] = useState(true);
+  const [isCheckingCooldown, setIsCheckingCooldown] = useState(false);
+
+  // Ticket status check (reference + credential)
+  const [statusRef, setStatusRef] = useState('');
+  const [statusCred, setStatusCred] = useState('');
+  const [statusResult, setStatusResult] = useState<{
+    status?: string;
+    submittedAt?: string;
+    decisionReason?: string;
+  } | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
 
   const {
     register,
@@ -123,80 +157,199 @@ export function LoginForm() {
     clearSessionLeaseError();
   }
 
-  // Countdown timer effect synchronized against server locked_until
-  useEffect(() => {
-    if (!lockoutState.is_locked || !lockoutState.locked_until) return;
+  // -------------------------------------------------------------------------
+  // LOCKOUT: authoritative result application + expiry-based countdown
+  // -------------------------------------------------------------------------
 
-    const timer = setInterval(() => {
-      const now = Date.now();
-      const target = new Date(lockoutState.locked_until!).getTime();
-      const diffSecs = Math.max(0, Math.ceil((target - now) / 1000));
+  const applyServerNow = useCallback((serverNowIso: string | null | undefined) => {
+    const offset = deriveServerOffsetMs(serverNowIso);
+    if (offset !== null) {
+      serverClockRef.current = { offsetMs: offset };
+    }
+  }, []);
 
-      if (diffSecs <= 0) {
-        clearInterval(timer);
-        setLockoutState({
-          is_locked: false,
-          seconds_remaining: 0,
-          locked_until: null,
-          lockout_token: null,
-        });
-        setAuthError('Lockout period has expired. You may now attempt to sign in again.');
-      } else {
-        setLockoutState(prev => ({ ...prev, seconds_remaining: diffSecs }));
-      }
-    }, 1000);
+  /** Transition the UI strictly according to a verified server outcome. */
+  const applyLockoutResult = useCallback(
+    (res: LockoutCheckResult) => {
+      applyServerNow(res.serverNow);
 
-    return () => clearInterval(timer);
-  }, [lockoutState.is_locked, lockoutState.locked_until]);
-
-  // Periodic polling using the opaque lockout token (allows locked browser to detect early admin unlock)
-  const pollLockoutStatus = useCallback(async () => {
-    if (!lockoutState.lockout_token) return;
-    try {
-      const res = await checkLockoutStatusByToken(lockoutState.lockout_token);
-      if (res.was_unlocked || !res.is_locked) {
-        setLockoutState({
-          is_locked: false,
-          seconds_remaining: 0,
-          locked_until: null,
-          lockout_token: null,
-        });
-        setAuthError('Your account lockout has been lifted by an administrator. You may now sign in.');
-      } else if (res.seconds_remaining !== undefined) {
-        setLockoutState(prev => ({
-          ...prev,
-          seconds_remaining: res.seconds_remaining,
-          locked_until: res.locked_until || prev.locked_until,
+      if (res.outcome === 'LOCKED' && res.lockedUntil) {
+        setLockoutVerifyError(null);
+        setLockout(prev => ({
+          lockedUntil: res.lockedUntil!,
+          secondsRemaining: computeRemainingSeconds(res.lockedUntil, serverClockRef.current),
+          lockoutToken: res.lockoutToken ?? prev?.lockoutToken ?? null,
         }));
+        return;
       }
-    } catch (e) {
-      console.warn('Error polling lockout token status:', e);
-    }
-  }, [lockoutState.lockout_token]);
 
-  useEffect(() => {
-    if (lockoutState.is_locked && lockoutState.lockout_token) {
-      pollIntervalRef.current = setInterval(pollLockoutStatus, 12000);
-      return () => {
-        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-      };
-    }
-  }, [lockoutState.is_locked, lockoutState.lockout_token, pollLockoutStatus]);
+      // Verified non-locked outcomes — only these may clear the locked screen.
+      setLockout(null);
+      setLockoutVerifyError(null);
+      if (res.outcome === 'ADMIN_UNLOCKED') {
+        setAuthError('Your account lockout has been lifted by an administrator. You may now sign in.');
+      } else if (res.outcome === 'EXPIRED') {
+        setAuthError('The lockout period has ended. You may now attempt to sign in again.');
+      } else if (res.outcome === 'NOT_FOUND') {
+        setAuthError('This lockout is no longer active. You may now attempt to sign in again.');
+      }
+      // STATUS_UNKNOWN: caller decides (keeps current state + verify error).
+    },
+    [applyServerNow]
+  );
 
-  // Forgot password cooldown timer
-  useEffect(() => {
-    if (forgotCooldown <= 0) return;
-    const cd = setInterval(() => {
-      setForgotCooldown(prev => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(cd);
-  }, [forgotCooldown]);
+  /**
+   * Authoritative lockout status check. When the opaque token is available it
+   * is used (non-enumerating); otherwise a single email-based check is
+   * performed. A failed check NEVER clears the locked state.
+   */
+  const pollLockoutStatus = useCallback(async () => {
+    let res: LockoutCheckResult;
+    if (lockout?.lockoutToken) {
+      res = await checkLockoutStatusByToken(lockout.lockoutToken);
+    } else if (lockoutEmailRef.current) {
+      res = await checkAccountLockout(lockoutEmailRef.current);
+    } else {
+      return;
+    }
+
+    if (res.outcome === 'STATUS_UNKNOWN') {
+      setLockoutVerifyError(
+        'We could not verify your lockout status with the server. Your sign-in remains paused; this is usually temporary. Reconnect and check again.'
+      );
+      return;
+    }
+
+    applyLockoutResult(res);
+  }, [lockout?.lockoutToken, applyLockoutResult]);
 
   const handleManualCheckLockout = async () => {
-    setIsCheckingLockoutToken(true);
-    await pollLockoutStatus();
-    setIsCheckingLockoutToken(false);
+    setIsCheckingLockout(true);
+    try {
+      await pollLockoutStatus();
+    } finally {
+      setIsCheckingLockout(false);
+    }
   };
+
+  // Expiry-derived countdown: recomputed from the clock every second so
+  // background-tab throttling, sleeps, and reloads cannot desync the label.
+  useEffect(() => {
+    if (!lockout) return;
+
+    const tick = () => {
+      const remaining = computeRemainingSeconds(lockout.lockedUntil, serverClockRef.current);
+      if (remaining <= 0) {
+        // Local deadline reached: confirm with the server instead of
+        // assuming the account is unlocked. Stop this fast interval so an
+        // unreachable server is retried by the bounded 10s poll, focus,
+        // online, and manual checks rather than once per second.
+        clearInterval(timer);
+        setLockout(prev => (prev ? { ...prev, secondsRemaining: 0 } : prev));
+        void pollLockoutStatus();
+        return;
+      }
+      setLockout(prev => (prev && prev.secondsRemaining !== remaining ? { ...prev, secondsRemaining: remaining } : prev));
+    };
+
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [lockout?.lockedUntil, pollLockoutStatus]);
+
+  // Bounded polling (~10s) while locked, using the opaque token only.
+  useEffect(() => {
+    if (!lockout?.lockoutToken) return;
+    const id = setInterval(() => {
+      void pollLockoutStatus();
+    }, 10000);
+    return () => clearInterval(id);
+  }, [lockout?.lockoutToken, pollLockoutStatus]);
+
+  // Reconcile immediately when the page becomes visible, focused, or online.
+  useEffect(() => {
+    if (!lockout) return;
+    const recheck = () => {
+      setLockout(prev =>
+        prev ? { ...prev, secondsRemaining: computeRemainingSeconds(prev.lockedUntil, serverClockRef.current) } : prev
+      );
+      void pollLockoutStatus();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') recheck();
+    };
+    window.addEventListener('focus', recheck);
+    window.addEventListener('online', recheck);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('focus', recheck);
+      window.removeEventListener('online', recheck);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [lockout?.lockedUntil, pollLockoutStatus]);
+
+  // -------------------------------------------------------------------------
+  // RECOVERY COOLDOWN: authoritative expiry, reconciled with the server
+  // -------------------------------------------------------------------------
+
+  const refreshCooldown = useCallback(async (email: string) => {
+    const clean = email.trim().toLowerCase();
+    if (!clean || !clean.includes('@')) return;
+
+    setIsCheckingCooldown(true);
+    try {
+      const res = await checkAssistedRecoveryCooldown(clean);
+      if (!res.verified) {
+        // Cooldown unknown: keep any active cooldown and surface a retry.
+        setCooldownVerified(false);
+        return;
+      }
+      setCooldownVerified(true);
+      if (res.canSubmit) {
+        setCooldownUntilIso(null);
+        setCooldownSeconds(0);
+      } else if (res.nextAllowedAt) {
+        applyServerNow(res.serverNow);
+        setCooldownUntilIso(res.nextAllowedAt);
+        setCooldownSeconds(computeRemainingSeconds(res.nextAllowedAt, serverClockRef.current));
+      }
+    } finally {
+      setIsCheckingCooldown(false);
+    }
+  }, [applyServerNow]);
+
+  // Derive the cooldown label from the authoritative expiry every second.
+  useEffect(() => {
+    if (!cooldownUntilIso) return;
+
+    const tick = () => {
+      const remaining = computeRemainingSeconds(cooldownUntilIso, serverClockRef.current);
+      setCooldownSeconds(remaining);
+      if (remaining <= 0) {
+        // Zero locally: re-verify with the server before enabling submission.
+        setCooldownUntilIso(null);
+        const email = forgotEmail.trim().toLowerCase();
+        if (email.includes('@')) {
+          void refreshCooldown(email);
+        } else {
+          setCooldownVerified(true);
+        }
+      }
+    };
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+    // forgotEmail intentionally excluded: the running timer must not restart
+    // on every keystroke; the next open/submit reconciles with the server.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cooldownUntilIso, refreshCooldown]);
+
+  const cooldownBlocksSubmit = cooldownSeconds > 0 || isCheckingCooldown || !cooldownVerified;
+
+  // -------------------------------------------------------------------------
+  // LOGIN SUBMISSION (server-authoritative pre-check, fail closed)
+  // -------------------------------------------------------------------------
 
   const handleScrollToViewOnFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     const target = e.currentTarget;
@@ -211,12 +364,21 @@ export function LoginForm() {
     clearSessionLeaseError();
 
     const email = data.email.trim().toLowerCase();
+    lockoutEmailRef.current = email;
 
     try {
-      // 1. Server-authoritative pre-check before password verification
+      // 1. Server-authoritative pre-check before password verification.
+      //    If the status cannot be verified, do NOT proceed as if unlocked.
       const preCheck = await checkAccountLockout(email);
-      if (preCheck.is_locked) {
-        setLockoutState(preCheck);
+      if (preCheck.outcome === 'STATUS_UNKNOWN') {
+        setAuthError(
+          'We could not verify your account security status with the server. Please check your connection and try again.'
+        );
+        setIsLoading(false);
+        return;
+      }
+      if (preCheck.outcome === 'LOCKED') {
+        applyLockoutResult(preCheck);
         setAuthError('Your sign-in is temporarily paused after repeated failed attempts.');
         setIsLoading(false);
         return;
@@ -230,14 +392,17 @@ export function LoginForm() {
 
       // 3. Handle Failed Password Attempt
       if (signInError || !signInData?.session) {
-        // Record failed attempt on database atomically
         const attemptResult = await recordLoginAttempt(email, false);
 
-        if (attemptResult.is_locked) {
-          setLockoutState(attemptResult);
+        if (attemptResult.outcome === 'LOCKED') {
+          applyLockoutResult(attemptResult);
           setAuthError('Account locked for 30 minutes after 5 consecutive failed login attempts.');
+        } else if (attemptResult.outcome === 'STATUS_UNKNOWN') {
+          setAuthError(
+            'Invalid email or password. (The attempt could not be recorded because the server was unreachable — lockout status unverified. Please retry.)'
+          );
         } else {
-          const remaining = Math.max(0, 5 - (attemptResult.failed_attempts || 1));
+          const remaining = Math.max(0, 5 - (attemptResult.failedAttempts || 1));
           setAttemptsRemaining(remaining);
           setAuthError(
             remaining > 0
@@ -338,88 +503,117 @@ export function LoginForm() {
     }
   };
 
-  // Authoritative forgot password and assisted recovery flow
+  // -------------------------------------------------------------------------
+  // ASSISTED RECOVERY SUBMISSION + TICKET STATUS CHECK
+  // -------------------------------------------------------------------------
+
+  const openForgotModal = () => {
+    setForgotEmail(getValues('email') || '');
+    setForgotError(null);
+    setForgotMessage(null);
+    setCopyNotice(null);
+    setIsForgotModalOpen(true);
+    // Reconcile the authoritative cooldown immediately (covers reopen after
+    // close, reload, and submissions from other tabs or devices).
+    const email = (getValues('email') || '').trim().toLowerCase();
+    if (email.includes('@')) {
+      void refreshCooldown(email);
+    }
+  };
+
+  const handleCopy = async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopyNotice(`${label} copied to clipboard.`);
+    } catch {
+      setCopyNotice(`Copy failed — please select the ${label.toLowerCase()} text and copy manually.`);
+    }
+    setTimeout(() => setCopyNotice(null), 2500);
+  };
+
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotEmail || forgotCooldown > 0) return;
+    if (!forgotEmail || cooldownBlocksSubmit || assistedTicket) return;
 
     setIsSendingReset(true);
     setForgotError(null);
     setForgotMessage(null);
 
-    const emailToReset = forgotEmail.trim().toLowerCase();
+    const emailToRecover = forgotEmail.trim().toLowerCase();
 
     try {
-      // 1. Assisted Recovery Mode (for synthetic @kuventory.com aliases or inaccessible mailboxes)
-      if (recoveryMode === 'assisted') {
-        const ticketRes = await submitAssistedRecoveryTicket(
-          emailToReset,
-          assistedReason.trim() || 'Staff account recovery requested from login screen'
-        );
-        if (ticketRes.success && ticketRes.requestReference && ticketRes.statusCredential) {
-          setAssistedTicket({
-            reference: ticketRes.requestReference,
-            credential: ticketRes.statusCredential,
-          });
-          setForgotMessage(ticketRes.message);
-        } else {
-          setForgotError(ticketRes.message || 'Unable to submit recovery request.');
-        }
-        return;
-      }
-
-      // 2. Email Reset Mode: Check if user is attempting to reset a @kuventory.com synthetic address
-      if (emailToReset.endsWith('@kuventory.com')) {
-        setForgotError(
-          'Notice: @kuventory.com addresses are login identifiers without mailboxes. Switched to "Assisted Recovery" below so you can submit an administrator review ticket.'
-        );
-        setRecoveryMode('assisted');
-        setIsSendingReset(false);
-        return;
-      }
-
-      // 3. Database-authoritative rate-limited request record
-      const { data: rpcRes, error: rpcErr } = await supabase.rpc('request_password_reset', {
-        p_email: emailToReset,
-      });
-
-      if (rpcErr) {
-        console.warn('request_password_reset RPC error:', rpcErr.message);
-      } else if (rpcRes?.throttled) {
-        setForgotCooldown(rpcRes.seconds_remaining || 120);
-        setForgotError(rpcRes.message || 'Please wait before requesting another reset link.');
-        setIsSendingReset(false);
-        return;
-      }
-
-      // 4. Official Supabase Auth recovery email request
-      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(emailToReset, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-
-      if (resetErr) {
-        console.warn('Supabase resetPasswordForEmail error:', resetErr.message);
-        setForgotError('We could not submit the recovery request right now. Please try again later or contact your system administrator.');
-        setIsSendingReset(false);
-        return;
-      }
-
-      setForgotCooldown(120); // 2-minute cooldown
-      setForgotMessage(
-        'If an account matches this address, a reset link will arrive by email. Check your inbox and spam folder. For your security, this page does not confirm whether the address belongs to an account.'
+      const res = await submitAssistedRecoveryTicket(
+        emailToRecover,
+        assistedReason.trim() || 'Staff account recovery requested from login screen'
       );
+
+      // Both accepted and throttled responses carry the authoritative cooldown.
+      if (res.serverNow) applyServerNow(res.serverNow);
+      if (res.nextAllowedAt) {
+        setCooldownUntilIso(res.nextAllowedAt);
+        setCooldownSeconds(computeRemainingSeconds(res.nextAllowedAt, serverClockRef.current));
+      }
+      setCooldownVerified(true);
+
+      if (res.accepted && res.requestReference && res.statusCredential) {
+        setAssistedTicket({ reference: res.requestReference, credential: res.statusCredential });
+        setStatusRef(res.requestReference);
+        setForgotMessage(res.message);
+        setForgotError(null);
+      } else if (res.throttled) {
+        setForgotError(
+          `${res.message} You can submit again in ${formatRemainingLabel(res.secondsRemaining ?? cooldownSeconds)}.`
+        );
+      } else {
+        setForgotError(res.message || 'Unable to submit recovery request.');
+      }
     } catch (err: any) {
-      setForgotError(err?.message || 'Unable to process reset request. Please contact your system administrator.');
+      setForgotError(err?.message || 'The recovery request could not be submitted. Please try again.');
+      // A failed submission must not bypass the limiter: reconcile with the
+      // authoritative cooldown state.
+      void refreshCooldown(emailToRecover);
     } finally {
       setIsSendingReset(false);
     }
   };
 
-  // Format seconds to MM:SS
-  const formatTimer = (totalSeconds: number) => {
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  const handleStatusCheck = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!statusRef.trim() || !statusCred.trim()) return;
+
+    setIsCheckingStatus(true);
+    setStatusError(null);
+    setStatusResult(null);
+    try {
+      const res = await checkAssistedRecoveryTicketStatus(statusRef, statusCred);
+      if (!res.valid) {
+        setStatusError(res.message || 'Invalid request reference or status credential. Check both values and retry.');
+        return;
+      }
+      setStatusResult({
+        status: res.status,
+        submittedAt: res.submittedAt,
+        decisionReason: res.decisionReason,
+      });
+    } catch (err: any) {
+      setStatusError(err?.message || 'Status check failed. Please check your connection and retry.');
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  };
+
+  const statusBadgeTone = (status?: string) => {
+    switch (status) {
+      case 'COMPLETED':
+        return 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
+      case 'REJECTED':
+        return 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30';
+      case 'NEEDS_INFORMATION':
+      case 'HUMAN_REVIEW':
+        return 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30';
+      default:
+        return 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30';
+    }
   };
 
   return (
@@ -434,7 +628,7 @@ export function LoginForm() {
       {/* ------------------------------------------------------------- */}
       {/* 30-MINUTE LOCKOUT ACTIVE CARD                                 */}
       {/* ------------------------------------------------------------- */}
-      {lockoutState.is_locked ? (
+      {lockout ? (
         <div className="space-y-5 animate-in fade-in zoom-in-95 duration-200">
           <div className="p-5 rounded-2xl bg-rose-950/80 border border-rose-500/50 shadow-xl space-y-4 text-center">
             <div className="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 mx-auto flex items-center justify-center">
@@ -448,18 +642,29 @@ export function LoginForm() {
               </p>
             </div>
 
-            {/* Countdown Display */}
+            {/* Countdown Display — derived from the database locked_until timestamp */}
             <div className="p-3.5 rounded-xl bg-black/40 border border-rose-500/30 flex flex-col items-center justify-center space-y-1">
               <span className="text-[10px] uppercase font-bold tracking-widest text-rose-300 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5" /> Time Remaining
               </span>
-              <span className="font-mono text-3xl font-black text-white tracking-wider">
-                {formatTimer(lockoutState.seconds_remaining || 0)}
+              <span
+                className="font-mono text-3xl font-black text-white tracking-wider tabular-nums"
+                aria-live="polite"
+                role="timer"
+              >
+                {formatTimer(lockout.secondsRemaining || 0)}
               </span>
               <span className="text-[10px] text-rose-300/70">
                 Synced with database security ledger
               </span>
             </div>
+
+            {lockoutVerifyError && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left flex items-start gap-2" role="alert">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <span className="text-[11px] text-amber-200 leading-relaxed">{lockoutVerifyError}</span>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="space-y-2 pt-1">
@@ -467,11 +672,11 @@ export function LoginForm() {
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={isCheckingLockoutToken}
+                disabled={isCheckingLockout}
                 onClick={handleManualCheckLockout}
                 className="w-full h-9 text-xs rounded-xl border-rose-500/30 text-rose-200 hover:bg-rose-900/40 hover:text-white"
               >
-                {isCheckingLockoutToken ? (
+                {isCheckingLockout ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
                 ) : (
                   <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
@@ -558,7 +763,7 @@ export function LoginForm() {
         /* STANDARD LOGIN FORM                                           */
         /* ------------------------------------------------------------- */
         <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-5" aria-label="Sign In Form">
-          {((authError && !authError.includes('active on another device')) || 
+          {((authError && !authError.includes('active on another device')) ||
             (sessionLeaseError && !sessionLeaseError.includes('active on another device') && !sessionLeaseError.includes('ACCOUNT IN USE'))) && (
             <div className="p-3.5 text-sm font-semibold text-rose-200 bg-rose-950/80 border border-rose-500/40 rounded-xl flex items-center gap-2.5 animate-in fade-in" role="alert">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
@@ -639,12 +844,7 @@ export function LoginForm() {
                 <Label htmlFor="password" className="text-sm font-semibold inline-block py-1">Password</Label>
                 <button
                   type="button"
-                  onClick={() => {
-                    setForgotEmail(getValues('email') || '');
-                    setForgotError(null);
-                    setForgotMessage(null);
-                    setIsForgotModalOpen(true);
-                  }}
+                  onClick={openForgotModal}
                   className="text-xs font-semibold text-primary hover:underline hover:text-primary/90 focus:outline-none cursor-pointer"
                 >
                   Forgot password?
@@ -719,7 +919,7 @@ export function LoginForm() {
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* AUTHORITATIVE FORGOT PASSWORD & ASSISTED RECOVERY MODAL       */}
+      {/* ACCOUNT RECOVERY MODAL (administrator-assisted)                */}
       {/* ------------------------------------------------------------- */}
       <Dialog open={isForgotModalOpen} onOpenChange={open => {
         setIsForgotModalOpen(open);
@@ -727,84 +927,112 @@ export function LoginForm() {
           setAssistedTicket(null);
           setForgotMessage(null);
           setForgotError(null);
+          setCopyNotice(null);
+          setStatusResult(null);
+          setStatusError(null);
         }
       }}>
-        <DialogContent className="max-w-md p-6 rounded-2xl bg-card border-border shadow-2xl">
+        <DialogContent className="max-w-md p-6 rounded-2xl bg-card border-border shadow-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="space-y-1 text-left border-b border-border/60 pb-3">
             <DialogTitle className="text-xl font-bold flex items-center gap-2 text-foreground">
               <KeyRound className="w-5 h-5 text-primary" />
-              <span>Password Recovery</span>
+              <span>Account Recovery</span>
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Request a password reset link or submit an assisted recovery ticket for administrator review.
+            <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+              KUVENTORY login identifiers are system addresses without mailboxes, so reset links cannot be
+              delivered by email. Recovery is completed through administrator-assisted identity verification.
             </DialogDescription>
           </DialogHeader>
 
-          {/* Mode Switcher Tabs */}
-          <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-muted/80 dark:bg-muted/50 rounded-xl text-xs font-bold my-2 border border-border/50">
-            <button
-              type="button"
-              onClick={() => { setRecoveryMode('email'); setForgotError(null); }}
-              className={`py-2 px-3 rounded-lg transition-all cursor-pointer text-center font-bold ${
-                recoveryMode === 'email'
-                  ? 'bg-card text-foreground shadow-xs border border-border/70'
-                  : 'text-foreground/70 dark:text-muted-foreground hover:text-foreground hover:bg-card/50'
-              }`}
-            >
-              Email Reset
-            </button>
-            <button
-              type="button"
-              onClick={() => { setRecoveryMode('assisted'); setForgotError(null); }}
-              className={`py-2 px-3 rounded-lg transition-all cursor-pointer text-center font-bold ${
-                recoveryMode === 'assisted'
-                  ? 'bg-card text-foreground shadow-xs border border-border/70'
-                  : 'text-foreground/70 dark:text-muted-foreground hover:text-foreground hover:bg-card/50'
-              }`}
-            >
-              Assisted Recovery
-            </button>
-          </div>
-
-          <form onSubmit={handleForgotSubmit} className="space-y-4 py-1" aria-label="Password Reset Form">
-            {recoveryMode === 'assisted' && !assistedTicket && (
-              <div className="p-3.5 text-xs bg-amber-500/15 dark:bg-amber-950/60 border border-amber-600/30 dark:border-amber-500/40 rounded-xl text-left space-y-1">
-                <p className="font-bold text-amber-950 dark:text-amber-100 flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0" />
-                  <span>For @kuventory.com login aliases & inaccessible mailboxes</span>
-                </p>
-                <p className="text-[11px] text-amber-900 dark:text-amber-200/90 leading-relaxed font-medium">
-                  Submits an official recovery ticket for administrator review. You can safely close your browser once submitted.
-                </p>
-              </div>
-            )}
-
-            {forgotError && (
-              <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-2 text-left" role="alert">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{forgotError}</span>
-              </div>
-            )}
-
+          <form onSubmit={handleForgotSubmit} className="space-y-4 py-1" aria-label="Assisted Account Recovery Form">
             {assistedTicket ? (
-              <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-left space-y-3">
-                <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Recovery Ticket Logged</span>
+              <>
+                <div className="p-3.5 text-xs bg-blue-500/10 dark:bg-blue-950/40 border border-blue-500/30 rounded-xl text-left space-y-1">
+                  <p className="font-bold text-blue-900 dark:text-blue-100 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                    <span>Save these two values before closing</span>
+                  </p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    The status credential is shown only this once and cannot be reissued. Keep it private — anyone
+                    with both values can view this ticket's status.
+                  </p>
                 </div>
-                <p className="text-xs text-emerald-200/90 leading-relaxed">
-                  Your recovery request is safely recorded in the database. You may safely close this browser window.
-                </p>
-                <div className="p-3 rounded-lg bg-black/50 border border-emerald-500/30 space-y-1">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400">Request Reference ID</span>
-                  <p className="font-mono text-base font-black text-white select-all">{assistedTicket.reference}</p>
+
+                <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-left space-y-3">
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>Recovery Ticket Logged</span>
+                  </div>
+                  <p className="text-xs text-emerald-200/90 leading-relaxed">
+                    Your recovery request is safely recorded. An administrator will verify your identity through the
+                    official channels below before any password change is made.
+                  </p>
+
+                  <div className="p-3 rounded-lg bg-black/50 border border-emerald-500/30 space-y-1">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400">Request Reference</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-mono text-base font-black text-white select-all break-all">{assistedTicket.reference}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-[10px] shrink-0 border-emerald-500/40 text-emerald-200 hover:bg-emerald-900/40"
+                        onClick={() => handleCopy('Reference', assistedTicket.reference)}
+                        aria-label="Copy request reference"
+                      >
+                        <Copy className="w-3 h-3 mr-1" /> Copy
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-black/50 border border-amber-500/30 space-y-1">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400">Status Credential (shown once)</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-mono text-xs font-bold text-white select-all break-all">{assistedTicket.credential}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-[10px] shrink-0 border-amber-500/40 text-amber-200 hover:bg-amber-900/40"
+                        onClick={() => handleCopy('Credential', assistedTicket.credential)}
+                        aria-label="Copy status credential"
+                      >
+                        <Copy className="w-3 h-3 mr-1" /> Copy
+                      </Button>
+                    </div>
+                  </div>
+
+                  {copyNotice && (
+                    <p className="text-[11px] text-emerald-300" role="status">{copyNotice}</p>
+                  )}
+
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Share your reference with your branch supervisor or administrator through the official channels
+                    to verify your identity. Check the ticket status with both values using "Check Ticket Status"
+                    below — the status only changes after an administrator completes a verified review.
+                  </p>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Share this Reference ID with your branch supervisor or administrator via the official channels below to verify your identity.
-                </p>
-              </div>
+              </>
             ) : (
               <>
+                <div className="p-3.5 text-xs bg-amber-500/15 dark:bg-amber-950/60 border border-amber-600/30 dark:border-amber-500/40 rounded-xl text-left space-y-1">
+                  <p className="font-bold text-amber-950 dark:text-amber-100 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0" />
+                    <span>Administrator-assisted recovery</span>
+                  </p>
+                  <p className="text-[11px] text-amber-900 dark:text-amber-200/90 leading-relaxed font-medium">
+                    Submit a recovery ticket for administrator review. An administrator verifies your identity, then
+                    performs the authorized password reset. You can safely close this browser after submitting.
+                  </p>
+                </div>
+
+                {forgotError && (
+                  <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-2 text-left" role="alert">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{forgotError}</span>
+                  </div>
+                )}
+
                 {forgotMessage && (
                   <div className="p-3.5 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-xl space-y-1 text-left" role="status">
                     <div className="flex items-center gap-1.5 font-bold">
@@ -817,15 +1045,29 @@ export function LoginForm() {
                   </div>
                 )}
 
+                {!cooldownVerified && (
+                  <div className="p-3 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-2 text-left" role="alert">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>
+                      Cooldown status could not be verified with the server. Submission stays unavailable until the
+                      check succeeds.
+                    </span>
+                  </div>
+                )}
+
                 <div className="space-y-1.5 text-left">
                   <Label htmlFor="forgot-email" className="text-xs font-bold text-foreground">
-                    {recoveryMode === 'assisted' ? 'Account Login Identifier (Email)' : 'Your Account Email'}
+                    Account Login Identifier (Email)
                   </Label>
                   <Input
                     id="forgot-email"
                     type="email"
                     value={forgotEmail}
                     onChange={e => setForgotEmail(e.target.value)}
+                    onBlur={() => {
+                      const clean = forgotEmail.trim().toLowerCase();
+                      if (clean.includes('@')) void refreshCooldown(clean);
+                    }}
                     onFocus={handleScrollToViewOnFocus}
                     placeholder="e.g. staff@kuventory.com"
                     required
@@ -833,21 +1075,19 @@ export function LoginForm() {
                   />
                 </div>
 
-                {recoveryMode === 'assisted' && (
-                  <div className="space-y-1.5 text-left">
-                    <Label htmlFor="assisted-reason" className="text-xs font-bold text-foreground">
-                      Reason for Request (Optional)
-                    </Label>
-                    <Input
-                      id="assisted-reason"
-                      type="text"
-                      value={assistedReason}
-                      onChange={e => setAssistedReason(e.target.value)}
-                      placeholder="e.g. Forgot password, no email mailbox access"
-                      className="h-10 text-xs rounded-xl border-input text-foreground font-medium bg-background placeholder:text-muted-foreground/70"
-                    />
-                  </div>
-                )}
+                <div className="space-y-1.5 text-left">
+                  <Label htmlFor="assisted-reason" className="text-xs font-bold text-foreground">
+                    Reason for Request (Optional)
+                  </Label>
+                  <Input
+                    id="assisted-reason"
+                    type="text"
+                    value={assistedReason}
+                    onChange={e => setAssistedReason(e.target.value)}
+                    placeholder="e.g. Forgot password, no email mailbox access"
+                    className="h-10 text-xs rounded-xl border-input text-foreground font-medium bg-background placeholder:text-muted-foreground/70"
+                  />
+                </div>
               </>
             )}
 
@@ -895,6 +1135,9 @@ export function LoginForm() {
                   setAssistedTicket(null);
                   setForgotMessage(null);
                   setForgotError(null);
+                  setCopyNotice(null);
+                  setStatusResult(null);
+                  setStatusError(null);
                 }}
                 className="h-10 text-xs font-semibold rounded-xl cursor-pointer border-border hover:bg-muted text-foreground"
               >
@@ -904,7 +1147,7 @@ export function LoginForm() {
               {!assistedTicket && (
                 <Button
                   type="submit"
-                  disabled={isSendingReset || !forgotEmail || forgotCooldown > 0}
+                  disabled={isSendingReset || !forgotEmail || cooldownBlocksSubmit}
                   className="h-10 text-xs font-bold rounded-xl cursor-pointer shadow-xs"
                 >
                   {isSendingReset ? (
@@ -912,14 +1155,81 @@ export function LoginForm() {
                   ) : (
                     <Send className="w-3.5 h-3.5 mr-1.5" />
                   )}
-                  {recoveryMode === 'assisted'
-                    ? 'Submit Recovery Ticket'
-                    : forgotCooldown > 0
-                    ? `Resend in ${forgotCooldown}s`
-                    : 'Send Reset Link'}
+                  {isCheckingCooldown
+                    ? 'Verifying availability…'
+                    : !cooldownVerified
+                      ? 'Cooldown unverified'
+                      : cooldownSeconds > 0
+                        ? `Wait ${formatTimer(cooldownSeconds)} to resubmit`
+                        : 'Submit Recovery Ticket'}
                 </Button>
               )}
             </DialogFooter>
+          </form>
+
+          {/* Ticket status check: the requester's own ticket only, via the
+              reference + secret credential pair. */}
+          <form onSubmit={handleStatusCheck} className="space-y-3 pt-1 border-t border-border/60 mt-2" aria-label="Recovery Ticket Status Check">
+            <div className="flex items-center gap-1.5 pt-2">
+              <RefreshCw className="w-3.5 h-3.5 text-primary" />
+              <span className="text-xs font-bold text-foreground">Check Ticket Status</span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              <Input
+                aria-label="Request reference"
+                placeholder="Request Reference (e.g. REF-20261025-A1B2C3)"
+                value={statusRef}
+                onChange={e => setStatusRef(e.target.value)}
+                className="h-9 text-[11px] rounded-lg font-mono"
+              />
+              <Input
+                aria-label="Status credential"
+                placeholder="Status Credential (ST-…)"
+                value={statusCred}
+                onChange={e => setStatusCred(e.target.value)}
+                className="h-9 text-[11px] rounded-lg font-mono"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              variant="outline"
+              size="sm"
+              disabled={isCheckingStatus || !statusRef.trim() || !statusCred.trim()}
+              className="h-8 text-[11px] font-bold w-full sm:w-auto"
+            >
+              {isCheckingStatus ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : null}
+              Check Status
+            </Button>
+
+            {statusError && (
+              <p className="text-[11px] text-destructive" role="alert">{statusError}</p>
+            )}
+
+            {statusResult && (
+              <div className="p-3 rounded-xl bg-muted/40 border border-border/60 text-left space-y-1.5" role="status">
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${statusBadgeTone(statusResult.status)}`}>
+                    {statusResult.status}
+                  </span>
+                  {statusResult.submittedAt && (
+                    <span className="text-[10px] text-muted-foreground">
+                      submitted {new Date(statusResult.submittedAt).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+                {statusResult.decisionReason && (
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">{statusResult.decisionReason}</p>
+                )}
+                {statusResult.status !== 'COMPLETED' && (
+                  <p className="text-[10px] text-muted-foreground">
+                    The ticket closes as COMPLETED only after an administrator completes the authorized password
+                    reset.
+                  </p>
+                )}
+              </div>
+            )}
           </form>
         </DialogContent>
       </Dialog>

@@ -233,7 +233,7 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
     await resetMaintenanceToNormal();
   });
 
-  test('4. Password-Reset Request Log: Non-disclosing confirmation and recorded in Admin log', async ({ page }) => {
+  test('4. Account Recovery: assisted ticket with reference + one-time credential (no fake email-reset promise)', async ({ page }) => {
     // 4a. Go to login and click Forgot password
     await cleanSignOut(page);
     await page.goto('/login');
@@ -243,6 +243,12 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
     await expect(forgotLink).toBeVisible();
     await forgotLink.click();
 
+    // The dialog must tell the truth immediately: login identifiers have no
+    // mailbox, so administrator-assisted recovery is the offered method.
+    const dialog = page.locator('[role="dialog"]').first();
+    await expect(dialog.locator('text=/without mailboxes/i')).toBeVisible({ timeout: 5000 });
+    await expect(dialog.locator('button:has-text("Email Reset")')).toHaveCount(0);
+
     const emailInput = page.locator('#forgot-email').first();
     await expect(emailInput).toBeVisible({ timeout: 5000 });
     await emailInput.fill(STAFF_EMAIL);
@@ -250,9 +256,13 @@ test.describe('KUVENTORY Critical Workflow Repairs & Responsive Testing', () => 
     const submitBtn = page.locator('[role="dialog"] button[type="submit"]').first();
     await submitBtn.click();
 
-    // Verify safe non-disclosing message appears
-    const successMsg = page.locator('text=If an account matches this address').first();
-    await expect(successMsg).toBeVisible({ timeout: 15000 });
+    // Accepted submission: reference AND one-time status credential are shown
+    // exactly once, with copy actions — never a fabricated email success line.
+    await expect(dialog.locator('text=Recovery Ticket Logged')).toBeVisible({ timeout: 15000 });
+    await expect(dialog.locator('text=/^REF-\\d{8}-/').first()).toBeVisible();
+    await expect(dialog.locator('button[aria-label="Copy request reference"]')).toBeVisible();
+    await expect(dialog.locator('button[aria-label="Copy status credential"]')).toBeVisible();
+    await expect(dialog.locator('text=If an account matches this address')).toHaveCount(0);
   });
 
   test('5. Finalized Daily Inventory Governance: Read-only sheet, Correction Request Modal, and Approval Queue', async ({ page }) => {
