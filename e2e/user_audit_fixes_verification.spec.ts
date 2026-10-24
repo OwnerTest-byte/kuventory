@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { TEST_CREDENTIALS } from './testCredentials';
 
 async function cleanSignOut(page: any) {
   try {
@@ -25,8 +26,8 @@ test.describe('User Audit Fixes Verification (Playwright Functional End-to-End)'
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
 
-    await page.fill('#email', 'staff@kuventory.com');
-    await page.fill('#password', 'Staff123!');
+    await page.fill('#email', TEST_CREDENTIALS.staffEmail);
+    await page.fill('#password', TEST_CREDENTIALS.staffPassword);
     await page.click('button[type="submit"]');
 
     const takeoverBtn = page.getByRole('button', { name: /continue here & end other session/i });
@@ -96,8 +97,8 @@ test.describe('User Audit Fixes Verification (Playwright Functional End-to-End)'
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
 
-    await page.fill('#email', 'master@kuventory.com');
-    await page.fill('#password', 'SuperAdmin2026!');
+    await page.fill('#email', TEST_CREDENTIALS.rootAdminEmail);
+    await page.fill('#password', TEST_CREDENTIALS.rootAdminPassword);
     await page.click('button[type="submit"]');
 
     const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');
@@ -134,8 +135,8 @@ test.describe('User Audit Fixes Verification (Playwright Functional End-to-End)'
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
 
-    await page.fill('#email', 'master@kuventory.com');
-    await page.fill('#password', 'SuperAdmin2026!');
+    await page.fill('#email', TEST_CREDENTIALS.rootAdminEmail);
+    await page.fill('#password', TEST_CREDENTIALS.rootAdminPassword);
     await page.click('button[type="submit"]');
 
     const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');
@@ -191,8 +192,8 @@ test.describe('User Audit Fixes Verification (Playwright Functional End-to-End)'
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
 
-    await page.fill('#email', 'admin@kuventory.com');
-    await page.fill('#password', 'Admin123!');
+    await page.fill('#email', TEST_CREDENTIALS.adminEmail);
+    await page.fill('#password', TEST_CREDENTIALS.adminPassword);
     await page.click('button[type="submit"]');
 
     const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');

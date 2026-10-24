@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { TEST_CREDENTIALS } from './testCredentials';
 
 async function cleanSignOut(page: any) {
   try {
@@ -24,8 +25,8 @@ test.describe('Single Active Session Lease & First Session Wins (Rules 11-17, 14
     await pageA.goto('/login');
     await pageA.waitForLoadState('networkidle');
 
-    await pageA.fill('#email', 'staff@kuventory.com');
-    await pageA.fill('#password', 'Staff123!');
+    await pageA.fill('#email', TEST_CREDENTIALS.staffEmail);
+    await pageA.fill('#password', TEST_CREDENTIALS.staffPassword);
     await pageA.click('button[type="submit"]');
 
     // Handle session takeover if previous run left a lease
@@ -45,8 +46,8 @@ test.describe('Single Active Session Lease & First Session Wins (Rules 11-17, 14
     await pageB.goto('/login');
     await pageB.waitForLoadState('networkidle');
 
-    await pageB.fill('#email', 'staff@kuventory.com');
-    await pageB.fill('#password', 'Staff123!');
+    await pageB.fill('#email', TEST_CREDENTIALS.staffEmail);
+    await pageB.fill('#password', TEST_CREDENTIALS.staffPassword);
     await pageB.click('button[type="submit"]');
 
     // Device B MUST be denied and stay on /login with clear occupied error message
@@ -68,8 +69,8 @@ test.describe('Single Active Session Lease & First Session Wins (Rules 11-17, 14
     await pageA.waitForTimeout(500);
 
     // 4. Device B retries login now that Device A released the lease
-    await pageB.fill('#email', 'staff@kuventory.com');
-    await pageB.fill('#password', 'Staff123!');
+    await pageB.fill('#email', TEST_CREDENTIALS.staffEmail);
+    await pageB.fill('#password', TEST_CREDENTIALS.staffPassword);
     await pageB.click('button[type="submit"]');
 
     // Device B should now be admitted
@@ -88,8 +89,8 @@ test.describe('Single Active Session Lease & First Session Wins (Rules 11-17, 14
 test.describe('Master Admin Control Center: Active Session Leases & Recovery Preview (Rules 16, 49-53)', () => {
   test('Master Admin can inspect active leases and view recovery point preview in read-only mode', async ({ page }) => {
     await page.goto('/login');
-    await page.fill('#email', 'master@kuventory.com');
-    await page.fill('#password', 'SuperAdmin2026!');
+    await page.fill('#email', TEST_CREDENTIALS.rootAdminEmail);
+    await page.fill('#password', TEST_CREDENTIALS.rootAdminPassword);
     await page.click('button[type="submit"]');
 
     const takeoverBtn = page.getByRole('button', { name: /continue here & end other session/i });
@@ -138,8 +139,8 @@ test.describe('Batch Preservation & Database-Authoritative FEFO (Rules 19-27, 14
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
 
-    await page.fill('#email', 'admin@kuventory.com');
-    await page.fill('#password', 'Admin123!');
+    await page.fill('#email', TEST_CREDENTIALS.adminEmail);
+    await page.fill('#password', TEST_CREDENTIALS.adminPassword);
     await page.click('button[type="submit"]');
 
     const adminTakeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');

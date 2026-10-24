@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { TEST_CREDENTIALS } from './testCredentials';
 
 async function cleanSignOut(page: any) {
   try {
@@ -47,15 +48,15 @@ async function loginUser(page: any, email: string, pass: string) {
 }
 
 async function loginAsAdmin(page: any) {
-  return loginUser(page, 'admin@kuventory.com', 'Admin123!');
+  return loginUser(page, TEST_CREDENTIALS.adminEmail, TEST_CREDENTIALS.adminPassword);
 }
 
 async function loginAsMasterAdmin(page: any) {
-  return loginUser(page, 'superadmin@kuventory.com', 'SuperAdmin2026!');
+  return loginUser(page, TEST_CREDENTIALS.superAdminEmail, TEST_CREDENTIALS.superAdminPassword);
 }
 
 async function loginAsStaff(page: any) {
-  return loginUser(page, 'staff@kuventory.com', 'Staff123!');
+  return loginUser(page, TEST_CREDENTIALS.staffEmail, TEST_CREDENTIALS.staffPassword);
 }
 
 test.describe('KUVENTORY Directive Hardening & Real Verification Suite', () => {

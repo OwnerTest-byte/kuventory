@@ -2,9 +2,9 @@ name: Continuous Integration & Security Assurance
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
   workflow_dispatch:
 
 concurrency:
@@ -74,10 +74,19 @@ jobs:
         run: npm run build
 
   e2e-playwright:
-    name: Cross-Browser & Responsive Smoke (Playwright)
+    name: Playwright Matrix (${{ matrix.project }})
     runs-on: ubuntu-latest
     needs: [build-production]
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - 'chromium'
+          - 'Firefox (Desktop 1280x800)'
+          - 'Safari / WebKit (Desktop 1280x800)'
+          - 'Mobile Phone (iPhone / Android 393x852)'
+          - 'Tablet (iPad 820x1180)'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -91,16 +100,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Each GitHub Actions job runs on a fresh runner; the previous job's dist/
-      # directory is not present unless it is explicitly downloaded as an artifact.
       - name: Build production assets for the E2E runner
         run: npm run build
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers and OS dependencies
+        run: npx playwright install --with-deps
 
-      - name: Run Playwright smoke suite
-        run: npx playwright test --project=chromium
+      - name: Run Playwright test suite (${{ matrix.project }})
+        run: npx playwright test --project="${{ matrix.project }}"
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'http://127.0.0.1:54321' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.ci_smoke' }}
+          PLAYWRIGHT_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'http://127.0.0.1:54321' }}
+          PLAYWRIGHT_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.ci_smoke' }}
+          E2E_SUPER_ADMIN_PASSWORD: ${{ secrets.E2E_SUPER_ADMIN_PASSWORD }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_STAFF_PASSWORD: ${{ secrets.E2E_STAFF_PASSWORD }}

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { TEST_CREDENTIALS } from './testCredentials';
 
 async function loginAsSuperAdmin(page: any) {
   await page.goto('/login');
@@ -8,8 +9,8 @@ async function loginAsSuperAdmin(page: any) {
   const emailInput = page.locator('input[type="email"], input[name="email"], input#email').first();
   const passwordInput = page.locator('input[type="password"], input[name="password"], input#password').first();
 
-  await emailInput.fill('master@kuventory.com');
-  await passwordInput.fill('SuperAdmin2026!');
+  await emailInput.fill(TEST_CREDENTIALS.rootAdminEmail);
+  await passwordInput.fill(TEST_CREDENTIALS.rootAdminPassword);
 
   const submitButton = page.locator('button[type="submit"]').first();
   await submitButton.click();

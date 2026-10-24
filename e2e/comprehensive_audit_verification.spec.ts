@@ -1,16 +1,20 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { TEST_CREDENTIALS } from './testCredentials';
 
 const directSupabase = createClient(
-  'https://stotgoylyzltzpahuglc.supabase.co',
-  'sb_publishable_sww0L_JeH4y7i0Zq5kX0Xg_ZWhJ7PsN'
+  TEST_CREDENTIALS.supabaseUrl || 'https://stotgoylyzltzpahuglc.supabase.co',
+  TEST_CREDENTIALS.supabaseAnonKey || ''
 );
 
 async function ensureDraftSheet() {
   try {
+    if (!TEST_CREDENTIALS.supabaseAnonKey) {
+      return;
+    }
     await directSupabase.auth.signInWithPassword({
-      email: 'superadmin@kuventory.com',
-      password: 'SuperAdmin2026!'
+      email: TEST_CREDENTIALS.superAdminEmail,
+      password: TEST_CREDENTIALS.superAdminPassword
     });
     const today = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Manila',
@@ -47,8 +51,8 @@ async function cleanSignOut(page: any) {
 async function loginAsStaff(page: any) {
   await page.goto('/login');
   await page.waitForLoadState('networkidle');
-  await page.fill('#email', 'staff@kuventory.com');
-  await page.fill('#password', 'Staff123!');
+  await page.fill('#email', TEST_CREDENTIALS.staffEmail);
+  await page.fill('#password', TEST_CREDENTIALS.staffPassword);
   await page.click('button[type="submit"]');
 
   const takeoverBtn = page.getByRole('button', { name: /continue here & end other session/i });

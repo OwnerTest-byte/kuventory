@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { TEST_CREDENTIALS } from './testCredentials';
 
 async function cleanSignOut(page: any) {
   try {
@@ -54,8 +55,8 @@ test.describe('Master Admin Authentication & Control Center Flow', () => {
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
 
-    await page.fill('#email', 'master@kuventory.com');
-    await page.fill('#password', 'SuperAdmin2026!');
+    await page.fill('#email', TEST_CREDENTIALS.rootAdminEmail);
+    await page.fill('#password', TEST_CREDENTIALS.rootAdminPassword);
     await page.click('button[type="submit"]');
 
     const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');
@@ -78,8 +79,8 @@ test.describe('Master Admin Authentication & Control Center Flow', () => {
     // 1. Log in
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
-    await page.fill('#email', 'master@kuventory.com');
-    await page.fill('#password', 'SuperAdmin2026!');
+    await page.fill('#email', TEST_CREDENTIALS.rootAdminEmail);
+    await page.fill('#password', TEST_CREDENTIALS.rootAdminPassword);
     await page.click('button[type="submit"]');
 
     const takeoverBtn = page.locator('button:has-text("Continue Here & End Other Session")');

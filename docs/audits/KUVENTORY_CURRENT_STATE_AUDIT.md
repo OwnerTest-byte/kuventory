@@ -87,7 +87,7 @@
     console.warn('⚠️ E2E Production Guard: Target is remote and E2E_ALLOW_REMOTE is not set to true...');
   }
   const directSupabase = createClient(targetSupabaseUrl, targetAnonKey);
-  const SUPER_ADMIN_PASSWORD = process.env.E2E_SUPER_ADMIN_PASSWORD || 'SuperAdmin2026!';
+  const SUPER_ADMIN_PASSWORD = process.env.E2E_SUPER_ADMIN_PASSWORD || 'PlaceholderPassword!';
   ```
   ```typescript
   // src/lib/supabase.ts

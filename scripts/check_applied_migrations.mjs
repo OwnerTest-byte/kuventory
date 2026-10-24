@@ -9,8 +9,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function check() {
   await supabase.auth.signInWithPassword({
-    email: 'master@kuventory.com',
-    password: 'MasterAdmin2026!'
+    email: process.env.ROOT_ADMIN_EMAIL || process.env.SUPER_ADMIN_EMAIL || 'superadmin@kuventory.com',
+    password: process.env.SUPER_ADMIN_PASSWORD || process.env.E2E_SUPER_ADMIN_PASSWORD || ''
   });
 
   const { data, error } = await supabase.from('schema_migrations').select('*');

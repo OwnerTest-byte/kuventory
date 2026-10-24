@@ -2,8 +2,19 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://stotgoylyzltzpahuglc.supabase.co';
-const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_sww0L_JeH4y7i0Zq5kX0Xg_ZWhJ7PsN';
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || process.env.E2E_SUPER_ADMIN_PASSWORD;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY in environment.');
+  process.exit(1);
+}
+
+if (!SUPER_ADMIN_PASSWORD) {
+  console.error('Missing SUPER_ADMIN_PASSWORD or E2E_SUPER_ADMIN_PASSWORD in environment.');
+  process.exit(1);
+}
 
 console.log('====================================================');
 console.log('KUVENTORY COMPLETE END-TO-END CONNECTIVITY SUITE');
@@ -29,8 +40,8 @@ async function verifyAll() {
   // 1. Authenticate as Super Admin
   console.log('--- STEP 1: AUTHENTICATION CHECK ---');
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email: 'superadmin@kuventory.com',
-    password: 'SuperAdmin2026!'
+    email: process.env.SUPER_ADMIN_EMAIL || 'superadmin@kuventory.com',
+    password: SUPER_ADMIN_PASSWORD
   });
 
   if (authError) {
@@ -43,8 +54,8 @@ async function verifyAll() {
   // Also verify root superadmin credential
   const rootClient = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
   const { data: rootAuth, error: rootAuthErr } = await rootClient.auth.signInWithPassword({
-    email: 'master@kuventory.com',
-    password: 'SuperAdmin2026!'
+    email: process.env.ROOT_ADMIN_EMAIL || 'master@kuventory.com',
+    password: SUPER_ADMIN_PASSWORD
   });
   if (rootAuthErr) {
     recordResult('AUTH', 'Root Super Admin Login', 'FAILED', rootAuthErr.message);
