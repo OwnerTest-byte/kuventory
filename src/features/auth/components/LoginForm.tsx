@@ -44,6 +44,7 @@ import {
   fetchPublicSupportContacts,
   type PublicSupportContact
 } from '@/features/admin/services/profileService';
+import { submitAssistedRecoveryTicket } from '../services/passwordResetService';
 
 export const loginSchema = z.object({
   email: z.string().email('invalid email address'),
@@ -80,9 +81,15 @@ export function LoginForm() {
   // Remember Me State
   const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('kuventory_remember_me') === 'true');
 
-  // Forgot Password State
+  // Forgot Password & Assisted Recovery State
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState<'email' | 'assisted'>('email');
   const [forgotEmail, setForgotEmail] = useState('');
+  const [assistedReason, setAssistedReason] = useState('');
+  const [assistedTicket, setAssistedTicket] = useState<{
+    reference: string;
+    credential: string;
+  } | null>(null);
   const [isSendingReset, setIsSendingReset] = useState(false);
   const [forgotMessage, setForgotMessage] = useState<string | null>(null);
   const [forgotError, setForgotError] = useState<string | null>(null);
@@ -330,7 +337,7 @@ export function LoginForm() {
     }
   };
 
-  // Authoritative forgot password flow
+  // Authoritative forgot password and assisted recovery flow
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotEmail || forgotCooldown > 0) return;
@@ -342,7 +349,35 @@ export function LoginForm() {
     const emailToReset = forgotEmail.trim().toLowerCase();
 
     try {
-      // 1. Database-authoritative rate-limited request record
+      // 1. Assisted Recovery Mode (for synthetic @kuventory.com aliases or inaccessible mailboxes)
+      if (recoveryMode === 'assisted') {
+        const ticketRes = await submitAssistedRecoveryTicket(
+          emailToReset,
+          assistedReason.trim() || 'Staff account recovery requested from login screen'
+        );
+        if (ticketRes.success && ticketRes.requestReference && ticketRes.statusCredential) {
+          setAssistedTicket({
+            reference: ticketRes.requestReference,
+            credential: ticketRes.statusCredential,
+          });
+          setForgotMessage(ticketRes.message);
+        } else {
+          setForgotError(ticketRes.message || 'Unable to submit recovery request.');
+        }
+        return;
+      }
+
+      // 2. Email Reset Mode: Check if user is attempting to reset a @kuventory.com synthetic address
+      if (emailToReset.endsWith('@kuventory.com')) {
+        setForgotError(
+          'Notice: @kuventory.com addresses are login identifiers without mailboxes. Switched to "Assisted Recovery" below so you can submit an administrator review ticket.'
+        );
+        setRecoveryMode('assisted');
+        setIsSendingReset(false);
+        return;
+      }
+
+      // 3. Database-authoritative rate-limited request record
       const { data: rpcRes, error: rpcErr } = await supabase.rpc('request_password_reset', {
         p_email: emailToReset,
       });
@@ -356,7 +391,7 @@ export function LoginForm() {
         return;
       }
 
-      // 2. Official Supabase Auth recovery email request
+      // 4. Official Supabase Auth recovery email request
       const { error: resetErr } = await supabase.auth.resetPasswordForEmail(emailToReset, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
@@ -683,9 +718,16 @@ export function LoginForm() {
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* AUTHORITATIVE FORGOT PASSWORD MODAL                           */}
+      {/* AUTHORITATIVE FORGOT PASSWORD & ASSISTED RECOVERY MODAL       */}
       {/* ------------------------------------------------------------- */}
-      <Dialog open={isForgotModalOpen} onOpenChange={setIsForgotModalOpen}>
+      <Dialog open={isForgotModalOpen} onOpenChange={open => {
+        setIsForgotModalOpen(open);
+        if (!open) {
+          setAssistedTicket(null);
+          setForgotMessage(null);
+          setForgotError(null);
+        }
+      }}>
         <DialogContent className="max-w-md p-6 rounded-2xl bg-card border-border shadow-2xl">
           <DialogHeader className="space-y-1 text-left border-b border-border/60 pb-3">
             <DialogTitle className="text-xl font-bold flex items-center gap-2 text-foreground">
@@ -693,43 +735,111 @@ export function LoginForm() {
               <span>Password Recovery</span>
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Submit your email to receive an official recovery link or access configured administrator support.
+              Request a password reset link or submit an assisted recovery ticket for administrator review.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleForgotSubmit} className="space-y-4 py-2" aria-label="Password Reset Form">
+          {/* Mode Switcher Tabs */}
+          <div className="grid grid-cols-2 gap-1 p-1 bg-muted/60 rounded-xl text-xs font-semibold my-2">
+            <button
+              type="button"
+              onClick={() => { setRecoveryMode('email'); setForgotError(null); }}
+              className={`py-2 px-3 rounded-lg transition-colors cursor-pointer ${
+                recoveryMode === 'email' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Email Reset
+            </button>
+            <button
+              type="button"
+              onClick={() => { setRecoveryMode('assisted'); setForgotError(null); }}
+              className={`py-2 px-3 rounded-lg transition-colors cursor-pointer ${
+                recoveryMode === 'assisted' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Assisted Recovery
+            </button>
+          </div>
+
+          <form onSubmit={handleForgotSubmit} className="space-y-4 py-1" aria-label="Password Reset Form">
+            {recoveryMode === 'assisted' && !assistedTicket && (
+              <div className="p-3 text-xs bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 text-left">
+                <p className="font-semibold text-amber-100">For @kuventory.com login aliases & inaccessible mailboxes</p>
+                <p className="text-[11px] mt-0.5 text-amber-300/80">
+                  Submits an official recovery ticket. You can safely close your browser once submitted.
+                </p>
+              </div>
+            )}
+
             {forgotError && (
-              <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-2" role="alert">
+              <div className="p-3 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-2 text-left" role="alert">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{forgotError}</span>
               </div>
             )}
 
-            {forgotMessage && (
-              <div className="p-3.5 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-xl space-y-1" role="status">
-                <div className="flex items-center gap-1.5 font-bold">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
-                  <span>Request Submitted</span>
+            {assistedTicket ? (
+              <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-left space-y-3">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>Recovery Ticket Logged</span>
                 </div>
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  {forgotMessage}
+                <p className="text-xs text-emerald-200/90 leading-relaxed">
+                  Your recovery request is safely recorded in the database. You may safely close this browser window.
+                </p>
+                <div className="p-3 rounded-lg bg-black/50 border border-emerald-500/30 space-y-1">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400">Request Reference ID</span>
+                  <p className="font-mono text-base font-black text-white select-all">{assistedTicket.reference}</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Share this Reference ID with your branch supervisor or administrator via the official channels below to verify your identity.
                 </p>
               </div>
-            )}
+            ) : (
+              <>
+                {forgotMessage && (
+                  <div className="p-3.5 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-xl space-y-1 text-left" role="status">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                      <span>Request Submitted</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      {forgotMessage}
+                    </p>
+                  </div>
+                )}
 
-            <div className="space-y-1.5 text-left">
-              <Label htmlFor="forgot-email" className="text-xs font-semibold">Your Account Email</Label>
-              <Input
-                id="forgot-email"
-                type="email"
-                value={forgotEmail}
-                onChange={e => setForgotEmail(e.target.value)}
-                onFocus={handleScrollToViewOnFocus}
-                placeholder="e.g. staff@kuventory.com"
-                required
-                className="h-11 text-sm rounded-xl"
-              />
-            </div>
+                <div className="space-y-1.5 text-left">
+                  <Label htmlFor="forgot-email" className="text-xs font-semibold">
+                    {recoveryMode === 'assisted' ? 'Account Login Identifier (Email)' : 'Your Account Email'}
+                  </Label>
+                  <Input
+                    id="forgot-email"
+                    type="email"
+                    value={forgotEmail}
+                    onChange={e => setForgotEmail(e.target.value)}
+                    onFocus={handleScrollToViewOnFocus}
+                    placeholder="e.g. staff@kuventory.com"
+                    required
+                    className="h-11 text-sm rounded-xl"
+                  />
+                </div>
+
+                {recoveryMode === 'assisted' && (
+                  <div className="space-y-1.5 text-left">
+                    <Label htmlFor="assisted-reason" className="text-xs font-semibold">Reason for Request (Optional)</Label>
+                    <Input
+                      id="assisted-reason"
+                      type="text"
+                      value={assistedReason}
+                      onChange={e => setAssistedReason(e.target.value)}
+                      placeholder="e.g. Forgot password, no email mailbox access"
+                      className="h-10 text-xs rounded-xl"
+                    />
+                  </div>
+                )}
+              </>
+            )}
 
             {/* Configured Support Contact Details */}
             {supportContacts.length > 0 && (
@@ -770,24 +880,35 @@ export function LoginForm() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsForgotModalOpen(false)}
-                className="h-10 text-xs rounded-xl"
+                onClick={() => {
+                  setIsForgotModalOpen(false);
+                  setAssistedTicket(null);
+                  setForgotMessage(null);
+                  setForgotError(null);
+                }}
+                className="h-10 text-xs rounded-xl cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> Back to Sign In
               </Button>
 
-              <Button
-                type="submit"
-                disabled={isSendingReset || !forgotEmail || forgotCooldown > 0}
-                className="h-10 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl"
-              >
-                {isSendingReset ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
-                ) : (
-                  <Send className="w-3.5 h-3.5 mr-1.5" />
-                )}
-                {forgotCooldown > 0 ? `Resend in ${forgotCooldown}s` : 'Send Reset Link'}
-              </Button>
+              {!assistedTicket && (
+                <Button
+                  type="submit"
+                  disabled={isSendingReset || !forgotEmail || forgotCooldown > 0}
+                  className="h-10 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl cursor-pointer"
+                >
+                  {isSendingReset ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                  ) : (
+                    <Send className="w-3.5 h-3.5 mr-1.5" />
+                  )}
+                  {recoveryMode === 'assisted'
+                    ? 'Submit Recovery Ticket'
+                    : forgotCooldown > 0
+                    ? `Resend in ${forgotCooldown}s`
+                    : 'Send Reset Link'}
+                </Button>
+              )}
             </DialogFooter>
           </form>
         </DialogContent>

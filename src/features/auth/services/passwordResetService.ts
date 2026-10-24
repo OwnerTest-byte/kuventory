@@ -63,6 +63,61 @@ export async function submitPasswordResetRequest(
 }
 
 /**
+ * Submit an assisted account recovery ticket when the user cannot access a registered recovery mailbox
+ * or holds a synthetic @kuventory.com login identifier.
+ */
+export async function submitAssistedRecoveryTicket(
+  email: string,
+  reason: string
+): Promise<{ success: boolean; requestReference?: string; statusCredential?: string; message: string }> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    throw new Error('Please enter a valid account email identifier.');
+  }
+
+  const { data, error } = await supabase.rpc('submit_assisted_recovery_request', {
+    p_email: cleanEmail,
+    p_reason: reason.trim() || 'User cannot access registered recovery channel',
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Unable to submit recovery ticket. Please contact support directly.');
+  }
+
+  return {
+    success: data?.success ?? true,
+    requestReference: data?.request_reference,
+    statusCredential: data?.status_credential,
+    message: data?.message || 'Your recovery request has been submitted for administrator review.',
+  };
+}
+
+/**
+ * Check status of an assisted recovery ticket without leaking account identity.
+ */
+export async function checkAssistedRecoveryTicketStatus(
+  requestReference: string,
+  statusCredential: string
+): Promise<{ valid: boolean; status?: string; submittedAt?: string; decisionReason?: string; message?: string }> {
+  const { data, error } = await supabase.rpc('check_assisted_recovery_status', {
+    p_request_reference: requestReference.trim(),
+    p_status_credential: statusCredential.trim(),
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Failed to verify recovery status.');
+  }
+
+  return {
+    valid: data?.valid ?? false,
+    status: data?.status,
+    submittedAt: data?.submitted_at,
+    decisionReason: data?.decision_reason,
+    message: data?.message,
+  };
+}
+
+/**
  * Fetch password reset request log for Administrators and Super Administrators.
  * Queries the authoritative password_reset_requests table.
  */
