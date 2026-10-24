@@ -1,7 +1,14 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useMaintenanceStatus } from '../hooks/useMaintenanceStatus';
 import { EmergencyMaintenanceScreen } from '@/components/common/EmergencyMaintenanceScreen';
+
+const FullscreenLoader = () => (
+  <div className="flex h-screen flex-col items-center justify-center gap-3 bg-background">
+    <Loader2 className="w-8 h-8 animate-spin text-primary" aria-label="Loading" />
+  </div>
+);
 
 export function RequireAuth() {
   const { session, isLoading } = useAuth();
@@ -9,11 +16,7 @@ export function RequireAuth() {
   const location = useLocation();
 
   if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="text-muted-foreground font-medium">Loading...</div>
-      </div>
-    );
+    return <FullscreenLoader />;
   }
 
   if (!session) {
@@ -33,11 +36,7 @@ export function RequireAdmin() {
   const location = useLocation();
 
   if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="text-muted-foreground font-medium">Loading...</div>
-      </div>
-    );
+    return <FullscreenLoader />;
   }
 
   if (!session) {
@@ -63,11 +62,7 @@ export function RequireSuperAdmin() {
   const location = useLocation();
 
   if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="text-muted-foreground font-medium">Loading...</div>
-      </div>
-    );
+    return <FullscreenLoader />;
   }
 
   if (!session) {

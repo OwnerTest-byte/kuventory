@@ -19,40 +19,43 @@ export function ResetPasswordPage() {
 
   useEffect(() => {
     let isMounted = true;
+    let confirmedGrant = false;
 
-    // Check if the current URL hash indicates a recovery grant (#...type=recovery)
-    const hash = typeof window !== 'undefined' ? window.location.hash : '';
-    const isRecoveryHash = hash.includes('type=recovery');
-
-    // Subscribe to authoritative auth events
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    // A valid recovery grant is established by ANY of:
+    //   1. the recovery hash on the URL (#...type=recovery...),
+    //   2. the PASSWORD_RECOVERY auth event from supabase-js,
+    //   3. an already-active session (the hash may have been consumed while
+    //      establishing the recovery session — the session itself is the grant).
+    const confirmGrant = () => {
       if (!isMounted) return;
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsSessionValid(true);
+      confirmedGrant = true;
+      setIsSessionValid(true);
+    };
+
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    if (hash.includes('type=recovery')) {
+      confirmGrant();
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+        confirmGrant();
       }
     });
 
-    // Check if a recovery event or token is present
-    if (isRecoveryHash) {
-      setIsSessionValid(true);
-    } else {
-      // Check session context only if explicitly in recovery state
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (!isMounted) return;
-        // Verify session was generated for recovery (not a normal browsing session)
-        if (session && isRecoveryHash) {
-          setIsSessionValid(true);
-        } else {
-          // Acknowledge invalid or missing recovery grant after settling
-          setTimeout(() => {
-            if (isMounted) setIsSessionValid(prev => prev ?? false);
-          }, 1200);
-        }
-      });
-    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted || confirmedGrant) return;
+      setIsSessionValid(!!session);
+    });
+
+    // Settle to invalid only if nothing confirmed a grant.
+    const settleTimer = setTimeout(() => {
+      if (isMounted) setIsSessionValid(prev => prev ?? false);
+    }, 1200);
 
     return () => {
       isMounted = false;
+      clearTimeout(settleTimer);
       subscription.unsubscribe();
     };
   }, []);
@@ -120,13 +123,15 @@ export function ResetPasswordPage() {
         )}
 
         {isSessionValid === false && !successMessage && (
-          <div className="p-3.5 text-xs text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded-lg space-y-2">
+          <div className="p-3.5 text-xs text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded-lg space-y-2" role="alert">
             <div className="flex items-center gap-2 font-bold">
               <AlertCircle className="w-4 h-4 shrink-0" />
               Reset Link Expired or Invalid
             </div>
             <p className="text-muted-foreground text-[11px]">
-              The password reset link may have already been used or expired. Please request a new link from the login page.
+              The password reset link may have already been used or expired. For KUVENTORY login
+              identifiers (without mailboxes), use &quot;Forgot password?&quot; on the login page to submit an
+              administrator-assisted recovery request instead.
             </p>
             <Link to="/login" className="inline-flex items-center gap-1 text-primary hover:underline font-bold pt-1">
               Back to Sign In <ArrowRight className="w-3.5 h-3.5" />
@@ -134,7 +139,7 @@ export function ResetPasswordPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" aria-label="Set New Password Form">
           <div className="space-y-1.5">
             <Label className="text-xs font-bold text-foreground">New Password</Label>
             <div className="relative">
@@ -182,7 +187,7 @@ export function ResetPasswordPage() {
           <Button
             type="submit"
             className="w-full h-11 font-bold text-sm bg-primary hover:bg-primary/90 text-primary-foreground"
-            disabled={isLoading || !newPassword || !confirmPassword}
+            disabled={isLoading || !newPassword || !confirmPassword || isSessionValid === false}
           >
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Shield className="w-4 h-4 mr-2" />}
             Update Password & Sign In

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/features/auth/context/AuthContext';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
@@ -34,8 +34,11 @@ function RealtimeSubscriptionManager() {
 }
 
 export function App() {
-  // Automatic background keepalive to protect Supabase free tier from 7-day pause
-  initKeepaliveHeartbeat();
+  // Automatic background keepalive to protect Supabase free tier from 7-day
+  // pause. Runs once on mount (an effect, not a render side effect).
+  useEffect(() => {
+    initKeepaliveHeartbeat();
+  }, []);
 
   return (
     <AuthProvider>

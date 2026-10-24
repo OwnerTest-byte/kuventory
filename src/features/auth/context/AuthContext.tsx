@@ -109,6 +109,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
+    // UNKNOWN: the security verification could not reach the server. Surface
+    // the interruption honestly (banner) and keep the session active while
+    // the next heartbeat retries. Never terminate a session on a transport
+    // failure, and never claim verification succeeded.
+    if (res.status === 'UNKNOWN') {
+      setIsSessionVerifying(true);
+      return;
+    }
+
     // Keep session active uninterrupted - quietly refresh lease in background
     claimSessionLease('keepalive_' + Date.now(), true).catch(() => {});
   }, [handleTerminalState]);

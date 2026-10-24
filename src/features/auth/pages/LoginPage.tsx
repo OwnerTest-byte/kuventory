@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { LoginForm } from '../components/LoginForm';
 import { LegalModal } from '@/components/common/LegalModal';
@@ -7,18 +8,27 @@ import { LegalModal } from '@/components/common/LegalModal';
 export function LoginPage() {
   const { session, role, isLoading } = useAuth();
   const [legalType, setLegalType] = useState<'privacy' | 'terms' | null>(null);
+  const location = useLocation();
 
   if (isLoading) {
     return (
       <main id="main-content" className="flex h-screen items-center justify-center bg-background safe-top safe-bottom">
-        <div className="text-muted-foreground font-medium">Loading...</div>
+        <div className="flex flex-col items-center gap-3 text-muted-foreground font-medium">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" aria-label="Loading" />
+        </div>
       </main>
     );
   }
 
-  // Redirect role-specifically if already logged in (Admin / Super Admin -> Dashboard, Staff -> Daily Inventory)
+  // Redirect role-specifically if already logged in (Admin / Super Admin -> Dashboard, Staff -> Daily Inventory).
+  // Honors the protected route the user was bounced from (RequireAuth passes it
+  // via location.state.from) so a forced re-login returns them to their work.
   if (session) {
-    const landingPath = (role === 'ADMIN' || role === 'SUPER_ADMIN') ? '/inventory' : '/daily-inventory';
+    const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+    const isInternalReturn = !!from && from.startsWith('/') && !from.startsWith('/login') && !from.startsWith('/reset-password');
+    const landingPath = isInternalReturn
+      ? from!
+      : (role === 'ADMIN' || role === 'SUPER_ADMIN') ? '/inventory' : '/daily-inventory';
     return <Navigate to={landingPath} replace />;
   }
 

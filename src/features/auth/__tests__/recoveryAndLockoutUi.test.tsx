@@ -121,8 +121,8 @@ describe('LoginForm assisted recovery workflow (component behavior)', () => {
 
     await fillAndSubmitRecovery('staff@kuventory.com');
 
-    expect(screen.getByText('REF-20261025-A1B2C3')).toBeInTheDocument();
-    expect(screen.getByText('ST-' + 'ab'.repeat(16))).toBeInTheDocument();
+    expect(screen.getAllByText('REF-20261025-A1B2C3').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('ST-' + 'ab'.repeat(16)).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Copy request reference' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copy status credential' })).toBeInTheDocument();
 
@@ -424,5 +424,143 @@ describe('LoginForm login lockout behavior (component behavior)', () => {
     expect(screen.getByText(/could not verify your account security status/i)).toBeInTheDocument();
     // Credentials are never submitted when the security state is unknown.
     expect(signIn).not.toHaveBeenCalled();
+  });
+});
+
+describe('LoginForm pending-review card (live admin-review status)', () => {
+  const ACCEPTED_RESPONSE = () => ({
+    data: {
+      accepted: true,
+      throttled: false,
+      request_reference: 'REF-20261025-PENDING1',
+      status_credential: 'ST-' + 'cd'.repeat(16),
+      server_now: iso(0),
+      next_allowed_at: iso(120_000),
+      seconds_remaining: 120,
+      message: 'Your recovery request has been received.',
+    },
+    error: null,
+  });
+
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  async function submitTicket(handlers: Record<string, RpcHandler>) {
+    mockRpc(handlers);
+    render(<LoginForm />);
+    await openRecoveryModal();
+    await fillAndSubmitRecovery('staff@kuventory.com');
+  }
+
+  it('shows the animated "administrators are reviewing" card after submission and persists the ticket', async () => {
+    await submitTicket({
+      submit_assisted_recovery_request: ACCEPTED_RESPONSE,
+      check_assisted_recovery_status: async () => ({
+        data: { valid: true, status: 'RECEIVED', submitted_at: iso(0) },
+        error: null,
+      }),
+    });
+
+    expect(screen.getByText(/Administrators are reviewing your recovery request/i)).toBeInTheDocument();
+    expect(screen.getAllByText('REF-20261025-PENDING1').length).toBeGreaterThan(0);
+
+    const stored = sessionStorage.getItem('kuventory_recovery_ticket');
+    expect(stored).toBeTruthy();
+    expect(JSON.parse(stored!).reference).toBe('REF-20261025-PENDING1');
+    // The credential lives in session storage only — never localStorage.
+    expect(localStorage.getItem('kuventory_recovery_ticket')).toBeNull();
+  });
+
+  it('restores the pending card after a full page reload (remount) and re-verifies with the server', async () => {
+    let statusChecks = 0;
+    await submitTicket({
+      submit_assisted_recovery_request: ACCEPTED_RESPONSE,
+      check_assisted_recovery_status: async () => {
+        statusChecks += 1;
+        return { data: { valid: true, status: 'HUMAN_REVIEW', submitted_at: iso(0) }, error: null };
+      },
+    });
+    expect(screen.getByText(/Administrators are reviewing/i)).toBeInTheDocument();
+
+    // Simulate a reload: full unmount + remount with the same session storage.
+    cleanup();
+    render(<LoginForm />);
+    await flush();
+
+    expect(screen.getByText(/Administrators are reviewing/i)).toBeInTheDocument();
+    expect(screen.getAllByText('REF-20261025-PENDING1').length).toBeGreaterThan(0);
+    expect(statusChecks).toBeGreaterThanOrEqual(1);
+  });
+
+  it('transitions to the completed outcome, clears persisted state, and invites the new-password sign-in', async () => {
+    let statusChecks = 0;
+    await submitTicket({
+      submit_assisted_recovery_request: ACCEPTED_RESPONSE,
+      check_assisted_recovery_status: async () => {
+        statusChecks += 1;
+        if (statusChecks === 1) {
+          return { data: { valid: true, status: 'RECEIVED', submitted_at: iso(0) }, error: null };
+        }
+        return {
+          data: {
+            valid: true,
+            status: 'COMPLETED',
+            submitted_at: iso(0),
+            resolved_at: iso(10_000),
+            decision_reason: 'Identity verified by administrator; password reset completed.',
+          },
+          error: null,
+        };
+      },
+    });
+
+    // Bounded 20s poll: two cycles — the first re-verifies RECEIVED, the
+    // second observes the administrator's decision.
+    await act(async () => {
+      vi.advanceTimersByTime(40_000);
+    });
+    await flush();
+
+    expect(screen.getByText(/Your password was reset by an administrator/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sign in below with the new password/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Administrators are reviewing/i)).not.toBeInTheDocument();
+    // Outcome decided: persistence cleared so the card does not survive reload.
+    expect(sessionStorage.getItem('kuventory_recovery_ticket')).toBeNull();
+  });
+
+  it('keeps the pending card with an honest retry note when the status check fails (no fake outcome)', async () => {
+    await submitTicket({
+      submit_assisted_recovery_request: ACCEPTED_RESPONSE,
+      check_assisted_recovery_status: async () => ({ data: null, error: { message: 'offline' } }),
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(20_000);
+    });
+    await flush();
+
+    expect(screen.getByText(/Administrators are reviewing/i)).toBeInTheDocument();
+    expect(screen.getByText(/Status check unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText(/password was reset/i)).not.toBeInTheDocument();
+    // Unknown status never clears the persisted ticket.
+    expect(sessionStorage.getItem('kuventory_recovery_ticket')).toBeTruthy();
+  });
+
+  it('silently stops tracking an invalid reference/credential pair', async () => {
+    await submitTicket({
+      submit_assisted_recovery_request: ACCEPTED_RESPONSE,
+      check_assisted_recovery_status: async () => ({
+        data: { valid: false, message: 'Invalid request reference or status credential.' },
+        error: null,
+      }),
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(20_000);
+    });
+    await flush();
+
+    expect(screen.queryByText(/Administrators are reviewing/i)).not.toBeInTheDocument();
+    expect(sessionStorage.getItem('kuventory_recovery_ticket')).toBeNull();
   });
 });

@@ -23,7 +23,8 @@ import {
   ShieldAlert,
   ArrowLeft,
   AlertTriangle,
-  Copy
+  Copy,
+  X
 } from 'lucide-react';
 import {
   Dialog,
@@ -58,6 +59,12 @@ import {
   formatRemainingLabel,
   type ServerClock
 } from '../utils/countdown';
+import {
+  saveRecoveryTicket,
+  readRecoveryTicket,
+  clearRecoveryTicket,
+  type StoredRecoveryTicket
+} from '../utils/recoveryTicketStore';
 
 export const loginSchema = z.object({
   email: z.string().email('invalid email address'),
@@ -114,6 +121,17 @@ export function LoginForm() {
   const [forgotMessage, setForgotMessage] = useState<string | null>(null);
   const [forgotError, setForgotError] = useState<string | null>(null);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
+
+  // Persisted pending-review state (sessionStorage): keeps the
+  // "administrators are reviewing your request" card alive across reloads.
+  const [storedTicket, setStoredTicket] = useState<StoredRecoveryTicket | null>(null);
+  const [ticketStatus, setTicketStatus] = useState<{
+    kind: 'PENDING' | 'COMPLETED' | 'REJECTED' | 'EXPIRED';
+    status?: string;
+    decisionReason?: string | null;
+    checkedAt?: string;
+  } | null>(null);
+  const [ticketCheckFailed, setTicketCheckFailed] = useState(false);
 
   // Authoritative recovery cooldown (expiry-based, server-decided)
   const [cooldownUntilIso, setCooldownUntilIso] = useState<string | null>(null);
@@ -348,6 +366,94 @@ export function LoginForm() {
   const cooldownBlocksSubmit = cooldownSeconds > 0 || isCheckingCooldown || !cooldownVerified;
 
   // -------------------------------------------------------------------------
+  // PENDING RECOVERY TICKET: live "admin is reviewing" status
+  // (authoritative via the reference+credential status RPC; bounded polling,
+  //  reconciled on focus/visibility/online; never a public subscription)
+  // -------------------------------------------------------------------------
+
+  const reconcileTicketStatus = useCallback(async (ticket: StoredRecoveryTicket) => {
+    try {
+      const res = await checkAssistedRecoveryTicketStatus(ticket.reference, ticket.credential);
+      if (!res.valid) {
+        // The pair no longer matches a ticket: stop tracking quietly.
+        clearRecoveryTicket();
+        setStoredTicket(null);
+        setTicketStatus(null);
+        return;
+      }
+      setTicketCheckFailed(false);
+      const kind: 'PENDING' | 'COMPLETED' | 'REJECTED' | 'EXPIRED' =
+        res.status === 'COMPLETED'
+          ? 'COMPLETED'
+          : res.status === 'REJECTED'
+            ? 'REJECTED'
+            : res.status === 'EXPIRED'
+              ? 'EXPIRED'
+              : 'PENDING';
+      setTicketStatus({
+        kind,
+        status: res.status,
+        decisionReason: res.decisionReason ?? null,
+        checkedAt: new Date().toISOString(),
+      });
+      if (kind !== 'PENDING') {
+        // Outcome decided: stop persisting; the outcome card stays visible
+        // until dismissed or the page reloads.
+        clearRecoveryTicket();
+      }
+    } catch {
+      // Status unknown (transport): keep the pending card, mark last check
+      // failed, retry on the next poll/focus/online.
+      setTicketCheckFailed(true);
+    }
+  }, []);
+
+  // Restore a pending ticket from sessionStorage on first mount.
+  useEffect(() => {
+    const stored = readRecoveryTicket();
+    if (stored) {
+      setStoredTicket(stored);
+      setTicketStatus(prev => prev ?? { kind: 'PENDING', checkedAt: new Date().toISOString() });
+      void reconcileTicketStatus(stored);
+    }
+  }, [reconcileTicketStatus]);
+
+  const ticketResolved = ticketStatus?.kind === 'COMPLETED' || ticketStatus?.kind === 'REJECTED' || ticketStatus?.kind === 'EXPIRED';
+
+  // Bounded 20s poll while a ticket is being tracked and not yet decided.
+  useEffect(() => {
+    if (!storedTicket || ticketResolved) return;
+    const id = setInterval(() => {
+      void reconcileTicketStatus(storedTicket);
+    }, 20000);
+    return () => clearInterval(id);
+  }, [storedTicket, ticketResolved, reconcileTicketStatus]);
+
+  // Reconcile immediately when the page becomes visible, focused, or online.
+  useEffect(() => {
+    if (!storedTicket || ticketResolved) return;
+    const recheck = () => void reconcileTicketStatus(storedTicket);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') recheck();
+    };
+    window.addEventListener('focus', recheck);
+    window.addEventListener('online', recheck);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('focus', recheck);
+      window.removeEventListener('online', recheck);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [storedTicket, ticketResolved, reconcileTicketStatus]);
+
+  const dismissTicketCard = () => {
+    clearRecoveryTicket();
+    setStoredTicket(null);
+    setTicketStatus(null);
+    setTicketCheckFailed(false);
+  };
+
+  // -------------------------------------------------------------------------
   // LOGIN SUBMISSION (server-authoritative pre-check, fail closed)
   // -------------------------------------------------------------------------
 
@@ -556,6 +662,15 @@ export function LoginForm() {
       setCooldownVerified(true);
 
       if (res.accepted && res.requestReference && res.statusCredential) {
+        const ticket: StoredRecoveryTicket = {
+          reference: res.requestReference,
+          credential: res.statusCredential,
+          submittedAt: new Date().toISOString(),
+        };
+        saveRecoveryTicket(ticket);
+        setStoredTicket(ticket);
+        setTicketStatus({ kind: 'PENDING', status: 'RECEIVED', checkedAt: new Date().toISOString() });
+        setTicketCheckFailed(false);
         setAssistedTicket({ reference: res.requestReference, credential: res.statusCredential });
         setStatusRef(res.requestReference);
         setForgotMessage(res.message);
@@ -759,9 +874,87 @@ export function LoginForm() {
           </div>
         </div>
       ) : (
-        /* ------------------------------------------------------------- */
-        /* STANDARD LOGIN FORM                                           */
-        /* ------------------------------------------------------------- */
+        <div className="space-y-5">
+        {/* ------------------------------------------------------------- */}
+        {/* PENDING RECOVERY REQUEST CARD (live admin-review status)      */}
+        {/* ------------------------------------------------------------- */}
+        {storedTicket && ticketStatus && (
+          <div aria-live="polite" className={
+            ticketStatus.kind === 'PENDING'
+              ? 'p-4 rounded-2xl bg-primary/5 dark:bg-primary/10 border border-primary/30 shadow-sm space-y-2.5 animate-in fade-in duration-200'
+              : ticketStatus.kind === 'COMPLETED'
+                ? 'p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/40 shadow-sm space-y-2.5 animate-in fade-in duration-200'
+                : 'p-4 rounded-2xl bg-rose-950/70 border border-rose-500/40 shadow-sm space-y-2.5 animate-in fade-in duration-200'
+          }>
+            <div className="flex items-start gap-3">
+              <div className={
+                ticketStatus.kind === 'PENDING'
+                  ? 'w-9 h-9 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0'
+                  : ticketStatus.kind === 'COMPLETED'
+                    ? 'w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0'
+                    : 'w-9 h-9 rounded-xl bg-rose-500/15 text-rose-400 flex items-center justify-center shrink-0'
+              }>
+                {ticketStatus.kind === 'PENDING' ? (
+                  <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                ) : ticketStatus.kind === 'COMPLETED' ? (
+                  <CheckCircle2 className="w-4.5 h-4.5" />
+                ) : (
+                  <ShieldAlert className="w-4.5 h-4.5" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                {ticketStatus.kind === 'PENDING' ? (
+                  <>
+                    <p className="text-sm font-bold text-foreground flex items-center gap-2 flex-wrap">
+                      Administrators are reviewing your recovery request
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> In Review
+                      </span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed mt-1 break-all">
+                      Reference <span className="font-mono font-bold text-foreground">{storedTicket.reference}</span>
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {ticketCheckFailed
+                        ? 'Status check unavailable — retrying automatically when the connection returns.'
+                        : ticketStatus.checkedAt
+                          ? `Last checked ${new Date(ticketStatus.checkedAt).toLocaleTimeString()}`
+                          : 'Checking status…'}
+                    </p>
+                  </>
+                ) : ticketStatus.kind === 'COMPLETED' ? (
+                  <>
+                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">Your password was reset by an administrator</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed mt-1">
+                      Sign in below with the new password your administrator provided for your account.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-bold text-rose-100">Your recovery request was {ticketStatus.kind === 'REJECTED' ? 'declined' : 'closed'}</p>
+                    <p className="text-[11px] text-rose-200/80 leading-relaxed mt-1 break-words">
+                      {ticketStatus.decisionReason || 'No reason was provided. Contact your administrator through the official channels for next steps.'}
+                    </p>
+                  </>
+                )}
+              </div>
+              {ticketStatus.kind !== 'PENDING' && (
+                <button
+                  type="button"
+                  onClick={dismissTicketCard}
+                  aria-label="Dismiss recovery notice"
+                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 cursor-pointer shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------- */}
+        {/* STANDARD LOGIN FORM                                           */}
+        {/* ------------------------------------------------------------- */}
         <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-5" aria-label="Sign In Form">
           {((authError && !authError.includes('active on another device')) ||
             (sessionLeaseError && !sessionLeaseError.includes('active on another device') && !sessionLeaseError.includes('ACCOUNT IN USE'))) && (
@@ -916,6 +1109,7 @@ export function LoginForm() {
             )}
           </Button>
         </form>
+        </div>
       )}
 
       {/* ------------------------------------------------------------- */}
@@ -963,6 +1157,22 @@ export function LoginForm() {
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     <span>Recovery Ticket Logged</span>
                   </div>
+                  {ticketStatus && (
+                    <div aria-live="polite" className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border w-fit">
+                      {ticketStatus.kind === 'PENDING' ? (
+                        <span className="flex items-center gap-1.5 bg-primary/10 text-primary border-primary/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                          Administrators reviewing
+                        </span>
+                      ) : ticketStatus.kind === 'COMPLETED' ? (
+                        <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">Password reset completed</span>
+                      ) : (
+                        <span className="bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30">
+                          Request {ticketStatus.kind === 'REJECTED' ? 'declined' : 'closed'}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <p className="text-xs text-emerald-200/90 leading-relaxed">
                     Your recovery request is safely recorded. An administrator will verify your identity through the
                     official channels below before any password change is made.
