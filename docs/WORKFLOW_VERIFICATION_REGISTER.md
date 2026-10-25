@@ -40,7 +40,7 @@ Legacy `'USER'` rows are normalized to `'STAFF'` (migration 20261026150000); the
 | 11 | Worksheet structure (ADMIN) | Add Item / Add Station / Delete Table / Reassign / Remove → direct actions (admin-only UI + RLS) | ✅ fixed | direct paths gated `canEditStructure`; RLS: INSERT/DELETE admin on daily tables | `staffChangeRequestsMigrationContract.test.ts` |
 | 12 | Worksheet structure (STAFF) | same actions become **requests** → `submit_staff_change_request` → My Requests panel (realtime + 30s) | ✅ new | StaffRequestModal + MyRequestsPanel + row "Request Reassign/Remove" | `staffChangeRequestsMigrationContract.test.ts` |
 | 13 | Request review (ADMIN) | Settings → Staff Requests tab → review card with requested context → Approve & Apply (in-transaction) / Return / Reject → requester notified | ✅ new | StaffChangeRequestsQueue + RPC; FAILED-not-fake-success | `staffChangeRequestsMigrationContract.test.ts` |
-| 14 | Finalize day | ADMIN: Finalize → immutable + FEFO + snapshot; DB enforces admin (UI now hides for STAFF too) | ✅ fixed | Finalize button admin-gated (desktop + mobile) | `loginLockoutAndRecovery.test.ts` + register smoke |
+| 14 | Finalize day | STAFF/ADMIN: Finalize → immutable + FEFO + snapshot (staff-level action restored by owner decision, 20261026180000); mistakes handled by the corrections flow (row 15) | ✅ fixed | Finalize button restored for all roles; RPC allowlist includes STAFF | `loginLockoutAndRecovery.test.ts` + register smoke |
 | 15 | Finalized corrections | STAFF request → PENDING_ADMIN → admin Approve & Apply / Return / Reject (self-approval blocked) → auto-apply | ✅ verified (unchanged) | — | `roleCleanupAndCorrectionWorkflow.test.ts` |
 | 16 | Reports & exports | ReportsLibrary/ReportView → RLS-scoped queries → client-side PDF/Excel/CSV — available to BOTH roles (read-only output) | ✅ verified | grants heal covers the report queries | suite green + register smoke |
 | 17 | Notifications | per-type RLS visibility → realtime push + 30s refetch → mark-read (own) → click-through `target_id` routes (all resolve to real routes) | ✅ verified | new types target `/settings?tab=requests` (admins) and `/daily-inventory` (requester) | `notificationSecurityIsolation.test.ts` |
@@ -53,7 +53,7 @@ Legacy `'USER'` rows are normalized to `'STAFF'` (migration 20261026150000); the
 ## Manual smoke (10 minutes, after applying both migrations)
 
 1. **STAFF account**: sign in → lands on Daily Inventory; nav shows only Daily Inventory / Reports / Notifications / Settings; typing AM/PM saves with ✓; BEG is read-only; row shows "Request Reassign"/"Request Remove" → submit one, see it in My Requests.
-2. **STAFF blocked**: open `/items` directly → redirected to /daily-inventory; no Finalize button.
+2. **STAFF blocked**: open `/items` directly → redirected to /daily-inventory; **Finalize Day works** (count, finalize, then corrections if wrong).
 3. **STAFF Reports**: open a report, export CSV/PDF — works.
 4. **ADMIN account**: sign in → full nav; Staff Requests tab shows the pending request with the requester + reason; **Approve & Apply** → the change appears in the system instantly; requester's My Requests shows "Approved & applied".
 5. **ADMIN catalog**: Add Item / Update Stock / Edit / Archive all function; dashboard stat cards show real numbers (grants heal verified).

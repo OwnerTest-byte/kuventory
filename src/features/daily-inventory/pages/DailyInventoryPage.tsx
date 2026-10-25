@@ -350,7 +350,7 @@ export function DailyInventoryPage() {
             </Button>
           )}
           
-          {!isFinalized && isAdmin && (
+          {!isFinalized && (
             <Button
               onClick={() => setShowFinalizeDialog(true)}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-xs cursor-pointer"
@@ -359,11 +359,6 @@ export function DailyInventoryPage() {
               <Lock className="w-4 h-4 mr-1.5" />
               Finalize Day
             </Button>
-          )}
-          {!isFinalized && !isAdmin && (
-            <span className="text-[11px] text-muted-foreground italic max-w-45 text-right hidden sm:block">
-              Finalization is performed by an administrator after review.
-            </span>
           )}
         </div>
       </div>
@@ -374,9 +369,11 @@ export function DailyInventoryPage() {
           <ClipboardList className="w-4 h-4 text-primary shrink-0 mt-0.5" />
           <p className="text-[11px] sm:text-xs text-foreground/90 leading-relaxed">
             <span className="font-bold">Your worksheet:</span> fill in <span className="font-semibold">Sales AM / Sales PM</span> and
-            receive deliveries with the <span className="font-semibold">ADD</span> button — these save automatically.
-            Anything else (items, stations, stock counts) is handled by administrators: use the
-            <span className="font-semibold"> Request</span> buttons on any row and track the decision in My Requests below.
+            receive deliveries with the <span className="font-semibold">ADD</span> button — these save automatically. When the
+            count is complete, <span className="font-semibold">Finalize Day</span> locks the sheet; if a mistake surfaces
+            later, submit a correction request and an administrator will review it. For anything structural (items,
+            stations, stock levels), use the <span className="font-semibold">Request</span> buttons on any row — track
+            decisions in My Requests below.
           </p>
         </div>
       )}
@@ -840,7 +837,7 @@ export function DailyInventoryPage() {
             </Button>
           )}
 
-          {!isFinalized && isAdmin && (
+          {!isFinalized && (
             <Button
               size="sm"
               onClick={() => setShowFinalizeDialog(true)}

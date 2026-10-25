@@ -164,7 +164,7 @@ Companion:  Paste-ready AI-maker prompts delivered in the working chat; this
 1. Oval: Start → [STAFF] Rectangle: open today's worksheet (their home page — one per day per branch)
 2. [STAFF] Manual Input: AM usage / PM usage per item → [SYSTEM] Rectangle: autosave DRAFT → Circle-loop through the day. **ADD spinner** (mid-day receiving) → [DATABASE] Cylinder: `receive_daily_inventory_stock` (batch + movement + ledger in one transaction). **BEG is read-only for staff** (server-derived; the guard trigger rejects any staff edit to beginning counts or item/station assignment)
 3. [STAFF] structural needs (reassign table, remove entry, edit item, adjust stock, new station) → **change-request pipeline** (→ Fig 6.1.4 request path; decisions appear in the requester's My Requests panel — which also carries a **Contact an Administrator** button popping up the full admin contact directory) · [ADMIN] performs the same actions directly
-4. [ADMIN] Manual Operation: Finalize (confirmation — human judgment; the button is admin-only on screen and in the database)
+4. [STAFF/ADMIN] Manual Operation: Finalize (confirmation — human judgment; finalization is a staff-level action — the correction-request flow below is the remedy when a finalized sheet turns out wrong)
 5. [DATABASE] Rectangle: status → FINALIZED (immutable; direct edits rejected server-side, not merely hidden)
 6. [SYSTEM] Rectangle: per-item FEFO consumption (into Fig 6.1.4's consume path, same transaction) → [DATABASE] Document: frozen `report_snapshots` → Pentagon → Fig 6.1.6 (finalize event)
 7. CORRECTIONS: [STAFF] Manual Input: correction request (reason + item deltas on a finalized sheet) → [DATABASE] Rectangle: `daily_inventory_correction_requests` = PENDING
@@ -242,7 +242,7 @@ TANIM-verified format (from TANIM-Manuscript-V5-FINAL §6.4): heading, then **Fi
 
 **STAFF set (the 6.4.1-6.4.6 essentials):**
 - 6.4.1 Log In — identifier + password, Remember me; mention the two-stage lockout card and Forgot Password dialog as the security states
-- 6.4.2 Daily Inventory Worksheet (STAFF view) — Sales AM/PM + ADD spinner editable, BEG read-only, Request Change/Reassign/Remove buttons, workflow explainer banner, **My Requests panel with the Contact an Administrator button**, no Finalize button
+- 6.4.2 Daily Inventory Worksheet (STAFF view) — Sales AM/PM + ADD spinner editable, BEG read-only, Request Change/Reassign/Remove buttons, workflow explainer banner, **My Requests panel with the Contact an Administrator button**, Finalize Day available
 - 6.4.3 Staff Request Modal — type-aware fields, required reason, "nothing changes until approved" note
 - 6.4.4 Reports — Low Stock tab with **Request Restock** buttons + Expiry tab (no admin actions), CSV/PDF export
 - 6.4.5 Notifications — staff tier only (floor alerts + own request decisions)
