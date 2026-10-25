@@ -95,6 +95,12 @@ export function LoginLockoutsTab() {
     }
   };
 
+  const formatSeconds = (secs: number) => {
+    const mins = Math.floor(secs / 60);
+    const rem = secs % 60;
+    return `${mins}m ${rem}s`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -189,10 +195,19 @@ export function LoginLockoutsTab() {
                         {acc.failed_attempts} failures
                       </td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
-                          <Clock className="w-3 h-3" />
-                          Admin unlock only
-                        </span>
+                        {acc.verification_required ? (
+                          <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
+                            <Clock className="w-3 h-3" />
+                            Admin unlock only
+                          </span>
+                        ) : acc.locked_until ? (
+                          <span className="inline-flex items-center gap-1 font-mono text-amber-500 font-bold">
+                            <Clock className="w-3 h-3" />
+                            Cooldown {formatSeconds(acc.seconds_remaining)}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground italic">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-[11px]">
                         {acc.last_failed_at ? new Date(acc.last_failed_at).toLocaleTimeString() : '—'}

@@ -186,7 +186,7 @@ Frozen immutable historical records of daily shift inventory balances.
 * `public.system_deployments`: Verified deployment commit history (`commit_sha`, `version`, `deployed_at`).
 * `public.audit_logs`: Immutable security and administrative event ledger (`action`, `entity_name`, `entity_id`, `metadata`).
 * `public.user_session_leases`: Authoritative single-session lease per user (`lease_token`, `device_id`, `claimed_at`, `last_heartbeat_at`, `released_at`); takeover and heartbeat are server-enforced (`renew_session_lease`).
-* `public.account_security_state`: Per-account login lockout state (`failed_attempts`, `locked_until`, `lockout_token_hash`, `last_lockout_at`, `verification_required` — set on the first failed attempt after a lockout expired within 24h, cleared by admin unlock or successful sign-in); RLS denies all client reads — status flows only through typed RPCs.
+* `public.account_security_state`: Per-account login lockout state — **two-stage** (`20261026130000`): the 5th failure writes a 30-minute timed cooldown (`locked_until`, self-releasing), and the first failure after a cooldown within 24h sets `verification_required` (no-timer administrator lockout, cleared by admin unlock or successful sign-in; `last_lockout_at` anchors the 6th-attempt rule); RLS denies all client reads — status flows only through typed RPCs.
 * `public.security_events`: Append-only security audit ledger (`event_type`, `email_masked`, `details`); admin-only SELECT; masked identifiers, never raw.
 * `public.password_reset_requests`: Legacy email-reset request log for real-mailbox accounts (`request_code`, `email`, `status`).
 * `public.account_recovery_requests`: Assisted recovery tickets for mailbox-less `@kuventory.com` identifiers (`request_reference`, `email_lookup`, `status_credential_hash`, `status` RECEIVED → HUMAN_REVIEW/NEEDS_INFORMATION → COMPLETED/REJECTED/EXPIRED).
@@ -226,7 +226,7 @@ Frozen immutable historical records of daily shift inventory balances.
 
 ## 4. Chronological Migration Inventory
 
-The KUVENTORY schema is constructed through **80 sequential migrations** located in `supabase/migrations/`:
+The KUVENTORY schema is constructed through **81 sequential migrations** located in `supabase/migrations/`:
 
 ```
  1. 20260831000000_initial_schema.sql
@@ -309,4 +309,5 @@ The KUVENTORY schema is constructed through **80 sequential migrations** located
 78. 20261025240000_recovery_attempt_state_exact_identifier.sql
 79. 20261026000000_signin_escalation_to_admin_verification.sql
 80. 20261026120000_lockout_admin_unlock_only.sql
+81. 20261026130000_login_two_stage_cooldown_admin_lockout.sql
 ```

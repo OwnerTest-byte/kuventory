@@ -16,6 +16,7 @@ import {
   Loader2,
   ShieldCheck,
   Send,
+  Clock,
   RefreshCw,
   ShieldAlert,
   ArrowLeft,
@@ -34,6 +35,7 @@ import {
 } from '@/components/ui/dialog';
 
 import { claimSessionLease, parseHumanDeviceInfo } from '../services/sessionLeaseService';
+import { AdminContactModal } from '@/components/common/AdminContactModal';
 import { useAuth } from '../context/AuthContext';
 import {
   checkAccountLockout,
@@ -95,6 +97,9 @@ export function LoginForm() {
   const [lockoutEscalation, setLockoutEscalation] = useState(false);
   /** Same escalation state for the recovery dialog (per typed identifier). */
   const [recoveryEscalation, setRecoveryEscalation] = useState(false);
+  /** Shared "Verify with an Administrator" popup (login card + recovery panel). */
+  const [isAdminContactModalOpen, setIsAdminContactModalOpen] = useState(false);
+  const [adminContactReason, setAdminContactReason] = useState('');
   const [lockoutVerifyError, setLockoutVerifyError] = useState<string | null>(null);
   const [isCheckingLockout, setIsCheckingLockout] = useState(false);
 
@@ -212,14 +217,25 @@ export function LoginForm() {
 
       if (res.outcome === 'LOCKED') {
         setLockoutVerifyError(null);
-        // The attempts counter is meaningless once the lockout engages (the
-        // verification card replaces the form); drop any stale value.
+        // The attempts counter is meaningless once the lockout engages (a
+        // card replaces the form); drop any stale value.
         setAttemptsRemaining(null);
-        setLockout(prev => ({
-          lockedUntil: res.lockedUntil ?? null,
-          secondsRemaining: 0,
-          lockoutToken: res.lockoutToken ?? prev?.lockoutToken ?? null,
-        }));
+        if (res.lockedUntil) {
+          // Stage 1: timed cooldown — the rose card counts down from the
+          // authoritative expiry and self-releases when it lapses.
+          setLockout(prev => ({
+            lockedUntil: res.lockedUntil!,
+            secondsRemaining: computeRemainingSeconds(res.lockedUntil, serverClockRef.current),
+            lockoutToken: res.lockoutToken ?? prev?.lockoutToken ?? null,
+          }));
+        } else {
+          // Stage 2 without an expiry: administrator lockout — no timer.
+          setLockout(prev => ({
+            lockedUntil: null,
+            secondsRemaining: 0,
+            lockoutToken: res.lockoutToken ?? prev?.lockoutToken ?? null,
+          }));
+        }
         return;
       }
 
@@ -282,9 +298,28 @@ export function LoginForm() {
     }
   };
 
-  // No per-second countdown: a lock no longer releases by time. The bounded
-  // 10-second poll + focus/online reconcile below are what flip the card back
-  // to the sign-in form the moment an administrator unlocks the account.
+  // Cooldown countdown (stage 1 only): recomputed from the authoritative
+  // expiry every second; at zero the server re-verifies — the card is
+  // cleared only by a confirmed release, never by the local clock. The
+  // stage-2 administrator lockout has no timer (this effect stays idle).
+  useEffect(() => {
+    if (!lockout?.lockedUntil || lockoutEscalation) return;
+
+    const tick = () => {
+      const remaining = computeRemainingSeconds(lockout.lockedUntil, serverClockRef.current);
+      if (remaining <= 0) {
+        clearInterval(timer);
+        setLockout(prev => (prev ? { ...prev, secondsRemaining: 0 } : prev));
+        void pollLockoutStatus();
+        return;
+      }
+      setLockout(prev => (prev && prev.secondsRemaining !== remaining ? { ...prev, secondsRemaining: remaining } : prev));
+    };
+
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [lockout?.lockedUntil, lockoutEscalation, pollLockoutStatus]);
 
   // Bounded polling (~10s) while locked (opaque token) or while the
   // administrator-verification state is active (email fallback poll — this is
@@ -800,11 +835,12 @@ export function LoginForm() {
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* LOCKED = ADMINISTRATOR VERIFICATION. No timer: only an         */}
-      {/* administrator's verified unlock releases the account.          */}
+      {/* TWO-STAGE LOCKOUT: rose cooldown card (timed, self-releasing)  */}
+      {/* then amber administrator-verification card (no timer; popup)   */}
       {/* ------------------------------------------------------------- */}
       {lockout || lockoutEscalation ? (
         <div className="space-y-5 animate-in fade-in zoom-in-95 duration-200">
+          {lockoutEscalation || !lockout?.lockedUntil ? (
           <div
             className="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-500/50 shadow-xl space-y-4 text-center"
             role="alert"
@@ -817,9 +853,9 @@ export function LoginForm() {
             <div className="space-y-1">
               <h3 className="font-bold text-base text-amber-900 dark:text-amber-100">Administrator Verification Required</h3>
               <p className="text-xs text-amber-800 dark:text-amber-200/80 leading-relaxed">
-                Too many failed sign-ins were detected on this account. There is no countdown and waiting will not
-                release it — an administrator must verify your identity and unlock your access. Contact an
-                administrator through the official channels below.
+                Sign-in failed again after the cooldown. There is no countdown and waiting will not release it —
+                an administrator must verify your identity and unlock your access. Contact an administrator
+                through the official channels below.
               </p>
             </div>
 
@@ -835,9 +871,10 @@ export function LoginForm() {
                 type="button"
                 size="sm"
                 onClick={() => {
-                  document
-                    .getElementById('administrator-contacts')
-                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  setAdminContactReason(
+                    'Sign-in failed again after the cooldown. An administrator must verify your identity before your access can be restored.'
+                  );
+                  setIsAdminContactModalOpen(true);
                 }}
                 className="w-full h-9 text-xs rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold"
               >
@@ -867,6 +904,68 @@ export function LoginForm() {
               </p>
             </div>
           </div>
+          ) : (
+          <div className="p-5 rounded-2xl bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-500/50 shadow-xl space-y-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 mx-auto flex items-center justify-center">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="font-bold text-base text-rose-900 dark:text-rose-100">Sign-In Temporarily Paused</h3>
+              <p className="text-xs text-rose-700 dark:text-rose-200/80">
+                5 consecutive failed login attempts. Wait out the cooldown below, then try again — if the next
+                attempt fails, administrator verification will be required.
+              </p>
+            </div>
+
+            {/* Cooldown Display — derived from the database locked_until timestamp */}
+            <div className="p-3.5 rounded-xl bg-rose-100/70 dark:bg-black/40 border border-rose-200 dark:border-rose-500/30 flex flex-col items-center justify-center space-y-1">
+              <span className="text-[10px] uppercase font-bold tracking-widest text-rose-600 dark:text-rose-300 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" /> Cooldown
+              </span>
+              <span
+                className="font-mono text-3xl font-black text-rose-950 dark:text-white tracking-wider tabular-nums"
+                aria-live="polite"
+                role="timer"
+              >
+                {formatTimer(lockout?.secondsRemaining || 0)}
+              </span>
+              <span className="text-[10px] text-rose-600/80 dark:text-rose-300/70">
+                Synced with database security ledger
+              </span>
+            </div>
+
+            {lockoutVerifyError && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left flex items-start gap-2" role="alert">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+                <span className="text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed">{lockoutVerifyError}</span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="space-y-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isCheckingLockout}
+                onClick={handleManualCheckLockout}
+                className="w-full h-9 text-xs rounded-xl border-rose-300 dark:border-rose-500/30 text-rose-700 dark:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-900/40 dark:hover:text-white"
+              >
+                {isCheckingLockout ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                Check Lockout Status Now
+              </Button>
+
+              <p className="text-[11px] text-rose-600/80 dark:text-rose-300/60 italic">
+                The cooldown releases automatically when it ends — no administrator needed yet.
+              </p>
+            </div>
+          </div>
+          )}
 
           {/* Administrator Contact Directory (shared with the recovery dialog) */}
           <div id="administrator-contacts" className="p-4 rounded-xl bg-card border border-border/80 shadow-sm space-y-3 scroll-mt-4">
@@ -1261,9 +1360,10 @@ export function LoginForm() {
                     type="button"
                     size="sm"
                     onClick={() => {
-                      document
-                        .getElementById('recovery-admin-contacts')
-                        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      setAdminContactReason(
+                        'You have repeatedly entered identifiers that do not match an account. An administrator must verify your identity and confirm your correct login identifier.'
+                      );
+                      setIsAdminContactModalOpen(true);
                     }}
                     className="h-9 text-xs rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold"
                   >
@@ -1487,6 +1587,15 @@ export function LoginForm() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Shared "Verify with an Administrator" popup — one component for the
+          login verification card and the recovery contact-admin panel. */}
+      <AdminContactModal
+        open={isAdminContactModalOpen}
+        onOpenChange={setIsAdminContactModalOpen}
+        contacts={supportContacts}
+        reason={adminContactReason}
+      />
     </div>
   );
 }

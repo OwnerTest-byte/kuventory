@@ -284,61 +284,7 @@ describe('LoginForm assisted recovery workflow (component behavior)', () => {
 });
 
 describe('LoginForm login lockout behavior (component behavior)', () => {
-  it('locks on the 5th failure with NO countdown — waiting never releases it; a failed status check keeps the card', async () => {
-    let tokenChecks = 0;
-    mockRpc({
-      check_account_lockout: async () => ({
-        data: { status: 'UNLOCKED', is_locked: false, failed_attempts: 0, server_now: iso(0) },
-        error: null,
-      }),
-      record_failed_login_attempt: async () => ({
-        data: {
-          status: 'LOCKED',
-          is_locked: true,
-          failed_attempts: 5,
-          locked_until: null,
-          seconds_remaining: 0,
-          lockout_token: 'opaque-token-1',
-          escalation_required: false,
-          server_now: iso(0),
-          message: 'Account is locked until an administrator verifies your identity and unlocks it.',
-        },
-        error: null,
-      }),
-      check_lockout_status_by_token: async () => {
-        tokenChecks += 1;
-        return { data: null, error: { message: 'connection refused' } };
-      },
-    });
-    vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
-      data: { session: null },
-      error: { message: 'Invalid login credentials' },
-    } as any);
-
-    renderForm();
-    await submitLogin('staff@kuventory.com', 'wrongpass');
-
-    // Verification card replaces the form — and there is NO timer anywhere.
-    expect(screen.getByText('Administrator Verification Required')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /verify with an administrator/i })).toBeInTheDocument();
-    expect(screen.queryByRole('timer')).toBeNull();
-    expect(screen.getByText(/no countdown and waiting will not release it/i)).toBeInTheDocument();
-
-    // Half an hour later the card is still there: time does not release it.
-    await act(async () => {
-      vi.advanceTimersByTime(30 * 60_000);
-    });
-    await flush();
-
-    // The bounded 10s poll ran; the unreachable server must NOT clear the card.
-    expect(tokenChecks).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Administrator Verification Required')).toBeInTheDocument();
-    expect(
-      screen.getAllByRole('alert').some(a => a.textContent?.includes('could not verify your lockout status'))
-    ).toBe(true);
-  });
-
-  it('leaves the locked state only on a server-confirmed release — never by time', async () => {
+  it('stage 1: the 5th failure starts a 30-minute cooldown — the rose card ticks down and self-releases on a confirmed EXPIRED', async () => {
     let released = false;
     mockRpc({
       check_account_lockout: async () => ({
@@ -350,9 +296,9 @@ describe('LoginForm login lockout behavior (component behavior)', () => {
           status: 'LOCKED',
           is_locked: true,
           failed_attempts: 5,
-          locked_until: null,
-          seconds_remaining: 0,
-          lockout_token: 'opaque-token-2',
+          locked_until: iso(1_800_000),
+          seconds_remaining: 1800,
+          lockout_token: 'opaque-token-1',
           escalation_required: false,
           server_now: iso(0),
         },
@@ -360,9 +306,9 @@ describe('LoginForm login lockout behavior (component behavior)', () => {
       }),
       check_lockout_status_by_token: async () => {
         if (released) {
-          return { data: { status: 'ADMIN_UNLOCKED', is_locked: false, was_unlocked: true, token_valid: true, server_now: iso(300_000) }, error: null };
+          return { data: { status: 'EXPIRED', is_locked: false, was_unlocked: false, token_valid: true, server_now: iso(1_800_000) }, error: null };
         }
-        return { data: { status: 'LOCKED', is_locked: true, token_valid: true, locked_until: null, seconds_remaining: 0, server_now: iso(0) }, error: null };
+        return { data: null, error: { message: 'connection refused' } };
       },
     });
     vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
@@ -372,25 +318,152 @@ describe('LoginForm login lockout behavior (component behavior)', () => {
 
     renderForm();
     await submitLogin('staff@kuventory.com', 'wrongpass');
-    expect(screen.getByText('Administrator Verification Required')).toBeInTheDocument();
 
-    // Time passes: still locked (no countdown to hit zero, no auto-release).
+    // Rose cooldown card with the authoritative 30-minute countdown.
+    expect(screen.getByText(/sign-in temporarily paused/i)).toBeInTheDocument();
+    expect(screen.getByRole('timer')).toHaveTextContent('30:00');
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.getByRole('timer')).toHaveTextContent('29:59');
+
+    // A failed status check must NOT clear the card.
     await act(async () => {
-      vi.advanceTimersByTime(45 * 60_000);
+      vi.advanceTimersByTime(5 * 60_000);
     });
     await flush();
-    expect(screen.getByText('Administrator Verification Required')).toBeInTheDocument();
+    expect(screen.getByText(/sign-in temporarily paused/i)).toBeInTheDocument();
 
-    // The administrator unlocks: the next poll clears the card automatically.
+    // Cooldown lapses: the poll confirms EXPIRED and the form self-releases.
     released = true;
     await act(async () => {
-      vi.advanceTimersByTime(10_000);
+      vi.advanceTimersByTime(25 * 60_000);
     });
     await flush();
 
-    expect(screen.queryByText(/Administrator Verification Required/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/unlocked by an administrator/i)).toBeInTheDocument();
+    expect(screen.queryByText(/sign-in temporarily paused/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText('Sign In Form')).toBeInTheDocument();
+    expect(screen.queryByText('Administrator Verification Required')).toBeNull();
+  });
+
+  it('stage 2: the 6th failure after the cooldown shows the administrator card with NO timer', async () => {
+    mockRpc({
+      check_account_lockout: async () => ({
+        data: { status: 'UNLOCKED', is_locked: false, failed_attempts: 0, server_now: iso(0) },
+        error: null,
+      }),
+      record_failed_login_attempt: async () => ({
+        data: {
+          status: 'UNLOCKED',
+          is_locked: false,
+          failed_attempts: 1,
+          locked_until: null,
+          seconds_remaining: 0,
+          escalation_required: true,
+          server_now: iso(1_800_000),
+          message: 'Administrator verification required. Contact an administrator through the official support channels to verify your identity.',
+        },
+        error: null,
+      }),
+    });
+    vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
+      data: { session: null },
+      error: { message: 'Invalid login credentials' },
+    } as any);
+
+    renderForm();
+    await submitLogin('staff@kuventory.com', 'wrongpass');
+
+    expect(screen.getByText('Administrator Verification Required')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /verify with an administrator/i })).toBeInTheDocument();
+    expect(screen.queryByRole('timer')).toBeNull();
+    expect(screen.queryByText(/sign-in temporarily paused/i)).toBeNull();
+  });
+
+  it('the Verify with an Administrator button opens the contact pop-up (login card)', async () => {
+    const { fetchPublicSupportContacts } = await import('@/features/admin/services/profileService');
+    vi.mocked(fetchPublicSupportContacts).mockResolvedValue([
+      {
+        display_name: 'Admin One',
+        job_title: 'Branch Administrator',
+        support_phone: '09171234567',
+        support_email: null,
+        avatar_url: null,
+        role: 'ADMIN',
+        links: [],
+      },
+    ] as any);
+
+    mockRpc({
+      check_account_lockout: async () => ({
+        data: {
+          status: 'UNLOCKED',
+          is_locked: false,
+          failed_attempts: 0,
+          escalation_required: true,
+          server_now: iso(0),
+        },
+        error: null,
+      }),
+    });
+
+    renderForm();
+    await submitLogin('staff@kuventory.com', 'wrongpass');
+
+    expect(screen.getByText('Administrator Verification Required')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /verify with an administrator/i }));
+    await flush();
+
+    // The popup names the reason and shows where to contact (the dialog body).
+    expect(screen.getByText(/must verify your identity before your access can be restored/i)).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeTruthy();
+    expect(dialog.textContent).toContain('09171234567');
+  });
+
+  it('the recovery contact-admin panel opens the same contact pop-up', async () => {
+    const { fetchPublicSupportContacts } = await import('@/features/admin/services/profileService');
+    vi.mocked(fetchPublicSupportContacts).mockResolvedValue([
+      {
+        display_name: 'Admin One',
+        job_title: 'Branch Administrator',
+        support_phone: '09170000000',
+        support_email: null,
+        avatar_url: null,
+        role: 'ADMIN',
+        links: [],
+      },
+    ] as any);
+
+    mockRpc({
+      submit_assisted_recovery_request: async () => ({
+        data: {
+          accepted: false,
+          escalation_required: true,
+          server_now: iso(0),
+          next_allowed_at: iso(3_600_000),
+          seconds_remaining: 3600,
+          message: 'Contact an administrator to verify your identity and confirm your correct login identifier.',
+        },
+        error: null,
+      }),
+    });
+
+    renderForm();
+    await openRecoveryModal();
+    await fillAndSubmitRecovery('ghost.user@kuventory.com');
+    await flush();
+
+    expect(screen.getAllByText('Contact an Administrator').length).toBeGreaterThan(0); // panel heading
+    fireEvent.click(screen.getByRole('button', { name: /verify with an administrator/i }));
+    await flush();
+
+    // Popup content: identifier-context reason + the directory contact. The
+    // recovery modal is also a dialog — pick the contact popup among them.
+    const dialogs = screen.getAllByRole('dialog');
+    const contactPopup = dialogs.find(d => d.textContent?.includes('09170000000'));
+    expect(contactPopup).toBeTruthy();
+    expect(contactPopup!.textContent).toContain('verify your identity and confirm your correct login identifier');
   });
 
   it('clears the verification card after a confirmed administrative unlock via token polling', async () => {

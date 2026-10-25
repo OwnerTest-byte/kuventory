@@ -29,7 +29,7 @@ Companion:  Paste-ready AI-maker prompts delivered in the working chat; this
 
 - **Lanes:** STAFF · ADMIN · SUPER ADMIN (maintenance/dev team — never an operational approver) · SYSTEM · DATABASE.
 - **Symbols (ANSI X3.5 / ISO 5807):** oval terminator · rectangle process · diamond decision (ONLY real server-enforced questions, ≥2 labeled exits) · parallelogram I/O · manual-input shape (user-entered data) · manual-operation trapezoid (human judgment: identity verification, physical counting) · document wavy-bottom (exports, one-time credential, tickets) · database cylinder (Supabase tables/RPCs) · preparation hexagon · D-shape delay (server-owned waits only) · display shape · circle on-page connector (loops/phase joins) · pentagon off-page connector (cross-chart links, labeled with target figure).
-- **Honesty rules:** every diamond is a real server-enforced gate; fail-closed branches drawn explicitly (UNKNOWN states, RLS-invisible events, transport errors); delays only where the server owns the clock (2-min cooldowns). A login lockout has NO timer — release is administrator-unlock-only.
+- **Honesty rules:** every diamond is a real server-enforced gate; fail-closed branches drawn explicitly (UNKNOWN states, RLS-invisible events, transport errors); delays only where the server owns the clock (30-min login cooldown, 2-min recovery cooldowns). Stage 2 of the login lockout has NO timer — release is administrator-unlock-only.
 
 ---
 
@@ -67,15 +67,16 @@ Companion:  Paste-ready AI-maker prompts delivered in the working chat; this
 2. [STAFF] Manual Input: login identifier + password + "Remember me on this device" checkbox
 3. [DATABASE] Cylinder: `check_account_lockout` — typed contract LOCKED / UNLOCKED / EXPIRED / ADMIN_UNLOCKED / NOT_FOUND / STATUS_UNKNOWN + server_now
 4. [SYSTEM] Diamond: Locked?
-   - Yes → Display: Administrator Verification card (no timer — locked is released by administrator unlock only), reconciled every 10 s via `check_lockout_status_by_token` (opaque token, sha256-stored) + focus/online; support contact directory shown (data link ← Fig 6.1.3); Pentagon ← Fig 6.1.8 (admin unlock clears within one poll) → Circle-loop → node 2
+   - Yes → Display: two-stage card — rose cooldown with live countdown (stage 1, self-releasing) or amber Administrator Verification card (stage 2, no timer, popup), reconciled every 10 s via `check_lockout_status_by_token` (opaque token, sha256-stored) + focus/online; support contact directory shown (data link ← Fig 6.1.3); Pentagon ← Fig 6.1.8 (admin unlock clears stage 2 within one poll) → Circle-loop → node 2
    - STATUS_UNKNOWN (transport) → fail-closed: treated as not-unlocked, retry — never guessed
    - No → node 5
 5. [SYSTEM] Rectangle: Sign-in attempt (`signInWithPassword`)
 6. [SYSTEM] Diamond: Credentials valid?
    - No → [DATABASE] Cylinder: `record_failed_login_attempt` → Diamond: 5 failures within 15 min?
-     - **Yes** → [DATABASE] Rectangle: lock — **no countdown, no time expiry** (locked_until NULL; released only by an administrator's verified unlock) → **Administrator Verification card replaces the sign-in form**: "Verify with an Administrator" CTA + contact directory; the 10-second poll flips the form back the moment an admin unlocks (Pentagon ↔ Fig 6.1.8 badge)
+     - **Yes** → [DATABASE] Rectangle: 30-minute COOLDOWN (stage 1 — timed, self-releasing; opaque token, `last_lockout_at` recorded) → **Rose "Sign-In Temporarily Paused" card with live countdown** → cooldown expires → server-confirmed EXPIRED → form returns automatically (no admin needed)
      - **No** → Display: single-source note "N attempt(s) remaining before the account locks automatically" (server-returned, never locally decremented) → Circle-loop → node 2
    - Yes → Circle Ⓐ
+6b. **6th attempt (first failure after a cooldown within 24h)** → [DATABASE] Rectangle: `verification_required = true` → **Amber "Administrator Verification Required" card (NO timer)** → **"Verify with an Administrator" button opens the shared contact POP-UP** (why + one card per admin: call/email/link) → cleared only by admin unlock (`unlock_account`) or a successful sign-in → the poll flips the form back automatically (Pentagon ↔ Fig 6.1.8 badge)
 
 ### Phase 2 — Session (at Ⓐ)
 7. [SYSTEM] Hexagon (Preparation): Remember-me flag settled BEFORE sign-in — checked → token in localStorage (persists restarts); unchecked → token in sessionStorage (dies with browser close)
