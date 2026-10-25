@@ -144,11 +144,13 @@ Companion:  Paste-ready AI-maker prompts delivered in the working chat; this
 
 **Lanes:** STAFF · ADMIN · SYSTEM · DATABASE
 
-1. Oval: Start → Diamond: Action?
-2. ADD ITEM → [STAFF/ADMIN] Manual Input: name, category, supplier, unit, threshold, initial batch (qty + expiry) → [DATABASE] Rectangle: atomic item + initial stock batch in ONE transaction (no orphaned items, no phantom stock)
+1. Oval: Start → Diamond: **Who is acting?**
+   - **STAFF** → the catalog is admin territory: STAFF work from the daily worksheet (Fig 6.1.5) and every structural change goes to the **change-request pipeline** — [STAFF] Manual Input: request (ADD_ITEM / EDIT_ITEM / ARCHIVE_ITEM / ADJUST_STOCK / REASSIGN_TABLE / ADD_CATEGORY / REMOVE_FROM_SHEET, with reason) → [DATABASE] Rectangle: `submit_staff_change_request` = PENDING + admins notified (→ Fig 6.1.8 review) → the approval auto-applies back into this chart
+   - **ADMIN / SUPER ADMIN** → direct execution below
+2. ADD ITEM → [ADMIN] Manual Input: name, category, supplier, unit, threshold, initial batch (qty + expiry) → [DATABASE] Rectangle: atomic item + initial stock batch in ONE transaction (no orphaned items, no phantom stock). *Approved staff ADD_ITEM requests enter here server-side and sync into today's worksheet.*
 3. STOCK IN → Manual Input: batch quantity, expiry, supplier → [DATABASE] Cylinder: create `stock_batches` row (active)
 4. CONSUME → Manual Input: quantity + reason → [DATABASE] Cylinder: `consume_stock` — locks batches FOR UPDATE, deducts earliest-expiring first (FEFO), expired batches excluded, concurrent requests serialized → Diamond: batch depleted? → Yes → archive · No → keep active
-5. ADJUST → [ADMIN] Manual Operation: verify physical count → [DATABASE] Rectangle: adjustment with mandatory reason
+5. ADJUST → [ADMIN] Manual Operation: verify physical count → [DATABASE] Rectangle: adjustment with mandatory reason. *Approved staff ADJUST_STOCK requests enter here FEFO-aware with the requested target.*
 6. All paths → [DATABASE] Cylinder: append `stock_movements` audit record (type, quantity, actor, reason, timestamp — append-only)
 7. Diamond: below threshold OR expiring? → Yes → Pentagon → Fig 6.1.6 (low-stock/expiry alert; expiry also found by scheduled `check_expiry_notifications` with dedup keys) · No → continue
 8. [DATABASE] Pentagon: stock data feeds Fig 6.1.5 (worksheet basis) and Fig 6.1.7 (reports) → Oval: End
@@ -159,16 +161,17 @@ Companion:  Paste-ready AI-maker prompts delivered in the working chat; this
 
 **Lanes:** STAFF · ADMIN · SUPER ADMIN · SYSTEM · DATABASE
 
-1. Oval: Start → [STAFF] Rectangle: open today's worksheet (one per day per branch)
-2. [STAFF] Manual Input: AM usage / PM usage per item → [SYSTEM] Rectangle: autosave DRAFT → Circle-loop through the day
-3. [ADMIN] Manual Operation: Finalize (confirmation — human judgment)
-4. [DATABASE] Rectangle: status → FINALIZED (immutable; direct edits rejected server-side, not merely hidden)
-5. [SYSTEM] Rectangle: per-item FEFO consumption (into Fig 6.1.4's consume path, same transaction) → [DATABASE] Document: frozen `report_snapshots` → Pentagon → Fig 6.1.6 (finalize event)
-6. CORRECTIONS: [STAFF] Manual Input: correction request (reason + item deltas on a finalized sheet) → [DATABASE] Rectangle: `daily_inventory_correction_requests` = PENDING
-7. [ADMIN] Rectangle: review (two-stage; ADMIN-ONLY approval — super admin is the maintenance/dev team, deliberately not an operational approver) → Diamond: Approved?
+1. Oval: Start → [STAFF] Rectangle: open today's worksheet (their home page — one per day per branch)
+2. [STAFF] Manual Input: AM usage / PM usage per item → [SYSTEM] Rectangle: autosave DRAFT → Circle-loop through the day. **ADD spinner** (mid-day receiving) → [DATABASE] Cylinder: `receive_daily_inventory_stock` (batch + movement + ledger in one transaction). **BEG is read-only for staff** (server-derived; the guard trigger rejects any staff edit to beginning counts or item/station assignment)
+3. [STAFF] structural needs (reassign table, remove entry, edit item, adjust stock, new station) → **change-request pipeline** (→ Fig 6.1.4 request path; decisions appear in the requester's My Requests panel) · [ADMIN] performs the same actions directly
+4. [ADMIN] Manual Operation: Finalize (confirmation — human judgment; the button is admin-only on screen and in the database)
+5. [DATABASE] Rectangle: status → FINALIZED (immutable; direct edits rejected server-side, not merely hidden)
+6. [SYSTEM] Rectangle: per-item FEFO consumption (into Fig 6.1.4's consume path, same transaction) → [DATABASE] Document: frozen `report_snapshots` → Pentagon → Fig 6.1.6 (finalize event)
+7. CORRECTIONS: [STAFF] Manual Input: correction request (reason + item deltas on a finalized sheet) → [DATABASE] Rectangle: `daily_inventory_correction_requests` = PENDING
+8. [ADMIN] Rectangle: review (two-stage; ADMIN-ONLY approval — super admin is the maintenance/dev team, deliberately not an operational approver) → Diamond: Approved?
    - No → rejected with reason → requester notified (→ Fig 6.1.6)
    - Yes → [DATABASE] Cylinder: `apply_approved_daily_inventory_correction` — ONE atomic transaction: FEFO adjustments + `daily_inventory_revisions` record + revision number increment; any failure rolls the whole correction back → Pentagon → Fig 6.1.4 (reconciliation)
-8. EXCEPTION: [SUPER ADMIN] Pentagon ← Fig 6.1.8: force-override a finalized sheet (maintenance escape hatch only) → [DATABASE] Rectangle: audit log → Oval: End
+9. EXCEPTION: [SUPER ADMIN] Pentagon ← Fig 6.1.8: force-override a finalized sheet (maintenance escape hatch only) → [DATABASE] Rectangle: audit log → Oval: End
 
 ---
 
@@ -206,20 +209,24 @@ Companion:  Paste-ready AI-maker prompts delivered in the working chat; this
 **Lanes:** ADMIN · SUPER ADMIN · SYSTEM · DATABASE
 
 ### ADMIN lane
-1. [ADMIN] Manual Input: create user account → Diamond: Admin quota (max 3) reached? → Yes → blocked with message · No → [DATABASE] Rectangle: provision auth account + profile row
-2. [ADMIN] Rectangle: role hierarchy enforced — SUPER ADMIN > ADMIN > STAFF; legacy MASTER_ADMIN retired; roles live only in `profiles`
-3. [ADMIN] Rectangle: configure low-stock thresholds per item
-4. [ADMIN] Rectangle: change own password (verified against current)
-5. [ADMIN] Manual Operation: early unlock of a locked account — written reason required → [DATABASE] Cylinder: `unlock_account` → Pentagon → Fig 6.1.2 (lockout card clears within its 10-second poll; unlock audited)
+1. [ADMIN] Manual Input: create user account → Diamond: Admin quota (max 3) reached? → Yes → blocked with message · No → [DATABASE] Rectangle: provision auth account + profile row (role STAFF or ADMIN; SUPER_ADMIN creation requires a super)
+2. [ADMIN] Rectangle: role hierarchy enforced — SUPER ADMIN > ADMIN > STAFF (strict three-role model; legacy MASTER_ADMIN and USER are retired/normalized); roles live only in `profiles`
+3. **[ADMIN] Rectangle: Staff Requests review queue** (Settings → Staff Requests tab, realtime Live/Polling) → review card per request (requester, reason, requested values) → Diamond: decision?
+   - **Approve & Apply** → [DATABASE] Cylinder: `review_staff_change_request` executes the change SERVER-SIDE in one transaction (item + initial stock created & synced into today's worksheet / whitelisted edit / FEFO-aware adjust / station move / station created / worksheet row removed) → requester notified, decision appears in their My Requests panel (Pentagon ↔ Fig 6.1.5/6.1.4)
+   - **Return** (notes required) → back to the staff member as "needs changes" · **Reject** (notes required) → closed with the honest reason
+   - An apply failure marks the request FAILED — never a fake success
+4. [ADMIN] Rectangle: configure low-stock thresholds per item
+5. [ADMIN] Rectangle: change own password (verified against current)
+6. [ADMIN] Manual Operation: early unlock of a locked account — written reason required → [DATABASE] Cylinder: `unlock_account` → Pentagon → Fig 6.1.2 (lockout card clears within its 10-second poll; unlock audited)
 
 ### SUPER ADMIN lane (maintenance/development team — never an operational approver)
-6. [SUPER] Rectangle: maintenance lockdown lifecycle — enable (system_settings flag) → Pentagon → Fig 6.1.1 (entry blocked for non-supers; supers keep access) → maintenance → disable → system reopens
-7. [SUPER] Rectangle: finalized-sheet force override → Pentagon → Fig 6.1.5 exception branch (audited)
-8. [SUPER] Rectangle: revoke any user's session → Pentagon → Fig 6.1.2 (device terminates on next heartbeat/listener tick)
-9. [SUPER] Rectangle: recovery checkpoints (`recovery_points`, integrity-verified) + diagnostics (drift analysis, policy inspection)
+7. [SUPER] Rectangle: maintenance lockdown lifecycle — enable (system_settings flag) → Pentagon → Fig 6.1.1 (entry blocked for non-supers; supers keep access) → maintenance → disable → system reopens
+8. [SUPER] Rectangle: finalized-sheet force override → Pentagon → Fig 6.1.5 exception branch (audited)
+9. [SUPER] Rectangle: revoke any user's session → Pentagon → Fig 6.1.2 (device terminates on next heartbeat/listener tick)
+10. [SUPER] Rectangle: recovery checkpoints (`recovery_points`, integrity-verified) + diagnostics (drift analysis, policy inspection, `inspect_authenticated_grants`)
 
 ### Merge
-10. Both lanes → [DATABASE] Cylinder: append-only `audit_logs` + `security_events` (masked, immutable trace of every action) → Oval: End
+11. Both lanes → [DATABASE] Cylinder: append-only `audit_logs` + `security_events` (masked, immutable trace of every action) → Oval: End
 
 ---
 
@@ -232,7 +239,7 @@ STAFF / ADMIN / SUPER_ADMIN are the only roles. STAFF work the daily worksheet (
 - **6.1.1 (hub)** → 6.1.2 (no session) · → 6.1.3/6.1.4/6.1.5/6.1.6/6.1.7 (module entries) · → 6.1.8 (ADMIN/SUPER); lockdown gate in 6.1.8 blocks 6.1.1 entry for non-supers
 - **6.1.2** ↔ 6.1.1 (auth success → routing) · → 6.1.3 ("Forgot password?") · ← 6.1.8 (early unlock ~10 s; session revocation) · 6.1.3's directory displayed on its lockout card (data link)
 - **6.1.3** → 6.1.6 (ticket creates admin notification) · ← 6.1.6 (admin opens review queue from notification) · → 6.1.2 (COMPLETED → sign in with admin-provided password)
-- **6.1.4** → 6.1.6 (threshold/expiry events) · → 6.1.7 + 6.1.5 (data reads) · ← 6.1.5 (correction apply writes stock back) · ← 6.1.6 (click-through)
+- **6.1.4** → 6.1.6 (threshold/expiry events) · → 6.1.7 + 6.1.5 (data reads) · ← 6.1.5 (correction apply writes stock back) · ← 6.1.8 (staff request approvals enter here server-side) · ← 6.1.6 (click-through)
 - **6.1.5** → 6.1.6 (finalize/correction events) · → 6.1.4 (reconciliation) · → 6.1.7 (snapshots) · ← 6.1.8 (force override exception)
 - **6.1.6** ← events from 6.1.3/6.1.4/6.1.5/6.1.8 · → one-click routing back into each source
 - **6.1.7** terminal (Document exports)
