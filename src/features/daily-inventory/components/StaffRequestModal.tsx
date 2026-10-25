@@ -76,6 +76,12 @@ export function StaffRequestModal({ open, onOpenChange, requestType, context = {
   const typeLabel = STAFF_REQUEST_TYPE_LABELS[requestType];
 
   const buildPayload = useMemo((): Record<string, any> => {
+    const base = {
+      // Human-readable context for the admin review cards (the RPC validates
+      // the ids; names travel for display only).
+      item_id: context.itemId,
+      item_name: context.itemName,
+    };
     switch (requestType) {
       case 'ADD_ITEM':
         return {
@@ -88,31 +94,41 @@ export function StaffRequestModal({ open, onOpenChange, requestType, context = {
         };
       case 'EDIT_ITEM':
         return {
-          item_id: context.itemId,
+          ...base,
           changes: {
-            ...(changes.name?.trim() ? { name: changes.name.trim() } : {}),
-            ...(changes.unit?.trim() ? { unit: changes.unit.trim() } : {}),
-            ...(changes.minQuantity !== undefined ? { min_quantity: Number(changes.minQuantity) || 0 } : {}),
+            ...(changes.name?.trim() && changes.name.trim() !== context.itemName ? { name: changes.name.trim() } : {}),
+            ...(changes.unit?.trim() && changes.unit.trim() !== context.unit ? { unit: changes.unit.trim() } : {}),
+            ...(changes.minQuantity !== undefined && Number(changes.minQuantity) !== Number(context.minQuantity ?? 0)
+              ? { min_quantity: Number(changes.minQuantity) || 0 }
+              : {}),
           },
         };
       case 'ARCHIVE_ITEM':
-        return { item_id: context.itemId };
+        return base;
       case 'ADJUST_STOCK':
         return {
-          item_id: context.itemId,
+          ...base,
           target_quantity: Number(targetQuantity) || 0,
+          current_quantity: context.currentQuantity,
           reason: reason.trim(),
         };
-      case 'REASSIGN_TABLE':
-        return { item_id: context.itemId, target_category_id: targetCategoryId || null };
+      case 'REASSIGN_TABLE': {
+        const target = (context.categories || []).find(c => c.id === targetCategoryId);
+        return {
+          ...base,
+          target_category_id: targetCategoryId || null,
+          target_category_name: target?.name,
+          current_category_name: context.currentCategoryName,
+        };
+      }
       case 'ADD_CATEGORY':
         return { name: name.trim() };
       case 'REMOVE_FROM_SHEET':
-        return { daily_inventory_item_id: context.dailyInventoryItemId, item_id: context.itemId };
+        return { daily_inventory_item_id: context.dailyInventoryItemId, ...base };
       default:
         return {};
     }
-  }, [requestType, name, unit, categoryId, initialQuantity, expiryDate, minQuantity, changes, targetQuantity, targetCategoryId, context]);
+  }, [requestType, name, unit, categoryId, initialQuantity, expiryDate, minQuantity, changes, targetQuantity, targetCategoryId, context, reason]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

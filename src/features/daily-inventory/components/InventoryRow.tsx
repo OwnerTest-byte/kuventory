@@ -3,7 +3,7 @@ import type { DailyInventorySessionWithEntries } from '../api';
 import { useUpsertDailyItem } from '../hooks/useDailyInventory';
 import { AddStockModal } from './AddStockModal';
 import { TableRow, TableCell } from '@/components/ui/table';
-import { PlusCircle, ArrowRightLeft, Trash2 } from 'lucide-react';
+import { PlusCircle, ArrowRightLeft, Trash2, ClipboardList } from 'lucide-react';
 
 type DailyEntry = DailyInventorySessionWithEntries['daily_inventory_entries'][0];
 
@@ -18,6 +18,8 @@ interface InventoryRowProps {
   canEditStructure?: boolean;
   onReassign?: (item: DailyEntry) => void;
   onRemoveFromSheet?: (item: DailyEntry) => void;
+  /** STAFF-only: opens the Edit/Adjust/Archive request chooser. */
+  onRequestChange?: (item: DailyEntry) => void;
 }
 
 export const InventoryRow = memo(function InventoryRow({
@@ -28,7 +30,8 @@ export const InventoryRow = memo(function InventoryRow({
   isCorrectionMode,
   canEditStructure = true,
   onReassign,
-  onRemoveFromSheet
+  onRemoveFromSheet,
+  onRequestChange
 }: InventoryRowProps) {
   const [beg, setBeg] = useState(item.beginning_qty.toString());
   const [add, setAdd] = useState(item.add_qty.toString());
@@ -192,6 +195,17 @@ export const InventoryRow = memo(function InventoryRow({
               >
                 <span>⚠️</span> INVALID
               </span>
+            )}
+            {onRequestChange && !canEditStructure && (
+              <button
+                type="button"
+                onClick={() => onRequestChange(item)}
+                className="text-[10px] text-amber-600 hover:underline font-semibold flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                title="Request an edit, stock adjustment, or archive for this item (admin review required)"
+              >
+                <ClipboardList className="w-2.5 h-2.5" />
+                Request Change
+              </button>
             )}
             {onReassign && (
               <button

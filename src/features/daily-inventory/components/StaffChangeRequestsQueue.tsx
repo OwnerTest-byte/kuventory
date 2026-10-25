@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ClipboardList, Eye, Loader2, CheckCircle2, RotateCcw, XCircle, ArrowRight } from 'lucide-react';
+import { ClipboardList, Eye, Loader2, CheckCircle2, RotateCcw, XCircle } from 'lucide-react';
 import {
   fetchStaffChangeRequests,
   reviewStaffChangeRequest,
@@ -105,11 +105,13 @@ export function StaffChangeRequestsQueue() {
       {/* Requested payload, human-readable per type */}
       <div className="p-3 rounded-xl bg-card border border-border/70 space-y-1.5">
         <span className="text-[10px] font-bold uppercase text-muted-foreground">Requested change</span>
+        {req.payload?.item_name && (
+          <p className="text-xs font-semibold text-foreground">Item: {String(req.payload.item_name)}</p>
+        )}
         {req.request_type === 'ADD_ITEM' && (
           <ul className="text-xs text-foreground space-y-0.5">
             <li><strong>Name:</strong> {String(req.payload?.name ?? '—')}</li>
             <li><strong>Unit:</strong> {String(req.payload?.unit ?? '—')}</li>
-            <li><strong>Station:</strong> {req.payload?.category_id ? String(req.payload.category_id) : 'Unassigned'}</li>
             <li><strong>Initial stock:</strong> {String(req.payload?.initial_quantity ?? 0)}{req.payload?.expiry_date ? ` · expires ${String(req.payload.expiry_date)}` : ''}</li>
             <li><strong>Min quantity:</strong> {String(req.payload?.min_quantity ?? 0)}</li>
           </ul>
@@ -123,16 +125,20 @@ export function StaffChangeRequestsQueue() {
         )}
         {req.request_type === 'ADJUST_STOCK' && (
           <p className="text-xs text-foreground">
-            <strong>Target quantity →</strong> {String(req.payload?.target_quantity ?? '—')}
-            {req.payload?.reason ? ` · note: ${String(req.payload.reason)}` : ''}
+            {req.payload?.current_quantity !== undefined && (
+              <span className="font-mono">{String(req.payload.current_quantity)} → </span>
+            )}
+            <span className="font-mono font-bold">{String(req.payload?.target_quantity ?? '—')}</span>
+            {req.payload?.reason ? <span className="text-muted-foreground"> · {String(req.payload.reason)}</span> : ''}
           </p>
         )}
         {req.request_type === 'REASSIGN_TABLE' && (
           <p className="text-xs text-foreground flex items-center gap-1.5 flex-wrap">
             <strong>Move to station:</strong>
-            <span className="font-mono text-[10px] break-all">{String(req.payload?.target_category_id ?? '—')}</span>
-            <ArrowRight className="w-3 h-3 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground">(station id — verify it in the Stations list)</span>
+            <span>{String(req.payload?.target_category_name ?? '—')}</span>
+            {req.payload?.current_category_name && (
+              <span className="text-[10px] text-muted-foreground">(from: {String(req.payload.current_category_name)})</span>
+            )}
           </p>
         )}
         {req.request_type === 'ADD_CATEGORY' && (
@@ -140,8 +146,9 @@ export function StaffChangeRequestsQueue() {
         )}
         {(req.request_type === 'ARCHIVE_ITEM' || req.request_type === 'REMOVE_FROM_SHEET') && (
           <p className="text-xs text-foreground">
-            {req.request_type === 'ARCHIVE_ITEM' ? 'Archive this item (hides it from the worksheet and catalog).' : 'Remove this entry from the draft worksheet (the item itself stays in the catalog).'}
-            {req.payload?.item_name ? ` — ${String(req.payload.item_name)}` : ''}
+            {req.request_type === 'ARCHIVE_ITEM'
+              ? 'Archive this item (hides it from the worksheet and catalog).'
+              : 'Remove this entry from the draft worksheet (the item itself stays in the catalog).'}
           </p>
         )}
       </div>

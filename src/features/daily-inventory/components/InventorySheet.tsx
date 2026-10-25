@@ -58,10 +58,13 @@ export function InventorySheet({ session, isReadOnly, date, isCorrectionMode, ca
     type: 'ADD_ITEM' | 'EDIT_ITEM' | 'ARCHIVE_ITEM' | 'ADJUST_STOCK' | 'REASSIGN_TABLE' | 'ADD_CATEGORY' | 'REMOVE_FROM_SHEET';
     context: StaffRequestContext;
   } | null>(null);
+  // Chooser for the item-level staff requests (Edit / Adjust / Archive)
+  const [itemChangeChooser, setItemChangeChooser] = useState<DailyEntry | null>(null);
   const openStaffRequest = (
     type: 'ADD_ITEM' | 'EDIT_ITEM' | 'ARCHIVE_ITEM' | 'ADJUST_STOCK' | 'REASSIGN_TABLE' | 'ADD_CATEGORY' | 'REMOVE_FROM_SHEET',
     entry?: DailyEntry
   ) => {
+    setItemChangeChooser(null);
     setStaffRequest({
       type,
       context: {
@@ -611,6 +614,7 @@ export function InventorySheet({ session, isReadOnly, date, isCorrectionMode, ca
                           openStaffRequest('REMOVE_FROM_SHEET', it);
                         }
                       } : undefined}
+                      onRequestChange={!isReadOnly && !canEditStructure ? (it) => setItemChangeChooser(it) : undefined}
                     />
                   ))}
                 </TableBody>
@@ -762,9 +766,57 @@ export function InventorySheet({ session, isReadOnly, date, isCorrectionMode, ca
 
       {totalItems === 0 && stations.length === 0 && (
         <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-border border-dashed">
-          No stations or items found. Click "Add Station / Table" to create your first station!
+          {canEditStructure
+            ? 'No stations or items found. Click "Add Station / Table" to create your first station!'
+            : 'No stations or items yet. Click "Request New Station" — an administrator will review and set it up.'}
         </div>
       )}
+
+      {/* STAFF chooser: which item-level change to request */}
+      <Dialog open={!!itemChangeChooser} onOpenChange={open => !open && setItemChangeChooser(null)}>
+        <DialogContent className="w-[95vw] max-w-sm p-5 rounded-2xl bg-card border-border shadow-2xl">
+          <DialogHeader className="space-y-1 text-left">
+            <DialogTitle className="text-base font-bold text-foreground">Request a Change</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              {itemChangeChooser?.items?.item_name
+                ? `Item: ${itemChangeChooser.items.item_name}`
+                : 'Choose what kind of change you need.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-2 py-1">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 justify-start text-xs font-bold rounded-xl"
+              onClick={() => openStaffRequest('EDIT_ITEM', itemChangeChooser ?? undefined)}
+            >
+              <ClipboardList className="w-4 h-4 mr-2 text-primary" />
+              Edit Item Details
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 justify-start text-xs font-bold rounded-xl"
+              onClick={() => openStaffRequest('ADJUST_STOCK', itemChangeChooser ?? undefined)}
+            >
+              <ClipboardList className="w-4 h-4 mr-2 text-amber-600" />
+              Adjust Stock Level
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 justify-start text-xs font-bold rounded-xl"
+              onClick={() => openStaffRequest('ARCHIVE_ITEM', itemChangeChooser ?? undefined)}
+            >
+              <ClipboardList className="w-4 h-4 mr-2 text-rose-500" />
+              Archive This Item
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground text-left">
+            Every request goes to an administrator for review — nothing changes until it is approved.
+          </p>
+        </DialogContent>
+      </Dialog>
 
       {/* Add New Station / Category Modal */}
       <Dialog open={isAddStationOpen} onOpenChange={setIsAddStationOpen}>

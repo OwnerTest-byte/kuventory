@@ -368,6 +368,19 @@ export function DailyInventoryPage() {
         </div>
       </div>
 
+      {/* STAFF workflow explainer: what is theirs, what goes to review */}
+      {!isAdmin && !isFinalized && (
+        <div className="bg-primary/5 dark:bg-primary/10 border border-primary/25 rounded-xl p-3.5 flex items-start gap-2.5" role="note">
+          <ClipboardList className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+          <p className="text-[11px] sm:text-xs text-foreground/90 leading-relaxed">
+            <span className="font-bold">Your worksheet:</span> fill in <span className="font-semibold">Sales AM / Sales PM</span> and
+            receive deliveries with the <span className="font-semibold">ADD</span> button — these save automatically.
+            Anything else (items, stations, stock counts) is handled by administrators: use the
+            <span className="font-semibold"> Request</span> buttons on any row and track the decision in My Requests below.
+          </p>
+        </div>
+      )}
+
       {/* Active Correction Request Status Banners */}
       {pendingRequest && (
         <div className="bg-amber-500/15 border-2 border-amber-500/40 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md animate-in fade-in duration-200">
