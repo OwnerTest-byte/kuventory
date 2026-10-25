@@ -236,6 +236,29 @@ Companion:  Paste-ready AI-maker prompts delivered in the working chat; this
 
 STAFF / ADMIN / SUPER_ADMIN are the only roles. STAFF work the daily worksheet (sales AM/PM + ADD spinner direct; BEG read-only) and every structural change (add/edit/archive item, adjust stock, reassign table, new station, remove from worksheet) goes through the change-request pipeline: submit with reason → admin review card (requested context) → **Approve & Apply** (server-side, in-transaction) / **Return** / **Reject** → decision visible in the requester's My Requests panel. STAFF also keep Reports (view + export) and Notifications; all other routes redirect to /daily-inventory. Direct client writes to catalog/stock/worksheet structure are blocked by RLS and the worksheet-edit trigger (operational columns only).
 
+## §6.4 Screen Layout/Specification — screenshot list (strict-role scopes)
+
+Caption format: **Figure 6.4.N. <Name>**, followed by the pasted screenshot and 2-4 sentences: purpose, key controls, role access.
+
+**STAFF set (the 6.4.1-6.4.6 essentials):**
+- 6.4.1 Log In — identifier + password, Remember me; mention the two-stage lockout card and Forgot Password dialog as the security states
+- 6.4.2 Daily Inventory Worksheet (STAFF view) — Sales AM/PM + ADD spinner editable, BEG read-only, Request Change/Reassign/Remove buttons, workflow explainer banner, **My Requests panel with the Contact an Administrator button**, no Finalize button
+- 6.4.3 Staff Request Modal — type-aware fields, required reason, "nothing changes until approved" note
+- 6.4.4 Reports — Low Stock tab with **Request Restock** buttons + Expiry tab (no admin actions), CSV/PDF export
+- 6.4.5 Notifications — staff tier only (floor alerts + own request decisions)
+- 6.4.6 Account & Password (Settings, staff scope)
+
+**ADMIN set (6.4.7-6.4.13):**
+- 6.4.7 Dashboard — stat cards with real numbers (post grants-heal)
+- 6.4.8 Items Catalog — full Add/Update Stock/Edit/Archive/Delete actions
+- 6.4.9 Item Details — FEFO batches, consume/adjust
+- 6.4.10 Daily Inventory (ADMIN view) — direct actions + Finalize Day
+- 6.4.11 Settings → Staff Requests queue — review card with requester, reason, current → requested values, Approve & Apply / Return / Reject
+- 6.4.12 Settings → Users + Login Lockouts — strict roles, admin quota 3, Verification-required badge, Admin-unlock-only
+- 6.4.13 My Profile — support channels + lockout-screen opt-in (feeds the directory)
+
+**Optional companions:** Forgot Password dialog (reference + one-time credential + contact directory), Correction Request modal + Finalized Corrections queue (6.1.5 evidence), Super Admin console (lockdown/force-override/revocation).
+
 ## Cross-chart connection map (pentagon labels)
 
 - **6.1.1 (hub)** → 6.1.2 (no session) · → 6.1.3/6.1.4/6.1.5/6.1.6/6.1.7 (module entries) · → 6.1.8 (ADMIN/SUPER); lockdown gate in 6.1.8 blocks 6.1.1 entry for non-supers
