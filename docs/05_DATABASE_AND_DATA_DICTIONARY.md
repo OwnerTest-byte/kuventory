@@ -227,7 +227,7 @@ Frozen immutable historical records of daily shift inventory balances.
 
 ## 4. Chronological Migration Inventory
 
-The KUVENTORY schema is constructed through **85 sequential migrations** located in `supabase/migrations/`:
+The KUVENTORY schema is constructed through **86 sequential migrations** located in `supabase/migrations/`:
 
 ```
  1. 20260831000000_initial_schema.sql
@@ -315,4 +315,5 @@ The KUVENTORY schema is constructed through **85 sequential migrations** located
 83. 20261026160000_staff_change_requests_and_role_boundary.sql
 84. 20261026170000_notification_role_scoping.sql
 85. 20261026180000_finalize_staff_allowed.sql
+86. 20261026190000_consume_stock_staff_finalize_path.sql
 ```
