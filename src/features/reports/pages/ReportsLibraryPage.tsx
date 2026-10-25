@@ -20,10 +20,15 @@ import { format } from 'date-fns';
 import { downloadCsv, escapeCsvField } from '../export/csv';
 import { getBusinessDateString } from '@/lib/businessDate';
 import { ErrorState } from '@/components/common/ErrorState';
+import { useAuth } from '@/features/auth/context/AuthContext';
+import { StaffRequestModal } from '@/features/daily-inventory/components/StaffRequestModal';
 
 export function ReportsLibraryPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { role } = useAuth();
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  const [restockRequest, setRestockRequest] = useState<{ itemId: string; itemName: string; unit: string; currentQty: number; minQty: number } | null>(null);
 
   const activeTab = useMemo(() => {
     if (location.pathname === '/reports/inventory') return 'valuation';
@@ -648,9 +653,13 @@ export function ReportsLibraryPage() {
                       return (
                         <TableRow key={item.id} className="hover:bg-muted/40 group">
                           <TableCell className="font-bold text-foreground sticky left-0 z-10 bg-card group-hover:bg-muted border-r border-border min-w-45 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
-                            <Link to={`/items/${item.id}`} className="hover:text-primary">
-                              {item.item_name}
-                            </Link>
+                            {isAdmin ? (
+                              <Link to={`/items/${item.id}`} className="hover:text-primary">
+                                {item.item_name}
+                              </Link>
+                            ) : (
+                              <span>{item.item_name}</span>
+                            )}
                           </TableCell>
                           <TableCell>
                             <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted text-foreground">
@@ -674,12 +683,23 @@ export function ReportsLibraryPage() {
                             {item.supplier_a || 'Primary Supplier'}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Link 
-                              to={`/items/${item.id}`}
-                              className="inline-flex items-center justify-center rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs px-3 py-1.5 shadow-xs transition-colors"
-                            >
-                              Restock Item
-                            </Link>
+                            {isAdmin ? (
+                              <Link 
+                                to={`/items/${item.id}`}
+                                className="inline-flex items-center justify-center rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs px-3 py-1.5 shadow-xs transition-colors"
+                              >
+                                Restock Item
+                              </Link>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setRestockRequest({ itemId: item.id, itemName: item.item_name, unit: item.unit, currentQty: item.current_qty, minQty: item.min_qty })}
+                                className="inline-flex items-center justify-center rounded-md border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs px-3 py-1.5 transition-colors cursor-pointer"
+                                title="Submit a restock request for administrator review"
+                              >
+                                Request Restock
+                              </button>
+                            )}
                           </TableCell>
                         </TableRow>
                       );
@@ -820,7 +840,7 @@ export function ReportsLibraryPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            {b.inventory_items?.id && (
+                            {isAdmin && b.inventory_items?.id && (
                               <Link 
                                 to={`/items/${b.inventory_items.id}`}
                                 className="inline-flex items-center justify-center rounded-md border border-border hover:bg-muted text-foreground font-semibold text-xs px-2.5 py-1 transition-colors"
@@ -935,6 +955,21 @@ export function ReportsLibraryPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* STAFF: restock requests straight from the Low Stock report */}
+      <StaffRequestModal
+        open={!!restockRequest}
+        onOpenChange={open => !open && setRestockRequest(null)}
+        requestType="ADJUST_STOCK"
+        context={restockRequest ? {
+          itemId: restockRequest.itemId,
+          itemName: restockRequest.itemName,
+          unit: restockRequest.unit,
+          currentQuantity: restockRequest.currentQty,
+          minQuantity: restockRequest.minQty,
+          targetQuantityPreset: restockRequest.minQty,
+        } : undefined}
+      />
     </div>
   );
 }

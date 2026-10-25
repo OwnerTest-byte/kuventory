@@ -21,6 +21,8 @@ export interface StaffRequestContext {
   currentCategoryId?: string;
   currentCategoryName?: string;
   categories?: Array<{ id: string; name: string }>;
+  /** Pre-filled target for ADJUST_STOCK (e.g. the reorder point). */
+  targetQuantityPreset?: number;
 }
 
 interface StaffRequestModalProps {
@@ -62,7 +64,7 @@ export function StaffRequestModal({ open, onOpenChange, requestType, context = {
       setInitialQuantity('0');
       setExpiryDate('');
       setMinQuantity(String(context.minQuantity ?? 0));
-      setTargetQuantity(String(context.currentQuantity ?? 0));
+      setTargetQuantity(String(context.targetQuantityPreset ?? context.currentQuantity ?? 0));
       setTargetCategoryId(context.currentCategoryId || '');
       setChanges({
         name: context.itemName || '',

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getInventory } from '@/features/inventory/api';
+import { useAuth } from '@/features/auth/context/AuthContext';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -30,14 +31,18 @@ interface CommandPaletteProps {
 export function CommandPalette({ isOpen, onClose, onOpenNewItem }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
+  const { role } = useAuth();
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
 
   const { data: items = [] } = useQuery({
     queryKey: ['inventory'],
     queryFn: getInventory,
-    enabled: isOpen,
+    enabled: isOpen && isAdmin,
   });
 
-  const navLinks = [
+  // Role-scoped destinations: STAFF only see pages they can actually land on
+  // (admin-only routes redirect them to the daily worksheet).
+  const navLinks = isAdmin ? [
     { label: 'Dashboard', path: '/inventory', icon: LayoutDashboard, category: 'Navigation' },
     { label: 'Daily Inventory Worksheet', path: '/daily-inventory', icon: FileText, category: 'Navigation' },
     { label: 'Inventory Items Catalog', path: '/items', icon: Package, category: 'Navigation' },
@@ -53,6 +58,15 @@ export function CommandPalette({ isOpen, onClose, onOpenNewItem }: CommandPalett
     { label: 'Staff & Users Management', path: '/settings?tab=users', icon: Users, category: 'System' },
     { label: 'Restaurant & Bodega Profile', path: '/settings?tab=restaurant', icon: Store, category: 'System' },
     { label: 'My Account & Password', path: '/settings?tab=account', icon: Settings, category: 'System' },
+    { label: 'About & Database Diagnostics', path: '/settings?tab=about', icon: Info, category: 'System' },
+  ] : [
+    { label: 'Daily Inventory Worksheet', path: '/daily-inventory', icon: FileText, category: 'Navigation' },
+    { label: 'Reports Library', path: '/reports', icon: FileBarChart, category: 'Reports' },
+    { label: 'Daily Reports', path: '/reports/inventory', icon: FileBarChart, category: 'Reports' },
+    { label: 'Stock Movement Reports', path: '/reports/movement', icon: FileBarChart, category: 'Reports' },
+    { label: 'Low Stock Alerts Report', path: '/reports/low-stock', icon: AlertTriangle, category: 'Reports' },
+    { label: 'Expiry & FEFO Report', path: '/reports/expiry', icon: AlertTriangle, category: 'Reports' },
+    { label: 'Settings & My Account', path: '/settings?tab=account', icon: Settings, category: 'System' },
     { label: 'About & Database Diagnostics', path: '/settings?tab=about', icon: Info, category: 'System' },
   ];
 
@@ -126,7 +140,7 @@ export function CommandPalette({ isOpen, onClose, onOpenNewItem }: CommandPalett
                   </span>
                   <ArrowRight className="w-4 h-4 text-muted-foreground" />
                 </button>
-                {onOpenNewItem && (
+                {isAdmin && onOpenNewItem && (
                   <button
                     type="button"
                     onClick={() => {

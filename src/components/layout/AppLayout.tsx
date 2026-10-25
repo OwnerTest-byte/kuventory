@@ -501,6 +501,7 @@ export function AppLayout() {
   const { theme, toggleTheme } = useTheme();
   const { createItemWithStock } = useCreateItem();
   const { profile, user, role } = useAuth();
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const unreadNotifications = useUnreadNotificationsCount();
   const location = useLocation();
   const navigate = useNavigate();
@@ -734,6 +735,8 @@ export function AppLayout() {
                     <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                        Inventory Actions
                     </div>
+                    {isAdmin && (
+                      <>
                     <button
                       type="button"
                       onClick={() => {
@@ -786,6 +789,8 @@ export function AppLayout() {
                       </span>
                       Add Supplier
                     </button>
+                      </>
+                    )}
                     <div className="h-px bg-border/60 my-1 mx-2" />
                     <button
                       type="button"
