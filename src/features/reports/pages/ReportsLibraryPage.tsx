@@ -939,12 +939,14 @@ export function ReportsLibraryPage() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Link 
-                            to={`/items/${item.id}`}
-                            className="inline-flex items-center justify-center rounded-md border border-border hover:bg-muted text-foreground font-semibold text-xs px-2.5 py-1 transition-colors"
-                          >
-                            Details
-                          </Link>
+                          {isAdmin ? (
+                            <Link 
+                              to={`/items/${item.id}`}
+                              className="inline-flex items-center justify-center rounded-md border border-border hover:bg-muted text-foreground font-semibold text-xs px-2.5 py-1 transition-colors"
+                            >
+                              Details
+                            </Link>
+                          ) : null}
                         </TableCell>
                       </TableRow>
                     ))
