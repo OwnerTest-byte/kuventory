@@ -238,7 +238,7 @@ STAFF / ADMIN / SUPER_ADMIN are the only roles. STAFF work the daily worksheet (
 
 ## §6.4 Screen Layout/Specification — screenshot list (strict-role scopes)
 
-Caption format: **Figure 6.4.N. <Name>**, followed by the pasted screenshot and 2-4 sentences: purpose, key controls, role access.
+TANIM-verified format (from TANIM-Manuscript-V5-FINAL §6.4): heading, then **Figure 6.4.N. <Name>** caption immediately followed by the pasted screenshot — no descriptive paragraphs. Suggested 15-figure KUVENTORY sequence: Dashboard, Log In, Daily Inventory (Staff), Staff Change Request, Daily Inventory (Admin), Staff Change Requests Review, Item Catalog, Item Details & FEFO Batches, Reports Low Stock, Reports Expiry, Notifications, Account Recovery Dialog, Administrator Verification Card, Settings Users & Lockouts, Super Admin Console. (TANIM-essential trim: Dashboard, Log In, Daily Inventory Staff, Daily Inventory Admin, Staff Change Requests Review, Reports.)
 
 **STAFF set (the 6.4.1-6.4.6 essentials):**
 - 6.4.1 Log In — identifier + password, Remember me; mention the two-stage lockout card and Forgot Password dialog as the security states
