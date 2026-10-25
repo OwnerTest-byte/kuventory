@@ -9,10 +9,18 @@ export function LoginPage() {
   const { session, role, isLoading } = useAuth();
   const [legalType, setLegalType] = useState<'privacy' | 'terms' | null>(null);
   const location = useLocation();
-  // RequireAuth passes the page the user was bounced from; its presence after
-  // an authenticated redirect means the session ended unexpectedly (expired
-  // token, admin action) — explain it instead of a silent bounce.
-  const wasSignedOut = !session && !isLoading && !!location.state;
+  // An actual terminated session (admin action, deactivation, expired auth)
+  // sets this marker before signing out — a plain first visit never does, so
+  // the note only appears when it is true.
+  const [wasSignedOut] = useState(() => {
+    try {
+      const flagged = sessionStorage.getItem('kuventory_unexpected_signout') === '1';
+      if (flagged) sessionStorage.removeItem('kuventory_unexpected_signout');
+      return flagged;
+    } catch {
+      return false;
+    }
+  });
 
   if (isLoading) {
     return (

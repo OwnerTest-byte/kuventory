@@ -163,7 +163,7 @@ Companion:  Paste-ready AI-maker prompts delivered in the working chat; this
 
 1. Oval: Start → [STAFF] Rectangle: open today's worksheet (their home page — one per day per branch)
 2. [STAFF] Manual Input: AM usage / PM usage per item → [SYSTEM] Rectangle: autosave DRAFT → Circle-loop through the day. **ADD spinner** (mid-day receiving) → [DATABASE] Cylinder: `receive_daily_inventory_stock` (batch + movement + ledger in one transaction). **BEG is read-only for staff** (server-derived; the guard trigger rejects any staff edit to beginning counts or item/station assignment)
-3. [STAFF] structural needs (reassign table, remove entry, edit item, adjust stock, new station) → **change-request pipeline** (→ Fig 6.1.4 request path; decisions appear in the requester's My Requests panel) · [ADMIN] performs the same actions directly
+3. [STAFF] structural needs (reassign table, remove entry, edit item, adjust stock, new station) → **change-request pipeline** (→ Fig 6.1.4 request path; decisions appear in the requester's My Requests panel — which also carries a **Contact an Administrator** button popping up the full admin contact directory) · [ADMIN] performs the same actions directly
 4. [ADMIN] Manual Operation: Finalize (confirmation — human judgment; the button is admin-only on screen and in the database)
 5. [DATABASE] Rectangle: status → FINALIZED (immutable; direct edits rejected server-side, not merely hidden)
 6. [SYSTEM] Rectangle: per-item FEFO consumption (into Fig 6.1.4's consume path, same transaction) → [DATABASE] Document: frozen `report_snapshots` → Pentagon → Fig 6.1.6 (finalize event)
@@ -178,6 +178,8 @@ Companion:  Paste-ready AI-maker prompts delivered in the working chat; this
 ## Fig. 6.1.6 — Notification & Real-Time Alert
 
 **Lanes:** SYSTEM · DATABASE · STAFF · ADMIN · SUPER ADMIN
+
+**Per-role scoping (20261026170000 + client zero-trust mirror):** STAFF receive the floor tier (LOW_STOCK, OUT_OF_STOCK, EXPIRING_SOON, EXPIRED, BATCH_DEPLETED, DAILY_SHEET) + anything targeted to them (their request decisions); ADMIN and SUPER ADMIN additionally receive the investigation + queue tier (STOCK_DISCREPANCY, SHEET_CORRECTION, PASSWORD_RESET, RECOVERY_REQUEST, ASSISTED_RECOVERY_REQUEST, ACCOUNT_LOCKOUT, SECURITY_ALERT, SYSTEM, MAINTENANCE, STAFF_CHANGE_REQUEST); targeted rows are always recipient-only. Unclassified types default to admins (fail-closed).
 
 1. Oval: Start ← Pentagon sources: Fig 6.1.3 (recovery ticket), Fig 6.1.4 (threshold/expiry), Fig 6.1.5 (finalize/correction), Fig 6.1.8 (admin ops, broadcasts)
 2. [DATABASE] Cylinder: insert `notifications` — type, title, message, `target_id` route string (TEXT, e.g. /settings?tab=users, /items/<id>), dedup key

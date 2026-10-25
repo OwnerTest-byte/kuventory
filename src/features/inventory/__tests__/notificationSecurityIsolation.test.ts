@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { 
-  isAuthorizedForNotification, 
+import {
+  isAuthorizedForNotification,
   filterAuthorizedNotifications,
   ADMIN_NOTIFICATION_TYPES,
-  OPERATIONAL_NOTIFICATION_TYPES,
+  STAFF_NOTIFICATION_TYPES,
 } from '../utils/notificationSecurity';
 import type { AppNotification } from '../types';
 
@@ -55,19 +55,31 @@ describe('Zero-Trust Notification Security & Role Isolation', () => {
     );
   });
 
-  describe('Operational Inventory Notifications', () => {
-    it.each(OPERATIONAL_NOTIFICATION_TYPES)(
-      'ALLOWS staff to view operational inventory notification type: %s',
+  describe('Staff-Tier Operational Notifications', () => {
+    it.each(STAFF_NOTIFICATION_TYPES)(
+      'ALLOWS staff to view staff-tier operational notification type: %s',
       (opType) => {
         const notif = createMockNotification(opType);
         expect(isAuthorizedForNotification(notif, staffUserId, 'STAFF')).toBe(true);
       }
     );
 
-    it.each(OPERATIONAL_NOTIFICATION_TYPES)(
-      'ALLOWS ADMIN to view operational inventory notification type: %s',
+    it.each(STAFF_NOTIFICATION_TYPES)(
+      'ALLOWS ADMIN to view staff-tier operational notification type: %s',
       (opType) => {
         const notif = createMockNotification(opType);
+        expect(isAuthorizedForNotification(notif, adminUserId, 'ADMIN')).toBe(true);
+      }
+    );
+  });
+
+  describe('Admin-Tier Isolation of Investigation Types', () => {
+    // Investigation workflow types moved to the admin tier in 20261026170000:
+    it.each(['STOCK_DISCREPANCY', 'SHEET_CORRECTION', 'STAFF_CHANGE_REQUEST'])(
+      'STRICTLY PREVENTS staff from viewing admin-tier investigation type: %s',
+      (adminType) => {
+        const notif = createMockNotification(adminType);
+        expect(isAuthorizedForNotification(notif, staffUserId, 'STAFF')).toBe(false);
         expect(isAuthorizedForNotification(notif, adminUserId, 'ADMIN')).toBe(true);
       }
     );

@@ -1,8 +1,9 @@
 import type { AppNotification } from '../types';
 
 /**
- * Administrative notification types that are strictly reserved for ADMIN and SUPER_ADMIN roles.
- * Staff / Operator accounts must NEVER receive or view these notifications.
+ * Administrative notification types reserved for ADMIN and SUPER_ADMIN:
+ * investigation workflows and the administrative queues. STAFF never
+ * receive or view these (mirrors the DB RLS policy 20261026170000).
  */
 export const ADMIN_NOTIFICATION_TYPES = [
   'PASSWORD_RESET',
@@ -12,35 +13,40 @@ export const ADMIN_NOTIFICATION_TYPES = [
   'SECURITY_ALERT',
   'SYSTEM',
   'MAINTENANCE',
+  'STOCK_DISCREPANCY',
+  'SHEET_CORRECTION',
+  'STAFF_CHANGE_REQUEST',
 ] as const;
 
 export type AdminNotificationType = (typeof ADMIN_NOTIFICATION_TYPES)[number];
 
 /**
- * Operational inventory notification types broadcasted or targeted to active inventory operators.
+ * STAFF-tier operational alerts — the floor-relevant events every
+ * authenticated role receives (mirrors the DB RLS policy 20261026170000).
+ * Investigation types (STOCK_DISCREPANCY, SHEET_CORRECTION) are admin-tier
+ * and deliberately excluded here.
  */
-export const OPERATIONAL_NOTIFICATION_TYPES = [
+export const STAFF_NOTIFICATION_TYPES = [
   'LOW_STOCK',
   'OUT_OF_STOCK',
   'EXPIRING_SOON',
   'EXPIRED',
   'BATCH_DEPLETED',
-  'STOCK_DISCREPANCY',
   'DAILY_SHEET',
-  'SHEET_CORRECTION',
 ] as const;
 
-export type OperationalNotificationType = (typeof OPERATIONAL_NOTIFICATION_TYPES)[number];
+export type StaffNotificationType = (typeof STAFF_NOTIFICATION_TYPES)[number];
 
 /**
  * Determines whether a given user session is authorized to view or receive a notification.
- * 
- * Rules:
+ *
+ * Rules (mirrors the notifications RLS policy 20261026170000):
  * 1. If notification is null/undefined or user is unauthenticated, DENY (false).
- * 2. If notification has a specific user_id that differs from current user, DENY (false).
- * 3. If notification is an administrative type, ALLOW only if role is ADMIN or SUPER_ADMIN.
- * 4. If notification is an operational inventory type, ALLOW for all authenticated users.
- * 5. Default closed: Any unrecognized notification type requires ADMIN or SUPER_ADMIN.
+ * 2. Targeted recipient (user_id set): recipient only — this is how request
+ *    decisions reach their requester.
+ * 3. STAFF-tier operational type: ALLOW for all authenticated roles.
+ * 4. Administrative type: ALLOW only for ADMIN / SUPER_ADMIN.
+ * 5. Default closed: any unrecognized type requires ADMIN or SUPER_ADMIN.
  */
 export function isAuthorizedForNotification(
   notif: Partial<AppNotification> | null | undefined,
@@ -53,21 +59,21 @@ export function isAuthorizedForNotification(
 
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
 
-  // 1. Direct recipient isolation: if targeted to a specific user, ensure match
+  // 1. Direct recipient isolation: targeted rows are recipient-only
   if (notif.user_id && notif.user_id !== userId) {
     return false;
   }
 
   const type = notif.type || '';
 
-  // 2. Strict isolation of administrative & security notifications
-  if ((ADMIN_NOTIFICATION_TYPES as readonly string[]).includes(type)) {
-    return isAdmin;
+  // 2. STAFF-tier operational alerts reach every role
+  if ((STAFF_NOTIFICATION_TYPES as readonly string[]).includes(type)) {
+    return true;
   }
 
-  // 3. Operational inventory events authorized for all active team members
-  if ((OPERATIONAL_NOTIFICATION_TYPES as readonly string[]).includes(type)) {
-    return true;
+  // 3. Strict isolation of administrative & investigation notifications
+  if ((ADMIN_NOTIFICATION_TYPES as readonly string[]).includes(type)) {
+    return isAdmin;
   }
 
   // 4. Principle of least privilege: default closed for unclassified alerts

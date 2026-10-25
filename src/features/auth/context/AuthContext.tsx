@@ -62,6 +62,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const queryClient = useQueryClient();
 
   const consecutiveFailuresRef = useRef<number>(0);
+  // Mirror of the live session for listeners that must know whether a
+  // session existed before a null-session event.
+  const sessionRef = useRef<Session | null>(null);
 
 
   // Centralized terminal session cleanup
@@ -70,10 +73,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setBrowserSessionMarker(false);
     consecutiveFailuresRef.current = 0;
     setIsSessionVerifying(false);
+    // Marker for the login page: this was an actual terminated session
+    // (admin action, deactivation, auth expiry) — not a plain first visit.
+    try { sessionStorage.setItem('kuventory_unexpected_signout', '1'); } catch {}
     try {
       await releaseSessionLease();
       await supabase.auth.signOut();
     } catch {}
+    sessionRef.current = null;
     setSession(null);
     setUser(null);
     queryClient.clear();
@@ -136,6 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (initSession) {
         // Authenticated user found in session storage: preserve session immediately
         setBrowserSessionMarker(true);
+        sessionRef.current = initSession;
         setSession(initSession);
         setUser(initSession.user ?? null);
         setIsSessionLoading(false);
@@ -161,6 +169,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       if (!isMounted) return;
       if (!newSession) {
+        // An unexpected null-session event while we still held a session
+        // (e.g. auth-js removed an expired session) is also a terminated
+        // session — mark it so the login page explains itself. A plain first
+        // visit never had a session, so no marker, no note.
+        if (sessionRef.current) {
+          try { sessionStorage.setItem('kuventory_unexpected_signout', '1'); } catch {}
+        }
+        sessionRef.current = null;
         setBrowserSessionMarker(false);
         setSession(null);
         setUser(null);
@@ -170,6 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Accept new session immediately
       setBrowserSessionMarker(true);
+      sessionRef.current = newSession;
       setSession(newSession);
       setUser(newSession.user ?? null);
     });
@@ -342,6 +359,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const activateSession = useCallback((newSession: Session) => {
     setBrowserSessionMarker(true);
     setSessionLeaseError(null);
+    sessionRef.current = newSession;
     setSession(newSession);
     setUser(newSession.user ?? null);
   }, []);

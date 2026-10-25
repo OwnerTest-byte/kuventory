@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, Clock, CheckCircle2, XCircle, AlertTriangle, RotateCcw } from 'lucide-react';
+import { ClipboardList, Clock, CheckCircle2, XCircle, AlertTriangle, RotateCcw, Phone } from 'lucide-react';
 import { fetchStaffChangeRequests, STAFF_REQUEST_TYPE_LABELS, type StaffChangeRequestStatus } from '../services/staffRequestService';
 import { useRealtimeTableSync } from '@/features/admin/hooks/useRealtimeTableSync';
+import { AdminContactModal } from '@/components/common/AdminContactModal';
+import { fetchPublicSupportContacts } from '@/features/admin/services/profileService';
 
 function statusBadge(status: StaffChangeRequestStatus) {
   switch (status) {
@@ -26,6 +29,8 @@ function statusBadge(status: StaffChangeRequestStatus) {
  * plus a 30s refetch keep it in sync — the fetched response is the truth.
  */
 export function MyRequestsPanel() {
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+
   const { data: requests = [], isLoading, refetch } = useQuery({
     queryKey: ['staff-change-requests'],
     queryFn: fetchStaffChangeRequests,
@@ -40,6 +45,16 @@ export function MyRequestsPanel() {
     onEvent: () => {
       void refetch();
     },
+  });
+
+  // The administrator contact directory (one card per opted-in admin) — the
+  // same live source the recovery dialog and lockout card use.
+  const { data: supportContacts = [] } = useQuery({
+    queryKey: ['public-support-contacts'],
+    queryFn: fetchPublicSupportContacts,
+    refetchOnWindowFocus: true,
+    refetchInterval: 30000,
+    staleTime: 15000,
   });
 
   if (isLoading) {
@@ -62,9 +77,22 @@ export function MyRequestsPanel() {
         </span>
       </div>
 
+      <button
+        type="button"
+        onClick={() => setIsContactModalOpen(true)}
+        className="w-full inline-flex items-center justify-center gap-2 h-9 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold transition-colors cursor-pointer"
+        title="Pop up the administrator contact directory — call, email, or message them directly"
+      >
+        <Phone className="w-3.5 h-3.5" />
+        Contact an Administrator
+      </button>
+
       {requests.length === 0 ? (
         <p className="text-xs text-muted-foreground py-1">
-          No change requests yet. Use “Request a change” on any worksheet row — an administrator reviews every request.
+          No change requests yet. Use the <span className="font-semibold text-foreground">Request Change</span>,{' '}
+          <span className="font-semibold text-foreground">Request Reassign</span> or{' '}
+          <span className="font-semibold text-foreground">Request Remove</span> buttons on any worksheet row — every
+          request is reviewed by an administrator.
         </p>
       ) : (
         <ul className="space-y-2">
@@ -96,6 +124,14 @@ export function MyRequestsPanel() {
           })}
         </ul>
       )}
+
+      {/* Administrator contact directory popup (one card per opted-in admin) */}
+      <AdminContactModal
+        open={isContactModalOpen}
+        onOpenChange={setIsContactModalOpen}
+        contacts={supportContacts}
+        reason="Urgent request or need a change faster? Reach the administrators directly through their official channels below — they review every request."
+      />
     </div>
   );
 }
