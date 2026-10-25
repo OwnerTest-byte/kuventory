@@ -699,6 +699,14 @@ export function LoginForm() {
         setForgotError(
           `${res.message} You can submit again in ${formatRemainingLabel(res.secondsRemaining ?? cooldownSeconds)}.`
         );
+      } else if (res.accountExists === false) {
+        // Structured wrong-identifier rejection: server message + attempts
+        // countdown toward the short (non-lockout) cooldown.
+        const hint =
+          typeof res.attemptsRemaining === 'number' && res.attemptsRemaining > 0
+            ? ` ${res.attemptsRemaining} attempt${res.attemptsRemaining === 1 ? '' : 's'} remaining before a short cooldown.`
+            : '';
+        setForgotError(`${res.message}${hint}`);
       } else {
         setForgotError(res.message || 'Unable to submit recovery request.');
       }
@@ -1331,6 +1339,9 @@ export function LoginForm() {
               <RefreshCw className="w-3.5 h-3.5 text-primary" />
               <span className="text-xs font-bold text-foreground">Check Ticket Status</span>
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              Enter the Request Reference and Status Credential shown when you submitted your recovery ticket.
+            </p>
 
             <div className="grid grid-cols-1 gap-2">
               <Input

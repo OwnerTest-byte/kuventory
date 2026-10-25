@@ -18,6 +18,12 @@ export interface AssistedRecoverySubmitResult {
   /** True only when the server actually created (or authorized) a ticket. */
   accepted: boolean;
   throttled: boolean;
+  /** False when the identifier matches no account (structured rejection). */
+  accountExists?: boolean;
+  /** Wrong-identifier attempts left before the short cooldown starts. */
+  attemptsRemaining?: number;
+  /** True when throttled by the wrong-identifier cooldown (not a lockout). */
+  unknownCooldown?: boolean;
   /** Present when accepted: shown to the requester exactly once. */
   requestReference?: string;
   statusCredential?: string;
@@ -75,6 +81,20 @@ export async function submitAssistedRecoveryTicket(
     throw new Error('The server returned an unreadable response. No recovery request was confirmed.');
   }
 
+  // Unknown-identifier rejections are structured data, not transport errors:
+  // the dialog must render the server message plus the attempts countdown.
+  if (data.accepted === false && data.account_exists === false) {
+    return {
+      accepted: false,
+      throttled: false,
+      accountExists: false,
+      attemptsRemaining: typeof data.attempts_remaining === 'number' ? data.attempts_remaining : undefined,
+      message: data.message || 'No KUVENTORY account matches this identifier.',
+      serverNow: data.server_now ?? null,
+      nextAllowedAt: null,
+    };
+  }
+
   if (data.accepted === false && !data.throttled) {
     throw new Error(data.message || data.error || 'Unable to submit recovery request.');
   }
@@ -82,6 +102,7 @@ export async function submitAssistedRecoveryTicket(
   return {
     accepted: data.accepted === true,
     throttled: data.throttled === true,
+    unknownCooldown: data.unknown_identifier_cooldown === true,
     requestReference: data.request_reference,
     statusCredential: data.status_credential,
     message: data.message || 'Your recovery request has been submitted for administrator review.',

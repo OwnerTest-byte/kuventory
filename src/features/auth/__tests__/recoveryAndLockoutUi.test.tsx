@@ -616,6 +616,78 @@ describe('Recovery existence gate + truthful attempt messaging + conditional con
     expect(sessionStorage.getItem('kuventory_recovery_ticket')).toBeNull();
   });
 
+  it('counts down the wrong-identifier attempts toward the short cooldown without engaging it early', async () => {
+    mockRpc({
+      submit_assisted_recovery_request: async () => ({
+        data: {
+          accepted: false,
+          account_exists: false,
+          attempts_remaining: 3,
+          server_now: iso(0),
+          message: 'No KUVENTORY account matches this identifier. Check the spelling or contact your administrator.',
+        },
+        error: null,
+      }),
+    });
+
+    renderForm();
+    await openRecoveryModal();
+    await fillAndSubmitRecovery('ghost.user@kuventory.com');
+    await flush();
+
+    const alert = screen
+      .getAllByRole('alert')
+      .find(a => a.textContent?.includes('No KUVENTORY account matches this identifier'));
+    expect(alert).toBeTruthy();
+    expect(alert?.textContent).toContain('3 attempts remaining before a short cooldown.');
+    // Attempts 1-4 are honest rejections, not a cooldown: no wait label yet.
+    expect(screen.queryByRole('button', { name: /Wait \d/ })).toBeNull();
+  });
+
+  it('starts a 2-minute cooldown — not a lockout — on the 5th wrong identifier, with the live button countdown', async () => {
+    mockRpc({
+      submit_assisted_recovery_request: async () => ({
+        data: {
+          accepted: false,
+          throttled: true,
+          unknown_identifier_cooldown: true,
+          server_now: iso(0),
+          next_allowed_at: iso(120_000),
+          seconds_remaining: 120,
+          message: 'Too many attempts with unknown identifiers. Please wait 2 minutes before trying again.',
+        },
+        error: null,
+      }),
+    });
+
+    renderForm();
+    await openRecoveryModal();
+    await fillAndSubmitRecovery('ghost.user@kuventory.com');
+    await flush();
+
+    const alert = screen
+      .getAllByRole('alert')
+      .find(a => a.textContent?.includes('Too many attempts with unknown identifiers'));
+    expect(alert).toBeTruthy();
+    expect(alert?.textContent).toContain('You can submit again in 2m.');
+    // The countdown label is derived from the authoritative expiry.
+    expect(screen.getByRole('button', { name: 'Wait 02:00 to resubmit' })).toBeDisabled();
+    // A cooldown is not a lockout: no lockout card heading appears.
+    expect(screen.queryByRole('heading', { name: /lock/i })).toBeNull();
+    expect(sessionStorage.getItem('kuventory_recovery_ticket')).toBeNull();
+  });
+
+  it('explains what belongs in the Check Ticket Status section', async () => {
+    renderForm();
+    await openRecoveryModal();
+
+    expect(
+      screen.getByText(
+        /Enter the Request Reference and Status Credential shown when you submitted your recovery ticket/i
+      )
+    ).toBeInTheDocument();
+  });
+
   it('shows the attempt count once, clears it on lockout, and reports the fresh count after expiry', async () => {
     let phase: 'fail4' | 'lock' | 'after-expiry' = 'fail4';
     mockRpc({

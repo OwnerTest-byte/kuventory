@@ -25,6 +25,7 @@ Audit Date:          2026-10-24
 | **FFRC-09** | Modal Geometry System | Configurable `DialogSize` prop (`sm` to `5xl`, `full`); prevent mobile clipping and vertical blowout. | `src/components/ui/dialog.tsx`, `MyProfileModal.tsx`, `CorrectionRequestModal.tsx` | `responsive_multi_device.spec.ts` |
 | **FFRC-10** | Notification Route Storage & Live Recovery | `target_id` TEXT storage; one-time status credential; live admin-review status on the login screen. | `20261025200000_notification_route_storage_and_realtime_repair.sql`, `LoginForm.tsx`, `recoveryTicketStore.ts` | `routeStorageMigrationContract.test.ts`, `recoveryAndLockoutUi.test.tsx` |
 | **FFRC-11** | Actionable Error Standard | Every failure: plain title + meaning + next step; no raw internals; no blind retries on unknown outcomes. | `src/lib/errors.ts`, `ErrorState.tsx`, stock/report/admin surfaces | `errors.test.ts`, `ErrorState.test.tsx` |
+| **FFRC-12** | Wrong-Identifier Attempt Cooldown | 5 unknown-identifier submissions per identifier/15 min → 2-minute cooldown (NOT a lockout); generation marker resets the allowance; correct identifiers never blocked. | `20261025230000_recovery_unknown_identifier_attempt_cooldown.sql`, `passwordResetService.ts`, `LoginForm.tsx` | `recoveryUnknownIdentifierCooldownMigrationContract.test.ts`, `loginLockoutAndRecovery.test.ts`, `recoveryAndLockoutUi.test.tsx` |
 
 ---
 
@@ -178,3 +179,18 @@ Audit Date:          2026-10-24
   * *Query failure on landing/reports:* ErrorState with Refresh Data instead of a silent empty screen.
   * *Admin role-toggle failure:* inline ErrorState instead of `alert()`.
 * **Observability & Recovery:** `src/lib/__tests__/errors.test.ts` (classification + normalization + pass-through/jargon rules) and `ErrorState.test.tsx` (rendering + retry wiring).
+
+### FFRC-12: Wrong-Identifier Attempt Cooldown on Recovery Requests
+
+* **Problem & User Outcome:** The recovery existence gate stopped ghost tickets, but nothing bounded repeated submissions for identifiers that match no account — an abusive or confused client could probe identifiers forever. User outcome: five wrong submissions per identifier within 15 minutes show an honest countdown ("N attempts remaining before a short cooldown"); the fifth starts a **2-minute cooldown — explicitly not a lockout** — with the same live button countdown as the ticket cooldown, and the allowance fully resets once the cooldown expires.
+* **Current-State Trace:** `submit_assisted_recovery_request` v4 (advisory lock `kuventory_recovery_unknown:` $\to$ generation marker check $\to$ per-mask count $\to$ structured `attempts_remaining` / `unknown_identifier_cooldown` payload) $\to$ `submitAssistedRecoveryTicket` (structured resolution, no throw) $\to$ `LoginForm` attempts hint / cooldown countdown; `check_assisted_recovery_cooldown` v2 reports the later of ticket and unknown-identifier cooldowns so a reopened dialog stays truthful.
+* **Invariants:**
+  * A **correct** identifier is never blocked by this mechanism; the existing-account ticket path is unchanged.
+  * The counter is generation-based and append-only: `ASSISTED_RECOVERY_UNKNOWN_COOLDOWN` marker events partition attempts; `security_events` is never deleted.
+  * No lockout side effects: no `account_security_state` writes, no lockout tokens, no account state modification.
+  * Counting and cooldown math are serialized per identifier under the advisory transaction lock — concurrent submissions cannot undercount.
+* **Failure Modes & Safe Behavior:**
+  * *5th wrong attempt:* cooldown response with authoritative `next_allowed_at`; further attempts throttled with live remaining seconds and no additional attempt events.
+  * *Cooldown expiry:* allowance returns to five fresh attempts (count considers only events after the latest marker).
+  * *Dialog reopened mid-cooldown:* `check_assisted_recovery_cooldown` v2 surfaces the active unknown-identifier cooldown with the correct message.
+* **Observability & Recovery:** `security_events` rows (`ASSISTED_RECOVERY_UNKNOWN_ACCOUNT`, `..._UNKNOWN_THROTTLED`, `..._UNKNOWN_COOLDOWN`) with masked identifiers; migration contract test `recoveryUnknownIdentifierCooldownMigrationContract.test.ts`; service + component suites in `loginLockoutAndRecovery.test.ts` / `recoveryAndLockoutUi.test.tsx`.

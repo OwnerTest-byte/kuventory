@@ -325,6 +325,59 @@ describe('Login Lockout & Account Recovery Suite', () => {
       expect(res.statusCredential).toBeUndefined();
     });
 
+    it('resolves a wrong-identifier rejection as structured data with the attempts countdown (no throw)', async () => {
+      rpcMock.mockResolvedValueOnce({
+        data: {
+          accepted: false,
+          account_exists: false,
+          attempts_remaining: 3,
+          server_now: new Date().toISOString(),
+          message: 'No KUVENTORY account matches this identifier. Check the spelling or contact your administrator.',
+        },
+        error: null,
+      });
+
+      const res = await submitAssistedRecoveryTicket('ghost@kuventory.com', 'Forgot password');
+      expect(res.accepted).toBe(false);
+      expect(res.throttled).toBe(false);
+      expect(res.accountExists).toBe(false);
+      expect(res.attemptsRemaining).toBe(3);
+      expect(res.message).toMatch(/No KUVENTORY account matches/i);
+      expect(res.nextAllowedAt).toBeNull();
+    });
+
+    it('maps the 5th-wrong-attempt cooldown response with the unknownCooldown flag', async () => {
+      rpcMock.mockResolvedValueOnce({
+        data: {
+          accepted: false,
+          throttled: true,
+          unknown_identifier_cooldown: true,
+          server_now: new Date().toISOString(),
+          next_allowed_at: new Date(Date.now() + 120_000).toISOString(),
+          seconds_remaining: 120,
+          message: 'Too many attempts with unknown identifiers. Please wait 2 minutes before trying again.',
+        },
+        error: null,
+      });
+
+      const res = await submitAssistedRecoveryTicket('ghost@kuventory.com', 'Forgot password');
+      expect(res.accepted).toBe(false);
+      expect(res.throttled).toBe(true);
+      expect(res.unknownCooldown).toBe(true);
+      expect(res.secondsRemaining).toBe(120);
+      expect(res.nextAllowedAt).toBeTruthy();
+    });
+
+    it('still throws for malformed-input rejections that carry no account_exists signal', async () => {
+      rpcMock.mockResolvedValueOnce({
+        data: { accepted: false, error: 'Valid email identifier required.' },
+        error: null,
+      });
+      await expect(submitAssistedRecoveryTicket('staff@kuventory.com', 'Forgot password')).rejects.toThrow(
+        /Valid email identifier required/i
+      );
+    });
+
     it('throws on RPC failure instead of fabricating success', async () => {
       rpcMock.mockResolvedValueOnce({ data: null, error: { message: 'db unreachable' } });
       await expect(submitAssistedRecoveryTicket('staff@kuventory.com', 'Forgot password')).rejects.toThrow();
