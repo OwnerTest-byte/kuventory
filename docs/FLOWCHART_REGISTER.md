@@ -29,7 +29,7 @@ Companion:  Paste-ready AI-maker prompts delivered in the working chat; this
 
 - **Lanes:** STAFF · ADMIN · SUPER ADMIN (maintenance/dev team — never an operational approver) · SYSTEM · DATABASE.
 - **Symbols (ANSI X3.5 / ISO 5807):** oval terminator · rectangle process · diamond decision (ONLY real server-enforced questions, ≥2 labeled exits) · parallelogram I/O · manual-input shape (user-entered data) · manual-operation trapezoid (human judgment: identity verification, physical counting) · document wavy-bottom (exports, one-time credential, tickets) · database cylinder (Supabase tables/RPCs) · preparation hexagon · D-shape delay (server-owned waits only) · display shape · circle on-page connector (loops/phase joins) · pentagon off-page connector (cross-chart links, labeled with target figure).
-- **Honesty rules:** every diamond is a real server-enforced gate; fail-closed branches drawn explicitly (UNKNOWN states, RLS-invisible events, transport errors); delays only where the server owns the clock (30-min lockout, 2-min cooldowns).
+- **Honesty rules:** every diamond is a real server-enforced gate; fail-closed branches drawn explicitly (UNKNOWN states, RLS-invisible events, transport errors); delays only where the server owns the clock (2-min cooldowns). A login lockout has NO timer — release is administrator-unlock-only.
 
 ---
 
@@ -67,13 +67,13 @@ Companion:  Paste-ready AI-maker prompts delivered in the working chat; this
 2. [STAFF] Manual Input: login identifier + password + "Remember me on this device" checkbox
 3. [DATABASE] Cylinder: `check_account_lockout` — typed contract LOCKED / UNLOCKED / EXPIRED / ADMIN_UNLOCKED / NOT_FOUND / STATUS_UNKNOWN + server_now
 4. [SYSTEM] Diamond: Locked?
-   - Yes → Display: lockout card — live countdown from authoritative `locked_until` (server-clock offset), polled every 10 s via `check_lockout_status_by_token` (opaque token, sha256-stored); support contact directory shown (data link ← Fig 6.1.3); exits: expiry → auto-recheck, Pentagon ← Fig 6.1.8 (admin early unlock clears within one poll) → Circle-loop → node 2
+   - Yes → Display: Administrator Verification card (no timer — locked is released by administrator unlock only), reconciled every 10 s via `check_lockout_status_by_token` (opaque token, sha256-stored) + focus/online; support contact directory shown (data link ← Fig 6.1.3); Pentagon ← Fig 6.1.8 (admin unlock clears within one poll) → Circle-loop → node 2
    - STATUS_UNKNOWN (transport) → fail-closed: treated as not-unlocked, retry — never guessed
    - No → node 5
 5. [SYSTEM] Rectangle: Sign-in attempt (`signInWithPassword`)
 6. [SYSTEM] Diamond: Credentials valid?
    - No → [DATABASE] Cylinder: `record_failed_login_attempt` → Diamond: 5 failures within 15 min?
-     - **Yes** → [DATABASE] Rectangle: 30-minute lockout — opaque token issued once (sha256 hash stored); attempts note cleared on every lock/expiry/unlock → lockout card (node 4). D-shape Delay: 30 min, server-owned → **Delay expires → next failed attempt (the 6th)** → [DATABASE] Rectangle: `verification_required = true` (prior lockout within 24h) → **Administrator Verification card** replaces the sign-in form: "Verify with an Administrator" CTA + contact directory; cleared only by admin unlock (`unlock_account`) or a successful sign-in — the user's card auto-syncs back to the form within the 10-second poll (Pentagon ↔ Fig 6.1.8 admin console badge)
+     - **Yes** → [DATABASE] Rectangle: lock — **no countdown, no time expiry** (locked_until NULL; released only by an administrator's verified unlock) → **Administrator Verification card replaces the sign-in form**: "Verify with an Administrator" CTA + contact directory; the 10-second poll flips the form back the moment an admin unlocks (Pentagon ↔ Fig 6.1.8 badge)
      - **No** → Display: single-source note "N attempt(s) remaining before the account locks automatically" (server-returned, never locally decremented) → Circle-loop → node 2
    - Yes → Circle Ⓐ
 

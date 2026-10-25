@@ -137,7 +137,7 @@ Audit Date:          2026-10-24
   * Accounts lock server-side after 5 consecutive failures for a 30-minute cooldown window.
 * **Failure Modes & Safe Behavior:**
   * *Malicious client sends fake success:* Blocked; `record_failed_login_attempt` only increments failures.
-  * *Brute force attack:* Server enforces 30-minute lockout on the 5th attempt; opaque lockout tokens prevent user enumeration.
+  * *Brute force attack:* Server locks the account on the 5th attempt — **no timer: release is administrator-unlock-only** (20261026120000); opaque lockout tokens prevent user enumeration.
 
 ---
 
@@ -202,7 +202,7 @@ Audit Date:          2026-10-24
 * **Problem & User Outcome:** After a lockout or wrong-identifier cooldown expired, a still-struggling user simply entered another retry cycle (5 more failures → another countdown) with no human in the loop. User outcome: the **first wrong attempt after a completed countdown** — the 6th attempt — replaces the retry form with an **Administrator Verification Required** card (login) or **Contact an Administrator** panel (recovery): the primary action is "Verify with an Administrator" plus the published support contact directory. The user talks to a human who verifies they are really staff; retrying is not offered until then.
 * **Current-State Trace:** login — `record_failed_login_attempt` (failed attempt with `last_lockout_at` within 24h → `verification_required=true` on `account_security_state`, `ACCOUNT_ESCALATION_REQUIRED` event) $\to$ `check_account_lockout`/`check_lockout_status_by_token` carry `escalation_required` $\to$ `applyLockoutResult` $\to$ LoginForm verification card replaces the sign-in form; recovery — `submit_assisted_recovery_request` v6 (first unknown identifier after a cooldown expired within 1h → `verification_required_until = now()+1h` on `account_recovery_attempt_state`) $\to$ dialog panel replaces the identifier form (ticket tracker stays). Admin loop: `get_locked_accounts` lists verification-required rows with the amber badge $\to$ admin verifies the person $\to$ `unlock_account` clears lockout + verification $\to$ the user's card **auto-syncs back to the form within the 10-second poll**.
 * **Invariants:**
-  * The underlying policies are unchanged: 5 failures/15 min → 30-min lockout; 5 wrong identifiers/15 min → 2-min cooldown. Escalation is the layer after a completed cycle, never instead of it.
+  * The underlying thresholds are unchanged: 5 failures/15 min → lockout; 5 wrong identifiers/15 min → 2-min cooldown. Per the owner's 2026-10-25 decision (`20261026120000`), the lockout has **no countdown and no time expiry** — the card routes to administrator contact, and only an admin unlock (or proven success) releases it. An unlock keeps `last_lockout_at`, so the first failure after a lift re-escalates instead of starting a fresh cycle.
   * The flag is server-authoritative on every check response; a correct identifier on the recovery side always goes straight through to a ticket (escalation never blocks a real account); no password attempt is made from the UI while the login flag is active.
   * Cleared only by: administrator early unlock (identity verified, reason audited), a successful sign-in (`reset_my_login_lockout`), or an identity-verified `RESOLVE_RESET` (which also clears the wrong-identifier escalation).
   * The review RPC keeps every protection (self-review prevention, hierarchical RBAC, final-decision immutability, atomic reset).

@@ -95,12 +95,6 @@ export function LoginLockoutsTab() {
     }
   };
 
-  const formatSeconds = (secs: number) => {
-    const mins = Math.floor(secs / 60);
-    const rem = secs % 60;
-    return `${mins}m ${rem}s`;
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -164,8 +158,8 @@ export function LoginLockoutsTab() {
                   <th className="px-4 py-3">Account</th>
                   <th className="px-4 py-3">Role</th>
                   <th className="px-4 py-3">Failed Attempts</th>
-                  <th className="px-4 py-3">Remaining Time</th>
-                  <th className="px-4 py-3">Locked Until</th>
+                  <th className="px-4 py-3">Release</th>
+                  <th className="px-4 py-3">Last Failed At</th>
                   <th className="px-4 py-3 text-right">Action</th>
                 </tr>
               </thead>
@@ -195,17 +189,13 @@ export function LoginLockoutsTab() {
                         {acc.failed_attempts} failures
                       </td>
                       <td className="px-4 py-3">
-                        {acc.locked_until ? (
-                          <span className="inline-flex items-center gap-1 font-mono text-amber-500 font-bold">
-                            <Clock className="w-3 h-3" />
-                            {formatSeconds(acc.seconds_remaining)}
-                          </span>
-                        ) : (
-                          <span className="text-[11px] text-muted-foreground italic">No active lock</span>
-                        )}
+                        <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
+                          <Clock className="w-3 h-3" />
+                          Admin unlock only
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-[11px]">
-                        {acc.locked_until ? new Date(acc.locked_until).toLocaleTimeString() : '—'}
+                        {acc.last_failed_at ? new Date(acc.last_failed_at).toLocaleTimeString() : '—'}
                       </td>
                       <td className="px-4 py-3 text-right">
                         {canUnlock ? (
@@ -251,7 +241,7 @@ export function LoginLockoutsTab() {
               <div className="p-3 rounded-xl bg-muted/40 border border-border/60 text-xs space-y-1">
                 <div><span className="text-muted-foreground">Target Account: </span><span className="font-bold text-foreground">{selectedAccount.email_masked}</span></div>
                 <div><span className="text-muted-foreground">Role: </span><span className="font-semibold text-primary">{selectedAccount.user_role}</span></div>
-                <div><span className="text-muted-foreground">Time Remaining: </span><span className="font-mono text-rose-400 font-bold">{selectedAccount.locked_until ? formatSeconds(selectedAccount.seconds_remaining) : 'No active lock'}</span></div>
+                <div><span className="text-muted-foreground">Release: </span><span className="font-semibold text-amber-600 dark:text-amber-400">Administrator unlock only — no timer</span></div>
                 {selectedAccount.verification_required && (
                   <div className="pt-1 text-amber-600 dark:text-amber-400 font-semibold leading-relaxed">
                     Administrator verification required — verify the person first; unlocking clears the

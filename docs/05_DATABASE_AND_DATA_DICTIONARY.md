@@ -213,7 +213,7 @@ Frozen immutable historical records of daily shift inventory balances.
 | `review_assisted_recovery_request` | `(p_request_id UUID, p_decision TEXT, p_notes TEXT, p_new_password TEXT)` | `SECURITY DEFINER` (admin) | Admin-only ticket decision; `RESOLVE_RESET` performs the verified password reset server-side and marks the ticket COMPLETED in the same transaction. |
 | `get_public_support_contacts` | `()` | `SECURITY DEFINER` (anon) | Opted-in ADMIN/SUPER_ADMIN profiles with at least one real public channel (support phone, support email, or public link) for the recovery and lockout screens. |
 | `update_my_profile` | `(p_display_name, p_first_name, …)` | `SECURITY DEFINER` (authenticated) | Self-only profile update including support channels and the `show_on_lockout_screen` opt-in; no role/id escalation. |
-| `record_failed_login_attempt` | `(p_email TEXT)` | `SECURITY DEFINER` (anon) | Server-authoritative failure counter: 5 failures / 15 min → 30-minute lockout with an opaque token (sha256-stored). |
+| `record_failed_login_attempt` | `(p_email TEXT)` | `SECURITY DEFINER` (anon) | Server-authoritative failure counter: 5 failures / 15 min locks the account with **no time expiry** — release is administrator-unlock-only (verified unlock / successful sign-in / identity-verified reset); opaque token (sha256-stored). |
 | `check_account_lockout` | `(p_email TEXT)` | `SECURITY DEFINER` (anon) | Typed lockout status (`LOCKED/UNLOCKED/EXPIRED/…`) plus `server_now`; never guesses on transport failure. |
 | `check_lockout_status_by_token` | `(p_token TEXT)` | `SECURITY DEFINER` (anon) | Opaque-token lockout polling for the lockout card; typed contract, fail-closed. |
 | `get_locked_accounts` / `unlock_account` / `reset_my_login_lockout` | — | `SECURITY DEFINER` (admin / self) | Lockout admin console listing and authorized unlock / self reset after verified recovery. |
@@ -226,7 +226,7 @@ Frozen immutable historical records of daily shift inventory balances.
 
 ## 4. Chronological Migration Inventory
 
-The KUVENTORY schema is constructed through **79 sequential migrations** located in `supabase/migrations/`:
+The KUVENTORY schema is constructed through **80 sequential migrations** located in `supabase/migrations/`:
 
 ```
  1. 20260831000000_initial_schema.sql
@@ -308,4 +308,5 @@ The KUVENTORY schema is constructed through **79 sequential migrations** located
 77. 20261025230000_recovery_unknown_identifier_attempt_cooldown.sql
 78. 20261025240000_recovery_attempt_state_exact_identifier.sql
 79. 20261026000000_signin_escalation_to_admin_verification.sql
+80. 20261026120000_lockout_admin_unlock_only.sql
 ```

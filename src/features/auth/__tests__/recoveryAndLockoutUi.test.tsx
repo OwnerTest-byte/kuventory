@@ -284,7 +284,7 @@ describe('LoginForm assisted recovery workflow (component behavior)', () => {
 });
 
 describe('LoginForm login lockout behavior (component behavior)', () => {
-  it('locks on the 5th failure, ticks down live, re-checks the server at zero, and refuses to unlock on status failure', async () => {
+  it('locks on the 5th failure with NO countdown — waiting never releases it; a failed status check keeps the card', async () => {
     let tokenChecks = 0;
     mockRpc({
       check_account_lockout: async () => ({
@@ -296,16 +296,17 @@ describe('LoginForm login lockout behavior (component behavior)', () => {
           status: 'LOCKED',
           is_locked: true,
           failed_attempts: 5,
-          locked_until: iso(1_800_000),
-          seconds_remaining: 1800,
+          locked_until: null,
+          seconds_remaining: 0,
           lockout_token: 'opaque-token-1',
+          escalation_required: false,
           server_now: iso(0),
+          message: 'Account is locked until an administrator verifies your identity and unlocks it.',
         },
         error: null,
       }),
       check_lockout_status_by_token: async () => {
         tokenChecks += 1;
-        // Server unreachable at the moment the local countdown hits zero.
         return { data: null, error: { message: 'connection refused' } };
       },
     });
@@ -317,34 +318,28 @@ describe('LoginForm login lockout behavior (component behavior)', () => {
     renderForm();
     await submitLogin('staff@kuventory.com', 'wrongpass');
 
-    // Locked card with the authoritative 30-minute value.
-    expect(screen.getByText(/sign-in temporarily paused/i)).toBeInTheDocument();
-    expect(screen.getByRole('timer')).toHaveTextContent('30:00');
+    // Verification card replaces the form — and there is NO timer anywhere.
+    expect(screen.getByText('Administrator Verification Required')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /verify with an administrator/i })).toBeInTheDocument();
+    expect(screen.queryByRole('timer')).toBeNull();
+    expect(screen.getByText(/no countdown and waiting will not release it/i)).toBeInTheDocument();
 
-    // The visible countdown actually decreases over time.
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
-    expect(screen.getByRole('timer')).toHaveTextContent('29:59');
-    act(() => {
-      vi.advanceTimersByTime(59_000);
-    });
-    expect(screen.getByRole('timer')).toHaveTextContent('29:00');
-
-    // Countdown reaches zero: an authoritative check runs; because the server
-    // cannot be reached the UI must NOT claim the account is unlocked.
+    // Half an hour later the card is still there: time does not release it.
     await act(async () => {
-      vi.advanceTimersByTime(29 * 60_000);
+      vi.advanceTimersByTime(30 * 60_000);
     });
     await flush();
 
+    // The bounded 10s poll ran; the unreachable server must NOT clear the card.
     expect(tokenChecks).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/sign-in temporarily paused/i)).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent(/could not verify your lockout status/i);
+    expect(screen.getByText('Administrator Verification Required')).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('alert').some(a => a.textContent?.includes('could not verify your lockout status'))
+    ).toBe(true);
   });
 
-  it('leaves the locked state only after the server confirms expiry', async () => {
-    let tokenChecks = 0;
+  it('leaves the locked state only on a server-confirmed release — never by time', async () => {
+    let released = false;
     mockRpc({
       check_account_lockout: async () => ({
         data: { status: 'UNLOCKED', is_locked: false, failed_attempts: 0, server_now: iso(0) },
@@ -355,16 +350,19 @@ describe('LoginForm login lockout behavior (component behavior)', () => {
           status: 'LOCKED',
           is_locked: true,
           failed_attempts: 5,
-          locked_until: iso(300_000),
-          seconds_remaining: 300,
+          locked_until: null,
+          seconds_remaining: 0,
           lockout_token: 'opaque-token-2',
+          escalation_required: false,
           server_now: iso(0),
         },
         error: null,
       }),
       check_lockout_status_by_token: async () => {
-        tokenChecks += 1;
-        return { data: { status: 'EXPIRED', is_locked: false, token_valid: true, server_now: iso(300_000) }, error: null };
+        if (released) {
+          return { data: { status: 'ADMIN_UNLOCKED', is_locked: false, was_unlocked: true, token_valid: true, server_now: iso(300_000) }, error: null };
+        }
+        return { data: { status: 'LOCKED', is_locked: true, token_valid: true, locked_until: null, seconds_remaining: 0, server_now: iso(0) }, error: null };
       },
     });
     vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
@@ -374,21 +372,28 @@ describe('LoginForm login lockout behavior (component behavior)', () => {
 
     renderForm();
     await submitLogin('staff@kuventory.com', 'wrongpass');
-    expect(screen.getByRole('timer')).toHaveTextContent('05:00');
+    expect(screen.getByText('Administrator Verification Required')).toBeInTheDocument();
 
-    // Local countdown hits zero -> authoritative check confirms expiry.
+    // Time passes: still locked (no countdown to hit zero, no auto-release).
     await act(async () => {
-      vi.advanceTimersByTime(300_000);
+      vi.advanceTimersByTime(45 * 60_000);
+    });
+    await flush();
+    expect(screen.getByText('Administrator Verification Required')).toBeInTheDocument();
+
+    // The administrator unlocks: the next poll clears the card automatically.
+    released = true;
+    await act(async () => {
+      vi.advanceTimersByTime(10_000);
     });
     await flush();
 
-    expect(tokenChecks).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText(/sign-in temporarily paused/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/lockout period has ended/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Administrator Verification Required/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/unlocked by an administrator/i)).toBeInTheDocument();
     expect(screen.getByLabelText('Sign In Form')).toBeInTheDocument();
   });
 
-  it('clears the locked UI after a confirmed early administrative unlock via token polling', async () => {
+  it('clears the verification card after a confirmed administrative unlock via token polling', async () => {
     let pollCount = 0;
     mockRpc({
       check_account_lockout: async () => ({
@@ -400,9 +405,10 @@ describe('LoginForm login lockout behavior (component behavior)', () => {
           status: 'LOCKED',
           is_locked: true,
           failed_attempts: 5,
-          locked_until: iso(1_800_000),
-          seconds_remaining: 1800,
+          locked_until: null,
+          seconds_remaining: 0,
           lockout_token: 'opaque-token-3',
+          escalation_required: false,
           server_now: iso(0),
         },
         error: null,
@@ -419,7 +425,7 @@ describe('LoginForm login lockout behavior (component behavior)', () => {
 
     renderForm();
     await submitLogin('staff@kuventory.com', 'wrongpass');
-    expect(screen.getByRole('timer')).toHaveTextContent('30:00');
+    expect(screen.getByText('Administrator Verification Required')).toBeInTheDocument();
 
     // ~10s bounded polling detects the administrator unlock without a refresh.
     await act(async () => {
@@ -428,8 +434,8 @@ describe('LoginForm login lockout behavior (component behavior)', () => {
     await flush();
 
     expect(pollCount).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText(/sign-in temporarily paused/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/lifted by an administrator/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Administrator Verification Required/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/unlocked by an administrator/i)).toBeInTheDocument();
   });
 
   it('fails closed when the pre-login security check cannot be verified', async () => {
@@ -688,27 +694,41 @@ describe('Recovery existence gate + truthful attempt messaging + conditional con
     ).toBeInTheDocument();
   });
 
-  it('shows the attempt count once, clears it on lockout, and reports the fresh count after expiry', async () => {
-    let phase: 'fail4' | 'lock' | 'after-expiry' = 'fail4';
+  it('shows the attempt count once, clears it on lockout, and requires administrator verification after a post-unlock failure', async () => {
+    let phase: 'fail4' | 'lock' | 'unlocked' | 'post-unlock-fail' = 'fail4';
     mockRpc({
-      check_account_lockout: async () => ({
-        data: { status: 'UNLOCKED', is_locked: false, failed_attempts: 0, server_now: iso(0) },
-        error: null,
-      }),
+      check_account_lockout: async () => {
+        if (phase === 'unlocked' || phase === 'post-unlock-fail') {
+          return { data: { status: 'UNLOCKED', is_locked: false, failed_attempts: 0, escalation_required: phase === 'post-unlock-fail', server_now: iso(300_000) }, error: null };
+        }
+        return { data: { status: 'UNLOCKED', is_locked: false, failed_attempts: 0, server_now: iso(0) }, error: null };
+      },
       record_failed_login_attempt: async () => {
         if (phase === 'fail4') {
           return { data: { status: 'UNLOCKED', is_locked: false, failed_attempts: 4, server_now: iso(0) }, error: null };
         }
         if (phase === 'lock') {
           return {
-            data: { status: 'LOCKED', is_locked: true, failed_attempts: 5, locked_until: iso(300_000), seconds_remaining: 300, lockout_token: 'tok-ws2', server_now: iso(0) },
+            data: { status: 'LOCKED', is_locked: true, failed_attempts: 5, locked_until: null, seconds_remaining: 0, lockout_token: 'tok-ws2', escalation_required: false, server_now: iso(0) },
             error: null,
           };
         }
-        return { data: { status: 'UNLOCKED', is_locked: false, failed_attempts: 1, server_now: iso(300_000) }, error: null };
+        // First failure AFTER the administrator lifted the lock: straight to
+        // administrator verification — no fresh countdown cycle.
+        return {
+          data: {
+            status: 'UNLOCKED',
+            is_locked: false,
+            failed_attempts: 1,
+            escalation_required: true,
+            server_now: iso(300_000),
+            message: 'Administrator verification required. Contact an administrator through the official support channels to verify your identity.',
+          },
+          error: null,
+        };
       },
       check_lockout_status_by_token: async () => ({
-        data: { status: 'EXPIRED', is_locked: false, token_valid: true, server_now: iso(300_000) },
+        data: { status: 'ADMIN_UNLOCKED', is_locked: false, was_unlocked: true, token_valid: true, server_now: iso(300_000) },
         error: null,
       }),
     });
@@ -722,24 +742,28 @@ describe('Recovery existence gate + truthful attempt messaging + conditional con
     expect(screen.getByText('Invalid email or password.')).toBeInTheDocument();
     expect(screen.getByText(/1 attempt remaining before the account locks automatically/i)).toBeInTheDocument();
 
-    // 5th failure: lockout card replaces the form — no stale note anywhere.
+    // 5th failure: verification card replaces the form — no stale note anywhere.
     phase = 'lock';
     await submitLogin('staff@kuventory.com', 'wrongpass');
-    expect(screen.getByText(/sign-in temporarily paused/i)).toBeInTheDocument();
+    expect(screen.getByText('Administrator Verification Required')).toBeInTheDocument();
     expect(screen.queryByText(/attempt(s)? remaining before the account locks automatically/i)).not.toBeInTheDocument();
 
-    // Lockout expires: clean banner, still no stale attempt note.
+    // The administrator verifies + unlocks: the poll clears the card cleanly.
+    phase = 'unlocked';
     await act(async () => {
-      vi.advanceTimersByTime(300_000);
+      vi.advanceTimersByTime(10_000);
     });
     await flush();
-    expect(screen.getByText(/lockout period has ended/i)).toBeInTheDocument();
+    expect(screen.getByText(/unlocked by an administrator/i)).toBeInTheDocument();
     expect(screen.queryByText(/attempt(s)? remaining before the account locks automatically/i)).not.toBeInTheDocument();
 
-    // Fresh window after expiry: server says attempt 1 -> truthful "4 remaining".
-    phase = 'after-expiry';
+    // ONE more wrong password after the lift: no fresh "4 attempts" cycle —
+    // straight back to administrator verification.
+    phase = 'post-unlock-fail';
     await submitLogin('staff@kuventory.com', 'wrongpass');
-    expect(screen.getByText(/4 attempts remaining before the account locks automatically/i)).toBeInTheDocument();
+    expect(screen.getByText('Administrator Verification Required')).toBeInTheDocument();
+    expect(screen.queryByText(/4 attempts remaining before the account locks automatically/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('timer')).toBeNull();
   });
 
   it('renders each contact detail only when provided and hides the card when a contact has none', async () => {

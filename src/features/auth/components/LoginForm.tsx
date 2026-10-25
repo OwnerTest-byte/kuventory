@@ -16,7 +16,6 @@ import {
   Loader2,
   ShieldCheck,
   Send,
-  Clock,
   RefreshCw,
   ShieldAlert,
   ArrowLeft,
@@ -73,8 +72,12 @@ export const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 interface LockoutUiState {
-  /** Authoritative expiry from the database. Never locally decremented. */
-  lockedUntil: string;
+  /**
+   * Historical expiry field — locks no longer release by time (owner
+   * decision), so new locks carry NULL. Kept for shape compatibility with
+   * reconcile helpers; nothing renders a countdown from it.
+   */
+  lockedUntil: string | null;
   secondsRemaining: number;
   lockoutToken: string | null;
 }
@@ -207,14 +210,14 @@ export function LoginForm() {
         setLockoutEscalation(res.escalationRequired === true);
       }
 
-      if (res.outcome === 'LOCKED' && res.lockedUntil) {
+      if (res.outcome === 'LOCKED') {
         setLockoutVerifyError(null);
         // The attempts counter is meaningless once the lockout engages (the
-        // locked card replaces the form); drop any stale value.
+        // verification card replaces the form); drop any stale value.
         setAttemptsRemaining(null);
         setLockout(prev => ({
-          lockedUntil: res.lockedUntil!,
-          secondsRemaining: computeRemainingSeconds(res.lockedUntil, serverClockRef.current),
+          lockedUntil: res.lockedUntil ?? null,
+          secondsRemaining: 0,
           lockoutToken: res.lockoutToken ?? prev?.lockoutToken ?? null,
         }));
         return;
@@ -232,7 +235,9 @@ export function LoginForm() {
         return;
       }
       if (res.outcome === 'ADMIN_UNLOCKED') {
-        setAuthError('Your account lockout has been lifted by an administrator. You may now sign in.');
+        setAuthError(
+          'Your account was unlocked by an administrator. You may sign in now — if the next sign-in fails, administrator verification will be required again.'
+        );
       } else if (res.outcome === 'EXPIRED') {
         setAuthError('The lockout period has ended. You may now attempt to sign in again.');
       } else if (res.outcome === 'NOT_FOUND') {
@@ -277,30 +282,9 @@ export function LoginForm() {
     }
   };
 
-  // Expiry-derived countdown: recomputed from the clock every second so
-  // background-tab throttling, sleeps, and reloads cannot desync the label.
-  useEffect(() => {
-    if (!lockout) return;
-
-    const tick = () => {
-      const remaining = computeRemainingSeconds(lockout.lockedUntil, serverClockRef.current);
-      if (remaining <= 0) {
-        // Local deadline reached: confirm with the server instead of
-        // assuming the account is unlocked. Stop this fast interval so an
-        // unreachable server is retried by the bounded 10s poll, focus,
-        // online, and manual checks rather than once per second.
-        clearInterval(timer);
-        setLockout(prev => (prev ? { ...prev, secondsRemaining: 0 } : prev));
-        void pollLockoutStatus();
-        return;
-      }
-      setLockout(prev => (prev && prev.secondsRemaining !== remaining ? { ...prev, secondsRemaining: remaining } : prev));
-    };
-
-    tick();
-    const timer = setInterval(tick, 1000);
-    return () => clearInterval(timer);
-  }, [lockout?.lockedUntil, pollLockoutStatus]);
+  // No per-second countdown: a lock no longer releases by time. The bounded
+  // 10-second poll + focus/online reconcile below are what flip the card back
+  // to the sign-in form the moment an administrator unlocks the account.
 
   // Bounded polling (~10s) while locked (opaque token) or while the
   // administrator-verification state is active (email fallback poll — this is
@@ -816,11 +800,11 @@ export function LoginForm() {
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* 30-MINUTE LOCKOUT / ADMINISTRATOR-VERIFICATION CARD            */}
+      {/* LOCKED = ADMINISTRATOR VERIFICATION. No timer: only an         */}
+      {/* administrator's verified unlock releases the account.          */}
       {/* ------------------------------------------------------------- */}
       {lockout || lockoutEscalation ? (
         <div className="space-y-5 animate-in fade-in zoom-in-95 duration-200">
-          {lockoutEscalation ? (
           <div
             className="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-500/50 shadow-xl space-y-4 text-center"
             role="alert"
@@ -833,9 +817,9 @@ export function LoginForm() {
             <div className="space-y-1">
               <h3 className="font-bold text-base text-amber-900 dark:text-amber-100">Administrator Verification Required</h3>
               <p className="text-xs text-amber-800 dark:text-amber-200/80 leading-relaxed">
-                Repeated failed sign-ins were detected on this account. For your security, an administrator must
-                verify your identity before you can try again. Contact an administrator through the official
-                channels below — after verifying you, they can clear this requirement instantly.
+                Too many failed sign-ins were detected on this account. There is no countdown and waiting will not
+                release it — an administrator must verify your identity and unlock your access. Contact an
+                administrator through the official channels below.
               </p>
             </div>
 
@@ -878,72 +862,11 @@ export function LoginForm() {
               </Button>
 
               <p className="text-[11px] text-amber-700/80 dark:text-amber-300/70 italic">
-                The moment an administrator verifies you and clears the requirement, this screen returns to the
+                The moment an administrator verifies you and unlocks your account, this screen returns to the
                 sign-in form automatically.
               </p>
             </div>
           </div>
-          ) : (
-          <div className="p-5 rounded-2xl bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-500/50 shadow-xl space-y-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 mx-auto flex items-center justify-center">
-              <ShieldAlert className="w-6 h-6" />
-            </div>
-
-            <div className="space-y-1">
-              <h3 className="font-bold text-base text-rose-900 dark:text-rose-100">Sign-In Temporarily Paused</h3>
-              <p className="text-xs text-rose-700 dark:text-rose-200/80">
-                5 consecutive failed login attempts detected. Access is locked for 30 minutes to protect your account.
-              </p>
-            </div>
-
-            {/* Countdown Display — derived from the database locked_until timestamp */}
-            <div className="p-3.5 rounded-xl bg-rose-100/70 dark:bg-black/40 border border-rose-200 dark:border-rose-500/30 flex flex-col items-center justify-center space-y-1">
-              <span className="text-[10px] uppercase font-bold tracking-widest text-rose-600 dark:text-rose-300 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" /> Time Remaining
-              </span>
-              <span
-                className="font-mono text-3xl font-black text-rose-950 dark:text-white tracking-wider tabular-nums"
-                aria-live="polite"
-                role="timer"
-              >
-                {formatTimer(lockout?.secondsRemaining || 0)}
-              </span>
-              <span className="text-[10px] text-rose-600/80 dark:text-rose-300/70">
-                Synced with database security ledger
-              </span>
-            </div>
-
-            {lockoutVerifyError && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left flex items-start gap-2" role="alert">
-                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
-                <span className="text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed">{lockoutVerifyError}</span>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="space-y-2 pt-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isCheckingLockout}
-                onClick={handleManualCheckLockout}
-                className="w-full h-9 text-xs rounded-xl border-rose-300 dark:border-rose-500/30 text-rose-700 dark:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-900/40 dark:hover:text-white"
-              >
-                {isCheckingLockout ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
-                ) : (
-                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                )}
-                Check Lockout Status Now
-              </Button>
-
-              <p className="text-[11px] text-rose-600/80 dark:text-rose-300/60 italic">
-                An administrator can clear your lockout early with an authorized override.
-              </p>
-            </div>
-          </div>
-          )}
 
           {/* Administrator Contact Directory (shared with the recovery dialog) */}
           <div id="administrator-contacts" className="p-4 rounded-xl bg-card border border-border/80 shadow-sm space-y-3 scroll-mt-4">
