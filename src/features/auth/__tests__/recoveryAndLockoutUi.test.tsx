@@ -858,3 +858,98 @@ describe('Login screen contact sync (Fix 4)', () => {
     expect(spy.mock.calls.length).toBeGreaterThan(afterMount);
   });
 });
+
+describe('6th-attempt administrator verification (login + recovery escalation)', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    localStorage.clear();
+  });
+
+  it('replaces the sign-in form with the administrator-verification card — no password attempt is made', async () => {
+    mockRpc({
+      check_account_lockout: async () => ({
+        data: {
+          status: 'UNLOCKED',
+          is_locked: false,
+          failed_attempts: 0,
+          escalation_required: true,
+          server_now: iso(0),
+        },
+        error: null,
+      }),
+    });
+
+    renderForm();
+    await submitLogin('staff@kuventory.com', 'wrongpass');
+
+    expect(screen.getByText('Administrator Verification Required')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /verify with an administrator/i })).toBeInTheDocument();
+    // The sign-in form is hidden while the verification state is active.
+    expect(screen.queryByLabelText('Sign In Form')).toBeNull();
+    // The pre-check short-circuits: Supabase Auth is never called.
+    expect(supabase.auth.signInWithPassword).not.toHaveBeenCalled();
+    // No lockout countdown is shown — escalation replaced the retry cycle.
+    expect(screen.queryByText(/Sign-In Temporarily Paused/i)).toBeNull();
+  });
+
+  it('auto-syncs back to the sign-in form once the administrator clears the requirement', async () => {
+    let escalated = true;
+    mockRpc({
+      check_account_lockout: async () => ({
+        data: {
+          status: 'UNLOCKED',
+          is_locked: false,
+          failed_attempts: 0,
+          escalation_required: escalated,
+          server_now: iso(0),
+        },
+        error: null,
+      }),
+    });
+
+    renderForm();
+    await submitLogin('staff@kuventory.com', 'wrongpass');
+    expect(screen.getByText('Administrator Verification Required')).toBeInTheDocument();
+
+    // The administrator verifies + unlocks; the next 10-second poll clears
+    // the card automatically (no reload).
+    escalated = false;
+    await act(async () => {
+      vi.advanceTimersByTime(10_000);
+    });
+    await flush();
+
+    expect(screen.getByLabelText('Sign In Form')).toBeInTheDocument();
+    expect(screen.queryByText('Administrator Verification Required')).toBeNull();
+  });
+
+  it('replaces the identifier form with the contact-admin panel on the 6th wrong identifier', async () => {
+    mockRpc({
+      submit_assisted_recovery_request: async () => ({
+        data: {
+          accepted: false,
+          escalation_required: true,
+          server_now: iso(0),
+          next_allowed_at: iso(3_600_000),
+          seconds_remaining: 3600,
+          message: 'Contact an administrator to verify your identity and confirm your correct login identifier.',
+        },
+        error: null,
+      }),
+    });
+
+    renderForm();
+    await openRecoveryModal();
+    await fillAndSubmitRecovery('ghost.user@kuventory.com');
+    await flush();
+
+    expect(screen.getByText('Contact an Administrator')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /verify with an administrator/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /check again/i })).toBeInTheDocument();
+    // The identifier form is hidden; the ticket tracker stays available.
+    expect(screen.queryByLabelText(/account login identifier/i)).toBeNull();
+    expect(screen.getByText('Check Ticket Status')).toBeInTheDocument();
+    // Escalation created no ticket.
+    expect(sessionStorage.getItem('kuventory_recovery_ticket')).toBeNull();
+  });
+});

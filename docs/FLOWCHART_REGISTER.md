@@ -73,8 +73,8 @@ Companion:  Paste-ready AI-maker prompts delivered in the working chat; this
 5. [SYSTEM] Rectangle: Sign-in attempt (`signInWithPassword`)
 6. [SYSTEM] Diamond: Credentials valid?
    - No → [DATABASE] Cylinder: `record_failed_login_attempt` → Diamond: 5 failures within 15 min?
-     - Yes → [DATABASE] Rectangle: 30-minute lockout — opaque token issued once (sha256 hash stored); attempts note cleared on every lock/expiry/unlock → lockout card (node 4). D-shape Delay: 30 min, server-owned
-     - No → Display: single-source note "N attempt(s) remaining before the account locks automatically" (server-returned, never locally decremented) → Circle-loop → node 2
+     - **Yes** → [DATABASE] Rectangle: 30-minute lockout — opaque token issued once (sha256 hash stored); attempts note cleared on every lock/expiry/unlock → lockout card (node 4). D-shape Delay: 30 min, server-owned → **Delay expires → next failed attempt (the 6th)** → [DATABASE] Rectangle: `verification_required = true` (prior lockout within 24h) → **Administrator Verification card** replaces the sign-in form: "Verify with an Administrator" CTA + contact directory; cleared only by admin unlock (`unlock_account`) or a successful sign-in — the user's card auto-syncs back to the form within the 10-second poll (Pentagon ↔ Fig 6.1.8 admin console badge)
+     - **No** → Display: single-source note "N attempt(s) remaining before the account locks automatically" (server-returned, never locally decremented) → Circle-loop → node 2
    - Yes → Circle Ⓐ
 
 ### Phase 2 — Session (at Ⓐ)
@@ -106,7 +106,7 @@ Companion:  Paste-ready AI-maker prompts delivered in the working chat; this
 5. [DATABASE] Diamond: Account exists? (existence gate FIRST)
    - No → [DATABASE] Rectangle: count wrong attempt — per EXACT identifier (sha256 key in `account_recovery_attempt_state`; distinct identifiers never share state), 15-minute window, per-identifier advisory lock → Diamond: 5th wrong attempt?
      - No → Display: "No KUVENTORY account matches this identifier. Check the spelling or contact your administrator." + "N attempt(s) remaining before a short cooldown." (N = 4→1) → Circle-loop → node 2. One masked audit event; no ticket, no notification
-     - Yes → D-shape Delay: 2-minute cooldown — explicitly NOT a lockout (no account state written, no lockout token) → Display: "Too many attempts with unknown identifiers. Please wait 2 minutes before trying again." + live countdown; further submits throttled with decreasing seconds; after expiry allowance fully resets to 5 fresh attempts → Circle-loop → node 2
+     - Yes → D-shape Delay: 2-minute cooldown — explicitly NOT a lockout (no account state written, no lockout token) → Display: "Too many attempts with unknown identifiers. Please wait 2 minutes before trying again." + live countdown; further submits throttled with decreasing seconds → **cooldown expires → next unknown identifier (the 6th)** → [DATABASE] Rectangle: `verification_required_until = now + 1 hour` (prior cooldown within 1h) → **Contact an Administrator panel** replaces the identifier form (directory + "Check Again"; ticket tracker stays; a CORRECT identifier always goes straight through to a ticket)
    - Yes → Diamond: ticket for this identifier within last 2 minutes?
      - Yes → throttle with authoritative next_allowed_at → wait → loop
      - No → node 6

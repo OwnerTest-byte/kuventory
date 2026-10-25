@@ -22,6 +22,7 @@ import {
   ArrowLeft,
   AlertTriangle,
   Copy,
+  UserCheck,
   X
 } from 'lucide-react';
 import {
@@ -87,6 +88,10 @@ export function LoginForm() {
 
   // Lockout State (server-backed 30-minute lockout on 5 failed attempts)
   const [lockout, setLockout] = useState<LockoutUiState | null>(null);
+  /** 6th-attempt state: administrator verification required before retry. */
+  const [lockoutEscalation, setLockoutEscalation] = useState(false);
+  /** Same escalation state for the recovery dialog (per typed identifier). */
+  const [recoveryEscalation, setRecoveryEscalation] = useState(false);
   const [lockoutVerifyError, setLockoutVerifyError] = useState<string | null>(null);
   const [isCheckingLockout, setIsCheckingLockout] = useState(false);
 
@@ -194,6 +199,14 @@ export function LoginForm() {
     (res: LockoutCheckResult) => {
       applyServerNow(res.serverNow);
 
+      // The escalation flag is server-authoritative on every verified
+      // outcome (set on the first failed attempt after a lockout expired,
+      // cleared by an administrator unlock or a successful sign-in).
+      // STATUS_UNKNOWN never touches it — unknown is not "not escalated".
+      if (res.outcome !== 'STATUS_UNKNOWN') {
+        setLockoutEscalation(res.escalationRequired === true);
+      }
+
       if (res.outcome === 'LOCKED' && res.lockedUntil) {
         setLockoutVerifyError(null);
         // The attempts counter is meaningless once the lockout engages (the
@@ -213,6 +226,11 @@ export function LoginForm() {
       // After expiry/unlock the server starts a fresh 15-minute window, so
       // any previously displayed attempt count is stale and must not survive.
       setAttemptsRemaining(null);
+      if (res.escalationRequired) {
+        // The verification-required card carries its own messaging; do not
+        // claim sign-in is available.
+        return;
+      }
       if (res.outcome === 'ADMIN_UNLOCKED') {
         setAuthError('Your account lockout has been lifted by an administrator. You may now sign in.');
       } else if (res.outcome === 'EXPIRED') {
@@ -284,18 +302,20 @@ export function LoginForm() {
     return () => clearInterval(timer);
   }, [lockout?.lockedUntil, pollLockoutStatus]);
 
-  // Bounded polling (~10s) while locked, using the opaque token only.
+  // Bounded polling (~10s) while locked (opaque token) or while the
+  // administrator-verification state is active (email fallback poll — this is
+  // what auto-syncs the card the moment an administrator clears it).
   useEffect(() => {
-    if (!lockout?.lockoutToken) return;
+    if (!lockout?.lockoutToken && !lockoutEscalation) return;
     const id = setInterval(() => {
       void pollLockoutStatus();
     }, 10000);
     return () => clearInterval(id);
-  }, [lockout?.lockoutToken, pollLockoutStatus]);
+  }, [lockout?.lockoutToken, lockoutEscalation, pollLockoutStatus]);
 
   // Reconcile immediately when the page becomes visible, focused, or online.
   useEffect(() => {
-    if (!lockout) return;
+    if (!lockout && !lockoutEscalation) return;
     const recheck = () => {
       setLockout(prev =>
         prev ? { ...prev, secondsRemaining: computeRemainingSeconds(prev.lockedUntil, serverClockRef.current) } : prev
@@ -331,6 +351,9 @@ export function LoginForm() {
         setCooldownVerified(false);
         return;
       }
+      // Verified check: the escalation flag is authoritative (true while the
+      // typed identifier is in the administrator-verification window).
+      setRecoveryEscalation(res.escalationRequired === true);
       setCooldownVerified(true);
       if (res.canSubmit) {
         setCooldownUntilIso(null);
@@ -508,6 +531,13 @@ export function LoginForm() {
         setIsLoading(false);
         return;
       }
+      // 6th-attempt escalation: an administrator must verify this person
+      // first — no password attempt is made while the flag is active.
+      if (preCheck.escalationRequired) {
+        applyLockoutResult(preCheck);
+        setIsLoading(false);
+        return;
+      }
 
       // 2. Authenticate with exact credentials against Supabase Auth
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -526,6 +556,11 @@ export function LoginForm() {
           setAuthError(
             'Invalid email or password. (The attempt could not be recorded because the server was unreachable — lockout status unverified. Please retry.)'
           );
+        } else if (attemptResult.escalationRequired) {
+          // First failed attempt after a completed lockout: the verification
+          // card replaces the form; its copy carries the message.
+          applyLockoutResult(attemptResult);
+          setAuthError(null);
         } else {
           // The sub-note under the banner is the single display of the
           // remaining count, always driven by this fresh server response.
@@ -659,7 +694,7 @@ export function LoginForm() {
 
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotEmail || cooldownBlocksSubmit || assistedTicket) return;
+    if (!forgotEmail || cooldownBlocksSubmit || assistedTicket || recoveryEscalation) return;
 
     setIsSendingReset(true);
     setForgotError(null);
@@ -695,6 +730,18 @@ export function LoginForm() {
         setStatusRef(res.requestReference);
         setForgotMessage(res.message);
         setForgotError(null);
+      } else if (res.escalationRequired) {
+        // 6th wrong identifier after a cooldown: the contact-admin panel
+        // replaces the submit form; the countdown reflects the escalation
+        // window so "Check Again" can reconcile after it passes or an
+        // administrator helps.
+        setRecoveryEscalation(true);
+        if (res.nextAllowedAt) {
+          setCooldownUntilIso(res.nextAllowedAt);
+          setCooldownSeconds(computeRemainingSeconds(res.nextAllowedAt, serverClockRef.current));
+        }
+        setForgotError(null);
+        setForgotMessage(null);
       } else if (res.throttled) {
         setForgotError(
           `${res.message} You can submit again in ${formatRemainingLabel(res.secondsRemaining ?? cooldownSeconds)}.`
@@ -769,10 +816,74 @@ export function LoginForm() {
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* 30-MINUTE LOCKOUT ACTIVE CARD                                 */}
+      {/* 30-MINUTE LOCKOUT / ADMINISTRATOR-VERIFICATION CARD            */}
       {/* ------------------------------------------------------------- */}
-      {lockout ? (
+      {lockout || lockoutEscalation ? (
         <div className="space-y-5 animate-in fade-in zoom-in-95 duration-200">
+          {lockoutEscalation ? (
+          <div
+            className="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-500/50 shadow-xl space-y-4 text-center"
+            role="alert"
+            aria-live="polite"
+          >
+            <div className="w-12 h-12 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center">
+              <UserCheck className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="font-bold text-base text-amber-900 dark:text-amber-100">Administrator Verification Required</h3>
+              <p className="text-xs text-amber-800 dark:text-amber-200/80 leading-relaxed">
+                Repeated failed sign-ins were detected on this account. For your security, an administrator must
+                verify your identity before you can try again. Contact an administrator through the official
+                channels below — after verifying you, they can clear this requirement instantly.
+              </p>
+            </div>
+
+            {lockoutVerifyError && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left flex items-start gap-2" role="alert">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+                <span className="text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed">{lockoutVerifyError}</span>
+              </div>
+            )}
+
+            <div className="space-y-2 pt-1">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  document
+                    .getElementById('administrator-contacts')
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }}
+                className="w-full h-9 text-xs rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold"
+              >
+                <UserCheck className="w-3.5 h-3.5 mr-1.5" />
+                Verify with an Administrator
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isCheckingLockout}
+                onClick={handleManualCheckLockout}
+                className="w-full h-9 text-xs rounded-xl border-amber-300 dark:border-amber-500/30 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+              >
+                {isCheckingLockout ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                Check Status Now
+              </Button>
+
+              <p className="text-[11px] text-amber-700/80 dark:text-amber-300/70 italic">
+                The moment an administrator verifies you and clears the requirement, this screen returns to the
+                sign-in form automatically.
+              </p>
+            </div>
+          </div>
+          ) : (
           <div className="p-5 rounded-2xl bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-500/50 shadow-xl space-y-4 text-center">
             <div className="w-12 h-12 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 mx-auto flex items-center justify-center">
               <ShieldAlert className="w-6 h-6" />
@@ -795,7 +906,7 @@ export function LoginForm() {
                 aria-live="polite"
                 role="timer"
               >
-                {formatTimer(lockout.secondsRemaining || 0)}
+                {formatTimer(lockout?.secondsRemaining || 0)}
               </span>
               <span className="text-[10px] text-rose-600/80 dark:text-rose-300/70">
                 Synced with database security ledger
@@ -832,9 +943,10 @@ export function LoginForm() {
               </p>
             </div>
           </div>
+          )}
 
           {/* Administrator Contact Directory (shared with the recovery dialog) */}
-          <div className="p-4 rounded-xl bg-card border border-border/80 shadow-sm space-y-3">
+          <div id="administrator-contacts" className="p-4 rounded-xl bg-card border border-border/80 shadow-sm space-y-3 scroll-mt-4">
             <div className="flex items-center justify-between border-b border-border/60 pb-2">
               <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-primary" />
@@ -1204,6 +1316,54 @@ export function LoginForm() {
                   </p>
                 </div>
               </>
+            ) : recoveryEscalation ? (
+              <div
+                className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-500/40 space-y-3 text-left"
+                role="alert"
+                aria-live="polite"
+              >
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span className="text-sm font-bold text-amber-900 dark:text-amber-100">
+                    Contact an Administrator
+                  </span>
+                </div>
+                <p className="text-xs text-amber-800 dark:text-amber-200/90 leading-relaxed">
+                  You have repeatedly entered identifiers that do not match an account. An administrator must
+                  verify your identity and confirm your correct login identifier. Use the official channels
+                  below — if you already submitted a ticket, track it with "Check Ticket Status".
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      document
+                        .getElementById('recovery-admin-contacts')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }}
+                    className="h-9 text-xs rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                  >
+                    <UserCheck className="w-3.5 h-3.5 mr-1.5" />
+                    Verify with an Administrator
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isCheckingCooldown}
+                    onClick={() => void refreshCooldown(forgotEmail)}
+                    className="h-9 text-xs rounded-xl border-amber-300 dark:border-amber-500/30 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                  >
+                    {isCheckingCooldown ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                    ) : (
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                    )}
+                    Check Again
+                  </Button>
+                </div>
+              </div>
             ) : (
               <>
                 <div className="p-3.5 text-xs bg-amber-500/15 dark:bg-amber-950/60 border border-amber-600/30 dark:border-amber-500/40 rounded-xl text-left space-y-1">
@@ -1286,10 +1446,12 @@ export function LoginForm() {
                 each showing only the channels they filled; hidden entirely
                 when nobody published any public method. Same component as the
                 lockout screen. */}
-            <SupportContactDirectory
-              contacts={supportContacts}
-              className="p-3.5 rounded-xl bg-muted/40 border border-border/70 text-xs text-left"
-            />
+            <div id="recovery-admin-contacts" className="scroll-mt-4">
+              <SupportContactDirectory
+                contacts={supportContacts}
+                className="p-3.5 rounded-xl bg-muted/40 border border-border/70 text-xs text-left"
+              />
+            </div>
 
             <DialogFooter className="pt-2 gap-2 sm:gap-0 flex-col-reverse sm:flex-row">
               <Button
@@ -1303,13 +1465,14 @@ export function LoginForm() {
                   setCopyNotice(null);
                   setStatusResult(null);
                   setStatusError(null);
+                  setRecoveryEscalation(false);
                 }}
                 className="h-10 text-xs font-semibold rounded-xl cursor-pointer border-border hover:bg-muted text-foreground"
               >
                 <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> Back to Sign In
               </Button>
 
-              {!assistedTicket && (
+              {!assistedTicket && !recoveryEscalation && (
                 <Button
                   type="submit"
                   disabled={isSendingReset || !forgotEmail || cooldownBlocksSubmit}

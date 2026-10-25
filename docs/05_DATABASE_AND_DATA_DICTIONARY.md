@@ -186,12 +186,12 @@ Frozen immutable historical records of daily shift inventory balances.
 * `public.system_deployments`: Verified deployment commit history (`commit_sha`, `version`, `deployed_at`).
 * `public.audit_logs`: Immutable security and administrative event ledger (`action`, `entity_name`, `entity_id`, `metadata`).
 * `public.user_session_leases`: Authoritative single-session lease per user (`lease_token`, `device_id`, `claimed_at`, `last_heartbeat_at`, `released_at`); takeover and heartbeat are server-enforced (`renew_session_lease`).
-* `public.account_security_state`: Per-account login lockout state (`failed_attempts`, `locked_until`, `lockout_token_hash`); RLS denies all client reads — status flows only through typed RPCs.
+* `public.account_security_state`: Per-account login lockout state (`failed_attempts`, `locked_until`, `lockout_token_hash`, `last_lockout_at`, `verification_required` — set on the first failed attempt after a lockout expired within 24h, cleared by admin unlock or successful sign-in); RLS denies all client reads — status flows only through typed RPCs.
 * `public.security_events`: Append-only security audit ledger (`event_type`, `email_masked`, `details`); admin-only SELECT; masked identifiers, never raw.
 * `public.password_reset_requests`: Legacy email-reset request log for real-mailbox accounts (`request_code`, `email`, `status`).
 * `public.account_recovery_requests`: Assisted recovery tickets for mailbox-less `@kuventory.com` identifiers (`request_reference`, `email_lookup`, `status_credential_hash`, `status` RECEIVED → HUMAN_REVIEW/NEEDS_INFORMATION → COMPLETED/REJECTED/EXPIRED).
 * `public.account_recovery_factors`: Registered recovery factors backing the assisted-recovery engine.
-* `public.account_recovery_attempt_state`: Wrong-identifier attempt counters for the recovery dialog, keyed by sha256 of the exact identifier (`unknown_attempts`, `cooldown_until`, `last_attempt_at`); RLS deny-all — 5 unknown submissions per identifier / 15 min triggers a 2-minute cooldown, not a lockout (FFRC-12).
+* `public.account_recovery_attempt_state`: Wrong-identifier attempt counters for the recovery dialog, keyed by sha256 of the exact identifier (`unknown_attempts`, `cooldown_until`, `last_attempt_at`, `verification_required_until`); RLS deny-all — 5 unknown submissions per identifier / 15 min triggers a 2-minute cooldown (not a lockout), and the first unknown identifier after a cooldown within 1 hour triggers administrator verification for 1 hour (FFRC-12/13).
 * `public.profile_contact_links`: Per-profile public contact links (`label`, `platform`, `url` https/mailto/tel only, `is_public`, `sort_order`).
 * `public.daily_inventory_correction_requests`: Two-stage finalized-sheet correction workflow (PENDING → APPROVED/REJECTED; approver is admin-only; applied atomically via `apply_approved_daily_inventory_correction`).
 
@@ -226,7 +226,7 @@ Frozen immutable historical records of daily shift inventory balances.
 
 ## 4. Chronological Migration Inventory
 
-The KUVENTORY schema is constructed through **78 sequential migrations** located in `supabase/migrations/`:
+The KUVENTORY schema is constructed through **79 sequential migrations** located in `supabase/migrations/`:
 
 ```
  1. 20260831000000_initial_schema.sql
@@ -307,4 +307,5 @@ The KUVENTORY schema is constructed through **78 sequential migrations** located
 76. 20261025220000_recovery_account_existence_gate.sql
 77. 20261025230000_recovery_unknown_identifier_attempt_cooldown.sql
 78. 20261025240000_recovery_attempt_state_exact_identifier.sql
+79. 20261026000000_signin_escalation_to_admin_verification.sql
 ```

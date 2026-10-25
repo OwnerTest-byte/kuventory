@@ -175,10 +175,15 @@ export function LoginLockoutsTab() {
                   return (
                     <tr key={acc.id} className="hover:bg-muted/20 transition-colors">
                       <td className="px-4 py-3 font-medium text-foreground">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <User className="w-3.5 h-3.5 text-muted-foreground" />
                           <span>{acc.display_name || acc.email_masked}</span>
                           <span className="font-mono text-[10px] text-muted-foreground">({acc.email_masked})</span>
+                          {acc.verification_required && (
+                            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                              Verification required
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -190,13 +195,17 @@ export function LoginLockoutsTab() {
                         {acc.failed_attempts} failures
                       </td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1 font-mono text-amber-500 font-bold">
-                          <Clock className="w-3 h-3" />
-                          {formatSeconds(acc.seconds_remaining)}
-                        </span>
+                        {acc.locked_until ? (
+                          <span className="inline-flex items-center gap-1 font-mono text-amber-500 font-bold">
+                            <Clock className="w-3 h-3" />
+                            {formatSeconds(acc.seconds_remaining)}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground italic">No active lock</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-[11px]">
-                        {new Date(acc.locked_until).toLocaleTimeString()}
+                        {acc.locked_until ? new Date(acc.locked_until).toLocaleTimeString() : '—'}
                       </td>
                       <td className="px-4 py-3 text-right">
                         {canUnlock ? (
@@ -242,7 +251,13 @@ export function LoginLockoutsTab() {
               <div className="p-3 rounded-xl bg-muted/40 border border-border/60 text-xs space-y-1">
                 <div><span className="text-muted-foreground">Target Account: </span><span className="font-bold text-foreground">{selectedAccount.email_masked}</span></div>
                 <div><span className="text-muted-foreground">Role: </span><span className="font-semibold text-primary">{selectedAccount.user_role}</span></div>
-                <div><span className="text-muted-foreground">Time Remaining: </span><span className="font-mono text-rose-400 font-bold">{formatSeconds(selectedAccount.seconds_remaining)}</span></div>
+                <div><span className="text-muted-foreground">Time Remaining: </span><span className="font-mono text-rose-400 font-bold">{selectedAccount.locked_until ? formatSeconds(selectedAccount.seconds_remaining) : 'No active lock'}</span></div>
+                {selectedAccount.verification_required && (
+                  <div className="pt-1 text-amber-600 dark:text-amber-400 font-semibold leading-relaxed">
+                    Administrator verification required — verify the person first; unlocking clears the
+                    verification requirement together with the lock.
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">

@@ -378,6 +378,69 @@ describe('Login Lockout & Account Recovery Suite', () => {
       );
     });
 
+    it('maps the administrator-verification escalation flag without ever guessing it true', () => {
+      const escalated = mapLockoutRpc({
+        status: 'UNLOCKED',
+        is_locked: false,
+        failed_attempts: 1,
+        escalation_required: true,
+        server_now: new Date().toISOString(),
+      });
+      expect(escalated.outcome).toBe('UNLOCKED');
+      expect(escalated.escalationRequired).toBe(true);
+
+      const notEscalated = mapLockoutRpc({ status: 'UNLOCKED', is_locked: false });
+      expect(notEscalated.escalationRequired).toBe(false);
+
+      // Unknown payloads never carry a guessed escalation either.
+      const unknown = mapLockoutRpc(null);
+      expect(unknown.outcome).toBe('STATUS_UNKNOWN');
+      expect(unknown.escalationRequired).toBe(false);
+    });
+
+    it('maps the 6th-wrong-identifier recovery escalation as structured data', async () => {
+      rpcMock.mockResolvedValueOnce({
+        data: {
+          accepted: false,
+          escalation_required: true,
+          server_now: new Date().toISOString(),
+          next_allowed_at: new Date(Date.now() + 3_600_000).toISOString(),
+          seconds_remaining: 3600,
+          message: 'Contact an administrator to verify your identity and confirm your correct login identifier.',
+        },
+        error: null,
+      });
+
+      const res = await submitAssistedRecoveryTicket('ghost@kuventory.com', 'Forgot password');
+      expect(res.accepted).toBe(false);
+      expect(res.throttled).toBe(false);
+      expect(res.escalationRequired).toBe(true);
+      expect(res.accountExists).toBeUndefined();
+      expect(res.secondsRemaining).toBe(3600);
+      expect(res.nextAllowedAt).toBeTruthy();
+    });
+
+    it('cooldown check surfaces the escalation state for the typed identifier', async () => {
+      rpcMock.mockResolvedValueOnce({
+        data: {
+          valid: true,
+          can_submit: false,
+          escalation_required: true,
+          server_now: new Date().toISOString(),
+          next_allowed_at: new Date(Date.now() + 3_600_000).toISOString(),
+          seconds_remaining: 3600,
+          message: 'Contact an administrator to verify your identity and confirm your correct login identifier.',
+        },
+        error: null,
+      });
+
+      const res = await checkAssistedRecoveryCooldown('ghost@kuventory.com');
+      expect(res.verified).toBe(true);
+      expect(res.escalationRequired).toBe(true);
+      expect(res.canSubmit).toBe(false);
+      expect(res.secondsRemaining).toBe(3600);
+    });
+
     it('throws on RPC failure instead of fabricating success', async () => {
       rpcMock.mockResolvedValueOnce({ data: null, error: { message: 'db unreachable' } });
       await expect(submitAssistedRecoveryTicket('staff@kuventory.com', 'Forgot password')).rejects.toThrow();

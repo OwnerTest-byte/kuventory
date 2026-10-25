@@ -25,6 +25,12 @@ export interface LockoutCheckResult {
   failedAttempts?: number;
   /** Opaque token for non-enumerating polling; only present when issued. */
   lockoutToken?: string | null;
+  /**
+   * True when the account is in the administrator-verification state (set on
+   * the first failed attempt after a lockout expired within 24 hours). Absent
+   * or false means not escalated — the flag is never guessed true.
+   */
+  escalationRequired?: boolean;
   message?: string;
 }
 
@@ -34,6 +40,7 @@ export interface LockoutStatus {
   seconds_remaining?: number;
   failed_attempts?: number;
   lockout_token?: string | null;
+  escalation_required?: boolean;
   message?: string;
 }
 
@@ -44,15 +51,17 @@ export interface LockedAccountRecord {
   failed_attempts: number;
   window_started_at: string | null;
   last_failed_at: string | null;
-  locked_until: string;
+  locked_until: string | null;
   lockout_status: string;
   seconds_remaining: number;
+  verification_required: boolean;
+  last_lockout_at: string | null;
   display_name: string | null;
   user_role: string;
   updated_at: string;
 }
 
-const UNKNOWN: LockoutCheckResult = { outcome: 'STATUS_UNKNOWN' };
+const UNKNOWN: LockoutCheckResult = { outcome: 'STATUS_UNKNOWN', escalationRequired: false };
 
 /**
  * Normalize a lockout RPC payload into the typed contract. Tolerates responses
@@ -77,6 +86,7 @@ export function mapLockoutRpc(data: any): LockoutCheckResult {
     failedAttempts:
       typeof data.failed_attempts === 'number' ? data.failed_attempts : undefined,
     lockoutToken: data.lockout_token ?? data.lockoutToken ?? null,
+    escalationRequired: data.escalation_required === true,
     message: data.message,
   };
 

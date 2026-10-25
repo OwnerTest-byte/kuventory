@@ -24,6 +24,12 @@ export interface AssistedRecoverySubmitResult {
   attemptsRemaining?: number;
   /** True when throttled by the wrong-identifier cooldown (not a lockout). */
   unknownCooldown?: boolean;
+  /**
+   * True when this identifier is in the administrator-verification state
+   * (triggered on the first wrong identifier after a cooldown expired within
+   * the last hour): the dialog must show the contact-admin panel.
+   */
+  escalationRequired?: boolean;
   /** Present when accepted: shown to the requester exactly once. */
   requestReference?: string;
   statusCredential?: string;
@@ -38,6 +44,8 @@ export interface AssistedRecoveryCooldown {
   /** False when the check itself failed: the cooldown is then unknown. */
   verified: boolean;
   canSubmit: boolean;
+  /** True when the administrator-verification escalation is active. */
+  escalationRequired?: boolean;
   serverNow?: string | null;
   nextAllowedAt?: string | null;
   secondsRemaining: number;
@@ -79,6 +87,20 @@ export async function submitAssistedRecoveryTicket(
 
   if (!data || typeof data !== 'object') {
     throw new Error('The server returned an unreadable response. No recovery request was confirmed.');
+  }
+
+  // Administrator-verification escalation: structured data — the dialog must
+  // replace the submit form with the contact-admin panel.
+  if (data.accepted === false && data.escalation_required === true) {
+    return {
+      accepted: false,
+      throttled: false,
+      escalationRequired: true,
+      message: data.message || 'Contact an administrator to verify your identity and confirm your correct login identifier.',
+      serverNow: data.server_now ?? null,
+      nextAllowedAt: data.next_allowed_at ?? null,
+      secondsRemaining: typeof data.seconds_remaining === 'number' ? data.seconds_remaining : undefined,
+    };
   }
 
   // Unknown-identifier rejections are structured data, not transport errors:
@@ -144,6 +166,7 @@ export async function checkAssistedRecoveryCooldown(email: string): Promise<Assi
     return {
       verified: true,
       canSubmit: data?.can_submit === true,
+      escalationRequired: data?.escalation_required === true,
       serverNow: data?.server_now ?? null,
       nextAllowedAt: data?.next_allowed_at ?? null,
       secondsRemaining: typeof data?.seconds_remaining === 'number' ? data.seconds_remaining : 0,
