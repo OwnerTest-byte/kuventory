@@ -185,6 +185,15 @@ Frozen immutable historical records of daily shift inventory balances.
 * `public.system_automations`: Registered background job metadata (`automation_code` UK, `is_enabled`, `last_status`).
 * `public.system_deployments`: Verified deployment commit history (`commit_sha`, `version`, `deployed_at`).
 * `public.audit_logs`: Immutable security and administrative event ledger (`action`, `entity_name`, `entity_id`, `metadata`).
+* `public.user_session_leases`: Authoritative single-session lease per user (`lease_token`, `device_id`, `claimed_at`, `last_heartbeat_at`, `released_at`); takeover and heartbeat are server-enforced (`renew_session_lease`).
+* `public.account_security_state`: Per-account login lockout state (`failed_attempts`, `locked_until`, `lockout_token_hash`); RLS denies all client reads — status flows only through typed RPCs.
+* `public.security_events`: Append-only security audit ledger (`event_type`, `email_masked`, `details`); admin-only SELECT; masked identifiers, never raw.
+* `public.password_reset_requests`: Legacy email-reset request log for real-mailbox accounts (`request_code`, `email`, `status`).
+* `public.account_recovery_requests`: Assisted recovery tickets for mailbox-less `@kuventory.com` identifiers (`request_reference`, `email_lookup`, `status_credential_hash`, `status` RECEIVED → HUMAN_REVIEW/NEEDS_INFORMATION → COMPLETED/REJECTED/EXPIRED).
+* `public.account_recovery_factors`: Registered recovery factors backing the assisted-recovery engine.
+* `public.account_recovery_attempt_state`: Wrong-identifier attempt counters for the recovery dialog, keyed by sha256 of the exact identifier (`unknown_attempts`, `cooldown_until`, `last_attempt_at`); RLS deny-all — 5 unknown submissions per identifier / 15 min triggers a 2-minute cooldown, not a lockout (FFRC-12).
+* `public.profile_contact_links`: Per-profile public contact links (`label`, `platform`, `url` https/mailto/tel only, `is_public`, `sort_order`).
+* `public.daily_inventory_correction_requests`: Two-stage finalized-sheet correction workflow (PENDING → APPROVED/REJECTED; approver is admin-only; applied atomically via `apply_approved_daily_inventory_correction`).
 
 ---
 
@@ -198,23 +207,37 @@ Frozen immutable historical records of daily shift inventory balances.
 | `renew_session_lease` | `(p_device_id TEXT, p_user_agent TEXT)` | `SECURITY DEFINER` | Heartbeat RPC. Validates caller's `auth.uid()`, revokes other devices for this user, and extends lease expiration by 2 minutes. |
 | `check_expiry_notifications` | `()` | `SECURITY DEFINER` | Scheduled routine (invoked by `pg_cron`) evaluating expiring and expired batches, inserting alerts with unique dedup keys. |
 | `execute_inventory_drift_analysis`| `()` | `SECURITY DEFINER` | Compares sum of active batch quantities against `inventory_items.current_qty` and returns discrepancies. |
+| `submit_assisted_recovery_request` | `(p_email TEXT, p_reason TEXT)` | `SECURITY DEFINER` (anon) | v5 assisted-recovery submission. Existence gate first; unknown identifiers are counted per exact identifier (sha256 state) — attempts 1–4 return `attempts_remaining`, the 5th within 15 min starts a 2-minute **cooldown** (not a lockout); known identifiers get the atomic 2-min ticket throttle plus the one-time status credential. |
+| `check_assisted_recovery_cooldown` | `(p_email TEXT)` | `SECURITY DEFINER` (anon) | v3 side-effect-free cooldown check: reports the later of the ticket cooldown and the active unknown-identifier cooldown, with the message naming which limit applies. |
+| `check_assisted_recovery_status` | `(p_request_reference TEXT, p_status_credential TEXT)` | `SECURITY DEFINER` (anon) | Non-enumerating ticket status lookup: requires BOTH the public reference and the secret credential; never exposes admin notes. |
+| `review_assisted_recovery_request` | `(p_request_id UUID, p_decision TEXT, p_notes TEXT, p_new_password TEXT)` | `SECURITY DEFINER` (admin) | Admin-only ticket decision; `RESOLVE_RESET` performs the verified password reset server-side and marks the ticket COMPLETED in the same transaction. |
+| `get_public_support_contacts` | `()` | `SECURITY DEFINER` (anon) | Opted-in ADMIN/SUPER_ADMIN profiles with at least one real public channel (support phone, support email, or public link) for the recovery and lockout screens. |
+| `update_my_profile` | `(p_display_name, p_first_name, …)` | `SECURITY DEFINER` (authenticated) | Self-only profile update including support channels and the `show_on_lockout_screen` opt-in; no role/id escalation. |
+| `record_failed_login_attempt` | `(p_email TEXT)` | `SECURITY DEFINER` (anon) | Server-authoritative failure counter: 5 failures / 15 min → 30-minute lockout with an opaque token (sha256-stored). |
+| `check_account_lockout` | `(p_email TEXT)` | `SECURITY DEFINER` (anon) | Typed lockout status (`LOCKED/UNLOCKED/EXPIRED/…`) plus `server_now`; never guesses on transport failure. |
+| `check_lockout_status_by_token` | `(p_token TEXT)` | `SECURITY DEFINER` (anon) | Opaque-token lockout polling for the lockout card; typed contract, fail-closed. |
+| `get_locked_accounts` / `unlock_account` / `reset_my_login_lockout` | — | `SECURITY DEFINER` (admin / self) | Lockout admin console listing and authorized unlock / self reset after verified recovery. |
+| `mark_notification_as_read` / `mark_all_notifications_as_read` | — | `SECURITY DEFINER` (authenticated) | Own-notification read state only (actor-checked). |
+| `request_password_reset` | `(p_email TEXT)` | `SECURITY DEFINER` (anon) | Legacy email-reset dispatch for real-mailbox accounts (deduplicated admin notification); `@kuventory.com` identifiers use assisted recovery instead. |
+| `admin_reset_user_password` | `(p_user_id UUID, p_new_password TEXT)` | `SECURITY DEFINER` (admin) | Direct admin reset with bcrypt hashing and an audit log entry. |
+| `apply_approved_daily_inventory_correction` | `(p_request_id UUID)` | `SECURITY DEFINER` (admin) | Applies an approved finalized-sheet correction atomically (FEFO adjustments + revision record). |
 
 ---
 
 ## 4. Chronological Migration Inventory
 
-The KUVENTORY schema is constructed through **53 sequential migrations** located in `supabase/migrations/`:
+The KUVENTORY schema is constructed through **78 sequential migrations** located in `supabase/migrations/`:
 
 ```
-1.  20260831000000_initial_schema.sql
-2.  20260902050213_foundation_schema.sql
-3.  20260902050300_rls_and_policies.sql
-4.  20260902050400_fefo_and_functions.sql
-5.  20260902050500_grants.sql
-6.  20260902060000_inventory_engine.sql
-7.  20260902070000_daily_inventory.sql
-8.  20260902080000_fefo_update.sql
-9.  20260902090000_notifications_schema.sql
+ 1. 20260831000000_initial_schema.sql
+ 2. 20260902050213_foundation_schema.sql
+ 3. 20260902050300_rls_and_policies.sql
+ 4. 20260902050400_fefo_and_functions.sql
+ 5. 20260902050500_grants.sql
+ 6. 20260902060000_inventory_engine.sql
+ 7. 20260902070000_daily_inventory.sql
+ 8. 20260902080000_fefo_update.sql
+ 9. 20260902090000_notifications_schema.sql
 10. 20260902090100_threshold_triggers.sql
 11. 20260902094917_report_snapshots.sql
 12. 20260902100000_expiry_cron.sql
@@ -259,4 +282,29 @@ The KUVENTORY schema is constructed through **53 sequential migrations** located
 51. 20261018150000_master_security_and_realtime_hardening.sql
 52. 20261018180000_super_admin_operations_console_hardening.sql
 53. 20261019090000_final_safety_guards.sql
+54. 20261019200000_session_reliability_and_scheduled_services.sql
+55. 20261021210000_atomic_create_item_and_initial_stock.sql
+56. 20261021220000_harden_inventory_view_and_security.sql
+57. 20261022000000_fix_stock_batches_initial_quantity.sql
+58. 20261022010000_fix_session_hostility_and_overload.sql
+59. 20261022020000_fix_finalize_and_inventory_saving.sql
+60. 20261022030000_repair_schema_and_stock_adjustment.sql
+61. 20261022040000_fix_receive_stock_and_auth_fallbacks.sql
+62. 20261024150000_release_a_authorization_and_grants_hardening.sql
+63. 20261024160000_release_b_profile_and_support_contacts.sql
+64. 20261024170000_release_c_login_lockout_and_account_security.sql
+65. 20261024180000_release_d_finalized_correction_approvals.sql
+66. 20261024190000_blueprint_remediation_p0_and_p1.sql
+67. 20261024200000_comprehensive_auth_and_trust_boundary_repair.sql
+68. 20261024210000_retire_master_admin_and_admin_only_corrections.sql
+69. 20261024220000_align_stock_movement_types_and_consume.sql
+70. 20261024230000_revoke_anon_defaults_and_function_grants.sql
+71. 20261024231000_live_db_privilege_inspection.sql
+72. 20261025000000_inspect_all_live_policies.sql
+73. 20261025010000_zero_trust_notification_security_overhaul.sql
+74. 20261025120000_assisted_recovery_and_lockout_authoritative_repair.sql
+75. 20261025200000_notification_route_storage_and_realtime_repair.sql
+76. 20261025220000_recovery_account_existence_gate.sql
+77. 20261025230000_recovery_unknown_identifier_attempt_cooldown.sql
+78. 20261025240000_recovery_attempt_state_exact_identifier.sql
 ```

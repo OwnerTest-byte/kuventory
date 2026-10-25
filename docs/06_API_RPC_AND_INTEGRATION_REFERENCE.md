@@ -121,6 +121,21 @@ All transactional business logic is executed inside PostgreSQL stored procedures
 * **Authorization:** Authenticated user.
 * **Behavior:** Enforces single-device lease. Deletes or revokes sessions for `auth.uid()` matching different `device_id` values, updates `lease_expires_at = now() + INTERVAL '2 minutes'`, and returns lease validity.
 
+### 2.5 Authentication, Recovery & Security RPC Family
+All are `SECURITY DEFINER`, forward-only replaced by the migrations listed in `docs/05` §4, and consumed exclusively through `src/features/auth/services/passwordResetService.ts` and `loginLockoutService.ts` (single source of truth — no component calls them directly).
+
+| RPC | Caller | Authoritative behavior |
+| :--- | :--- | :--- |
+| `submit_assisted_recovery_request` (v5) | anon (login screen) | Existence gate first. Unknown identifier: per-exact-identifier counter (sha256 state in `account_recovery_attempt_state`) — attempts 1–4 return `account_exists:false` + `attempts_remaining`; the 5th within 15 min starts a **2-minute cooldown** (`unknown_identifier_cooldown`), never a lockout. Known identifier: atomic 2-min ticket throttle, one-time status credential, admin notification. |
+| `check_assisted_recovery_cooldown` (v3) | anon | Side-effect-free check returning the later of the ticket cooldown and the active unknown-identifier cooldown (`next_allowed_at`, `seconds_remaining`, reason message). |
+| `check_assisted_recovery_status` | anon | Ticket progress only with BOTH reference + secret credential; never enumerates, never exposes admin notes. |
+| `review_assisted_recovery_request` | ADMIN / SUPER_ADMIN | Decision RPC; `RESOLVE_RESET` resets the password server-side and completes the ticket in one transaction. |
+| `get_public_support_contacts` | anon | Opted-in admins with ≥1 real public channel for the recovery/lockout screens. |
+| `record_failed_login_attempt` / `check_account_lockout` / `check_lockout_status_by_token` | anon | Server-authoritative 5/15→30-min lockout with opaque tokens and a typed status contract (fail-closed on transport errors). |
+| `get_locked_accounts` / `unlock_account` / `reset_my_login_lockout` | admin / self | Lockout console listing and authorized unlocks. |
+| `update_my_profile` | authenticated | Self-only profile + support channel updates (feeds the public contact directory). |
+| `request_password_reset` / `admin_reset_user_password` | anon / admin | Legacy real-mailbox reset path; synthetic `@kuventory.com` identifiers never route here. |
+
 ---
 
 ## 3. Realtime WebSocket Subscriptions
@@ -138,6 +153,8 @@ The application establishes a single multiplexed WebSocket connection to Supabas
 | `daily_inventory_items` | `*` | `['daily-inventory-items']`, `['daily-sheet-details']` | Live usage numbers synchronize across counter tablets. |
 | `daily_inventory_revisions`| `*` | `['daily-revisions']`, `['sheet-revisions']` | Revision history badge increments on worksheet. |
 | `notifications` | `*` | `['notifications']`, `['unread-notifications-count']` | Bell icon unread counter updates; toast popover alerts staff. |
+| `account_recovery_requests` | `*` | recovery-queue query (`AssistedRecoveryQueue`, `useRealtimeTableSync`) | Admin recovery queue refetches live with a Live/Polling badge; RLS filters events to admin sessions. |
+| `daily_inventory_correction_requests` | `*` | correction-queue query (`CorrectionRequestsQueue`, `useRealtimeTableSync`) | Finalized-sheet correction queue updates live across admin sessions. |
 | `system_sessions` | `*` | `['active-sessions']`, `['user-session-state']` | Invalidation of terminated sessions forces immediate logout. |
 | `system_settings` | `*` | `['system-settings']`, `['maintenance-status']` | Maintenance lockdown locks or unlocks client terminals. |
 | `recovery_points` | `*` | `['recovery-points']`, `['overview-recent-checkpoints']` | Checkpoints table updates in Super Admin console. |
