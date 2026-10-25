@@ -223,6 +223,10 @@ Companion:  Paste-ready AI-maker prompts delivered in the working chat; this
 
 ---
 
+## Staff role model (2026-10-25, strict roles)
+
+STAFF / ADMIN / SUPER_ADMIN are the only roles. STAFF work the daily worksheet (sales AM/PM + ADD spinner direct; BEG read-only) and every structural change (add/edit/archive item, adjust stock, reassign table, new station, remove from worksheet) goes through the change-request pipeline: submit with reason → admin review card (requested context) → **Approve & Apply** (server-side, in-transaction) / **Return** / **Reject** → decision visible in the requester's My Requests panel. STAFF also keep Reports (view + export) and Notifications; all other routes redirect to /daily-inventory. Direct client writes to catalog/stock/worksheet structure are blocked by RLS and the worksheet-edit trigger (operational columns only).
+
 ## Cross-chart connection map (pentagon labels)
 
 - **6.1.1 (hub)** → 6.1.2 (no session) · → 6.1.3/6.1.4/6.1.5/6.1.6/6.1.7 (module entries) · → 6.1.8 (ADMIN/SUPER); lockdown gate in 6.1.8 blocks 6.1.1 entry for non-supers

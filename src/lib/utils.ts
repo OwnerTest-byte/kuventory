@@ -45,6 +45,9 @@ export function formatRoleLabel(role?: string | null): string {
       return 'Super Admin';
     case 'ADMIN':
       return 'Admin';
+    case 'STAFF':
+    case 'USER': // legacy pre-strict-roles value (normalized in the database)
+      return 'Staff';
     default:
       return 'Staff';
   }

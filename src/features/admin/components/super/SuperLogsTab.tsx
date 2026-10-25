@@ -52,7 +52,7 @@ export function SuperLogsTab({
       timestamp: formatSafeDate(l.created_at, 'yyyy-MM-dd HH:mm:ss', ''),
       action: l.action || 'AUDIT',
       actor: l.user_name || l.actor_id || 'System',
-      role: l.role || 'USER',
+      role: l.role || 'STAFF',
       target_table: l.target_table || l.target || 'system',
       target_id: l.target_id || l.target || '',
       details: typeof l.details === 'object' ? JSON.stringify(l.details) : String(l.details || '')

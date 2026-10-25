@@ -32,9 +32,12 @@ import { StockHistoryPage } from './StockHistoryPage';
 import { CategoriesPage } from '@/features/categories/pages/CategoriesPage';
 import { SuppliersDirectoryTab } from '../components/SuppliersDirectoryTab';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/features/auth/context/AuthContext';
 import type { InventoryItem, InventoryStock } from '../types';
 
 export function ItemsCatalogPage() {
+  const { role } = useAuth();
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [searchParams, setSearchParams] = useSearchParams();
   const currentTab = searchParams.get('tab') || 'catalog';
 
@@ -229,7 +232,7 @@ export function ItemsCatalogPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground uppercase">INVENTORY</h1>
         </div>
-        {currentTab === 'catalog' && (
+        {currentTab === 'catalog' && isAdmin && (
           <Button onClick={() => { setEditingItem(undefined); setIsModalOpen(true); }} className="h-10 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs font-bold text-xs shrink-0 cursor-pointer">
             <Plus className="w-4 h-4 mr-2" /> Add Item
           </Button>

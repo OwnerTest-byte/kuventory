@@ -18,7 +18,8 @@ interface AddStockModalProps {
 }
 
 export function AddStockModal({ isOpen, onClose, item, date, isCorrectionMode }: AddStockModalProps) {
-  const { profile } = useAuth();
+  const { profile, role } = useAuth();
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [qty, setQty] = useState('');
   const [expiry, setExpiry] = useState(() => getBusinessDateStringPlusDays(30));
   const [errorMsg, setErrorMsg] = useState('');
@@ -60,8 +61,16 @@ export function AddStockModal({ isOpen, onClose, item, date, isCorrectionMode }:
       });
 
       if (rpcErr) {
+        // The 2-step fallback writes through admin-gated paths (add_stock RPC +
+        // direct worksheet update). STAFF fail honestly and retry instead —
+        // the receive RPC is their authoritative path.
+        if (!isAdmin) {
+          setErrorMsg(
+            'The delivery could not be recorded because the server rejected the request. Please check your connection and try again — if it keeps failing, ask an administrator.'
+          );
+          return;
+        }
         console.warn('receive_daily_inventory_stock RPC fallback:', rpcErr.message);
-        // Fallback: 2-step client mutation
         await stockMutations.add.mutateAsync({
           itemId: item.item_id,
           quantity: numQty,

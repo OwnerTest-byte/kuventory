@@ -30,7 +30,7 @@ Stores extended user profile metadata linked 1:1 with Supabase GoTrue authentica
 | Column | Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
 | `id` | `UUID` | `PK`, `REFERENCES auth.users(id)` | Unique user ID issued by GoTrue auth. |
-| `role` | `VARCHAR(20)` | `NOT NULL`, Default `'USER'` | User authorization role: `'USER'`, `'ADMIN'`, `'SUPER_ADMIN'` (or legacy `'MASTER_ADMIN'`). |
+| `role` | `VARCHAR(20)` | `NOT NULL`, Default `'STAFF'`, `CHECK (role IN ('STAFF','ADMIN','SUPER_ADMIN'))` | Authorization role — exactly three, strict: `'STAFF'` (daily worksheet workspace + reports/exports + requests), `'ADMIN'`, `'SUPER_ADMIN'`. Legacy `'USER'` rows normalized by `20261026150000`. |
 | `first_name` | `VARCHAR(100)` | `NULL` | User's given first name. |
 | `last_name` | `VARCHAR(100)` | `NULL` | User's family surname. |
 | `created_at` | `TIMESTAMPTZ` | `NOT NULL`, Default `now()` | Record creation timestamp. |
@@ -193,6 +193,7 @@ Frozen immutable historical records of daily shift inventory balances.
 * `public.account_recovery_factors`: Registered recovery factors backing the assisted-recovery engine.
 * `public.account_recovery_attempt_state`: Wrong-identifier attempt counters for the recovery dialog, keyed by sha256 of the exact identifier (`unknown_attempts`, `cooldown_until`, `last_attempt_at`, `verification_required_until`); RLS deny-all — 5 unknown submissions per identifier / 15 min triggers a 2-minute cooldown (not a lockout), and the first unknown identifier after a cooldown within 1 hour triggers administrator verification for 1 hour (FFRC-12/13).
 * `public.profile_contact_links`: Per-profile public contact links (`label`, `platform`, `url` https/mailto/tel only, `is_public`, `sort_order`).
+* `public.staff_change_requests`: Staff change-request queue (`request_type` ADD_ITEM/EDIT_ITEM/ARCHIVE_ITEM/ADJUST_STOCK/REASSIGN_TABLE/ADD_CATEGORY/REMOVE_FROM_SHEET, `payload` JSONB, `status` PENDING → APPROVED/REJECTED/RETURNED/FAILED, requester/reviewer/decision/applied/result_summary). RLS: own-or-admin SELECT, own PENDING INSERT, **no client UPDATE** — decisions flow only through the review RPC (FFRC-14).
 * `public.daily_inventory_correction_requests`: Two-stage finalized-sheet correction workflow (PENDING → APPROVED/REJECTED; approver is admin-only; applied atomically via `apply_approved_daily_inventory_correction`).
 
 ---
@@ -226,7 +227,7 @@ Frozen immutable historical records of daily shift inventory balances.
 
 ## 4. Chronological Migration Inventory
 
-The KUVENTORY schema is constructed through **81 sequential migrations** located in `supabase/migrations/`:
+The KUVENTORY schema is constructed through **83 sequential migrations** located in `supabase/migrations/`:
 
 ```
  1. 20260831000000_initial_schema.sql
@@ -310,4 +311,6 @@ The KUVENTORY schema is constructed through **81 sequential migrations** located
 79. 20261026000000_signin_escalation_to_admin_verification.sql
 80. 20261026120000_lockout_admin_unlock_only.sql
 81. 20261026130000_login_two_stage_cooldown_admin_lockout.sql
+82. 20261026150000_strict_roles_and_grants_repair.sql
+83. 20261026160000_staff_change_requests_and_role_boundary.sql
 ```

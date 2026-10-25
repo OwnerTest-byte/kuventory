@@ -57,6 +57,28 @@ export function RequireAdmin() {
   return <Outlet />;
 }
 
+/**
+ * STAFF workspace boundary: the daily worksheet is the staff member's page.
+ * Admin-only routes redirect there instead of showing an access-denied wall.
+ */
+export function RequireStaffRedirect() {
+  const { session, role, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <FullscreenLoader />;
+  }
+
+  if (!session) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+    return <Navigate to="/daily-inventory" replace />;
+  }
+
+  return <Outlet />;
+}
+
 export function RequireSuperAdmin() {
   const { session, role, isLoading } = useAuth();
   const location = useLocation();

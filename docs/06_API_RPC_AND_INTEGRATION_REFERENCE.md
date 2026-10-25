@@ -134,6 +134,7 @@ All are `SECURITY DEFINER`, forward-only replaced by the migrations listed in `d
 | `record_failed_login_attempt` / `check_account_lockout` / `check_lockout_status_by_token` | anon | Two-stage lockout (`20261026130000`): stage 1 — 5 failures/15 min → **30-minute timed cooldown** (LOCKED with authoritative remaining time; self-releases as EXPIRED); stage 2 — the first failure after a cooldown within 24h → `escalation_required` (no-timer Administrator Lockout, admin-unlock-only; an unlock keeps `last_lockout_at` so a post-lift failure re-escalates). Opaque tokens, typed status contract, fail-closed on transport errors (FFRC-13). |
 | `get_locked_accounts` / `unlock_account` / `reset_my_login_lockout` | admin / self | Lockout console listing and authorized unlocks. |
 | `update_my_profile` | authenticated | Self-only profile + support channel updates (feeds the public contact directory). |
+| `submit_staff_change_request` / `review_staff_change_request` | STAFF / ADMIN | Staff request pipeline (FFRC-14): 7 structural change types validated per-type on submit (duplicate-pending guard, admin notifications); review = Approve & Apply (server-side in-transaction, result_summary, FAILED-not-fake-success) / Return / Reject; self-review blocked; requester sees the decision in My Requests. |
 | `request_password_reset` / `admin_reset_user_password` | anon / admin | Legacy real-mailbox reset path; synthetic `@kuventory.com` identifiers never route here. |
 
 ---

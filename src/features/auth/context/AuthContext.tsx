@@ -44,7 +44,7 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
   profile: null,
-  role: 'USER',
+  role: 'STAFF',
   isLoading: true,
   sessionLeaseError: null,
   isSessionVerifying: false,
@@ -110,11 +110,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // UNKNOWN: the security verification could not reach the server. Surface
-    // the interruption honestly (banner) and keep the session active while
-    // the next heartbeat retries. Never terminate a session on a transport
-    // failure, and never claim verification succeeded.
+    // the interruption honestly (banner) only after it persists across a
+    // second heartbeat — a single network blip must not flash it. The session
+    // stays active while heartbeats retry. Never terminate a session on a
+    // transport failure, and never claim verification succeeded.
     if (res.status === 'UNKNOWN') {
-      setIsSessionVerifying(true);
+      consecutiveFailuresRef.current += 1;
+      if (consecutiveFailuresRef.current >= 2) {
+        setIsSessionVerifying(true);
+      }
       return;
     }
 
@@ -231,7 +235,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         async (payload: any) => {
           if (!isHeartbeatActive || !payload.new) return;
           if (payload.new.is_active === false) {
-            await handleTerminalState('Your account has been deactivated by an administrator.');
+            // A stale/replayed deactivation event (e.g. from an earlier
+            // lockout) must not kill a fresh session: re-fetch the
+            // authoritative profile and sign out only if the server STILL
+            // says inactive.
+            try {
+              const { data: freshProfile } = await supabase
+                .from('profiles')
+                .select('is_active')
+                .eq('id', user.id)
+                .maybeSingle();
+              if (freshProfile?.is_active === false) {
+                await handleTerminalState('Your account has been deactivated by an administrator.');
+                return;
+              }
+            } catch {
+              // Verification unreachable: do NOT terminate on a transport
+              // failure; the next heartbeat/profile query will re-check.
+              return;
+            }
+            queryClient.invalidateQueries({ queryKey: ['profile'] });
           } else {
             queryClient.invalidateQueries({ queryKey: ['profile'] });
           }
@@ -264,8 +287,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Authoritative role evaluation strictly from server record
         const roleFromDb = data?.role as Role;
-        const validRoles: Role[] = ['SUPER_ADMIN', 'ADMIN', 'USER'];
-        const resolvedRole: Role = validRoles.includes(roleFromDb) ? roleFromDb : 'USER';
+        const validRoles: Role[] = ['SUPER_ADMIN', 'ADMIN', 'STAFF'];
+        const resolvedRole: Role = validRoles.includes(roleFromDb) ? roleFromDb : 'STAFF';
 
         // Return the FULL profile row (support contacts, job title, avatar,
         // opt-in flag, names) — profile screens must reflect what was saved.
@@ -284,7 +307,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Profile query exception (failing closed to least-privileged role):', err);
         return {
           id: user.id,
-          role: 'USER' as Role,
+          role: 'STAFF' as Role,
           first_name: user.email?.split('@')[0] || 'User',
           last_name: '',
           created_at: new Date().toISOString(),
@@ -312,7 +335,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isLoading = isSessionLoading || (!!user && isProfileLoading);
-  const role: Role = profile?.role ?? 'USER';
+  const role: Role = profile?.role ?? 'STAFF';
 
   const clearSessionLeaseError = () => setSessionLeaseError(null);
 

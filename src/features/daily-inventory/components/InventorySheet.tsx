@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { InventoryRow } from './InventoryRow';
+import { StaffRequestModal, type StaffRequestContext } from './StaffRequestModal';
 import { ItemFormModal } from '@/features/inventory/components/ItemFormModal';
 import { useCreateItem } from '@/features/inventory/hooks/useCreateItem';
 import type { InventoryItem } from '@/features/inventory/types';
@@ -32,6 +33,9 @@ interface InventorySheetProps {
   isReadOnly: boolean;
   date: string;
   isCorrectionMode?: boolean;
+  /** False for STAFF: structural actions (add/remove/reassign/stations) become
+      change requests through the review pipeline; BEG is read-only. */
+  canEditStructure?: boolean;
 }
 
 interface StationGroup {
@@ -45,9 +49,33 @@ interface StationGroup {
   badgeClass: string;
 }
 
-export function InventorySheet({ session, isReadOnly, date, isCorrectionMode }: InventorySheetProps) {
+export function InventorySheet({ session, isReadOnly, date, isCorrectionMode, canEditStructure = true }: InventorySheetProps) {
   const queryClient = useQueryClient();
   const { createItemWithStock } = useCreateItem();
+
+  // Staff change-request modal state (request pipeline entry point)
+  const [staffRequest, setStaffRequest] = useState<{
+    type: 'ADD_ITEM' | 'EDIT_ITEM' | 'ARCHIVE_ITEM' | 'ADJUST_STOCK' | 'REASSIGN_TABLE' | 'ADD_CATEGORY' | 'REMOVE_FROM_SHEET';
+    context: StaffRequestContext;
+  } | null>(null);
+  const openStaffRequest = (
+    type: 'ADD_ITEM' | 'EDIT_ITEM' | 'ARCHIVE_ITEM' | 'ADJUST_STOCK' | 'REASSIGN_TABLE' | 'ADD_CATEGORY' | 'REMOVE_FROM_SHEET',
+    entry?: DailyEntry
+  ) => {
+    setStaffRequest({
+      type,
+      context: {
+        dailyInventoryItemId: entry?.id,
+        itemId: entry?.item_id,
+        itemName: entry?.items?.item_name,
+        unit: entry?.items?.unit,
+        currentQuantity: entry ? (entry.beginning_qty + entry.add_qty - entry.sales_am - entry.sales_pm) : undefined,
+        currentCategoryId: entry?.items ? (entry.items as any).category_id : undefined,
+        currentCategoryName: entry ? (entry.items as any)?.category_name : undefined,
+        categories: dbCategories.map(c => ({ id: c.id, name: c.name })),
+      },
+    });
+  };
 
   // Station navigation scroll container ref & wheel handler
   const pillsContainerRef = useRef<HTMLDivElement>(null);
@@ -479,7 +507,7 @@ export function InventorySheet({ session, isReadOnly, date, isCorrectionMode }: 
             <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${station.badgeClass}`}>
               {tableItems.length} items
             </span>
-            {!isReadOnly && !isOtherSupplies && (
+            {canEditStructure && !isReadOnly && !isOtherSupplies && (
               <>
                 <Button
                   type="button"
@@ -504,7 +532,7 @@ export function InventorySheet({ session, isReadOnly, date, isCorrectionMode }: 
                 </Button>
               </>
             )}
-            {!isReadOnly && isOtherSupplies && (
+            {canEditStructure && !isReadOnly && isOtherSupplies && (
               <Button
                 type="button"
                 size="sm"
@@ -560,18 +588,29 @@ export function InventorySheet({ session, isReadOnly, date, isCorrectionMode }: 
                 </TableHeader>
                 <TableBody>
                   {tableItems.map((item, index) => (
-                    <InventoryRow 
-                      key={item.id} 
-                      item={item} 
-                      index={index} 
+                    <InventoryRow
+                      key={item.id}
+                      item={item}
+                      index={index}
                       isReadOnly={isReadOnly}
                       date={date}
                       isCorrectionMode={isCorrectionMode}
-                      onReassign={!isReadOnly ? (it) => { 
-                        setReassignItem(it); 
-                        setTargetStationId(dbCategories[0]?.id || ''); 
+                      canEditStructure={canEditStructure}
+                      onReassign={!isReadOnly ? (it) => {
+                        if (canEditStructure) {
+                          setReassignItem(it);
+                          setTargetStationId(dbCategories[0]?.id || '');
+                        } else {
+                          openStaffRequest('REASSIGN_TABLE', it);
+                        }
                       } : undefined}
-                      onRemoveFromSheet={!isReadOnly ? (it) => setItemToRemove(it) : undefined}
+                      onRemoveFromSheet={!isReadOnly ? (it) => {
+                        if (canEditStructure) {
+                          setItemToRemove(it);
+                        } else {
+                          openStaffRequest('REMOVE_FROM_SHEET', it);
+                        }
+                      } : undefined}
                     />
                   ))}
                 </TableBody>
@@ -604,7 +643,7 @@ export function InventorySheet({ session, isReadOnly, date, isCorrectionMode }: 
                 No items currently assigned to this table.
               </p>
             </div>
-            {!isReadOnly && (
+            {canEditStructure && !isReadOnly && (
               <Button
                 type="button"
                 size="sm"
@@ -620,6 +659,18 @@ export function InventorySheet({ session, isReadOnly, date, isCorrectionMode }: 
               >
                 <Plus className="w-3.5 h-3.5 mr-1" />
                 Add Item to {station.name}
+              </Button>
+            )}
+            {!canEditStructure && !isReadOnly && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => openStaffRequest('ADD_ITEM')}
+                className="text-xs font-bold"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Request New Item
               </Button>
             )}
           </div>
@@ -681,7 +732,7 @@ export function InventorySheet({ session, isReadOnly, date, isCorrectionMode }: 
           </Button>
         </div>
 
-        {!isReadOnly && (
+        {canEditStructure && !isReadOnly && (
           <Button
             type="button"
             size="sm"
@@ -690,6 +741,18 @@ export function InventorySheet({ session, isReadOnly, date, isCorrectionMode }: 
           >
             <Plus className="w-3.5 h-3.5 mr-1.5" />
             Add Station / Table
+          </Button>
+        )}
+        {!canEditStructure && !isReadOnly && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => openStaffRequest('ADD_CATEGORY')}
+            className="h-8 text-xs font-bold shrink-0 ml-2"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1.5" />
+            Request New Station
           </Button>
         )}
       </div>
@@ -1008,6 +1071,14 @@ export function InventorySheet({ session, isReadOnly, date, isCorrectionMode }: 
           isSubmitting={isSubmittingItem}
         />
       )}
+
+      {/* Staff request pipeline: every structural change goes to review */}
+      <StaffRequestModal
+        open={!!staffRequest}
+        onOpenChange={open => !open && setStaffRequest(null)}
+        requestType={staffRequest?.type || 'ADD_ITEM'}
+        context={staffRequest?.context}
+      />
     </div>
   );
 }

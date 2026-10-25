@@ -31,11 +31,12 @@ import { LoginLockoutsTab } from '../components/LoginLockoutsTab';
 import { AssistedRecoveryQueue } from '../components/AssistedRecoveryQueue';
 import { ErrorState } from '@/components/common/ErrorState';
 import { CorrectionRequestsQueue } from '@/features/daily-inventory/components/CorrectionRequestsQueue';
+import { StaffChangeRequestsQueue } from '@/features/daily-inventory/components/StaffChangeRequestsQueue';
 import { MyProfileModal } from '../components/MyProfileModal';
 
 interface ProfileRow {
   id: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | 'USER';
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'STAFF';
   display_name: string | null;
   created_at: string;
 }
@@ -63,8 +64,8 @@ export function AdminPage() {
   }, [urlTab, isSuperAdmin, navigate, setSearchParams]);
 
   const allowedTabs = isAdmin
-    ? ['account', 'restaurant', 'users', 'lockouts', 'corrections', 'notifications', 'activity', 'about'] 
-    : ['account', 'restaurant', 'about'];
+    ? ['account', 'restaurant', 'users', 'lockouts', 'corrections', 'requests', 'notifications', 'activity', 'about']
+    : ['account', 'about'];
 
   const activeTab = (urlTab && allowedTabs.includes(urlTab))
     ? urlTab
@@ -306,8 +307,8 @@ export function AdminPage() {
     email: string;
     password: string;
     displayName: string;
-    role: 'USER' | 'ADMIN';
-  }>({ email: '', password: '', displayName: '', role: 'USER' });
+    role: 'STAFF' | 'ADMIN';
+  }>({ email: '', password: '', displayName: '', role: 'STAFF' });
   const [addError, setAddError] = useState<string | null>(null);
 
   // Fetch real users from public.profiles
@@ -334,7 +335,7 @@ export function AdminPage() {
   // Toggle role mutation
   const [roleActionError, setRoleActionError] = useState<Error | { message: string } | null>(null);
   const toggleRoleMutation = useMutation({
-    mutationFn: async ({ userId, newRole }: { userId: string; newRole: 'ADMIN' | 'USER' }) => {
+    mutationFn: async ({ userId, newRole }: { userId: string; newRole: 'ADMIN' | 'STAFF' }) => {
       const { error } = await supabase.rpc('admin_update_user_role', {
         p_user_id: userId,
         p_role: newRole,
@@ -389,7 +390,7 @@ export function AdminPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles-admin'] });
       setIsAddUserOpen(false);
-      setNewUser({ email: '', password: '', displayName: '', role: 'USER' });
+      setNewUser({ email: '', password: '', displayName: '', role: 'STAFF' });
     },
     onError: (err: Error) => {
       setAddError(err.message || 'Failed to create user');
@@ -468,6 +469,9 @@ export function AdminPage() {
               </TabsTrigger>
               <TabsTrigger value="corrections" className="font-semibold text-xs sm:text-sm">
                 <ClipboardList className="w-4 h-4 mr-2" /> Finalized Corrections
+              </TabsTrigger>
+              <TabsTrigger value="requests" className="font-semibold text-xs sm:text-sm">
+                <ClipboardList className="w-4 h-4 mr-2" /> Staff Requests
               </TabsTrigger>
               <TabsTrigger value="notifications" className="font-semibold text-xs sm:text-sm">
                 <Bell className="w-4 h-4 mr-2" /> Preferences & Alerts
@@ -835,12 +839,12 @@ export function AdminPage() {
                                 value={u.role}
                                 onChange={(e) => toggleRoleMutation.mutate({ 
                                    userId: u.id, 
-                                   newRole: e.target.value as 'USER' | 'ADMIN' 
+                                   newRole: e.target.value as 'STAFF' | 'ADMIN' 
                                 })}
                                 disabled={toggleRoleMutation.isPending}
                                 className="h-8 px-2 bg-card border border-border text-foreground rounded text-xs font-semibold outline-none cursor-pointer"
                               >
-                                <option value="USER">Staff</option>
+                                <option value="STAFF">Staff</option>
                                 <option 
                                   value="ADMIN" 
                                   disabled={users.filter(x => x.role === 'ADMIN').length >= 3 && u.role !== 'ADMIN'}
@@ -855,7 +859,7 @@ export function AdminPage() {
                                 variant="outline" 
                                 size="sm" 
                                 className="text-xs font-bold border-border text-foreground hover:bg-muted"
-                                onClick={() => toggleRoleMutation.mutate({ userId: u.id, newRole: isTargetAdmin ? 'USER' : 'ADMIN' })}
+                                onClick={() => toggleRoleMutation.mutate({ userId: u.id, newRole: isTargetAdmin ? 'STAFF' : 'ADMIN' })}
                                 disabled={toggleRoleMutation.isPending || (!isTargetAdmin && users.filter(x => x.role === 'ADMIN').length >= 3)}
                               >
                                 {isTargetAdmin ? 'Demote to Staff' : users.filter(x => x.role === 'ADMIN').length >= 3 ? 'Admin Quota Full (3/3)' : 'Promote to Admin'}
@@ -1542,6 +1546,9 @@ export function AdminPage() {
             <TabsContent value="corrections" className="space-y-6">
               <CorrectionRequestsQueue />
             </TabsContent>
+            <TabsContent value="requests" className="space-y-6">
+              <StaffChangeRequestsQueue />
+            </TabsContent>
           </>
         )}
 
@@ -1615,10 +1622,10 @@ export function AdminPage() {
               </div>
               <select 
                 value={newUser.role}
-                onChange={e => setNewUser({ ...newUser, role: e.target.value as 'USER' | 'ADMIN' })}
+                onChange={e => setNewUser({ ...newUser, role: e.target.value as 'STAFF' | 'ADMIN' })}
                 className="w-full h-11 px-3 py-2 bg-card border border-border text-foreground rounded-md text-sm font-semibold outline-none cursor-pointer"
               >
-                <option value="USER">Staff / Operator (Worksheet entry)</option>
+                <option value="STAFF">Staff / Operator (Worksheet entry)</option>
                 <option 
                   value="ADMIN" 
                   disabled={!isSuperAdmin || users.filter(u => u.role === 'ADMIN').length >= 3}

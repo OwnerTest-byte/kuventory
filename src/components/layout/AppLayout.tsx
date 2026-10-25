@@ -212,21 +212,28 @@ function SidebarNavigation({
   const isSuperUser = role === 'SUPER_ADMIN';
   const unreadCount = useUnreadNotificationsCount();
 
+  // STAFF workspace scope: the daily worksheet is their job; Reports (read +
+  // export), Notifications, and Account complete their navigation. The
+  // admin-only destinations are also route-guarded (RequireStaffRedirect).
+  const staffNavNames = ['Daily Inventory', 'Reports', 'Notifications', 'Settings'];
+
   const navList = [
-    ...primaryNav.map((item) => {
-      if (item.name === 'Notifications' && unreadCount > 0) {
-        return {
-          ...item,
-          badge: unreadCount > 99 ? '99+' : String(unreadCount),
-        };
-      }
-      return item;
-    }),
-    ...(isSuperUser ? [{ 
-      name: 'Super Admin', 
-      to: '/super-admin', 
-      icon: Crown, 
-      badge: 'ROOT' 
+    ...primaryNav
+      .filter(item => role === 'ADMIN' || role === 'SUPER_ADMIN' || staffNavNames.includes(item.name))
+      .map((item) => {
+        if (item.name === 'Notifications' && unreadCount > 0) {
+          return {
+            ...item,
+            badge: unreadCount > 99 ? '99+' : String(unreadCount),
+          };
+        }
+        return item;
+      }),
+    ...(isSuperUser ? [{
+      name: 'Super Admin',
+      to: '/super-admin',
+      icon: Crown,
+      badge: 'ROOT'
     }] : [])
   ];
 

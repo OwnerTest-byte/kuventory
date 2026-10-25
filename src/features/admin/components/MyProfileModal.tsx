@@ -274,7 +274,7 @@ export function MyProfileModal({ open, onOpenChange }: MyProfileModalProps) {
               <div className="flex items-center gap-2">
                 <span className="font-bold text-lg text-foreground">{displayName || user?.email || 'User'}</span>
                 <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-                  {profile?.role || 'USER'}
+                  {profile?.role || 'STAFF'}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground flex items-center gap-1.5">

@@ -13,16 +13,20 @@ interface InventoryRowProps {
   isReadOnly: boolean;
   date: string;
   isCorrectionMode?: boolean;
+  /** False for STAFF: BEG becomes read-only (server-derived) and the row
+      buttons submit change requests instead of direct actions. */
+  canEditStructure?: boolean;
   onReassign?: (item: DailyEntry) => void;
   onRemoveFromSheet?: (item: DailyEntry) => void;
 }
 
-export const InventoryRow = memo(function InventoryRow({ 
-  item, 
-  index, 
-  isReadOnly, 
+export const InventoryRow = memo(function InventoryRow({
+  item,
+  index,
+  isReadOnly,
   date,
   isCorrectionMode,
+  canEditStructure = true,
   onReassign,
   onRemoveFromSheet
 }: InventoryRowProps) {
@@ -194,10 +198,10 @@ export const InventoryRow = memo(function InventoryRow({
                 type="button"
                 onClick={() => onReassign(item)}
                 className="text-[10px] text-primary hover:underline font-semibold flex items-center gap-1 bg-primary/10 hover:bg-primary/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
-                title="Reassign item to another daily inventory station"
+                title={canEditStructure ? "Reassign item to another daily inventory station" : "Request to reassign this item to another station (admin review required)"}
               >
                 <ArrowRightLeft className="w-2.5 h-2.5" />
-                Reassign Table
+                {canEditStructure ? 'Reassign Table' : 'Request Reassign'}
               </button>
             )}
             {onRemoveFromSheet && (
@@ -205,27 +209,28 @@ export const InventoryRow = memo(function InventoryRow({
                 type="button"
                 onClick={() => onRemoveFromSheet(item)}
                 className="text-[10px] text-rose-500 hover:underline font-semibold flex items-center gap-1 bg-rose-500/10 hover:bg-rose-500/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
-                title="Remove from this worksheet without deleting item from catalog"
+                title={canEditStructure ? "Remove from this worksheet without deleting item from catalog" : "Request removal of this entry from the worksheet (admin review required)"}
               >
                 <Trash2 className="w-2.5 h-2.5" />
-                Remove
+                {canEditStructure ? 'Remove' : 'Request Remove'}
               </button>
             )}
           </div>
         </TableCell>
         
-        {/* BEG */}
+        {/* BEG — server-derived; STAFF see it read-only (structure is admin work) */}
         <TableCell className="p-2 bg-muted/20 border-r border-border/60">
-          <input 
-            type="number" 
+          <input
+            type="number"
             min="0"
             step="any"
-            value={beg} 
+            value={beg}
             onFocus={() => setFocusedField('beg')}
             onChange={e => handleInputChange('beg', e.target.value)}
             onBlur={() => handleBlur('beg')}
             onKeyDown={e => handleKeyDown(e, 'beg')}
-            disabled={isReadOnly}
+            disabled={isReadOnly || !canEditStructure}
+            title={!canEditStructure && !isReadOnly ? 'Beginning counts are set by the system and adjusted by administrators' : undefined}
             className={inputClass}
             aria-label={`${item.items?.item_name} Beginning Quantity`}
           />

@@ -9,6 +9,10 @@ export function LoginPage() {
   const { session, role, isLoading } = useAuth();
   const [legalType, setLegalType] = useState<'privacy' | 'terms' | null>(null);
   const location = useLocation();
+  // RequireAuth passes the page the user was bounced from; its presence after
+  // an authenticated redirect means the session ended unexpectedly (expired
+  // token, admin action) — explain it instead of a silent bounce.
+  const wasSignedOut = !session && !isLoading && !!location.state;
 
   if (isLoading) {
     return (
@@ -120,6 +124,14 @@ export function LoginPage() {
           
           {/* Centered Login Form Card */}
           <div className="w-full bg-card p-6 sm:p-8 rounded-2xl shadow-sm border border-border">
+            {wasSignedOut && (
+              <div
+                className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-700 dark:text-amber-300 font-medium text-left"
+                role="status"
+              >
+                You were signed out. Please sign in again to continue.
+              </div>
+            )}
             <LoginForm />
           </div>
         </div>

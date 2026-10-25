@@ -24,12 +24,12 @@ describe('KUVENTORY Role Model Cleanup & Admin-Only Correction Workflow Suite', 
 
   describe('1. Role Model Cleanup: Complete Retirement of Master Admin', () => {
     it('enforces SUPER_ADMIN as the highest canonical role and excludes MASTER_ADMIN from Role union', () => {
-      // Static typing assertion: validRoles only contains SUPER_ADMIN, ADMIN, USER
-      const canonicalRoles: Role[] = ['SUPER_ADMIN', 'ADMIN', 'USER'];
+      // Static typing assertion: validRoles only contains SUPER_ADMIN, ADMIN, STAFF
+      const canonicalRoles: Role[] = ['SUPER_ADMIN', 'ADMIN', 'STAFF'];
       expect(canonicalRoles).toHaveLength(3);
       expect(canonicalRoles).toContain('SUPER_ADMIN');
       expect(canonicalRoles).toContain('ADMIN');
-      expect(canonicalRoles).toContain('USER');
+      expect(canonicalRoles).toContain('STAFF');
 
       // @ts-expect-error MASTER_ADMIN must not be assignable to Role type
       const invalidRole: Role = 'MASTER_ADMIN';
@@ -39,8 +39,9 @@ describe('KUVENTORY Role Model Cleanup & Admin-Only Correction Workflow Suite', 
     it('formatRoleLabel maps SUPER_ADMIN to "Super Admin" and does not have an active MASTER_ADMIN branch', () => {
       expect(formatRoleLabel('SUPER_ADMIN')).toBe('Super Admin');
       expect(formatRoleLabel('ADMIN')).toBe('Admin');
-      expect(formatRoleLabel('USER')).toBe('Staff');
       expect(formatRoleLabel('STAFF')).toBe('Staff');
+      // The legacy pre-strict-roles value is still labeled safely
+      expect(formatRoleLabel('USER')).toBe('Staff');
       // Any retired or unrecognized role defaults safely to Staff
       expect(formatRoleLabel('MASTER_ADMIN')).toBe('Staff');
     });

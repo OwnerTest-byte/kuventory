@@ -176,3 +176,5 @@ graph TD
 | Session lease | `user_session_leases` | Realtime revocation listener + 20s heartbeat | UNKNOWN heartbeat → verifying banner (never terminates on transport failure) | Fail-open for availability, fail-closed for revocation |
 
 **Cross-cutting rules:** browser-local storage (`sessionStorage` recovery ticket, remember-me email) is a UX cache only — the database decides every outcome; realtime events trigger refetches whose responses are the trusted state; no credential, token, or security record is ever broadcast to unauthorized clients.
+| Staff change requests | `staff_change_requests` (RLS: own-or-admin SELECT, no client UPDATE) | Realtime `postgres_changes` → queue refetch (Live/Polling badge) + 30s | Approve applies in-transaction (FAILED on error — never fake success); Return/Reject require notes | Strict roles STAFF/ADMIN/SUPER_ADMIN; staff direct structural writes blocked by RLS + worksheet-edit trigger |
+

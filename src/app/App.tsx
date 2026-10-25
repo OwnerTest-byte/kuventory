@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/features/auth/context/AuthContext';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
-import { RequireAuth, RequireSuperAdmin } from '@/features/auth/components/RequireAuth';
+import { RequireAuth, RequireSuperAdmin, RequireStaffRedirect } from '@/features/auth/components/RequireAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { InventoryLandingPage } from '@/features/inventory/pages/InventoryLandingPage';
 import { Loader2 } from 'lucide-react';
@@ -68,11 +68,33 @@ export function App() {
           <Suspense fallback={<FallbackLoader />}><ResetPasswordPage /></Suspense>
         } />
 
-        {/* Protected Routes (USER + ADMIN) */}
+        {/* Protected Routes — STAFF scope: Daily Inventory (workspace),
+            Reports (read-only + export), Notifications, Account. Admin-only
+            routes redirect STAFF to /daily-inventory via RequireStaffRedirect. */}
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
-            <Route path="/inventory" element={<InventoryLandingPage />} />
-            
+            <Route element={<RequireStaffRedirect />}>
+              <Route path="/inventory" element={<InventoryLandingPage />} />
+              <Route path="/analytics" element={
+                <Suspense fallback={<FallbackLoader />}><AnalyticsPage /></Suspense>
+              } />
+              <Route path="/items" element={
+                <Suspense fallback={<FallbackLoader />}><ItemsCatalogPage /></Suspense>
+              } />
+              <Route path="/items/:id" element={
+                <Suspense fallback={<FallbackLoader />}><ItemDetailsPage /></Suspense>
+              } />
+              <Route path="/admin" element={
+                <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
+              } />
+            </Route>
+
+            {/* Settings stays reachable for STAFF: AdminPage restricts their
+                tabs to Account (own password) + About. */}
+            <Route path="/settings" element={
+              <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
+            } />
+
             <Route path="/daily-inventory" element={
               <Suspense fallback={<FallbackLoader />}><DailyInventoryPage /></Suspense>
             } />
@@ -108,14 +130,6 @@ export function App() {
             <Route path="/categories" element={<Navigate to="/items?tab=categories" replace />} />
             <Route path="/stock" element={<Navigate to="/items?tab=batches" replace />} />
             <Route path="/history" element={<Navigate to="/items?tab=history" replace />} />
-            
-            {/* Unified Settings & Administration (Adaptive role-based views for Staff and Admins) */}
-            <Route path="/settings" element={
-              <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
-            } />
-            <Route path="/admin" element={
-              <Suspense fallback={<FallbackLoader />}><AdminPage /></Suspense>
-            } />
 
             {/* Dedicated Standalone Super Admin Route */}
             <Route element={<RequireSuperAdmin />}>

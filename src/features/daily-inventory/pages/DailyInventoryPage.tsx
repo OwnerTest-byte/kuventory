@@ -4,6 +4,7 @@ import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useDailyInventory, useFinalizeDailyInventory, dailyInventoryKeys } from '../hooks/useDailyInventory';
 import { InventorySheet } from '../components/InventorySheet';
+import { MyRequestsPanel } from '../components/MyRequestsPanel';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { 
@@ -349,8 +350,8 @@ export function DailyInventoryPage() {
             </Button>
           )}
           
-          {!isFinalized && (
-            <Button 
+          {!isFinalized && isAdmin && (
+            <Button
               onClick={() => setShowFinalizeDialog(true)}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-xs cursor-pointer"
               disabled={isLoading || !record}
@@ -358,6 +359,11 @@ export function DailyInventoryPage() {
               <Lock className="w-4 h-4 mr-1.5" />
               Finalize Day
             </Button>
+          )}
+          {!isFinalized && !isAdmin && (
+            <span className="text-[11px] text-muted-foreground italic max-w-45 text-right hidden sm:block">
+              Finalization is performed by an administrator after review.
+            </span>
           )}
         </div>
       </div>
@@ -500,11 +506,17 @@ export function DailyInventoryPage() {
       )}
 
       {record && !isLoading && (
-        <InventorySheet 
-          session={record} 
-          isReadOnly={isFinalized} 
+        <InventorySheet
+          session={record}
+          isReadOnly={isFinalized}
           date={date}
+          canEditStructure={isAdmin}
         />
+      )}
+
+      {/* STAFF: their change requests with live decisions (own rows via RLS) */}
+      {!isAdmin && (
+        <MyRequestsPanel />
       )}
 
       {/* Two-Stage Approval Workflow: Correction Request Modal */}
@@ -815,7 +827,7 @@ export function DailyInventoryPage() {
             </Button>
           )}
 
-          {!isFinalized && (
+          {!isFinalized && isAdmin && (
             <Button
               size="sm"
               onClick={() => setShowFinalizeDialog(true)}

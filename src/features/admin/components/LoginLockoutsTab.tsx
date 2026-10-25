@@ -171,7 +171,7 @@ export function LoginLockoutsTab() {
               </thead>
               <tbody className="divide-y divide-border/60">
                 {lockedAccounts.map(acc => {
-                  const canUnlock = isSuperAdmin || acc.user_role === 'USER';
+                  const canUnlock = isSuperAdmin || acc.user_role === 'STAFF';
                   return (
                     <tr key={acc.id} className="hover:bg-muted/20 transition-colors">
                       <td className="px-4 py-3 font-medium text-foreground">

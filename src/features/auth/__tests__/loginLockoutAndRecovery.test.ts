@@ -252,7 +252,7 @@ describe('Login Lockout & Account Recovery Suite', () => {
             id: 'sec-1',
             email_lookup: 'locked-user@kuventory.com',
             email_masked: 'l***r@kuventory.com',
-            user_role: 'USER',
+            user_role: 'STAFF',
             failed_attempts: 5,
             locked_until: new Date(Date.now() + 1200 * 1000).toISOString(),
             lockout_status: 'ACTIVE',

@@ -34,7 +34,7 @@ describe('Zero-Trust Notification Security & Role Isolation', () => {
         const notif = createMockNotification(adminType);
         
         // Staff role ('USER') must be DENIED
-        expect(isAuthorizedForNotification(notif, staffUserId, 'USER')).toBe(false);
+        expect(isAuthorizedForNotification(notif, staffUserId, 'STAFF')).toBe(false);
       }
     );
 
@@ -60,7 +60,7 @@ describe('Zero-Trust Notification Security & Role Isolation', () => {
       'ALLOWS staff to view operational inventory notification type: %s',
       (opType) => {
         const notif = createMockNotification(opType);
-        expect(isAuthorizedForNotification(notif, staffUserId, 'USER')).toBe(true);
+        expect(isAuthorizedForNotification(notif, staffUserId, 'STAFF')).toBe(true);
       }
     );
 
@@ -76,37 +76,37 @@ describe('Zero-Trust Notification Security & Role Isolation', () => {
   describe('Direct Recipient Isolation (user_id targeting)', () => {
     it('allows staff to view notification specifically targeted to their user_id', () => {
       const targetedNotif = createMockNotification('DAILY_SHEET', staffUserId);
-      expect(isAuthorizedForNotification(targetedNotif, staffUserId, 'USER')).toBe(true);
+      expect(isAuthorizedForNotification(targetedNotif, staffUserId, 'STAFF')).toBe(true);
     });
 
     it('DENIES staff from viewing a notification explicitly targeted to another user', () => {
       const targetedToOther = createMockNotification('DAILY_SHEET', otherStaffUserId);
-      expect(isAuthorizedForNotification(targetedToOther, staffUserId, 'USER')).toBe(false);
+      expect(isAuthorizedForNotification(targetedToOther, staffUserId, 'STAFF')).toBe(false);
     });
 
     it('DENIES staff from viewing an admin notification even if targeted to their user_id', () => {
       // Even if a password reset ticket references the staff user's ID, staff must NOT view the administrative alert
       const adminNotif = createMockNotification('PASSWORD_RESET', staffUserId);
-      expect(isAuthorizedForNotification(adminNotif, staffUserId, 'USER')).toBe(false);
+      expect(isAuthorizedForNotification(adminNotif, staffUserId, 'STAFF')).toBe(false);
     });
   });
 
   describe('Fail-Closed and Edge Case Validation', () => {
     it('DENIES any notification when user is unauthenticated (null or empty)', () => {
       const notif = createMockNotification('LOW_STOCK');
-      expect(isAuthorizedForNotification(notif, null, 'USER')).toBe(false);
-      expect(isAuthorizedForNotification(notif, undefined, 'USER')).toBe(false);
-      expect(isAuthorizedForNotification(notif, '', 'USER')).toBe(false);
+      expect(isAuthorizedForNotification(notif, null, 'STAFF')).toBe(false);
+      expect(isAuthorizedForNotification(notif, undefined, 'STAFF')).toBe(false);
+      expect(isAuthorizedForNotification(notif, '', 'STAFF')).toBe(false);
     });
 
     it('DENIES when notification object is null or undefined', () => {
-      expect(isAuthorizedForNotification(null, staffUserId, 'USER')).toBe(false);
-      expect(isAuthorizedForNotification(undefined, staffUserId, 'USER')).toBe(false);
+      expect(isAuthorizedForNotification(null, staffUserId, 'STAFF')).toBe(false);
+      expect(isAuthorizedForNotification(undefined, staffUserId, 'STAFF')).toBe(false);
     });
 
     it('DENIES unknown/unregistered notification types to staff (least-privilege principle)', () => {
       const unknownNotif = createMockNotification('UNKNOWN_NEW_ALERT_TYPE');
-      expect(isAuthorizedForNotification(unknownNotif, staffUserId, 'USER')).toBe(false);
+      expect(isAuthorizedForNotification(unknownNotif, staffUserId, 'STAFF')).toBe(false);
     });
 
     it('allows unknown notification types to administrators (admin fallback)', () => {
@@ -126,7 +126,7 @@ describe('Zero-Trust Notification Security & Role Isolation', () => {
         createMockNotification('RECOVERY_REQUEST', null, '6'),
       ];
 
-      const filteredForStaff = filterAuthorizedNotifications(mixedList, staffUserId, 'USER');
+      const filteredForStaff = filterAuthorizedNotifications(mixedList, staffUserId, 'STAFF');
       
       expect(filteredForStaff.map(n => n.id)).toEqual(['1', '3', '5']);
       expect(filteredForStaff.some(n => n.type === 'PASSWORD_RESET')).toBe(false);
@@ -147,10 +147,10 @@ describe('Zero-Trust Notification Security & Role Isolation', () => {
     });
 
     it('returns empty array when input is invalid or user is unauthenticated', () => {
-      expect(filterAuthorizedNotifications(null, staffUserId, 'USER')).toEqual([]);
-      expect(filterAuthorizedNotifications(undefined, staffUserId, 'USER')).toEqual([]);
-      expect(filterAuthorizedNotifications([], staffUserId, 'USER')).toEqual([]);
-      expect(filterAuthorizedNotifications([createMockNotification('LOW_STOCK')], null, 'USER')).toEqual([]);
+      expect(filterAuthorizedNotifications(null, staffUserId, 'STAFF')).toEqual([]);
+      expect(filterAuthorizedNotifications(undefined, staffUserId, 'STAFF')).toEqual([]);
+      expect(filterAuthorizedNotifications([], staffUserId, 'STAFF')).toEqual([]);
+      expect(filterAuthorizedNotifications([createMockNotification('LOW_STOCK')], null, 'STAFF')).toEqual([]);
     });
   });
 });
